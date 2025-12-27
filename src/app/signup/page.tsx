@@ -203,10 +203,26 @@ export default function SignupPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Student Name */}
+              <div>
+                <label htmlFor="studentName" className="block text-sm font-bold text-frage-navy mb-2">
+                  자녀 한국이름 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="studentName"
+                  name="studentName"
+                  required
+                  value={formData.studentName}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
+                />
+              </div>
+
               {/* Passport English Name */}
               <div>
                 <label htmlFor="passportEnglishName" className="block text-sm font-bold text-frage-navy mb-2">
-                  여권 영문명 <span className="text-red-500">*</span>
+                  자녀 영문명 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -216,7 +232,7 @@ export default function SignupPage() {
                   maxLength={50}
                   placeholder="MINSEO KIM"
                   value={formData.passportEnglishName}
-                  onChange={(e) => handleChange({ ...e, target: { ...e.target, value: e.target.value.toUpperCase() } } as any)}
+                  onChange={(e) => setFormData(prev => ({ ...prev, passportEnglishName: e.target.value.toUpperCase() }))}
                   className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
                 />
                 <p className="text-xs text-slate-500 mt-1">영문 대문자/공백/하이픈만 허용, 최대 50자</p>
@@ -225,7 +241,7 @@ export default function SignupPage() {
               {/* English First Name */}
               <div>
                 <label htmlFor="englishFirstName" className="block text-sm font-bold text-frage-navy mb-2">
-                  영어 이름 <span className="text-red-500">*</span>
+                  자녀 영어이름 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -258,26 +274,10 @@ export default function SignupPage() {
                 <p className="text-xs text-slate-500 mt-1">형식: YYYY-MM-DD, 오늘 이전 날짜만 유효</p>
               </div>
 
-              {/* Student Name */}
-              <div>
-                <label htmlFor="studentName" className="block text-sm font-bold text-frage-navy mb-2">
-                  한국 이름 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="studentName"
-                  name="studentName"
-                  required
-                  value={formData.studentName}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
-                />
-              </div>
-
               {/* Parent Name */}
               <div>
                 <label htmlFor="parentName" className="block text-sm font-bold text-frage-navy mb-2">
-                  학부모님 이름 <span className="text-red-500">*</span>
+                  보호자 성함 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -293,7 +293,7 @@ export default function SignupPage() {
               {/* Phone Number */}
               <div>
                 <label htmlFor="phone" className="block text-sm font-bold text-frage-navy mb-2">
-                  학부모님 전화번호 <span className="text-red-500">*</span>
+                  보호자 전화번호 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"

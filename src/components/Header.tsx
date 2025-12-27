@@ -39,7 +39,7 @@ export default function Header() {
       <div className="container mx-auto px-6 max-w-[1400px]">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link href="/" prefetch={false} className="flex items-center gap-3 group">
             <div className={`h-12 w-auto transition-all ${isScrolled ? "opacity-100" : "opacity-90"}`}>
                <img 
                  src="/logo.png" 
@@ -55,6 +55,7 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
+                prefetch={false}
                 className={`text-sm font-medium tracking-[0.15em] uppercase transition-all duration-300 hover:text-frage-gold ${
                   isScrolled ? "text-frage-navy" : "text-white/90 hover:text-white"
                 }`}
@@ -78,6 +79,7 @@ export default function Header() {
             
             <Link
               href="/portal"
+              prefetch={false}
               className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold tracking-widest uppercase transition-colors ${
                 isScrolled ? "text-frage-gray hover:text-frage-navy bg-transparent" : "text-white/80 hover:text-white bg-transparent"
               } min-h-[48px]`}
@@ -112,6 +114,7 @@ export default function Header() {
         <div className="md:hidden absolute top-full left-0 right-0 bg-white border-b border-slate-100 shadow-lg p-4 flex flex-col gap-4 animate-in slide-in-from-top-2">
           <Link
             href="/portal"
+            prefetch={false}
             className="flex items-center gap-3 px-4 py-3 rounded-xl bg-frage-navy text-white min-h-[48px]"
             onClick={() => setMobileMenuOpen(false)}
           >
@@ -122,6 +125,7 @@ export default function Header() {
             <Link
               key={link.href}
               href={link.href}
+              prefetch={false}
               className="text-lg font-medium text-slate-700 py-2 border-b border-slate-50 last:border-0"
               onClick={() => setMobileMenuOpen(false)}
             >
