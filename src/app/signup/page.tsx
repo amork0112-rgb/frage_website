@@ -24,6 +24,8 @@ export default function SignupPage() {
     studentName: "",
     parentName: "",
     phone: "",
+    id: "",
+    password: "",
     address: "",
     addressDetail: "",
     privacyAgreed: false
@@ -137,6 +139,17 @@ export default function SignupPage() {
       return;
     }
 
+    const idOk = /^[a-zA-Z0-9]{4,20}$/.test(formData.id.trim());
+    if (!idOk) {
+      alert("아이디는 영문/숫자 4~20자만 허용됩니다.");
+      return;
+    }
+    const pwOk = /^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{6,30}$/.test(formData.password);
+    if (!pwOk) {
+      alert("비밀번호는 영문+숫자 조합 6~30자여야 합니다. 특수문자 제외");
+      return;
+    }
+
     setLoading(true);
 
     // Simulate API call
@@ -147,6 +160,8 @@ export default function SignupPage() {
         const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
         const nextProfiles = Array.isArray(profiles) ? profiles : [];
         nextProfiles.push({
+          id: formData.id.trim(),
+          password: formData.password,
           studentName: formData.studentName.trim(),
           parentName: formData.parentName.trim(),
           phone: formData.phone.trim(),
@@ -156,17 +171,27 @@ export default function SignupPage() {
           createdAt: new Date().toISOString()
         });
         localStorage.setItem("signup_profiles", JSON.stringify(nextProfiles));
+        localStorage.setItem("signup_account", JSON.stringify({
+          id: formData.id.trim(),
+          password: formData.password
+        }));
+        localStorage.setItem("portal_account", JSON.stringify({
+          id: formData.id.trim(),
+          password: formData.password
+        }));
+        localStorage.setItem("portal_role", "parent");
         localStorage.setItem("portal_parent_profile", JSON.stringify({
           parentName: formData.parentName.trim(),
           phone: formData.phone.trim()
         }));
-        localStorage.setItem("needs_child_setup", "true");
+        localStorage.setItem("needs_child_setup", "false");
       } catch {}
       // Call backend API (stub)
       fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: formData.id.trim(),
           studentName: formData.studentName.trim(),
           parentName: formData.parentName.trim(),
           phone: formData.phone.trim(),
@@ -178,7 +203,7 @@ export default function SignupPage() {
         })
       }).catch(() => {});
       alert("회원가입이 완료되었습니다!");
-      router.push("/portal");
+      router.push("/portal/home");
     }, 1000);
   };
 
@@ -302,6 +327,42 @@ export default function SignupPage() {
                   required
                   placeholder="010-0000-0000"
                   value={formData.phone}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
+                />
+              </div>
+
+              {/* Account ID */}
+              <div>
+                <label htmlFor="id" className="block text-sm font-bold text-frage-navy mb-2">
+                  아이디 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="id"
+                  name="id"
+                  required
+                  maxLength={20}
+                  placeholder="영문/숫자 4~20자"
+                  value={formData.id}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
+                />
+              </div>
+
+              {/* Account Password */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-bold text-frage-navy mb-2">
+                  비밀번호 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  required
+                  maxLength={30}
+                  placeholder="영문+숫자 6~30자"
+                  value={formData.password}
                   onChange={handleChange}
                   className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
                 />
