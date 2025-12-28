@@ -25,14 +25,15 @@ export default function PortalPage() {
     // Mock Login Logic
     setTimeout(() => {
       const uid = id.trim();
+      const uidLower = uid.toLowerCase();
       const pw = password.trim();
-      if (uid === "admin" && pw === "frage1234") {
+      if (uidLower === "admin" && pw === "frage1234") {
         router.push("/admin");
-      } else if (uid === "teacher" && pw === "teacher1234") {
+      } else if (uidLower === "teacher" && pw === "teacher1234") {
         router.push("/teacher/students");
-      } else if (uid === "student" && pw === "student1234") {
+      } else if (uidLower === "student" && pw === "student1234") {
         try {
-          localStorage.setItem("portal_account", JSON.stringify({ id: uid, password: pw }));
+          localStorage.setItem("portal_account", JSON.stringify({ id: uidLower, password: pw }));
           const needsSetup = localStorage.getItem("needs_child_setup");
           if (needsSetup === "true") {
             router.push("/portal/child");
@@ -49,11 +50,11 @@ export default function PortalPage() {
           const profiles = profilesRaw ? JSON.parse(profilesRaw) : [];
           const matchSignup = saved ? JSON.parse(saved) : null;
           const matched =
-            (matchSignup && String(matchSignup.id || "").trim() === uid && String(matchSignup.password || "").trim() === pw) ||
-            (Array.isArray(profiles) && profiles.some((p: any) => String(p.id || "").trim() === uid && String(p.password || "").trim() === pw));
+            (matchSignup && String(matchSignup.id || "").trim().toLowerCase() === uidLower && String(matchSignup.password || "").trim() === pw) ||
+            (Array.isArray(profiles) && profiles.some((p: any) => String(p.id || "").trim().toLowerCase() === uidLower && String(p.password || "").trim() === pw));
 
           if (matched) {
-            localStorage.setItem("portal_account", JSON.stringify({ id: uid, password: pw }));
+            localStorage.setItem("portal_account", JSON.stringify({ id: uidLower, password: pw }));
             localStorage.setItem("portal_role", "parent");
             localStorage.setItem("needs_child_setup", "false");
             router.push("/portal/home");
@@ -62,7 +63,7 @@ export default function PortalPage() {
           // Fallback: already logged-in account stored earlier
           const portalAccRaw = localStorage.getItem("portal_account");
           const portalAcc = portalAccRaw ? JSON.parse(portalAccRaw) : null;
-          if (portalAcc && String(portalAcc.id || "").trim() === uid && String(portalAcc.password || "").trim() === pw) {
+          if (portalAcc && String(portalAcc.id || "").trim().toLowerCase() === uidLower && String(portalAcc.password || "").trim() === pw) {
             localStorage.setItem("portal_role", "parent");
             router.push("/portal/home");
             return;
