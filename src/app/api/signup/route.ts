@@ -5,6 +5,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       studentName,
+      gender,
       parentName,
       phone,
       address,
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
 
     if (
       !studentName ||
+      (gender !== "M" && gender !== "F") ||
       !parentName ||
       !phone ||
       !passportEnglishName ||

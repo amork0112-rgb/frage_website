@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PortalHeader from "@/components/PortalHeader";
 import { Calendar, Clock, Bus, Pill, Send } from "lucide-react";
 
@@ -10,63 +10,59 @@ export default function RequestsPage() {
   const [selectedType, setSelectedType] = useState<RequestType | null>(null);
   const [loading, setLoading] = useState(false);
   const [submittedText, setSubmittedText] = useState<string>("");
-  const [recentRequests, setRecentRequests] = useState<
-    { date: string; type: RequestType }[]
-  >([
-    { date: "2025-04-18", type: "absence" },
-    { date: "2025-04-15", type: "bus_change" },
-  ]);
-
-  const children = [
-    { id: "c1", name: "Emma Kim" },
-    { id: "c2", name: "Minseo Kim" },
-  ];
-  const [selectedChildId, setSelectedChildId] = useState(children[0].id);
+  const [recentRequests, setRecentRequests] = useState<{ date: string; type: RequestType }[]>([]);
+  const [children, setChildren] = useState<{ id: string; name: string }[]>([]);
+  const [selectedChildId, setSelectedChildId] = useState<string>("");
   const selectedChild = useMemo(
-    () => children.find((c) => c.id === selectedChildId)!,
-    [selectedChildId]
+    () => children.find((c) => c.id === selectedChildId) || children[0] || { id: "", name: "자녀" },
+    [children, selectedChildId]
   );
 
-  const [absenceDate, setAbsenceDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  useEffect(() => {
+    try {
+      const rawAcc = localStorage.getItem("portal_account");
+      const acc = rawAcc ? JSON.parse(rawAcc) : {};
+      const accId = acc?.id || localStorage.getItem("portal_student_id") || "s8";
+      let childName = "자녀";
+      try {
+        const profilesRaw = localStorage.getItem("signup_profiles");
+        const profiles = profilesRaw ? JSON.parse(profilesRaw) : [];
+        const match = Array.isArray(profiles)
+          ? profiles.find((p: any) => String(p.id || "").trim().toLowerCase() === String(accId || "").trim().toLowerCase())
+          : null;
+        if (match) childName = String(match.studentName || childName);
+      } catch {}
+      const arr = [{ id: accId, name: childName }];
+      setChildren(arr);
+      setSelectedChildId(arr[0].id);
+    } catch {}
+    try {
+      const raw = localStorage.getItem("portal_requests");
+      const list = raw ? JSON.parse(raw) : [];
+      const recent = Array.isArray(list)
+        ? list.slice(0, 5).map((it: any) => ({ date: String(it.dateStart || it.createdAt || ""), type: String(it.type || "absence") as RequestType }))
+        : [];
+      setRecentRequests(recent);
+    } catch {}
+  }, []);
+
+  const [absenceDate, setAbsenceDate] = useState(new Date().toISOString().split("T")[0]);
   const [absenceReason, setAbsenceReason] = useState("");
-
-  const [pickupDate, setPickupDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [pickupDate, setPickupDate] = useState(new Date().toISOString().split("T")[0]);
   const [pickupTime, setPickupTime] = useState("");
   const [pickupNote, setPickupNote] = useState("");
-
-  const [busDate, setBusDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
-  const [busChangeType, setBusChangeType] = useState<
-    "no_bus" | "pickup_change" | "dropoff_change"
-  >("no_bus");
+  const [busDate, setBusDate] = useState(new Date().toISOString().split("T")[0]);
+  const [busChangeType, setBusChangeType] = useState<"no_bus" | "pickup_change" | "dropoff_change">("no_bus");
   const [busNote, setBusNote] = useState("");
-
-  const [medStart, setMedStart] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [medStart, setMedStart] = useState(new Date().toISOString().split("T")[0]);
   const [medEnd, setMedEnd] = useState(new Date().toISOString().split("T")[0]);
   const [medName, setMedName] = useState("");
   const [medInstructions, setMedInstructions] = useState("");
 
   const formatRecentLabel = (dateStr: string, type: RequestType) => {
     const d = new Date(dateStr);
-    const formatted = new Intl.DateTimeFormat("ko-KR", {
-      month: "long",
-      day: "numeric",
-    }).format(d);
-    const typeLabel =
-      type === "absence"
-        ? "결석"
-        : type === "early_pickup"
-        ? "조기하원"
-        : type === "bus_change"
-        ? "차량 변경"
-        : "투약";
+    const formatted = new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric" }).format(d);
+    const typeLabel = type === "absence" ? "결석" : type === "early_pickup" ? "조기하원" : type === "bus_change" ? "차량 변경" : "투약";
     return `${formatted} • ${typeLabel} • 제출됨`;
   };
 
@@ -89,23 +85,11 @@ export default function RequestsPage() {
           childName: selectedChild.name,
           type: selectedType,
           dateStart:
-            selectedType === "medication"
-              ? medStart
-              : selectedType === "bus_change"
-              ? busDate
-              : selectedType === "early_pickup"
-              ? pickupDate
-              : absenceDate,
+            selectedType === "medication" ? medStart : selectedType === "bus_change" ? busDate : selectedType === "early_pickup" ? pickupDate : absenceDate,
           dateEnd: selectedType === "medication" ? medEnd : undefined,
           time: selectedType === "early_pickup" ? pickupTime : undefined,
           note:
-            selectedType === "absence"
-              ? absenceReason
-              : selectedType === "early_pickup"
-              ? pickupNote
-              : selectedType === "bus_change"
-              ? busNote
-              : medInstructions,
+            selectedType === "absence" ? absenceReason : selectedType === "early_pickup" ? pickupNote : selectedType === "bus_change" ? busNote : medInstructions,
           changeType: selectedType === "bus_change" ? busChangeType : undefined,
           medName: selectedType === "medication" ? medName : undefined,
           createdAt: new Date().toISOString(),
@@ -127,9 +111,7 @@ export default function RequestsPage() {
       <main className="px-4 py-6 max-w-xl mx-auto space-y-8">
         <section>
           <h1 className="text-2xl font-bold text-slate-800">요청 전달</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            결석, 조기하원, 차량 변경, 투약 요청을 학원에 전달할 수 있습니다.
-          </p>
+          <p className="text-slate-500 text-sm mt-1">결석, 조기하원, 차량 변경, 투약 요청을 학원에 전달할 수 있습니다.</p>
         </section>
 
         <section className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
@@ -145,6 +127,7 @@ export default function RequestsPage() {
                   {c.name}
                 </option>
               ))}
+              {children.length === 0 && <option value="">자녀</option>}
             </select>
           </div>
         </section>

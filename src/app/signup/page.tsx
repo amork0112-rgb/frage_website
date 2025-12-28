@@ -22,6 +22,7 @@ export default function SignupPage() {
     englishFirstName: "",
     childBirthDate: "",
     studentName: "",
+    gender: "",
     parentName: "",
     phone: "",
     id: "",
@@ -134,6 +135,10 @@ export default function SignupPage() {
       alert("한국 이름은 한글과 공백만 입력 가능합니다.");
       return;
     }
+    if (formData.gender !== "M" && formData.gender !== "F") {
+      alert("자녀 성별을 선택해 주세요.");
+      return;
+    }
     if (!formData.studentName.trim()) {
       alert("한국 이름을 입력해 주세요.");
       return;
@@ -163,6 +168,7 @@ export default function SignupPage() {
           id: formData.id.trim().toLowerCase(),
           password: formData.password.trim(),
           studentName: formData.studentName.trim(),
+          gender: formData.gender,
           parentName: formData.parentName.trim(),
           phone: formData.phone.trim(),
           passportEnglishName: formData.passportEnglishName.trim(),
@@ -193,6 +199,7 @@ export default function SignupPage() {
         body: JSON.stringify({
           id: formData.id.trim(),
           studentName: formData.studentName.trim(),
+          gender: formData.gender,
           parentName: formData.parentName.trim(),
           phone: formData.phone.trim(),
           address: formData.address.trim(),
@@ -297,6 +304,33 @@ export default function SignupPage() {
                   className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
                 />
                 <p className="text-xs text-slate-500 mt-1">형식: YYYY-MM-DD, 오늘 이전 날짜만 유효</p>
+              </div>
+
+              {/* Gender */}
+              <div>
+                <span className="block text-sm font-bold text-frage-navy mb-2">자녀 성별 <span className="text-red-500">*</span></span>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="gender"
+                      value="M"
+                      checked={formData.gender === "M"}
+                      onChange={handleChange}
+                    />
+                    <span className="text-sm font-bold text-frage-navy">남</span>
+                  </label>
+                  <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="gender"
+                      value="F"
+                      checked={formData.gender === "F"}
+                      onChange={handleChange}
+                    />
+                    <span className="text-sm font-bold text-frage-navy">여</span>
+                  </label>
+                </div>
               </div>
 
               {/* Parent Name */}

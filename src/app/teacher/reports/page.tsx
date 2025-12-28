@@ -126,6 +126,15 @@ export default function TeacherReportsPage() {
         setOverall("");
         setParticipation("");
         setVideoSummary("");
+        try {
+          const profilesRaw = localStorage.getItem("signup_profiles");
+          const profiles = profilesRaw ? JSON.parse(profilesRaw) : [];
+          const match = Array.isArray(profiles)
+            ? profiles.find((p: any) => String(p.id || "").trim().toLowerCase() === String(selected.id || "").trim().toLowerCase())
+            : null;
+          const g = match?.gender;
+          if (g === "M" || g === "F") setGender(g);
+        } catch {}
       }
       try {
         const v = localStorage.getItem(`student_video_${selected.id}`);
@@ -609,7 +618,7 @@ export default function TeacherReportsPage() {
                     </div>
                     <div className="rounded-lg border border-slate-200 shadow-sm p-2">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="text-[11px] font-bold text-slate-500">Teacher's Feedback</div>
+                        <div className="text-[11px] font-bold text-slate-500">Teacher&apos;s Feedback</div>
                         <button onClick={draftVideoSummary} className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold bg-white">Auto Comment</button>
                       </div>
                       <textarea

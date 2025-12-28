@@ -1,81 +1,105 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PortalHeader from "@/components/PortalHeader";
 import Link from "next/link";
 import { PlayCircle, CheckCircle, Clock, ChevronRight, Video, ChevronDown, ChevronUp, Star, MessageSquare } from "lucide-react";
 
 export default function VideoListPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [homeworkList, setHomeworkList] = useState<Array<{
+    id: string;
+    title: string;
+    module: string;
+    dueDate: string;
+    status: "Pending" | "Submitted" | "Reviewed";
+    isToday?: boolean;
+    score?: string | null;
+    feedback?: {
+      overall_message: string;
+      strengths: string[];
+      focus_point: string;
+      next_try_guide: string;
+      details: Record<string, string>;
+    } | null;
+  }>>([]);
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
   };
 
-  // Mock Data
-  const homeworkList = [
-    {
-      id: "hw_124",
-      title: "Into Reading 1.3",
-      module: "[Module 5-2] Day 19",
-      dueDate: "2024-09-19",
-      status: "Pending", // Pending, Submitted, Reviewed
-      isToday: true,
-      score: null,
-      feedback: null
-    },
-    {
-      id: "hw_123",
-      title: "Into Reading 1.3",
-      module: "[Module 5-1] Day 18",
-      dueDate: "2024-09-18",
-      status: "Reviewed",
-      score: "Excellent",
-      feedback: {
-        overall_message: "Clear effort and steady reading today.",
-        strengths: ["Clear voice throughout the reading", "Good focus from start to finish"],
-        focus_point: "Try to read without pausing mid-sentence.",
-        next_try_guide: "Read one page slowly while keeping your eyes on the text.",
-        details: {
-          Fluency: "Developing",
-          Volume: "Clear",
-          Speed: "Appropriate",
-          Pronunciation: "Mostly Accurate",
-          Performance: "Focused"
-        }
-      }
-    },
-    {
-      id: "hw_122",
-      title: "Into Reading 1.2",
-      module: "[Module 4-3] Day 15",
-      dueDate: "2024-09-15",
-      status: "Reviewed",
-      score: "Good Job",
-      feedback: {
-        overall_message: "Good effort on vocabulary. Remember to review the word list.",
-        strengths: ["Great memorization of new words."],
-        focus_point: "Pronunciation of 'r' needs more practice.",
-        next_try_guide: "Practice the vocabulary sentences at home.",
-        details: {
-          Fluency: "Needs Support",
-          Volume: "Clear",
-          Speed: "Too Fast",
-          Pronunciation: "Developing",
-          Performance: "Inconsistent"
-        }
-      }
-    },
-    {
-      id: "hw_121",
-      title: "Into Reading 1.2",
-      module: "[Module 4-2] Day 14",
-      dueDate: "2024-09-14",
-      status: "Submitted",
-      score: null,
-      feedback: null
+  const mapScore = (n: number, type: "fluency" | "volume" | "speed" | "pronunciation" | "performance") => {
+    if (type === "volume") return n >= 4 ? "Strong" : n === 3 ? "Clear" : n === 2 ? "Developing" : "Needs Support";
+    if (type === "speed") return n >= 4 ? "Natural" : n === 3 ? "Appropriate" : n === 2 ? "Developing" : "Too Slow";
+    if (type === "pronunciation") return n >= 4 ? "Consistently Precise" : n === 3 ? "Mostly Accurate" : n === 2 ? "Developing" : "Needs Support";
+    if (type === "performance") return n >= 4 ? "Engaging" : n === 3 ? "Focused" : n === 2 ? "Developing" : "Needs Support";
+    return n >= 4 ? "Excellent" : n === 3 ? "Appropriate" : n === 2 ? "Developing" : "Needs Support";
+  };
+
+  const todayStr = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }, []);
+
+  useEffect(() => {
+    try {
+      const studentId = localStorage.getItem("portal_student_id") || "s8";
+      const raw = localStorage.getItem("video_assignments");
+      const arr: { title: string; module: string; dueDate: string; className: string; campus?: string }[] = raw ? JSON.parse(raw) : [];
+      const list = (Array.isArray(arr) ? arr : []).map(a => {
+        let status: "Pending" | "Submitted" | "Reviewed" = "Pending";
+        let score: string | null = null;
+        let feedback: {
+          overall_message: string;
+          strengths: string[];
+          focus_point: string;
+          next_try_guide: string;
+          details: Record<string, string>;
+        } | null = null;
+        try {
+          const fbKey = `teacher_video_feedback_${studentId}_${a.dueDate}`;
+          const rawFb = localStorage.getItem(fbKey);
+          if (rawFb) {
+            const fb = JSON.parse(rawFb);
+            status = "Reviewed";
+            score = String(fb.average || "");
+            feedback = {
+              overall_message: String(fb.overall_message || ""),
+              strengths: Array.isArray(fb.strengths) ? fb.strengths : [],
+              focus_point: String(fb.focus_point || ""),
+              next_try_guide: String(fb.next_try_guide || ""),
+              details: {
+                Fluency: mapScore(Number(fb.fluency || 0), "fluency"),
+                Volume: mapScore(Number(fb.volume || 0), "volume"),
+                Speed: mapScore(Number(fb.speed || 0), "speed"),
+                Pronunciation: mapScore(Number(fb.pronunciation || 0), "pronunciation"),
+                Performance: mapScore(Number(fb.performance || 0), "performance")
+              }
+            };
+          } else {
+            const url = localStorage.getItem(`student_video_${studentId}`);
+            if (url) status = "Submitted";
+          }
+        } catch {}
+        return {
+          id: `hw_${studentId}_${a.dueDate}`,
+          title: a.title,
+          module: a.module,
+          dueDate: a.dueDate,
+          status,
+          isToday: a.dueDate === todayStr,
+          score,
+          feedback
+        };
+      });
+      setHomeworkList(list);
+    } catch {
+      setHomeworkList([]);
     }
-  ];
+  }, [todayStr]);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
@@ -183,12 +207,12 @@ export default function VideoListPage() {
                          {/* [1] Overall Message */}
                          <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm">
                            <div className="flex items-center gap-2 mb-2">
-                             <MessageSquare className="w-4 h-4 text-frage-blue" />
-                             <span className="text-xs font-bold text-slate-500">Teacher's Feedback</span>
-                           </div>
-                           <p className="text-lg font-bold text-frage-navy leading-relaxed">
-                             "{hw.feedback.overall_message}"
-                           </p>
+                            <MessageSquare className="w-4 h-4 text-frage-blue" />
+                            <span className="text-xs font-bold text-slate-500">Teacher Feedback</span>
+                          </div>
+                          <p className="text-lg font-bold text-frage-navy leading-relaxed">
+                            {hw.feedback.overall_message}
+                          </p>
                          </div>
 
                          {/* [2] Strength */}

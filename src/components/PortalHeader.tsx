@@ -1,14 +1,69 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Video, Image, Bell, MessageCircle, User, LogOut, FileText } from "lucide-react";
+import { Home, Video, Bell, MessageCircle, User, LogOut, FileText } from "lucide-react";
 
 export default function PortalHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarInitials, setAvatarInitials] = useState<string>("S");
+  const [parentName, setParentName] = useState<string>("학부모");
+  const [studentDisplayName, setStudentDisplayName] = useState<string>("");
+
+  useEffect(() => {
+    try {
+      const rawAccount = localStorage.getItem("portal_account");
+      const acc = rawAccount ? JSON.parse(rawAccount) : null;
+      const accountId = acc?.id || "";
+      const rawParent = localStorage.getItem("portal_parent_profile");
+      if (rawParent) {
+        const p = JSON.parse(rawParent);
+        const name =
+          p.parentName ||
+          p.name ||
+          p.parent?.name ||
+          "학부모";
+        setParentName(name);
+      }
+      try {
+        const profilesRaw = localStorage.getItem("signup_profiles");
+        const profiles = profilesRaw ? JSON.parse(profilesRaw) : [];
+        const match = Array.isArray(profiles)
+          ? profiles.find((p: any) => String(p.id || "").trim().toLowerCase() === String(accountId || "").trim().toLowerCase())
+          : null;
+        if (match) {
+          const en = String(match.passportEnglishName || match.englishFirstName || "").trim();
+          const ko = String(match.studentName || "").trim();
+          setStudentDisplayName(en || ko || "");
+          const initFromStudent = () => {
+            const s = en || ko;
+            const v = String(s || "").trim();
+            if (!v) return "S";
+            const parts = v.split(/\s+/);
+            if (/[A-Za-z]/.test(v)) {
+              const a = parts[0]?.[0] || "";
+              const b = parts[1]?.[0] || "";
+              return (a + b).toUpperCase() || a.toUpperCase() || "S";
+            }
+            return v.slice(0, 2);
+          };
+          setAvatarInitials(initFromStudent());
+        }
+      } catch {}
+      if (accountId) {
+        const key = `portal_parent_photos_${accountId}`;
+        const rawPhotos = localStorage.getItem(key);
+        const arr = rawPhotos ? JSON.parse(rawPhotos) : [];
+        if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === "string") {
+          setAvatarUrl(arr[0]);
+        }
+      }
+    } catch {}
+  }, []);
 
   const menuItems = [
     { name: "홈", href: "/portal/home", icon: Home },
@@ -35,7 +90,11 @@ export default function PortalHeader() {
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="w-8 h-8 rounded-full bg-frage-blue text-white flex items-center justify-center font-bold text-xs hover:opacity-80 transition-opacity"
           >
-            JD
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={studentDisplayName || "아바타"} className="w-8 h-8 rounded-full object-cover" />
+            ) : (
+              avatarInitials
+            )}
           </button>
 
           {/* Mobile Dropdown */}
@@ -90,14 +149,18 @@ export default function PortalHeader() {
             })}
           </nav>
           <div className="flex items-center gap-3 relative">
-             <span className="text-sm font-bold text-slate-700">John Doe (학부모)</span>
+             <span className="text-sm font-bold text-slate-700">{parentName} (학부모)</span>
              
              <div className="relative">
                <button 
                  onClick={() => setIsMenuOpen(!isMenuOpen)}
                  className="w-8 h-8 rounded-full bg-frage-blue text-white flex items-center justify-center font-bold text-xs hover:opacity-80 transition-opacity"
                >
-                 JD
+                 {avatarUrl ? (
+                  <img src={avatarUrl} alt={studentDisplayName || "아바타"} className="w-8 h-8 rounded-full object-cover" />
+                 ) : (
+                  avatarInitials
+                 )}
                </button>
 
                {/* Desktop Dropdown */}

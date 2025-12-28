@@ -1,17 +1,14 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { PlayCircle, CheckCircle, Camera, MessageSquare, ChevronDown, ChevronUp, FileText, Download, Calendar } from "lucide-react";
+import { Bell, FileText, HelpCircle } from "lucide-react";
 import PortalHeader from "@/components/PortalHeader";
 
 export default function ParentPortalHome() {
-  const [expandedFeedbackId, setExpandedFeedbackId] = useState<number | null>(null);
-  const [selectedDate, setSelectedDate] = useState("2026-01-02");
-  const dateInputRef = useRef<HTMLInputElement>(null);
   const [monthlyReports, setMonthlyReports] = useState<{ id: string; title: string; date: string; status: string }[]>([]);
-  const [pushMessage, setPushMessage] = useState<string | null>(null);
-  const [studentId, setStudentId] = useState<string>(() => {
+  const [notifications, setNotifications] = useState<{ id?: string; message: string; date?: string }[]>([]);
+  const [studentId] = useState<string>(() => {
     try {
       const v = localStorage.getItem("portal_student_id");
       return v || "s8";
@@ -19,41 +16,6 @@ export default function ParentPortalHome() {
       return "s8";
     }
   });
-
-  const toggleFeedback = (id: number) => {
-    if (expandedFeedbackId === id) {
-      setExpandedFeedbackId(null);
-    } else {
-      setExpandedFeedbackId(id);
-    }
-  };
-
-  // Mock Data for "John Doe" (Simulating user 's1')
-  const studentData = {
-    feedbackHistory: [
-      {
-        id: 1,
-        date: "2024.05.20",
-        isNew: true,
-        overall: "Excellent reading today! You read with great confidence.",
-        score: 4.8,
-        strength: "Your volume was clear and steady throughout the passage.",
-        focusPoint: "Pay attention to the 'th' sound in words like 'think' and 'that'.",
-        nextTry: "Try to pause slightly longer at periods for better rhythm."
-      },
-      {
-        id: 2,
-        date: "2024.05.18",
-        isNew: false,
-        overall: "Good effort on vocabulary. Remember to review the word list.",
-        score: 4.5,
-        strength: "Great memorization of new words.",
-        focusPoint: "Pronunciation of 'r' needs more practice.",
-        nextTry: "Practice the vocabulary sentences at home."
-      }
-    ],
-    monthlyReports: []
-  };
 
   useEffect(() => {
     let alive = true;
@@ -74,9 +36,13 @@ export default function ParentPortalHome() {
       try {
         const res = await fetch(`/api/portal/notifications?studentId=${studentId}`);
         const data = await res.json();
-        const first = (data?.items || [])[0];
         if (alive) {
-          setPushMessage(first?.message || null);
+          const list = (data?.items || []).map((n: any) => ({
+            id: n.id,
+            message: n.message,
+            date: n.date
+          }));
+          setNotifications(list);
         }
       } catch {}
     };
@@ -88,120 +54,51 @@ export default function ParentPortalHome() {
     };
   }, [studentId]);
 
-  // Date formatter
-  const formatDate = (dateString: string) => {
-    const d = new Date(dateString);
-    return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
-  };
-
-  const formatShortDate = (dateString: string) => {
-    const d = new Date(dateString);
-    return `${d.getMonth() + 1}월 ${d.getDate()}일`;
-  };
-
-  const handleDateClick = () => {
-    dateInputRef.current?.showPicker();
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
       <PortalHeader />
 
       <main className="px-4 py-6 max-w-2xl mx-auto space-y-8">
-        {pushMessage && (
-          <div className="bg-green-50 border border-green-200 text-green-700 text-sm font-bold px-3 py-2 rounded-lg">
-            {pushMessage}
-          </div>
-        )}
-        
-        {/* 학습세션 섹션 제거됨 */}
-
-        {/* 2. Today's Video Homework */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <PlayCircle className="w-5 h-5 text-frage-blue" />
-              오늘의 영상 과제
-            </h2>
-            <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded">
-                {formatShortDate(selectedDate)} 마감
-            </span>
-          </div>
-          
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="font-bold text-slate-900 text-lg mb-1">Into Reading 1.3</h3>
-                <p className="text-slate-500 font-medium text-sm">[Module 5-1] Day 18</p>
-              </div>
-            </div>
-            
-            <Link 
-              href="/portal/video/123" 
-              className="block w-full py-3 bg-frage-blue text-white font-bold text-center rounded-lg hover:bg-frage-navy transition-colors shadow-md active:scale-[0.98]"
-            >
-              영상 녹화 / 보기
-            </Link>
-          </div>
-        </section>
-
-        {/* 3. Teacher Feedback History */}
         <section>
           <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-frage-blue" />
-            선생님 피드백 (Teacher's Feedback)
+            <Bell className="w-5 h-5 text-frage-blue" />
+            공지사항
           </h2>
-          
-          <div className="space-y-3">
-            {studentData.feedbackHistory.map((feedback) => (
-              <div key={feedback.id} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <button 
-                  onClick={() => toggleFeedback(feedback.id)}
-                  className={`w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors text-left ${feedback.isNew ? "bg-blue-50/50" : "bg-white"}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${feedback.isNew ? "bg-red-500" : "bg-slate-300"}`}></div>
-                    <div>
-                      <h3 className="text-sm font-bold text-frage-navy">
-                        {feedback.date} Feedback
-                        {feedback.isNew && <span className="ml-2 text-[10px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">NEW</span>}
-                      </h3>
-                      <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{feedback.overall}</p>
-                    </div>
-                  </div>
-                  {expandedFeedbackId === feedback.id ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
-                </button>
-                
-                {expandedFeedbackId === feedback.id && (
-                  <div className="p-5 border-t border-slate-100 bg-slate-50/30 animate-fade-in-down">
-                    <p className="text-slate-800 font-medium mb-4 leading-relaxed font-serif italic text-lg text-center text-frage-blue">
-                      "{feedback.overall}"
-                    </p>
-
-                    <div className="space-y-3">
-                      <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-                        <span className="text-xs font-bold text-blue-600 uppercase block mb-2 tracking-wider">Strength</span>
-                        <p className="text-sm text-slate-700">{feedback.strength}</p>
-                      </div>
-                      
-                      <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-                        <span className="text-xs font-bold text-orange-600 uppercase block mb-2 tracking-wider">Focus Point</span>
-                        <p className="text-sm text-slate-700">{feedback.focusPoint}</p>
-                      </div>
-
-                      <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-                        <span className="text-xs font-bold text-green-600 uppercase block mb-2 tracking-wider">Next Try</span>
-                        <p className="text-sm text-slate-700">{feedback.nextTry}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 divide-y divide-slate-100">
+            {notifications.length > 0 ? notifications.map((n, idx) => (
+              <div key={n.id || idx} className="p-4">
+                <p className="text-sm text-slate-800 font-medium">{n.message}</p>
+                {n.date && <p className="text-xs text-slate-400 mt-1">{n.date}</p>}
               </div>
-            ))}
+            )) : (
+              <div className="p-4 text-sm text-slate-500">현재 공지사항이 없습니다.</div>
+            )}
           </div>
         </section>
 
-        {/* 4. Monthly Reports */}
+        <section>
+          <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <HelpCircle className="w-5 h-5 text-frage-navy" />
+            학부모 포털 사용방법
+          </h2>
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3 text-sm text-slate-700">
+            <p className="font-bold text-slate-900">로그인 후 이용 가능한 주요 메뉴:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>영상 과제: 자녀의 오늘 과제를 녹화/확인합니다.</li>
+              <li>월간 리포트: 학습 진행과 피드백을 확인합니다.</li>
+              <li>공지사항: 학원 안내 및 공지 메시지를 확인합니다.</li>
+              <li>요청 전달: 결석/지각/문의 등 전달 사항을 등록합니다.</li>
+              <li>내 자녀: 자녀 기본 정보와 차량(등·하원) 정보를 관리합니다.</li>
+            </ul>
+            <p className="font-bold text-slate-900 mt-3">빠른 시작:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>상단 메뉴에서 원하는 기능으로 이동하세요.</li>
+              <li>자녀 사진을 눌러 프로필 사진을 업로드할 수 있습니다.</li>
+              <li>차량 정보 저장 후에는 포털 홈에서 최신 공지를 우선 확인하세요.</li>
+            </ul>
+          </div>
+        </section>
+
         <section>
           <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
             <FileText className="w-5 h-5 text-frage-navy" />

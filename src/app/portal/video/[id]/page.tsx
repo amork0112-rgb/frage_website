@@ -9,24 +9,30 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   const searchParams = useSearchParams();
   const initialStatus = searchParams?.get("status") || "Pending";
 
-  // Mock Data Model
-  const [homeworkData, setHomeworkData] = useState({
-    id: params.id,
-    subject: "Into Reading 1.3",
-    module_code: "[Module 5-1] Day 18",
-    due_date: "Sep 18",
-    status: initialStatus, // Pending | Submitted | Reviewed
+  const [homeworkData, setHomeworkData] = useState<{
+    id: string;
+    subject: string;
+    module_code: string;
+    due_date: string;
+    status: "Pending" | "Submitted" | "Reviewed" | string;
     feedback: {
-      overall_message: "Clear effort and steady reading today.",
-      fluency_score: "Developing",
-      volume_score: "Clear",
-      speed_score: "Appropriate",
-      pronunciation_score: "Mostly Accurate",
-      performance_score: "Focused",
-      strengths: ["Clear voice throughout the reading", "Good focus from start to finish"],
-      focus_point: "Try to read without pausing mid-sentence.",
-      next_try_guide: "Read one page slowly while keeping your eyes on the text."
-    }
+      overall_message: string;
+      fluency_score: string;
+      volume_score: string;
+      speed_score: string;
+      pronunciation_score: string;
+      performance_score: string;
+      strengths: string[];
+      focus_point: string;
+      next_try_guide: string;
+    } | null;
+  }>({
+    id: params.id,
+    subject: "",
+    module_code: "",
+    due_date: "",
+    status: initialStatus as any,
+    feedback: null
   });
 
   // State
@@ -133,10 +139,57 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
     setIsSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 1500)); // Simulating API
     setIsSubmitting(false);
+    try {
+      const parts = String(params.id || "").split("_");
+      const studentId = parts[1] || localStorage.getItem("portal_student_id") || "s8";
+      if (videoUrl) {
+        localStorage.setItem(`student_video_${studentId}`, videoUrl);
+      }
+    } catch {}
     setHomeworkData(prev => ({ ...prev, status: "Submitted" }));
   };
 
   useEffect(() => {
+    try {
+      const parts = String(params.id || "").split("_");
+      const studentId = parts[1] || localStorage.getItem("portal_student_id") || "s8";
+      const dueDate = parts[2] || "";
+      const raw = localStorage.getItem("video_assignments");
+      const arr: { title: string; module: string; dueDate: string }[] = raw ? JSON.parse(raw) : [];
+      const match = (Array.isArray(arr) ? arr : []).find(a => a.dueDate === dueDate) || null;
+      let status: "Pending" | "Submitted" | "Reviewed" | string = initialStatus as any;
+      let fb: any = null;
+      try {
+        const fbKey = `teacher_video_feedback_${studentId}_${dueDate}`;
+        const rawFb = localStorage.getItem(fbKey);
+        if (rawFb) {
+          const data = JSON.parse(rawFb);
+          status = "Reviewed";
+          fb = {
+            overall_message: String(data.overall_message || ""),
+            fluency_score: Number(data.fluency || 0) >= 4 ? "Excellent" : Number(data.fluency || 0) === 3 ? "Appropriate" : Number(data.fluency || 0) === 2 ? "Developing" : "Needs Support",
+            volume_score: Number(data.volume || 0) >= 4 ? "Strong" : Number(data.volume || 0) === 3 ? "Clear" : Number(data.volume || 0) === 2 ? "Developing" : "Needs Support",
+            speed_score: Number(data.speed || 0) >= 4 ? "Natural" : Number(data.speed || 0) === 3 ? "Appropriate" : Number(data.speed || 0) === 2 ? "Developing" : "Too Slow",
+            pronunciation_score: Number(data.pronunciation || 0) >= 4 ? "Consistently Precise" : Number(data.pronunciation || 0) === 3 ? "Mostly Accurate" : Number(data.pronunciation || 0) === 2 ? "Developing" : "Needs Support",
+            performance_score: Number(data.performance || 0) >= 4 ? "Engaging" : Number(data.performance || 0) === 3 ? "Focused" : Number(data.performance || 0) === 2 ? "Developing" : "Needs Support",
+            strengths: Array.isArray(data.strengths) ? data.strengths : [],
+            focus_point: String(data.focus_point || ""),
+            next_try_guide: String(data.next_try_guide || "")
+          };
+        } else {
+          const url = localStorage.getItem(`student_video_${studentId}`);
+          if (url) status = "Submitted";
+        }
+      } catch {}
+      setHomeworkData({
+        id: params.id,
+        subject: String(match?.title || ""),
+        module_code: String(match?.module || ""),
+        due_date: String(match?.dueDate || ""),
+        status,
+        feedback: fb
+      });
+    } catch {}
     return () => {
       stopCamera();
       if (timerRef.current) clearInterval(timerRef.current);
@@ -163,12 +216,12 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
                 <MessageSquare className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="font-bold text-slate-900">Teacher's Feedback</h2>
+                <h2 className="font-bold text-slate-900">Teacher Feedback</h2>
                 <p className="text-xs text-slate-500">From Ms. Anna</p>
               </div>
             </div>
             <p className="text-xl font-bold text-frage-navy leading-relaxed">
-              "{feedback.overall_message}"
+              {feedback.overall_message}
             </p>
           </section>
 
@@ -305,7 +358,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
         {/* [1] Video Task Summary (Fixed Card) */}
         {!isRecording && !videoUrl && (
           <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-8 animate-fade-in text-center">
-            <h2 className="text-xs font-bold text-frage-blue uppercase tracking-wider mb-2">Today's Reading Video</h2>
+            <h2 className="text-xs font-bold text-frage-blue uppercase tracking-wider mb-2">Today&apos;s Reading Video</h2>
             <h1 className="text-2xl font-bold text-white mb-1">{homeworkData.subject}</h1>
             <div className="flex items-center justify-center gap-3 text-sm font-medium text-white/60 mb-4">
               <span>{homeworkData.module_code}</span>

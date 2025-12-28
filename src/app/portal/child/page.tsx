@@ -10,18 +10,15 @@ export default function ChildPage() {
   // Mock Data
   const [isEditing, setIsEditing] = useState(false);
   const [studentProfile, setStudentProfile] = useState({
-    name: {
-      en: "Kim Minseo",
-      ko: "김민서"
-    },
-    photoUrl: "https://images.unsplash.com/photo-1596962850195-da6f22974ca5?q=80&w=400&auto=format&fit=crop",
-    class: "A1b",
-    campus: "FRAGE International",
-    teacher: "Ms. Anna",
-    birthDate: "2015-03-15", // YYYY-MM-DD
-    gender: "Female",
-    address: "대구 수성구 달구벌대로 2482",
-    studentPhone: "010-1234-5678"
+    name: { en: "", ko: "" },
+    photoUrl: "",
+    class: "",
+    campus: "",
+    teacher: "",
+    birthDate: "",
+    gender: "",
+    address: "",
+    studentPhone: ""
   });
 
   // Temporary state for editing
@@ -119,6 +116,31 @@ export default function ChildPage() {
           accountId: acc.id || "",
           accountPw: acc.password || ""
         }));
+        try {
+          const profilesRaw = localStorage.getItem("signup_profiles");
+          const profiles = profilesRaw ? JSON.parse(profilesRaw) : [];
+          const match = Array.isArray(profiles) ? profiles.find((p: any) => String(p.id || "").trim().toLowerCase() === String(acc.id || "").trim().toLowerCase()) : null;
+          if (match) {
+            const en = String(match.passportEnglishName || match.englishFirstName || "").trim();
+            const ko = String(match.studentName || "").trim();
+            const bd = String(match.childBirthDate || "").trim();
+            const addr = [String(match.address || "").trim(), String(match.addressDetail || "").trim()].filter(Boolean).join(" ");
+            const phone = String(match.phone || "").trim();
+            const next = {
+              name: { en, ko },
+              photoUrl: "",
+              class: "",
+              campus: "",
+              teacher: "",
+              birthDate: bd,
+              gender: String(match.gender || ""),
+              address: addr,
+              studentPhone: phone
+            };
+            setStudentProfile(next);
+            setEditForm(next);
+          }
+        } catch {}
       }
       const savedTransport = localStorage.getItem("child_transport");
       if (savedTransport) {
@@ -164,21 +186,39 @@ export default function ChildPage() {
               {/* Photo Upload Area */}
               <div className="relative group cursor-pointer" onClick={handlePhotoClick}>
                 <div className="w-24 h-24 rounded-full border-4 border-white shadow-md overflow-hidden bg-slate-200 mb-4 relative">
-                  {(isEditing ? editForm.photoUrl : studentProfile.photoUrl).startsWith("blob:") ? (
-                    <img
-                      src={isEditing ? editForm.photoUrl : studentProfile.photoUrl}
-                      alt={studentProfile.name.en}
-                      className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
-                    />
-                  ) : (
-                    <Image
-                      src={isEditing ? editForm.photoUrl : studentProfile.photoUrl}
-                      alt={studentProfile.name.en}
-                      width={96}
-                      height={96}
-                      className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
-                    />
-                  )}
+                  {(isEditing ? editForm.photoUrl : studentProfile.photoUrl)
+                    ? ((isEditing ? editForm.photoUrl : studentProfile.photoUrl).startsWith("blob:")
+                        ? (
+                          <img
+                            src={isEditing ? editForm.photoUrl : studentProfile.photoUrl}
+                            alt={studentProfile.name.en || studentProfile.name.ko || "학생"}
+                            className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
+                          />
+                        ) : (
+                          <Image
+                            src={isEditing ? editForm.photoUrl : studentProfile.photoUrl}
+                            alt={studentProfile.name.en || studentProfile.name.ko || "학생"}
+                            width={96}
+                            height={96}
+                            className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
+                          />
+                        ))
+                    : (
+                      <div className="w-full h-full flex items-center justify-center bg-frage-blue text-white text-lg font-bold">
+                        {(() => {
+                          const en = String(studentProfile.name.en || "").trim();
+                          const ko = String(studentProfile.name.ko || "").trim();
+                          if (en) {
+                            const parts = en.split(/\s+/);
+                            const a = parts[0]?.[0] || "";
+                            const b = parts[1]?.[0] || "";
+                            return (a + b).toUpperCase() || a.toUpperCase() || "S";
+                          }
+                          return ko.slice(0, 2) || "학생";
+                        })()}
+                      </div>
+                    )
+                  }
                   <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Camera className="w-8 h-8 text-white" />
                   </div>

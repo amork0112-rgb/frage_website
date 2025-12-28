@@ -3,8 +3,14 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function PortalSignupCompletePage() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/portal");
+  }, [router]);
   return (
     <div className="flex flex-col min-h-screen font-sans bg-frage-cream">
       <Header />
@@ -18,13 +24,6 @@ export default function PortalSignupCompletePage() {
               가입이 완료되었습니다. 부모 포털로 이동해 학사 정보를 확인하세요.
             </p>
             <div className="flex flex-col gap-4">
-              <Link
-                href="/portal/home"
-                prefetch={false}
-                className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-frage-navy text-white font-bold hover:bg-frage-blue transition-colors"
-              >
-                부모 포털 홈으로 이동
-              </Link>
               <Link
                 href="/portal"
                 prefetch={false}

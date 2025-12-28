@@ -17,10 +17,12 @@ export default function PortalPage() {
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [pwTimer, setPwTimer] = useState<NodeJS.Timeout | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     // Mock Login Logic
     setTimeout(() => {
@@ -29,20 +31,8 @@ export default function PortalPage() {
       const pw = password.trim();
       if (uidLower === "admin" && pw === "frage1234") {
         router.push("/admin");
-      } else if (uidLower === "teacher" && pw === "teacher1234") {
+      } else if (uidLower === "master_teacher" && pw === "teacher1234") {
         router.push("/teacher/students");
-      } else if (uidLower === "student" && pw === "student1234") {
-        try {
-          localStorage.setItem("portal_account", JSON.stringify({ id: uidLower, password: pw }));
-          const needsSetup = localStorage.getItem("needs_child_setup");
-          if (needsSetup === "true") {
-            router.push("/portal/child");
-          } else {
-            router.push("/portal/home");
-          }
-        } catch {
-          router.push("/portal/home");
-        }
       } else {
         try {
           const saved = localStorage.getItem("signup_account");
@@ -69,7 +59,7 @@ export default function PortalPage() {
             return;
           }
         } catch {}
-        alert("Invalid credentials.\n\n가입한 학부모 아이디/비번 또는 아래 테스트 계정을 사용하세요.\n- Admin: admin / frage1234\n- Teacher: teacher / teacher1234\n- Parent/Student: student / student1234");
+        setError("아이디 또는 비밀번호가 올바르지 않습니다.");
         setLoading(false);
       }
     }, 800);
@@ -131,8 +121,8 @@ export default function PortalPage() {
                     </div>
                   </div>
                 </div>
-
-
+              
+              
               </div>
 
               {/* Right Column: Login Form */}
@@ -177,6 +167,12 @@ export default function PortalPage() {
                       )}
                     </div>
                   </div>
+                  
+                  {error && (
+                    <div role="alert" aria-live="polite" className="text-sm bg-rose-50 text-rose-700 border border-rose-200 rounded-xl px-4 py-3">
+                      {error}
+                    </div>
+                  )}
                   
                   <div className="flex items-center justify-between text-sm">
                     <label className="flex items-center gap-2 cursor-pointer text-frage-gray hover:text-frage-navy transition-colors">

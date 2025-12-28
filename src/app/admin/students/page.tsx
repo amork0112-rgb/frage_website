@@ -147,12 +147,39 @@ export default function AdminStudentsPage() {
                 status: "재원" as Status,
                 parentName: String(p.parentName || "").trim(),
                 parentAccountId: String(p.id || "").trim(),
-                address: "",
+                address: [String(p.address || "").trim(), String(p.addressDetail || "").trim()].filter(Boolean).join(" "),
                 bus: "미배정",
                 departureTime: ""
               }))
               .filter(s => !existingPhones.has(s.phone));
             mergedItems = [...mergedItems, ...mapped];
+
+            // 신규 가입 1개월 자동 메모
+            try {
+              const now = Date.now();
+              const memRaw = localStorage.getItem("admin_memos");
+              const memMap: Record<string, { text: string; author: string; at: string; tag?: "상담" | "결제" | "특이사항" | "기타" }[]> =
+                memRaw ? JSON.parse(memRaw) : {};
+              const admin = localStorage.getItem("admin_name") || "관리자";
+              const nextMap = { ...memMap };
+              arr.forEach((p) => {
+                const createdAtStr = String(p.createdAt || "");
+                const createdAtMs = Date.parse(createdAtStr);
+                if (!Number.isNaN(createdAtMs)) {
+                  const diffDays = Math.floor((now - createdAtMs) / (1000 * 60 * 60 * 24));
+                  if (diffDays >= 0 && diffDays <= 30) {
+                    const sid = `signup_${(p.phone || "").replace(/[^0-9a-zA-Z]/g, "")}`;
+                    const list = Array.isArray(nextMap[sid]) ? nextMap[sid] : [];
+                    const hasNew = list.some((m) => (m.text || "").includes("신규"));
+                    if (!hasNew) {
+                      list.unshift({ text: "신규", author: admin, at: new Date().toISOString(), tag: "기타" });
+                      nextMap[sid] = list;
+                    }
+                  }
+                }
+              });
+              localStorage.setItem("admin_memos", JSON.stringify(nextMap));
+            } catch {}
           }
         } catch {}
         setStudents(mergedItems);
@@ -657,6 +684,7 @@ export default function AdminStudentsPage() {
                   <td className="p-3">
                     <button onClick={() => openInfoPanel(s)} className="text-slate-900 font-bold hover:underline">{s.name}</button>
                     <div className="text-xs text-slate-400">{s.phone}</div>
+                    {s.address && <div className="text-[11px] text-slate-500">{s.address}</div>}
                   </td>
                   <td className="p-3 text-slate-700">{s.englishName}</td>
                   <td className="p-3 text-slate-700">{s.className}</td>
