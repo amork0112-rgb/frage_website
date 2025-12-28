@@ -203,7 +203,7 @@ export default function SignupPage() {
         })
       }).catch(() => {});
       alert("회원가입이 완료되었습니다!");
-      router.push("/portal/home");
+      router.push("/portal/signup");
     }, 1000);
   };
 
