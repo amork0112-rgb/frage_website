@@ -41,7 +41,24 @@ export default function PortalPage() {
           router.push("/portal/home");
         }
       } else {
-        alert("Invalid credentials.\n\nTry:\n- Admin: admin / frage1234\n- Teacher: teacher / teacher1234\n- Parent/Student: student / student1234");
+        try {
+          const saved = localStorage.getItem("signup_account");
+          const profilesRaw = localStorage.getItem("signup_profiles");
+          const profiles = profilesRaw ? JSON.parse(profilesRaw) : [];
+          const matchSignup = saved ? JSON.parse(saved) : null;
+          const matched =
+            (matchSignup && matchSignup.id === id && matchSignup.password === password) ||
+            (Array.isArray(profiles) && profiles.some((p: any) => p.id === id && p.password === password));
+
+          if (matched) {
+            localStorage.setItem("portal_account", JSON.stringify({ id, password }));
+            localStorage.setItem("portal_role", "parent");
+            localStorage.setItem("needs_child_setup", "false");
+            router.push("/portal/home");
+            return;
+          }
+        } catch {}
+        alert("Invalid credentials.\n\n가입한 학부모 아이디/비번 또는 아래 테스트 계정을 사용하세요.\n- Admin: admin / frage1234\n- Teacher: teacher / teacher1234\n- Parent/Student: student / student1234");
         setLoading(false);
       }
     }, 800);

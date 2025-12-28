@@ -125,7 +125,37 @@ export default function AdminStudentsPage() {
         const res = await fetch("/api/admin/students");
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.items || [];
-        setStudents(items);
+        // Merge signup profiles into student list for immediate visibility
+        let mergedItems: Student[] = items;
+        try {
+          const rawProfiles = localStorage.getItem("signup_profiles");
+          const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
+          const arr: any[] = Array.isArray(profiles) ? profiles : [];
+          if (arr.length > 0) {
+            const existingPhones = new Set(mergedItems.map(s => s.phone));
+            const mapped: Student[] = arr
+              .filter(p => (p?.phone || "").trim() !== "")
+              .map((p, idx) => ({
+                id: `signup_${(p.phone || String(idx)).replace(/[^0-9a-zA-Z]/g, "")}`,
+                childId: undefined,
+                name: String(p.studentName || "").trim(),
+                englishName: String(p.englishFirstName || p.passportEnglishName || "").trim(),
+                birthDate: String(p.childBirthDate || "").trim(),
+                phone: String(p.phone || "").trim(),
+                className: "미배정",
+                campus: "미지정",
+                status: "재원" as Status,
+                parentName: String(p.parentName || "").trim(),
+                parentAccountId: String(p.id || "").trim(),
+                address: "",
+                bus: "미배정",
+                departureTime: ""
+              }))
+              .filter(s => !existingPhones.has(s.phone));
+            mergedItems = [...mergedItems, ...mapped];
+          }
+        } catch {}
+        setStudents(mergedItems);
       } catch {}
     };
     load();

@@ -114,11 +114,11 @@ export default function SignupPage() {
 
     const firstOk = /^[A-Za-z][A-Za-z\s-]{0,29}$/.test(formData.englishFirstName.trim());
     if (!firstOk) {
-      alert("영어 이름(First Name)은 영문자/공백/하이픈만 허용되며 최대 30자입니다.");
+      alert("영어 이름은 영문자/공백/하이픈만 허용되며 최대 30자입니다.");
       return;
     }
     if (!formData.englishFirstName.trim()) {
-      alert("영어 이름(First Name)을 입력해 주세요.");
+      alert("영어 이름을 입력해 주세요.");
       return;
     }
 
@@ -144,9 +144,9 @@ export default function SignupPage() {
       alert("아이디는 영문/숫자 4~20자만 허용됩니다.");
       return;
     }
-    const pwOk = /^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{6,30}$/.test(formData.password);
+    const pwOk = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,30}$/.test(formData.password.trim());
     if (!pwOk) {
-      alert("비밀번호는 영문+숫자 조합 6~30자여야 합니다. 특수문자 제외");
+      alert("비밀번호는 영문+숫자 조합 6~30자여야 합니다.");
       return;
     }
 
