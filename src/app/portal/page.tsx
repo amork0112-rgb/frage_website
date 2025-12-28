@@ -59,6 +59,14 @@ export default function PortalPage() {
             router.push("/portal/home");
             return;
           }
+          // Fallback: already logged-in account stored earlier
+          const portalAccRaw = localStorage.getItem("portal_account");
+          const portalAcc = portalAccRaw ? JSON.parse(portalAccRaw) : null;
+          if (portalAcc && String(portalAcc.id || "").trim() === uid && String(portalAcc.password || "").trim() === pw) {
+            localStorage.setItem("portal_role", "parent");
+            router.push("/portal/home");
+            return;
+          }
         } catch {}
         alert("Invalid credentials.\n\n가입한 학부모 아이디/비번 또는 아래 테스트 계정을 사용하세요.\n- Admin: admin / frage1234\n- Teacher: teacher / teacher1234\n- Parent/Student: student / student1234");
         setLoading(false);

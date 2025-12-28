@@ -161,7 +161,7 @@ export default function SignupPage() {
         const nextProfiles = Array.isArray(profiles) ? profiles : [];
         nextProfiles.push({
           id: formData.id.trim(),
-          password: formData.password,
+          password: formData.password.trim(),
           studentName: formData.studentName.trim(),
           parentName: formData.parentName.trim(),
           phone: formData.phone.trim(),
@@ -173,11 +173,11 @@ export default function SignupPage() {
         localStorage.setItem("signup_profiles", JSON.stringify(nextProfiles));
         localStorage.setItem("signup_account", JSON.stringify({
           id: formData.id.trim(),
-          password: formData.password
+          password: formData.password.trim()
         }));
         localStorage.setItem("portal_account", JSON.stringify({
           id: formData.id.trim(),
-          password: formData.password
+          password: formData.password.trim()
         }));
         localStorage.setItem("portal_role", "parent");
         localStorage.setItem("portal_parent_profile", JSON.stringify({
