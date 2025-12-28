@@ -24,13 +24,15 @@ export default function PortalPage() {
 
     // Mock Login Logic
     setTimeout(() => {
-      if (id === "admin" && password === "frage1234") {
+      const uid = id.trim();
+      const pw = password.trim();
+      if (uid === "admin" && pw === "frage1234") {
         router.push("/admin");
-      } else if (id === "teacher" && password === "teacher1234") {
+      } else if (uid === "teacher" && pw === "teacher1234") {
         router.push("/teacher/students");
-      } else if (id === "student" && password === "student1234") {
+      } else if (uid === "student" && pw === "student1234") {
         try {
-          localStorage.setItem("portal_account", JSON.stringify({ id, password }));
+          localStorage.setItem("portal_account", JSON.stringify({ id: uid, password: pw }));
           const needsSetup = localStorage.getItem("needs_child_setup");
           if (needsSetup === "true") {
             router.push("/portal/child");
@@ -47,11 +49,11 @@ export default function PortalPage() {
           const profiles = profilesRaw ? JSON.parse(profilesRaw) : [];
           const matchSignup = saved ? JSON.parse(saved) : null;
           const matched =
-            (matchSignup && matchSignup.id === id && matchSignup.password === password) ||
-            (Array.isArray(profiles) && profiles.some((p: any) => p.id === id && p.password === password));
+            (matchSignup && String(matchSignup.id || "").trim() === uid && String(matchSignup.password || "").trim() === pw) ||
+            (Array.isArray(profiles) && profiles.some((p: any) => String(p.id || "").trim() === uid && String(p.password || "").trim() === pw));
 
           if (matched) {
-            localStorage.setItem("portal_account", JSON.stringify({ id, password }));
+            localStorage.setItem("portal_account", JSON.stringify({ id: uid, password: pw }));
             localStorage.setItem("portal_role", "parent");
             localStorage.setItem("needs_child_setup", "false");
             router.push("/portal/home");
