@@ -19,6 +19,44 @@ export default function AboutPage() {
         </div>
       </section>
 
+      <section className="container mx-auto mt-16 max-w-4xl px-6">
+        <div className="space-y-12">
+          <div className="rounded-2xl bg-white p-10 shadow-sm border border-slate-100">
+            <h2 className="mb-6 text-2xl font-bold text-frage-primary">
+              {t.about_page.section1_title}
+            </h2>
+            <div className="space-y-4 text-lg leading-relaxed text-slate-700">
+              <p dangerouslySetInnerHTML={{ __html: t.about_page.section1_desc1 }} />
+              <p dangerouslySetInnerHTML={{ __html: t.about_page.section1_desc2 }} />
+            </div>
+          </div>
+
+          <div className="grid gap-10 md:grid-cols-2 items-center">
+            <div className="order-2 md:order-1">
+              <h3 className="mb-4 text-xl font-bold text-frage-navy">
+                {t.about_page.section2_title}
+              </h3>
+              <div className="text-slate-600 leading-relaxed space-y-4">
+                <p dangerouslySetInnerHTML={{ __html: t.about_page.section2_desc1 }} />
+                <p dangerouslySetInnerHTML={{ __html: t.about_page.section2_desc2 }} />
+              </div>
+            </div>
+            <div className="order-1 md:order-2 h-64 rounded-xl bg-frage-forest/10 flex items-center justify-center text-frage-forest font-serif italic text-xl p-8 text-center">
+              {t.about_page.quote}
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-10 border border-slate-200">
+            <h3 className="mb-4 text-xl font-bold text-frage-navy">
+              {t.about_page.section3_title}
+            </h3>
+            <p className="text-slate-600 leading-relaxed">
+              {t.about_page.section3_desc}
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section className="container mx-auto max-w-5xl px-6 mt-16">
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
           <div className="text-2xl md:text-3xl font-black text-slate-900">같은 영어, 완전히 다른 교육의 방향</div>
@@ -113,43 +151,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="container mx-auto mt-16 max-w-4xl px-6">
-        <div className="space-y-12">
-          <div className="rounded-2xl bg-white p-10 shadow-sm border border-slate-100">
-            <h2 className="mb-6 text-2xl font-bold text-frage-primary">
-              {t.about_page.section1_title}
-            </h2>
-            <div className="space-y-4 text-lg leading-relaxed text-slate-700">
-              <p dangerouslySetInnerHTML={{ __html: t.about_page.section1_desc1 }} />
-              <p dangerouslySetInnerHTML={{ __html: t.about_page.section1_desc2 }} />
-            </div>
-          </div>
-
-          <div className="grid gap-10 md:grid-cols-2 items-center">
-            <div className="order-2 md:order-1">
-              <h3 className="mb-4 text-xl font-bold text-frage-navy">
-                {t.about_page.section2_title}
-              </h3>
-              <div className="text-slate-600 leading-relaxed space-y-4">
-                <p dangerouslySetInnerHTML={{ __html: t.about_page.section2_desc1 }} />
-                <p dangerouslySetInnerHTML={{ __html: t.about_page.section2_desc2 }} />
-              </div>
-            </div>
-            <div className="order-1 md:order-2 h-64 rounded-xl bg-frage-forest/10 flex items-center justify-center text-frage-forest font-serif italic text-xl p-8 text-center">
-              {t.about_page.quote}
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-10 border border-slate-200">
-            <h3 className="mb-4 text-xl font-bold text-frage-navy">
-              {t.about_page.section3_title}
-            </h3>
-            <p className="text-slate-600 leading-relaxed">
-              {t.about_page.section3_desc}
-            </p>
-          </div>
-        </div>
-      </section>
+      
     </main>
   );
 }
