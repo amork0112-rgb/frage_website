@@ -107,6 +107,14 @@ export default function CampusesPage() {
             >
               상담 문의하기
             </a>
+            <a
+              href="https://map.kakao.com/link/search/대구 수성구 범어천로 167 진영빌딩 3층"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex justify-center rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              지도 크게 보기
+            </a>
           </div>
         </div>
 

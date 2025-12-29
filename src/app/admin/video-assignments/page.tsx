@@ -7,6 +7,15 @@ import { Video, Plus, Trash2, PencilLine, Save, X } from "lucide-react";
 type Student = { id: string; name: string; englishName: string; className: string; campus: string };
 type Assignment = { id: string; title: string; module: string; dueDate: string; className: string; campus?: string };
 
+const CAMPUS_VALUES = ["All", "International", "Andover", "Atheneum", "Platz"] as const;
+const CAMPUS_LABELS: Record<string, string> = {
+  All: "전체",
+  International: "국제관",
+  Andover: "앤도버관",
+  Atheneum: "아테네움관",
+  Platz: "플라츠관"
+};
+
 export default function AdminVideoAssignmentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -49,10 +58,7 @@ export default function AdminVideoAssignmentsPage() {
     return ["All", ...Array.from(set)];
   }, [students]);
 
-  const campuses = useMemo(() => {
-    const set = new Set(students.map(s => s.campus));
-    return ["All", ...Array.from(set)];
-  }, [students]);
+  const campuses = useMemo(() => CAMPUS_VALUES.slice(), []);
 
   const filtered = useMemo(() => {
     return assignments
@@ -130,7 +136,7 @@ export default function AdminVideoAssignmentsPage() {
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">캠퍼스(선택)</label>
             <select value={newCampus} onChange={(e) => setNewCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              {campuses.map(c => (<option key={c} value={c}>{c}</option>))}
+              {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
             </select>
           </div>
           <div>
@@ -164,7 +170,7 @@ export default function AdminVideoAssignmentsPage() {
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">캠퍼스 필터</label>
             <select value={filterCampus} onChange={(e) => setFilterCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              {campuses.map(c => (<option key={c} value={c}>{c}</option>))}
+              {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
             </select>
           </div>
           <div className="md:col-span-3">
@@ -187,7 +193,7 @@ export default function AdminVideoAssignmentsPage() {
                     {classes.filter(c => c !== "All").map(c => (<option key={c} value={c}>{c}</option>))}
                   </select>
                   <select value={editItem?.campus || "All"} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), campus: e.target.value === "All" ? undefined : e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                    {campuses.map(c => (<option key={c} value={c}>{c}</option>))}
+                    {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
                   </select>
                   <div className="flex items-center gap-2 pt-2">
                     <button onClick={saveEdit} className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white">

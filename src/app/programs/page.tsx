@@ -1,74 +1,61 @@
 import React from "react";
- 
 
 export default function ProgramsPage() {
-  const colors = {
-    bg: "#FFFFFF",
-    card: "#FFFFFF",
-    border: "#E5E5E5",
-    text: "#111111",
-    sub: "#666666",
+  const accent = {
+    navy: "bg-frage-navy text-white",
+    teal: "bg-teal-600 text-white",
+    blue: "bg-blue-600 text-white",
+    slate: "bg-slate-800 text-white"
   };
 
+  const juniorStages = [
+    { tag: "Root", color: "bg-emerald-50 text-emerald-700", keywords: "PHONICS · LISTENING · SPEAKING", desc: "소리·말 중심 기초 형성" },
+    { tag: "Ground up", color: "bg-cyan-50 text-cyan-700", keywords: "GRAMMAR · WRITING · STRUCTURE", desc: "문장·단락·논리 구축" },
+    { tag: "Power up", color: "bg-sky-50 text-sky-700", keywords: "READING · SUMMARY · EXPRESSION", desc: "독해 요약과 표현 확장" },
+    { tag: "Asset", color: "bg-indigo-50 text-indigo-700", keywords: "CRITICAL READING · ESSAY · PRESENTATION", desc: "고급 독해 · 에세이 · 발표" }
+  ];
+
+  const kinderStages = [
+    { tag: "Little FRAGE", color: "bg-amber-50 text-amber-700", keywords: "PLAY · EXPOSURE · CONFIDENCE", desc: "놀이 기반 영어 노출" },
+    { tag: "FRAGE Kinder", color: "bg-orange-50 text-orange-700", keywords: "PHONICS READY · SENTENCE · THINKING", desc: "문장과 사고력의 초석" },
+    { tag: "Premier", color: "bg-fuchsia-50 text-fuchsia-700", keywords: "READING HABIT · SPEAKING", desc: "미국교과서 및 IB교육으로 영어 사고력 확장" },
+    { tag: "Asset", color: "bg-indigo-50 text-indigo-700", keywords: "CRITICAL READING · ESSAY · PRESENTATION", desc: "고급 독해 · 에세이 · 발표" }
+  ];
+
   return (
-    <main className="min-h-screen pb-24" style={{ backgroundColor: colors.bg }}>
-      <section className="pt-16">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <h1 className="mt-2 text-3xl md:text-4xl font-bold" style={{ color: colors.text }}>
-            커리큘럼
-          </h1>
-          <div className="mt-6 rounded-2xl mx-auto max-w-xl p-5" style={{ backgroundColor: colors.card }}>
-            <div className="text-sm font-bold uppercase tracking-wider" style={{ color: colors.sub }}>
-              Where the Journey Begins
+    <main className="min-h-screen pb-24 bg-white">
+      <section className="pt-14">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center">
+            <h1 className="text-3xl md:text-4xl font-black text-slate-900">프라게 프로그램</h1>
+            <p className="mt-3 text-sm text-slate-600">아이의 현재와 목표에 맞춘 단계형 로드맵</p>
+          </div>
+          <div className="mt-8 grid gap-6 md:grid-cols-2">
+            <ProgramTrack
+              title="프라게 Core 과정"
+              subtitle="초등 · 중등 통합 학령"
+              badgeClass={accent.navy}
+              stages={juniorStages}
+              footer="E1~G4 → A1~A5 → F1~F5의 레벨 밴드로 운영됩니다."
+            />
+            <ProgramTrack
+              title="프라게 Quantum 과정"
+              subtitle="유치 · 초저 학령"
+              badgeClass={accent.slate}
+              stages={kinderStages}
+              footer="R1~R4 → F1~F5의 레벨 밴드로 운영됩니다."
+            />
+          </div>
+          <div className="mt-12 rounded-2xl border border-slate-200 bg-white p-6 text-center">
+            <div className="text-sm font-bold text-slate-900">Fradis</div>
+            <div className="mt-2 text-sm text-slate-600">중학 과정 준비 · 논서술 평가 · 고급 독해/작문 · 국제학교/유학 트랙</div>
+          </div>
+          <div className="mt-10 text-center">
+            <div className="text-sm font-bold text-slate-900">개별 맞춤 안내</div>
+            <div className="mt-2 flex items-center justify-center gap-3">
+              <a href="/signup" className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white hover:bg-slate-50">레벨 테스트</a>
+              <a href="/admissions" className="px-4 py-2 rounded-lg bg-frage-navy text-white text-sm font-bold hover:bg-slate-800">상담 신청</a>
             </div>
-            <p className="mt-2 text-sm" style={{ color: colors.sub }}>
-              단계별로 체계화된 프라게만의 커리큘럼을 소개합니다. 언어 습득의 원리를 기반으로 설계되었습니다.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="max-w-3xl mx-auto mt-16 px-6">
-        <div className="md:grid md:grid-cols-2 md:gap-12">
-          <div className="space-y-8">
-            <Stage title="Little FRAGE (3세–5세)" keywords="PLAY · EXPOSURE · CONFIDENCE" desc="놀이 기반 영어 노출과 친숙도 형성" />
-            <Arrow />
-            <Stage title="FRAGE Kinder (5세–7세)" keywords="PHONICS READY · SENTENCE · THINKING" desc="놀이에서 학습으로의 전환, 문장과 사고력의 초석" />
-            <Arrow />
-            <Stage title="Power up & Asset" keywords="READING · CRITICAL THINKING · EXPRESSION" desc="고급 독해 · 에세이 · 발표로 표현 역량 확장" />
-          </div>
-          <div className="space-y-8 mt-12 md:mt-0">
-            <Stage title="Root / Beginner" keywords="PHONICS · LISTENING · SPEAKING" desc="영어 기초 구조 형성, 소리·말의 기반" />
-            <Arrow />
-            <Stage title="Ground up" keywords="GRAMMAR · WRITING · STRUCTURE" desc="문장·단락·논리 구축으로 학업형 영어의 토대" />
-          </div>
-        </div>
-
-        
-
-        <div className="text-center mt-14 space-y-3">
-          <p className="font-bold" style={{ color: colors.text }}>
-            아이마다 시작점도, 속도도 다릅니다. 프라게 에듀는 그 차이를 설계합니다.
-          </p>
-          <div className="flex items-center justify-center gap-6">
-            <a href="/signup" className="text-sm font-bold underline underline-offset-4" style={{ color: colors.text }}>
-              레벨 테스트 안내
-            </a>
-            <a href="/admissions" className="text-sm font-bold underline underline-offset-4" style={{ color: colors.text }}>
-              1:1 학습 상담 신청
-            </a>
-          </div>
-        </div>
-      </section>
-      <section className="max-w-3xl mx-auto mt-24 px-6 pt-10" style={{ borderTop: `1px solid ${colors.border}` }}>
-        <div className="text-center space-y-3">
-          <div className="text-sm font-bold" style={{ color: colors.text }}>Fradis</div>
-          <div className="space-y-1">
-            <div className="text-sm" style={{ color: colors.sub }}>Academic & Global English Hub</div>
-            <div className="text-sm" style={{ color: colors.sub }}>중3–고1 수준 영어</div>
-            <div className="text-sm" style={{ color: colors.sub }}>논·서술형 평가 대비</div>
-            <div className="text-sm" style={{ color: colors.sub }}>사고력 독해 · 고급 작문</div>
-            <div className="text-sm" style={{ color: colors.sub }}>해외 유학/ 국제학교 준비</div>
           </div>
         </div>
       </section>
@@ -76,22 +63,40 @@ export default function ProgramsPage() {
   );
 }
 
-function Stage({ title, keywords, desc }: { title: string; keywords: string; desc: string }) {
+function ProgramTrack({
+  title,
+  subtitle,
+  badgeClass,
+  stages,
+  footer
+}: {
+  title: string;
+  subtitle: string;
+  badgeClass: string;
+  stages: { tag: string; color: string; keywords: string; desc: string }[];
+  footer: string;
+}) {
   return (
-    <div className="space-y-2">
-      <div className="text-sm font-bold" style={{ color: "#111111" }}>{title}</div>
-      <div className="text-[11px] font-bold tracking-widest" style={{ color: "#666666" }}>{keywords}</div>
-      <div className="text-sm" style={{ color: "#666666" }}>{desc}</div>
-    </div>
-  );
-}
-
-function Arrow() {
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="w-px h-6" style={{ backgroundColor: "#E5E5E5" }} />
-      <div className="text-xs font-bold" style={{ color: "#999999" }}>↓</div>
-      <div className="w-px h-6" style={{ backgroundColor: "#E5E5E5" }} />
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs font-bold text-slate-500">{subtitle}</div>
+          <h2 className="mt-1 text-xl font-black text-slate-900">{title}</h2>
+        </div>
+        <span className={`inline-flex items-center rounded-lg px-3 py-1 text-xs font-bold ${badgeClass}`}>Roadmap</span>
+      </div>
+      <div className="mt-5 space-y-3">
+        {stages.map((s) => (
+          <div key={s.tag} className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between">
+              <span className={`px-2 py-1 rounded text-[11px] font-bold ${s.color}`}>{s.tag}</span>
+              <span className="text-[11px] font-bold tracking-widest text-slate-500">{s.keywords}</span>
+            </div>
+            <div className="mt-2 text-sm text-slate-700">{s.desc}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 text-xs text-slate-500">{footer}</div>
     </div>
   );
 }
