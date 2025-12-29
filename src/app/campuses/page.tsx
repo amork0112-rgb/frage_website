@@ -29,6 +29,7 @@ export default function CampusesPage() {
           <div className="mt-6 space-y-2 text-sm text-slate-500">
             <p>📍 대구 수성구 수성로54길 45</p>
             <p>🎓 대상: 5세 ~ 초등 (국제학교/유학 준비)</p>
+            <p>📞 053-754-0577</p>
           </div>
           <div className="mt-8 flex flex-col gap-3">
             <a
@@ -38,6 +39,12 @@ export default function CampusesPage() {
               className="inline-flex justify-center rounded-lg bg-[#FEE500] px-4 py-2.5 text-sm font-bold text-[#191919] hover:bg-[#FDD835] transition-colors"
             >
               국제관 카카오톡 상담하기
+            </a>
+            <a
+              href="tel:053-754-0577"
+              className="inline-flex justify-center rounded-lg bg-frage-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
+            >
+              전화하기
             </a>
             <a
               href="https://map.kakao.com/link/search/대구 수성구 수성로 54길 45"
@@ -63,6 +70,7 @@ export default function CampusesPage() {
           <div className="mt-6 space-y-2 text-sm text-slate-500">
             <p>📍 대구 수성구 달구벌대로 2482</p>
             <p>🎓 대상: 초등 ~ 중등 </p>
+            <p>📞 053-759-0533</p>
           </div>
           <div className="mt-8 flex flex-col gap-3">
             <a
@@ -72,6 +80,12 @@ export default function CampusesPage() {
               className="inline-flex justify-center rounded-lg bg-frage-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
             >
               상담 문의하기
+            </a>
+            <a
+              href="tel:053-759-0533"
+              className="inline-flex justify-center rounded-lg bg-frage-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
+            >
+              전화하기
             </a>
             <a
               href="https://map.kakao.com/link/search/대구 수성구 달구벌대로 2482"
@@ -97,6 +111,7 @@ export default function CampusesPage() {
           <div className="mt-6 space-y-2 text-sm text-slate-500">
             <p>📍 대구 수성구 범어천로 167 진영빌딩 3층</p>
             <p>🎓 대상: 유치부 ~ 초중등 전 학년</p>
+            <p>📞 053-216-0577</p>
           </div>
           <div className="mt-8 flex flex-col gap-3">
             <a
@@ -106,6 +121,12 @@ export default function CampusesPage() {
               className="inline-flex justify-center rounded-lg bg-frage-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
             >
               상담 문의하기
+            </a>
+            <a
+              href="tel:053-216-0577"
+              className="inline-flex justify-center rounded-lg bg-frage-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
+            >
+              전화하기
             </a>
             <a
               href="https://map.kakao.com/link/search/대구 수성구 범어천로 167 진영빌딩 3층"
@@ -131,6 +152,7 @@ export default function CampusesPage() {
           <div className="mt-6 space-y-2 text-sm text-slate-500">
             <p>📍 대구 수성구 범어천로 175</p>
             <p>🎓 대상: 3세 ~ 5세 </p>
+            <p>📞 053-218-0577</p>
           </div>
           <div className="mt-8 flex flex-col gap-3">
             <a
@@ -140,6 +162,12 @@ export default function CampusesPage() {
               className="inline-flex justify-center rounded-lg bg-frage-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
             >
               상담 문의하기
+            </a>
+            <a
+              href="tel:053-218-0577"
+              className="inline-flex justify-center rounded-lg bg-frage-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
+            >
+              전화하기
             </a>
             <a
               href="https://map.kakao.com/link/search/대구 수성구 범어천로 175"

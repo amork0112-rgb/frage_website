@@ -25,8 +25,8 @@ const notoSansKr = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: "FRAGE EDU | Joyful English Growth",
-  description: "Where English becomes a happy habit for children.",
+  title: "FRAGE EDU | English for Thinking Minds",
+  description: "Building strong readers, clear thinkers, and confident communicators.",
   icons: {
     icon: "/favicon.ico",
   },
