@@ -562,7 +562,7 @@ export default function AdminStudentsPage() {
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-slate-700">반</span>
           <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
-            {classes.map(c => (
+            {["All", ...availableClasses].map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
@@ -777,7 +777,7 @@ export default function AdminStudentsPage() {
                       >⋯</button>
                       <div
                         data-open="false"
-                        className="absolute right-0 mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-10 hidden"
+                        className="absolute right-0 mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-10"
                         style={{ display: "none" }}
                         onBlur={(e) => {
                           const el = e.currentTarget as HTMLDivElement;
