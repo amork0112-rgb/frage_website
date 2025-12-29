@@ -14,6 +14,14 @@ const nextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
+      {
+        protocol: "https",
+        hostname: "postfiles.pstatic.net",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.idaegu.co.kr",
+      },
     ],
   },
 };

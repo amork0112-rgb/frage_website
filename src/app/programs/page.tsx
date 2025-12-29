@@ -31,9 +31,9 @@ export default function ProgramsPage() {
       <section className="max-w-3xl mx-auto mt-16 px-6">
         <div className="md:grid md:grid-cols-2 md:gap-12">
           <div className="space-y-8">
-            <Stage title="Little FRAGE (4–5)" keywords="PLAY · EXPOSURE · CONFIDENCE" desc="놀이 기반 영어 노출과 친숙도 형성" />
+            <Stage title="Little FRAGE (3세–5세)" keywords="PLAY · EXPOSURE · CONFIDENCE" desc="놀이 기반 영어 노출과 친숙도 형성" />
             <Arrow />
-            <Stage title="FRAGE Kinder (5–7)" keywords="PHONICS READY · SENTENCE · THINKING" desc="놀이에서 학습으로의 전환, 문장과 사고력의 초석" />
+            <Stage title="FRAGE Kinder (5세–7세)" keywords="PHONICS READY · SENTENCE · THINKING" desc="놀이에서 학습으로의 전환, 문장과 사고력의 초석" />
             <Arrow />
             <Stage title="Power up & Asset" keywords="READING · CRITICAL THINKING · EXPRESSION" desc="고급 독해 · 에세이 · 발표로 표현 역량 확장" />
           </div>

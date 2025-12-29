@@ -290,55 +290,9 @@ export default function HomePage() {
                         ))}
                     </>
                 ) : (
-                    // Fallback to static data if no pinned news
-                    <>
-                        <div className="md:col-span-2 relative rounded-3xl overflow-hidden group shadow-lg h-[300px]">
-                            <Image
-                                src={t.awards_news.news[0].image}
-                                alt={t.awards_news.news[0].title}
-                                fill
-                                className="object-cover transition-transform duration-700 group-hover:scale-105"
-                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 1200px"
-                                priority
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-frage-navy/90 via-frage-navy/40 to-transparent"></div>
-                            <div className="absolute bottom-0 left-0 p-8 w-full">
-                                <span className="inline-block px-3 py-1 rounded-full bg-frage-yellow text-frage-navy text-xs font-bold mb-3">
-                                    {t.awards_news.news[0].tag}
-                                </span>
-                                <h4 className="text-white text-2xl font-bold mb-2 leading-tight">{t.awards_news.news[0].title}</h4>
-                                <p className="text-white/80 text-sm line-clamp-2 mb-4">{t.awards_news.news[0].summary}</p>
-                                <span className="text-white/60 text-xs font-bold">{t.awards_news.news[0].date}</span>
-                            </div>
-                        </div>
-                        {t.awards_news.news.slice(1).map((news: any, index: number) => (
-                            <div key={index} className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 group">
-                                <div className="h-40 overflow-hidden">
-                                    <Image
-                                        src={news.image}
-                                        alt={news.title}
-                                        width={600}
-                                        height={160}
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                    />
-                                </div>
-                                <div className="p-6">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <span className="text-xs font-bold text-frage-blue bg-frage-blue/10 px-2 py-1 rounded-md">
-                                            {news.tag}
-                                        </span>
-                                        <span className="text-xs text-gray-400 font-medium">{news.date}</span>
-                                    </div>
-                                    <h4 className="font-bold text-frage-navy text-lg mb-2 line-clamp-1 group-hover:text-frage-blue transition-colors">
-                                        {news.title}
-                                    </h4>
-                                    <p className="text-sm text-frage-gray line-clamp-2 leading-relaxed">
-                                        {news.summary}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
-                    </>
+                  <div className="md:col-span-2 rounded-3xl border border-gray-200 bg-white p-10 text-center">
+                    <p className="text-sm font-bold text-frage-gray">최신 소식이 곧 추가됩니다.</p>
+                  </div>
                 )}
               </div>
             </div>
