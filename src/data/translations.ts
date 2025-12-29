@@ -38,7 +38,7 @@ export const translations = {
       success_message: "Registration completed successfully!",
     },
     hero: {
-      location: "Since 2002 • Daegu Suseong-gu",
+      location: "Since 2001 • Daegu Suseong-gu",
       title_1: "English Education that",
       title_2: "Cultivates Thinking",
       subtitle: "A deep curriculum from early childhood to elementary that goes beyond English.\nWe create true growth through reading, writing, critical thinking, and project-based learning.",
@@ -49,7 +49,7 @@ export const translations = {
     stats: {
       items: [
         { label: "Graduates", value: "2,500+" },
-        { label: "Founded", value: "2002" },
+        { label: "Founded", value: "2001" },
         { label: "Curriculum Tracks", value: "12+" },
         { label: "Happy Campuses", value: "4" },
       ],
@@ -228,7 +228,7 @@ export const translations = {
       success_message: "회원가입이 완료되었습니다!",
     },
     hero: {
-      location: "Since 2002 • 대구 수성구",
+      location: "Since 2001 • 대구 수성구",
       title_1: "생각하는 힘을 키우는",
       title_2: "영어교육, 프라게",
       subtitle: "유아부터 초등까지, 영어 그 이상을 길러주는 깊이 있는 커리큘럼\n독서, 글쓰기, 사고력, 프로젝트 기반 학습을 통해 진짜 성장을 만듭니다.",
@@ -239,7 +239,7 @@ export const translations = {
     stats: {
       items: [
         { label: "졸업생", value: "2,500+" },
-        { label: "설립", value: "2002" },
+        { label: "설립", value: "2001" },
         { label: "교육 과정", value: "12+" },
         { label: "행복한 캠퍼스", value: "4" },
       ],

@@ -105,8 +105,8 @@ export default function CampusesPage() {
           </div>
           <h2 className="text-2xl font-bold text-slate-900">Atheneum Campus</h2>
           <p className="mt-3 text-slate-600">
-            앤도버관과 동일한 커리큘럼과 평가 시스템으로 운영되는 지역 거점
-            캠퍼스입니다. 가까운 곳에서 프라게의 교육을 만날 수 있습니다.
+            프라게의 검증된 커리큘럼과 평가 시스템을 기반으로 운영되는 지역 거점 캠퍼스입니다. 
+            앤도버관에서 시작된 교육 철학과 수업 방식이 동일한 기준으로 적용되어, 아이의 학습 수준과 성장을 일관성 있게 관리합니다.
           </p>
           <div className="mt-6 space-y-2 text-sm text-slate-500">
             <p>📍 대구 수성구 범어천로 167 진영빌딩 3층</p>
