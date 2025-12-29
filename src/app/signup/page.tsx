@@ -29,6 +29,10 @@ export default function SignupPage() {
     password: "",
     address: "",
     addressDetail: "",
+    arrivalMethod: "",
+    arrivalPlace: "",
+    departureMethod: "",
+    departurePlace: "",
     privacyAgreed: false
   });
   
@@ -174,6 +178,12 @@ export default function SignupPage() {
           passportEnglishName: formData.passportEnglishName.trim(),
           englishFirstName: formData.englishFirstName.trim(),
           childBirthDate: formData.childBirthDate,
+          address: formData.address.trim(),
+          addressDetail: formData.addressDetail.trim(),
+          arrivalMethod: formData.arrivalMethod.trim(),
+          arrivalPlace: formData.arrivalPlace.trim(),
+          departureMethod: formData.departureMethod.trim(),
+          departurePlace: formData.departurePlace.trim(),
           createdAt: new Date().toISOString()
         });
         localStorage.setItem("signup_profiles", JSON.stringify(nextProfiles));
@@ -206,7 +216,11 @@ export default function SignupPage() {
           addressDetail: formData.addressDetail.trim(),
           passportEnglishName: formData.passportEnglishName.trim(),
           englishFirstName: formData.englishFirstName.trim(),
-          childBirthDate: formData.childBirthDate
+          childBirthDate: formData.childBirthDate,
+          arrivalMethod: formData.arrivalMethod.trim(),
+          arrivalPlace: formData.arrivalPlace.trim(),
+          departureMethod: formData.departureMethod.trim(),
+          departurePlace: formData.departurePlace.trim()
         })
       }).catch(() => {});
       alert("회원가입이 완료되었습니다!");
@@ -235,6 +249,40 @@ export default function SignupPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="id" className="block text-sm font-bold text-frage-navy mb-2">
+                    아이디 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="id"
+                    name="id"
+                    required
+                    maxLength={20}
+                    placeholder="영문/숫자 4~20자"
+                    value={formData.id}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="password" className="block text-sm font-bold text-frage-navy mb-2">
+                    비밀번호 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    required
+                    maxLength={30}
+                    placeholder="영문+숫자 6~30자"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
+                  />
+                </div>
+              </div>
               {/* Student Name */}
               <div>
                 <label htmlFor="studentName" className="block text-sm font-bold text-frage-navy mb-2">
@@ -366,41 +414,7 @@ export default function SignupPage() {
                 />
               </div>
 
-              {/* Account ID */}
-              <div>
-                <label htmlFor="id" className="block text-sm font-bold text-frage-navy mb-2">
-                  아이디 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="id"
-                  name="id"
-                  required
-                  maxLength={20}
-                  placeholder="영문/숫자 4~20자"
-                  value={formData.id}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
-                />
-              </div>
-
-              {/* Account Password */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-bold text-frage-navy mb-2">
-                  비밀번호 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  required
-                  maxLength={30}
-                  placeholder="영문+숫자 6~30자"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
-                />
-              </div>
+              
 
               {/* Address */}
               <div>
@@ -438,6 +452,64 @@ export default function SignupPage() {
                   onChange={handleChange}
                   className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
                 />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="arrivalMethod" className="block text-sm font-bold text-frage-navy mb-2">
+                    등원 방법
+                  </label>
+                  <input
+                    type="text"
+                    id="arrivalMethod"
+                    name="arrivalMethod"
+                    placeholder="예: 도보, 자가, 통학버스"
+                    value={formData.arrivalMethod}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="arrivalPlace" className="block text-sm font-bold text-frage-navy mb-2">
+                    등원 위치
+                  </label>
+                  <input
+                    type="text"
+                    id="arrivalPlace"
+                    name="arrivalPlace"
+                    placeholder="예: 정문, 북문, 버스정류장"
+                    value={formData.arrivalPlace}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="departureMethod" className="block text-sm font-bold text-frage-navy mb-2">
+                    하원 방법
+                  </label>
+                  <input
+                    type="text"
+                    id="departureMethod"
+                    name="departureMethod"
+                    placeholder="예: 도보, 자가, 통학버스"
+                    value={formData.departureMethod}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="departurePlace" className="block text-sm font-bold text-frage-navy mb-2">
+                    하원 위치
+                  </label>
+                  <input
+                    type="text"
+                    id="departurePlace"
+                    name="departurePlace"
+                    placeholder="예: 정문, 북문, 버스정류장"
+                    value={formData.departurePlace}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
+                  />
+                </div>
               </div>
 
               {/* Privacy Policy */}

@@ -34,6 +34,13 @@ export default function AdminAlertsPage() {
       const campusRaw = localStorage.getItem("admin_campus");
       setRoleCampus(campusRaw || null);
     } catch {}
+    try {
+      const clearedFlag = localStorage.getItem("admin_alerts_samples_cleared");
+      if (!clearedFlag) {
+        localStorage.setItem("admin_manual_alerts", JSON.stringify([]));
+        localStorage.setItem("admin_alerts_samples_cleared", "true");
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -224,6 +231,15 @@ export default function AdminAlertsPage() {
           <h1 className="text-2xl font-black text-slate-900">내부 알림</h1>
         </div>
         <Link href="/admin/students" className="text-sm font-bold text-frage-blue">원생 관리</Link>
+      </div>
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+        <div className="text-sm font-bold text-slate-900">사용 방법</div>
+        <div className="mt-2 space-y-1 text-sm text-slate-700">
+          <div>• 상단 탭으로 상태별 필터링 (전체 / 휴원 검토중 / 퇴원 검토중)</div>
+          <div>• 항목의 ‘자세히’에서 시그널 확인 후 액션 선택·기록</div>
+          <div>• ‘상담 필요’ 선택 시 상담 상세 페이지로 이동</div>
+          <div>• ‘자세히’를 열면 동일 등급 알림은 7일간 숨김 처리</div>
+        </div>
       </div>
 
       {!!toast && (

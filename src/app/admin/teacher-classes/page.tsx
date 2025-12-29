@@ -31,6 +31,7 @@ export default function AdminTeacherClassesPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [query, setQuery] = useState("");
   const [campusFilter, setCampusFilter] = useState<"All" | Teacher["campus"]>("All");
+  const [classCatalog, setClassCatalog] = useState<string[]>([]);
 
   useEffect(() => {
     try {
@@ -72,6 +73,13 @@ export default function AdminTeacherClassesPage() {
     } catch {
       setAssign({});
     }
+    try {
+      const raw = localStorage.getItem("admin_class_catalog");
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      setClassCatalog(Array.isArray(list) ? list : []);
+    } catch {
+      setClassCatalog([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -89,9 +97,9 @@ export default function AdminTeacherClassesPage() {
   }, []);
 
   const classes = useMemo(() => {
-    const set = new Set(students.map(s => s.className));
+    const set = new Set<string>([...students.map(s => s.className), ...classCatalog]);
     return Array.from(set);
-  }, [students]);
+  }, [students, classCatalog]);
 
   const filtered = useMemo(() => {
     return teachers
@@ -104,6 +112,13 @@ export default function AdminTeacherClassesPage() {
     const map = { ...assign, [id]: v };
     setAssign(map);
     localStorage.setItem("admin_teacher_class_map", JSON.stringify(map));
+    try {
+      const raw = localStorage.getItem("admin_class_catalog");
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      const next = Array.from(new Set([...(Array.isArray(list) ? list : []), v]));
+      localStorage.setItem("admin_class_catalog", JSON.stringify(next));
+      setClassCatalog(next);
+    } catch {}
   };
 
   const isAllowed = role === "admin";

@@ -29,6 +29,10 @@ type Student = {
   address: string;
   bus: string;
   departureTime: string;
+  arrivalMethod?: string;
+  arrivalPlace?: string;
+  departureMethod?: string;
+  departurePlace?: string;
 };
 
 type AttendanceRecord = {
@@ -40,6 +44,8 @@ type AttendanceRecord = {
 
 export default function AdminStudentsPage() {
   const router = useRouter();
+  const KINDER = ["Kepler", "Platon", "Euclid", "Darwin", "Gauss", "Edison", "Thales"];
+  const JUNIOR = ["G1", "G2", "G3", "G4", "E1", "E2", "E3", "E4", "A1", "A2", "A3", "A4", "A5", "F1", "F2", "F3", "F4", "F5"];
   const [campusFilter, setCampusFilter] = useState<string>("All");
   const [classFilter, setClassFilter] = useState<string>("All");
   const [statusFilter, setStatusFilter] = useState<Status | "All">("All");
@@ -65,6 +71,8 @@ export default function AdminStudentsPage() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [selectedTargetClass, setSelectedTargetClass] = useState<string>("");
+  const [classCatalog, setClassCatalog] = useState<string[]>([]);
+  const [newClassName, setNewClassName] = useState<string>("");
   const [studentLogs, setStudentLogs] = useState<Record<string, string[]>>({});
   const [memoPanelVisible, setMemoPanelVisible] = useState(false);
   const [statusModalFor, setStatusModalFor] = useState<Student | null>(null);
@@ -116,6 +124,15 @@ export default function AdminStudentsPage() {
       const map = logsRaw ? JSON.parse(logsRaw) : {};
       setStudentLogs(map || {});
     } catch {}
+    try {
+      const raw = localStorage.getItem("admin_class_catalog");
+      let list: string[] = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(list) || list.length === 0) {
+        list = [...KINDER, ...JUNIOR];
+      }
+      setClassCatalog(list);
+      localStorage.setItem("admin_class_catalog", JSON.stringify(list));
+    } catch {}
   }, []);
 
   const [students, setStudents] = useState<Student[]>([]);
@@ -149,7 +166,11 @@ export default function AdminStudentsPage() {
                 parentAccountId: String(p.id || "").trim(),
                 address: [String(p.address || "").trim(), String(p.addressDetail || "").trim()].filter(Boolean).join(" "),
                 bus: "미배정",
-                departureTime: ""
+                departureTime: "",
+                arrivalMethod: String(p.arrivalMethod || "").trim(),
+                arrivalPlace: String(p.arrivalPlace || "").trim(),
+                departureMethod: String(p.departureMethod || "").trim(),
+                departurePlace: String(p.departurePlace || "").trim()
               }))
               .filter(s => !existingPhones.has(s.phone));
             mergedItems = [...mergedItems, ...mapped];
@@ -251,6 +272,11 @@ export default function AdminStudentsPage() {
     return Array.from(set);
   }, [limitedByRole, campusForFilter]);
 
+  const availableClasses = useMemo(() => {
+    const set = new Set<string>([...classCatalog, ...campusClasses]);
+    return Array.from(set);
+  }, [classCatalog, campusClasses]);
+
   useEffect(() => {
     try {
       const rawProfiles = localStorage.getItem("signup_profiles");
@@ -308,7 +334,7 @@ export default function AdminStudentsPage() {
     if (role === "teacher") return;
     if (!selectedStudentIds.length) return;
     if (!selectedTargetClass) return;
-    if (!campusClasses.includes(selectedTargetClass)) return;
+    if (!availableClasses.includes(selectedTargetClass)) return;
     const selectedStudents = merged.filter(s => selectedStudentIds.includes(s.id));
     if (!selectedStudents.length) return;
     const hasSame = selectedStudents.some(s => s.className === selectedTargetClass);
@@ -335,6 +361,16 @@ export default function AdminStudentsPage() {
       closeBulkModal();
     } catch {
     }
+  };
+
+  const addNewClassToCatalog = () => {
+    const name = (newClassName || "").trim();
+    if (!name) return;
+    const next = Array.from(new Set([...(classCatalog || []), name]));
+    setClassCatalog(next);
+    localStorage.setItem("admin_class_catalog", JSON.stringify(next));
+    setNewClassName("");
+    setSelectedTargetClass(name);
   };
 
   const [bulkBusOpen, setBulkBusOpen] = useState(false);
@@ -1619,6 +1655,18 @@ export default function AdminStudentsPage() {
                 <span className="text-xs font-bold text-slate-400">주소</span>
                 <span className="text-sm font-bold text-slate-800 text-right">{infoStudent.address}</span>
               </div>
+              { (infoStudent.arrivalMethod || infoStudent.arrivalPlace) && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-400">등원</span>
+                  <span className="text-sm font-bold text-slate-800 text-right">{[infoStudent.arrivalMethod, infoStudent.arrivalPlace].filter(Boolean).join(" / ")}</span>
+                </div>
+              ) }
+              { (infoStudent.departureMethod || infoStudent.departurePlace) && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-400">하원</span>
+                  <span className="text-sm font-bold text-slate-800 text-right">{[infoStudent.departureMethod, infoStudent.departurePlace].filter(Boolean).join(" / ")}</span>
+                </div>
+              ) }
               <div>
                 <div className="text-xs font-bold text-slate-400 mb-1">변경 로그</div>
                 <div className="space-y-1 max-h-40 overflow-auto">
@@ -1695,17 +1743,32 @@ export default function AdminStudentsPage() {
                 <select
                   value={selectedTargetClass}
                   onChange={(e) => setSelectedTargetClass(e.target.value)}
-                  disabled={!campusClasses.length}
+                  disabled={!availableClasses.length}
                   className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
                 >
                   <option value="" disabled>반 선택</option>
-                  {campusClasses.map(c => {
+                  {availableClasses.map(c => {
                     const disable = merged.some(s => selectedStudentIds.includes(s.id) && s.className === c);
                     return (
                       <option key={c} value={c} disabled={disable}>{c}</option>
                     );
                   })}
                 </select>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={newClassName}
+                    onChange={(e) => setNewClassName(e.target.value)}
+                    placeholder="새 반 이름 입력"
+                    className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                  />
+                  <button
+                    onClick={addNewClassToCatalog}
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
+                    aria-label="새 반 추가"
+                  >
+                    추가
+                  </button>
+                </div>
               </div>
               <div className="text-xs text-slate-400">반 변경 내역은 자동으로 기록됩니다.</div>
             </div>

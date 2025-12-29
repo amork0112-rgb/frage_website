@@ -94,7 +94,12 @@ export default function AdminHome() {
   // Mock Stats (Dynamic based on filter)
   const stats = {
     newRequests: filteredRequests.length,
-    activeNotices: selectedCampus === 'All' ? 3 : 2,
+    activeNotices: (
+      (selectedCampus === 'All'
+        ? dashboardNotices
+        : dashboardNotices.filter(n => n.campus === selectedCampus)
+      ).filter(n => !n.isArchived).length
+    ),
     totalStudents:
       selectedCampus === 'All' ? 0 :
       selectedCampus === 'International' ? 0 :

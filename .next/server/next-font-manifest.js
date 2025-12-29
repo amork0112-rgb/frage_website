@@ -1,1 +1,0 @@
-self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/Users/rosiekwon/Downloads/Frage/src/app/layout\":[\"static/media/45cca0c1391027f2-s.p.woff2\",\"static/media/ee40bb094c99a29a-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"
