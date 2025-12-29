@@ -35,11 +35,7 @@ export default function AdminAlertsPage() {
       setRoleCampus(campusRaw || null);
     } catch {}
     try {
-      const clearedFlag = localStorage.getItem("admin_alerts_samples_cleared");
-      if (!clearedFlag) {
-        localStorage.setItem("admin_manual_alerts", JSON.stringify([]));
-        localStorage.setItem("admin_alerts_samples_cleared", "true");
-      }
+      localStorage.setItem("admin_manual_alerts", JSON.stringify([]));
     } catch {}
   }, []);
 

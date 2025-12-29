@@ -331,7 +331,6 @@ export default function AdminStudentsPage() {
   };
 
   const handleBulkClassChange = () => {
-    if (role === "teacher") return;
     if (!selectedStudentIds.length) return;
     if (!selectedTargetClass) return;
     if (!availableClasses.includes(selectedTargetClass)) return;

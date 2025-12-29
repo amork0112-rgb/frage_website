@@ -66,7 +66,7 @@ export default function CampusesPage() {
           </div>
           <div className="mt-8 flex flex-col gap-3">
             <a
-              href={process.env.NEXT_PUBLIC_KAKAO_CHANNEL_URL ?? "https://pf.kakao.com"}
+              href={process.env.NEXT_PUBLIC_KAKAO_CHANNEL_URL ?? "https://pf.kakao.com/_QGQvxj"}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex justify-center rounded-lg bg-frage-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
@@ -100,7 +100,7 @@ export default function CampusesPage() {
           </div>
           <div className="mt-8 flex flex-col gap-3">
             <a
-              href={process.env.NEXT_PUBLIC_KAKAO_CHANNEL_URL ?? "https://pf.kakao.com"}
+              href={process.env.NEXT_PUBLIC_KAKAO_CHANNEL_URL ?? "https://pf.kakao.com/_QGQvxj"}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex justify-center rounded-lg bg-frage-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
@@ -126,7 +126,7 @@ export default function CampusesPage() {
           </div>
           <div className="mt-8 flex flex-col gap-3">
             <a
-              href={process.env.NEXT_PUBLIC_KAKAO_CHANNEL_URL ?? "https://pf.kakao.com"}
+              href={process.env.NEXT_PUBLIC_KAKAO_CHANNEL_URL ?? "https://pf.kakao.com/_QGQvxj"}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex justify-center rounded-lg bg-frage-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
