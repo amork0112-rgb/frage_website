@@ -71,7 +71,7 @@ export default function AboutPage() {
           <div className="grid grid-cols-3 gap-4">
             <div className="text-xs font-bold text-slate-500">비교 항목</div>
             <div className="text-xs font-bold text-slate-500">A학원</div>
-            <div className="text-xs font-bold text-slate-500">우리 학원</div>
+            <div className="text-xs font-bold text-slate-500">프라게 어학원</div>
           </div>
           <div className="mt-4 space-y-3">
             <div className="grid grid-cols-3 gap-4 items-start">
@@ -141,7 +141,7 @@ export default function AboutPage() {
           <div className="space-y-2 text-sm text-slate-700">
             <div>✔ 시험 대비만으로는 부족하다고 느끼신다면</div>
             <div>✔ 아이가 질문하고 말하는 수업을 원하신다면</div>
-            <div>✔ 결과보다 성장을 보고 싶다면</div>
+            <div>✔ 성장 스토리를 통한 결과를 보고 싶다면</div>
           </div>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <a href="/about" className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white hover:bg-slate-50">교육 철학 더 알아보기</a>
