@@ -22,8 +22,6 @@ type Student = {
   campus: string;
 };
 
-const seedNames = ["Yolandi", "Joni", "Jan L.J", "Diana", "Sophie", "Patrick", "Angus"];
-
 export default function AdminTeacherClassesPage() {
   const [role, setRole] = useState<"admin" | "teacher" | null>(null);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -43,26 +41,7 @@ export default function AdminTeacherClassesPage() {
     try {
       const raw = localStorage.getItem("teacher_accounts");
       const list: Teacher[] = raw ? JSON.parse(raw) : [];
-      const byName = new Map(list.map(t => [t.name, t]));
-      const next = [...list];
-      seedNames.forEach(n => {
-        if (!byName.has(n)) {
-          const slug = n.toLowerCase().replace(/\s+/g, ".").replace(/[^a-z.]/g, "");
-          const id = `t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-          const email = `${slug || "teacher"}@frage.local`;
-          next.push({
-            id,
-            name: n,
-            email,
-            campus: "International",
-            role: "teacher",
-            active: true,
-            createdAt: new Date().toISOString(),
-          });
-        }
-      });
-      setTeachers(next);
-      localStorage.setItem("teacher_accounts", JSON.stringify(next));
+      setTeachers(Array.isArray(list) ? list : []);
     } catch {
       setTeachers([]);
     }

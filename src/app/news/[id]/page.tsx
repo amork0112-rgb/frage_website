@@ -1,73 +1,96 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
-export default async function NewsPostPage({
-  params
-}: {
-  params: { id: string };
-}) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
-  );
+type Post = {
+  id: number;
+  title: string;
+  category: string;
+  created_at: string;
+  image_url?: string;
+  content: string;
+};
 
-  const { data: post } = await supabase
-    .from("posts")
-    .select("*")
-    .eq("id", params.id)
-    .single();
+export default function NewsPostPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
+  const [post, setPost] = useState<Post | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!post) {
-    redirect("/news");
+  useEffect(() => {
+    const load = async () => {
+      const idNum = Number(params.id);
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("id", Number.isNaN(idNum) ? params.id : idNum)
+        .single();
+      if (error || !data) {
+        router.push("/news");
+        return;
+      }
+      setPost(data as Post);
+      setLoading(false);
+    };
+    load();
+  }, [params.id, router]);
+
+  if (loading) {
+    return <div className="min-h-screen bg-white flex items-center justify-center text-slate-400">Loading…</div>;
   }
 
-  const date = new Date(post.created_at);
+  if (!post) return null;
+
   const formatted = new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",
     month: "long",
-    day: "numeric"
-  }).format(date);
+    day: "numeric",
+  }).format(new Date(post.created_at));
+
+  const categoryStyle = (() => {
+    const lower = String(post.category || "").toLowerCase();
+    if (lower.includes("notice")) return "bg-red-50 text-red-600";
+    if (lower.includes("event")) return "bg-orange-50 text-orange-600";
+    return "bg-blue-50 text-blue-600";
+  })();
 
   return (
     <div className="min-h-screen bg-white">
       <header className="bg-white border-b border-slate-100 sticky top-0 z-10">
         <div className="container mx-auto px-6 h-16 flex items-center">
-            <Link href="/news" className="flex items-center gap-2 text-slate-500 hover:text-frage-blue transition-colors text-sm font-bold">
-                <ArrowLeft className="w-4 h-4" />
-                Back to News
-            </Link>
+          <Link href="/news" className="flex items-center gap-2 text-slate-500 hover:text-frage-blue transition-colors text-sm font-bold">
+            <ArrowLeft className="w-4 h-4" />
+            Back to News
+          </Link>
         </div>
       </header>
 
       <article className="container mx-auto max-w-3xl py-12 px-6">
         <div className="mb-8">
-            <span className={`inline-block px-3 py-1 text-xs font-bold rounded mb-4 ${
-                  post.category.toLowerCase().includes('notice') ? 'bg-red-50 text-red-600' :
-                  post.category.toLowerCase().includes('event') ? 'bg-orange-50 text-orange-600' :
-                  'bg-blue-50 text-blue-600'
-            }`}>
-                {post.category.toUpperCase()}
-            </span>
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight mb-4">
-                {post.title}
-            </h1>
-            <p className="text-slate-500 font-medium">
-                {formatted}
-            </p>
+          <span className={`inline-block px-3 py-1 text-xs font-bold rounded mb-4 ${categoryStyle}`}>
+            {String(post.category || "").toUpperCase()}
+          </span>
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight mb-4">
+            {post.title}
+          </h1>
+          <p className="text-slate-500 font-medium">{formatted}</p>
         </div>
 
         {post.image_url && (
-            <div className="mb-10 rounded-2xl overflow-hidden shadow-sm">
-                <img src={post.image_url} alt={post.title} className="w-full h-auto object-cover" />
-            </div>
+          <div className="mb-10 rounded-2xl overflow-hidden shadow-sm">
+            <img src={post.image_url} alt={post.title} className="w-full h-auto object-cover" />
+          </div>
         )}
 
         <div className="prose prose-lg max-w-none prose-slate prose-headings:font-bold prose-a:text-frage-blue">
-          {post.content.split('\n').map((line: string, i: number) => (
-            <p key={i}>{line}</p>
-          ))}
+          {(post.content || "")
+            .split("\n")
+            .filter((line) => line.trim().length > 0)
+            .map((line, i) => (
+              <p key={i}>{line}</p>
+            ))}
         </div>
       </article>
     </div>

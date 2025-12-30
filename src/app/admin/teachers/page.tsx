@@ -23,6 +23,7 @@ export default function AdminTeachersPage() {
   const [query, setQuery] = useState("");
   const [campusFilter, setCampusFilter] = useState<"All" | Teacher["campus"]>("All");
   const [toast, setToast] = useState<string>("");
+  const [policy, setPolicy] = useState<string>("Frage@2024");
 
   useEffect(() => {
     try {
@@ -32,6 +33,11 @@ export default function AdminTeachersPage() {
     } catch {
       setItems([]);
     }
+    try {
+      const p = localStorage.getItem("teacher_initial_password_policy");
+      if (p) setPolicy(p);
+      else localStorage.setItem("teacher_initial_password_policy", policy);
+    } catch {}
   }, []);
 
   const filtered = useMemo(() => {
@@ -51,6 +57,16 @@ export default function AdminTeachersPage() {
   const saveAll = (next: Teacher[]) => {
     setItems(next);
     localStorage.setItem("teacher_accounts", JSON.stringify(next));
+  };
+
+  const resetAll = () => {
+    try {
+      localStorage.removeItem("teacher_accounts");
+      localStorage.removeItem("admin_teacher_class_map");
+      setItems([]);
+      setToast("전체 계정을 삭제하고 반 지정 정보를 초기화했습니다");
+      setTimeout(() => setToast(""), 2500);
+    } catch {}
   };
 
   const createTeacher = () => {
@@ -88,7 +104,17 @@ export default function AdminTeachersPage() {
             <Settings className="w-6 h-6 text-frage-yellow" />
             <h1 className="text-2xl font-black text-slate-900">선생님 계정 관리</h1>
           </div>
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-3">
+            <div className="px-3 py-1.5 rounded-lg bg-frage-navy text-white text-xs font-bold">
+              초기 비밀번호 정책: {policy}
+            </div>
+            <button
+              onClick={resetAll}
+              className="px-3 py-1.5 rounded-lg border border-red-200 text-xs font-bold bg-red-50 text-red-700"
+              title="전체 초기화"
+            >
+              전체 초기화
+            </button>
             <span className="text-sm font-bold text-slate-700">캠퍼스</span>
             {["All", "International", "Andover", "Platz", "Atheneum"].map((c) => (
               <button

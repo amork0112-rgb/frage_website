@@ -53,6 +53,10 @@ export default function AdminTransportPage() {
   const [arrivalTimes, setArrivalTimes] = useState<Record<string, string>>({});
   const [etas, setEtas] = useState<Record<string, number>>({});
   const [stopAddresses, setStopAddresses] = useState<Record<string, string>>({});
+  const [busCars, setBusCars] = useState<BusCar[]>([]);
+  const [newBusName, setNewBusName] = useState("");
+  const [newBusStaff, setNewBusStaff] = useState("");
+  const [newBusTime, setNewBusTime] = useState("");
 
   const [campusSites, setCampusSites] = useState<
     { id: string; name: "International" | "Andover" | "Platz" | "Atheneum"; label: string; addr: string; coord: Coord | null }[]
@@ -87,6 +91,24 @@ export default function AdminTransportPage() {
       } catch {}
     };
     load();
+    try {
+      const raw = localStorage.getItem("admin_bus_cars");
+      let list: BusCar[] = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(list) || list.length === 0) {
+        list = [
+          { id: "b1", name: "1호차", staff: "김기사 / 박교사", timeSlot: "16:00" },
+          { id: "b2", name: "2호차", staff: "이기사 / 최교사", timeSlot: "16:30" },
+          { id: "b3", name: "3호차", staff: "박기사 / 장교사", timeSlot: "17:00" },
+          { id: "b4", name: "4호차", staff: "정기사 / 윤교사", timeSlot: "17:30" },
+          { id: "b5", name: "5호차", staff: "오기사 / 김교사", timeSlot: "18:00" },
+          { id: "b6", name: "6호차", staff: "최기사 / 이교사", timeSlot: "18:30" },
+        ];
+        localStorage.setItem("admin_bus_cars", JSON.stringify(list));
+      }
+      setBusCars(list);
+    } catch {
+      setBusCars([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -115,17 +137,17 @@ export default function AdminTransportPage() {
     setCoords(next);
   }, [students, campusSites]);
 
-  const busCars: BusCar[] = useMemo(() => {
-    const base: BusCar[] = [
-      { id: "b1", name: "1호차", staff: "김기사 / 박교사", timeSlot: "16:00" },
-      { id: "b2", name: "2호차", staff: "이기사 / 최교사", timeSlot: "16:30" },
-      { id: "b3", name: "3호차", staff: "박기사 / 장교사", timeSlot: "17:00" },
-      { id: "b4", name: "4호차", staff: "정기사 / 윤교사", timeSlot: "17:30" },
-      { id: "b5", name: "5호차", staff: "오기사 / 김교사", timeSlot: "18:00" },
-      { id: "b6", name: "6호차", staff: "최기사 / 이교사", timeSlot: "18:30" },
-    ];
-    return base;
-  }, []);
+  const parseTime = (t: string) => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(t || "");
+    if (!m) return Number.MAX_SAFE_INTEGER;
+    const hh = parseInt(m[1], 10);
+    const mm = parseInt(m[2], 10);
+    return hh * 60 + mm;
+  };
+
+  const busCarsSorted: BusCar[] = useMemo(() => {
+    return (busCars || []).slice().sort((a, b) => parseTime(a.timeSlot) - parseTime(b.timeSlot));
+  }, [busCars]);
 
   const colorForBus = (busName: string) =>
     busName === "1호차"
@@ -149,7 +171,19 @@ export default function AdminTransportPage() {
   }, [students, campusFilter, timeFilter]);
 
   const assignedListFor = (busName: string) =>
-    filteredStudents.filter((s) => (assignments[s.id] || s.bus) === busName);
+    filteredStudents
+      .filter((s) => (assignments[s.id] || s.bus) === busName)
+      .slice()
+      .sort((a, b) => {
+        if (mode === "dropoff") {
+          const ea = typeof etas[a.id] === "number" ? etas[a.id] : Number.MAX_SAFE_INTEGER;
+          const eb = typeof etas[b.id] === "number" ? etas[b.id] : Number.MAX_SAFE_INTEGER;
+          return ea - eb;
+        }
+        const ta = parseTime(arrivalTimes[a.id] || "08:30");
+        const tb = parseTime(arrivalTimes[b.id] || "08:30");
+        return ta - tb;
+      });
 
   const hasBusChangeRequest = (s: Student) =>
     !!requests.find((r) => r.childId === s.childId || r.childName === s.name);
@@ -179,6 +213,35 @@ export default function AdminTransportPage() {
       localStorage.setItem(key, JSON.stringify(all));
       setDirty(false);
     } catch {}
+  };
+  const saveBusCars = (next: BusCar[]) => {
+    setBusCars(next);
+    try {
+      localStorage.setItem("admin_bus_cars", JSON.stringify(next));
+    } catch {}
+  };
+  const addBusCar = () => {
+    if (!canEdit) return;
+    const name = newBusName.trim();
+    const staff = newBusStaff.trim();
+    const timeSlot = newBusTime.trim();
+    if (!name || !staff || !/^\d{1,2}:\d{2}$/.test(timeSlot)) return;
+    const id = `b_${Date.now().toString(36)}`;
+    const next = [...busCars, { id, name, staff, timeSlot }];
+    saveBusCars(next);
+    setNewBusName("");
+    setNewBusStaff("");
+    setNewBusTime("");
+  };
+  const updateBusCar = (id: string, patch: Partial<BusCar>) => {
+    if (!canEdit) return;
+    const next = busCars.map((b) => (b.id === id ? { ...b, ...patch } : b));
+    saveBusCars(next);
+  };
+  const removeBusCar = (id: string) => {
+    if (!canEdit) return;
+    const next = busCars.filter((b) => b.id !== id);
+    saveBusCars(next);
   };
 
   const mapBox = { minLat: 35.84, maxLat: 35.89, minLng: 128.59, maxLng: 128.66 };
@@ -355,7 +418,7 @@ export default function AdminTransportPage() {
         });
         Promise.all(tasks).then(() => {
           const stopMap: Record<string, Coord | null> = {};
-          busCars.forEach(b => {
+          busCarsSorted.forEach(b => {
             const list = filteredStudents.filter(s => (assignments[s.id] || s.bus) === b.name);
             if (!list.length) {
               stopMap[b.name] = null;
@@ -457,7 +520,7 @@ export default function AdminTransportPage() {
         .on("click", () => setSelectedId(s.id));
     });
     const stopMap: Record<string, Coord | null> = {};
-    busCars.forEach(b => {
+    busCarsSorted.forEach(b => {
       const list = filteredStudents.filter(s => (assignments[s.id] || s.bus) === b.name);
       if (!list.length) {
         stopMap[b.name] = null;
@@ -585,7 +648,7 @@ export default function AdminTransportPage() {
           <div className="flex items-center gap-2">
             <span className="text-xs md:text-sm font-bold text-slate-700 whitespace-nowrap">호차</span>
             <div className="flex gap-2 overflow-x-auto md:overflow-visible whitespace-nowrap md:whitespace-normal md:flex-wrap -mx-1 px-1">
-              {["All", ...busCars.map((b) => b.name)].map((b) => (
+              {["All", ...busCarsSorted.map((b) => b.name)].map((b) => (
                 <button
                   key={b}
                   onClick={() => setBusFilter(b)}
@@ -617,7 +680,7 @@ export default function AdminTransportPage() {
             </div>
             <div className="flex items-center gap-4 text-xs text-slate-500">
               <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-slate-400 inline-block" />미배정</div>
-              {busCars.slice(0,3).map((b) => (
+              {busCarsSorted.slice(0,3).map((b) => (
                 <div key={b.id} className="flex items-center gap-1">
                   <span className={`w-3 h-3 rounded-full ${colorForBus(b.name)} inline-block`} />
                   {b.name}
@@ -634,9 +697,32 @@ export default function AdminTransportPage() {
               <Bus className="w-5 h-5 text-slate-500" />
               <span className="text-sm font-bold text-slate-700">호차</span>
             </div>
+            {canEdit && (
+              <div className="flex items-center gap-2">
+                <input
+                  value={newBusName}
+                  onChange={(e) => setNewBusName(e.target.value)}
+                  placeholder="호차명(예: 7호차)"
+                  className="px-2 py-1 rounded-lg border border-slate-200 text-xs"
+                />
+                <input
+                  value={newBusStaff}
+                  onChange={(e) => setNewBusStaff(e.target.value)}
+                  placeholder="담당자"
+                  className="px-2 py-1 rounded-lg border border-slate-200 text-xs"
+                />
+                <input
+                  value={newBusTime}
+                  onChange={(e) => setNewBusTime(e.target.value)}
+                  placeholder="시간대(HH:MM)"
+                  className="px-2 py-1 rounded-lg border border-slate-200 text-xs"
+                />
+                <button onClick={addBusCar} className="px-2 py-1 rounded-lg bg-frage-navy text-white text-xs font-bold">추가</button>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
-            {busCars
+            {busCarsSorted
               .filter((b) => (busFilter === "All" ? true : b.name === busFilter))
               .map((b) => {
                 const list = assignedListFor(b.name);
@@ -658,6 +744,34 @@ export default function AdminTransportPage() {
                       <div className="flex items-center gap-1 text-xs font-bold text-slate-700">
                         <Clock className="w-3 h-3" />
                         {b.timeSlot}
+                        {canEdit && (
+                          <div className="flex items-center gap-1 ml-2">
+                            <input
+                              defaultValue={b.name}
+                              onBlur={(e) => {
+                                const v = e.target.value.trim();
+                                if (!v) return;
+                                updateBusCar(b.id, { name: v });
+                              }}
+                              className="px-2 py-1 rounded border border-slate-200 text-[11px]"
+                            />
+                            <input
+                              defaultValue={b.staff}
+                              onBlur={(e) => updateBusCar(b.id, { staff: e.target.value })}
+                              className="px-2 py-1 rounded border border-slate-200 text-[11px]"
+                            />
+                            <input
+                              defaultValue={b.timeSlot}
+                              onBlur={(e) => {
+                                const v = e.target.value.trim();
+                                if (!/^\d{1,2}:\d{2}$/.test(v)) return;
+                                updateBusCar(b.id, { timeSlot: v });
+                              }}
+                              className="px-2 py-1 rounded border border-slate-200 text-[11px] w-20"
+                            />
+                            <button onClick={() => removeBusCar(b.id)} className="px-2 py-1 rounded border border-red-200 bg-red-50 text-red-700 text-[11px]">삭제</button>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="space-y-2">

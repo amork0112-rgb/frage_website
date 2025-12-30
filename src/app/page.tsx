@@ -33,7 +33,15 @@ export default function HomePage() {
       
       if (data && data.length > 0) {
         setPinnedNews(data);
+        return;
       }
+      const { data: fallback } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("published", true)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      setPinnedNews(fallback || []);
     }
     fetchPinnedNews();
   }, []);
