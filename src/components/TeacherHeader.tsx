@@ -10,15 +10,21 @@ export default function TeacherHeader() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [role, setRole] = useState<string | null>(null);
+  const [teacherId, setTeacherId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const r = localStorage.getItem("admin_role");
       setRole(r || null);
+      const id = localStorage.getItem("current_teacher_id");
+      setTeacherId(id || null);
     } catch {}
     const onStorage = (e: StorageEvent) => {
       if (e.key === "admin_role") {
         setRole(e.newValue);
+      }
+      if (e.key === "current_teacher_id") {
+        setTeacherId(e.newValue);
       }
     };
     window.addEventListener("storage", onStorage);
@@ -78,8 +84,8 @@ export default function TeacherHeader() {
         <div className="flex items-center gap-3">
            <div className="hidden md:flex items-center gap-3">
                <div className="text-right">
-                   <p className="text-xs font-bold text-slate-900">Ms. Anna</p>
-                   <p className="text-[10px] text-slate-500">Teacher</p>
+                   <p className="text-xs font-bold text-slate-900">{teacherId === "master_teacher" ? "관리자" : "Ms. Anna"}</p>
+                   <p className="text-[10px] text-slate-500">{teacherId === "master_teacher" ? "Master Teacher" : "Teacher"}</p>
                </div>
                <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500">
                    <UserIcon />

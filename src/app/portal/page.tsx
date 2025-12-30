@@ -32,6 +32,11 @@ export default function PortalPage() {
       if (uidLower === "admin" && pw === "frage1234") {
         router.push("/admin");
       } else if (uidLower === "master_teacher" && pw === "teacher1234") {
+        try {
+          localStorage.setItem("admin_role", "teacher");
+          localStorage.setItem("current_teacher_id", "master_teacher");
+          localStorage.setItem("admin_name", "관리자");
+        } catch {}
         router.push("/teacher/students");
       } else {
         try {

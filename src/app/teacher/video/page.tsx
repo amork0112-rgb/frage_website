@@ -75,12 +75,17 @@ const scoreDesc: Record<keyof Omit<Feedback, "overall_message" | "strengths" | "
 };
 
 export default function TeacherVideoPage() {
+  const KINDER = ["Kepler", "Platon", "Euclid", "Darwin", "Gauss", "Edison", "Thales"];
+  const JUNIOR = ["G1", "G2", "G3", "G4", "E1", "E2", "E3", "E4", "A1", "A2", "A3", "A4", "A5", "F1", "F2", "F3", "F4", "F5"];
+  const BASE_CAMPUSES = ["International", "Andover", "Atheneum", "Platz"];
   const [role, setRole] = useState<string | null>(null);
   const [teacherClass, setTeacherClass] = useState<string | null>(null);
   const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [classCatalog, setClassCatalog] = useState<string[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [items, setItems] = useState<Homework[]>([]);
   const [classFilter, setClassFilter] = useState<string>("All");
+  const [campusFilter, setCampusFilter] = useState<string>("All");
   const [dateFilter, setDateFilter] = useState<"All" | "Today" | "Week" | "Overdue" | "Missing">("All");
   const [statusFilter, setStatusFilter] = useState<"All" | Status>("All");
   const [query, setQuery] = useState("");
@@ -139,6 +144,18 @@ export default function TeacherVideoPage() {
       }
     };
     load();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("admin_class_catalog");
+      let list: string[] = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(list) || list.length === 0) {
+        list = [...KINDER, ...JUNIOR];
+      }
+      setClassCatalog(list);
+      localStorage.setItem("admin_class_catalog", JSON.stringify(list));
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -233,15 +250,16 @@ export default function TeacherVideoPage() {
   // Removed playback speed controls per requirement
 
   const classes = useMemo(() => {
-    const base = new Set(items.map(i => i.className));
+    const base = new Set<string>([...classCatalog, ...items.map(i => i.className)]);
     const list = ["All", ...Array.from(base)];
-    if (role && role.toLowerCase().includes("teacher") && teacherClass) {
-      return [teacherClass];
-    }
     return list;
-  }, [items, role, teacherClass]);
+  }, [items, classCatalog]);
+  const campuses = useMemo(() => {
+    const base = new Set<string>([...BASE_CAMPUSES, ...items.map(i => i.campus)]);
+    return ["All", ...Array.from(base)];
+  }, [items]);
 
-  const canSeeAll = !!role && !role.toLowerCase().includes("teacher");
+  const canSeeAll = true;
 
   const filtered = useMemo(() => {
     const inRange = (due: string) => {
@@ -265,8 +283,8 @@ export default function TeacherVideoPage() {
       return true;
     };
     return items
-      .filter(i => (canSeeAll ? true : teacherClass ? i.className === teacherClass : true))
       .filter(i => (classFilter === "All" ? true : i.className === classFilter))
+      .filter(i => (campusFilter === "All" ? true : i.campus === campusFilter))
       .filter(i => inRange(i.dueDate))
       .filter(i => (dateFilter === "Missing" ? i.status === "미제출" : true))
       .filter(i => (statusFilter === "All" ? true : i.status === statusFilter))
@@ -277,7 +295,7 @@ export default function TeacherVideoPage() {
             i.englishName.toLowerCase().includes(query.toLowerCase()) ||
             i.title.toLowerCase().includes(query.toLowerCase())
       ));
-  }, [items, canSeeAll, teacherClass, classFilter, dateFilter, statusFilter, query]);
+  }, [items, canSeeAll, teacherClass, classFilter, campusFilter, dateFilter, statusFilter, query]);
 
   const startFeedback = async (hw: Homework) => {
     setOpenVideoFor(hw);
@@ -449,16 +467,27 @@ export default function TeacherVideoPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Class</label>
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              disabled={!canSeeAll && !!teacherClass}
               className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
             >
               {classes.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">Campus</label>
+            <select
+              value={campusFilter}
+              onChange={(e) => setCampusFilter(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+            >
+              {campuses.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>

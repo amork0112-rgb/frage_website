@@ -209,6 +209,38 @@ export default function AdminStudentsPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    try {
+      const memRaw = localStorage.getItem("admin_memos");
+      const map = memRaw ? JSON.parse(memRaw) : {};
+      const now = Date.now();
+      let changed = false;
+      Object.keys(map).forEach((id) => {
+        const list = Array.isArray(map[id]) ? map[id] : [];
+        const filtered = list.filter((m: any) => {
+          const t = String(m.text || "");
+          if (t.includes("신규")) {
+            const atMs = Date.parse(String(m.at || ""));
+            if (!Number.isNaN(atMs)) {
+              const diffDays = Math.floor((now - atMs) / (1000 * 60 * 60 * 24));
+              return diffDays <= 30;
+            }
+            return false;
+          }
+          return true;
+        });
+        if (filtered.length !== list.length) {
+          map[id] = filtered;
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem("admin_memos", JSON.stringify(map));
+        setMemos(map);
+      }
+    } catch {}
+  }, []);
+
   const limitedByRole = useMemo(() => {
     return students.filter(s => {
       if (role === "admin") return true;

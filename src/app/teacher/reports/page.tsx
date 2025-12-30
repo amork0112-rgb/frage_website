@@ -13,6 +13,9 @@ type Scores = { Reading: number; Listening: number; Speaking: number; Writing: n
 type VideoScores = { fluency: number; volume: number; speed: number; pronunciation: number; performance: number };
 
 export default function TeacherReportsPage() {
+  const KINDER = ["Kepler", "Platon", "Euclid", "Darwin", "Gauss", "Edison", "Thales"];
+  const JUNIOR = ["G1", "G2", "G3", "G4", "E1", "E2", "E3", "E4", "A1", "A2", "A3", "A4", "A5", "F1", "F2", "F3", "F4", "F5"];
+  const BASE_CAMPUSES = ["International", "Andover", "Atheneum", "Platz"];
   const [students, setStudents] = useState<Student[]>([]);
   const [month, setMonth] = useState<string>(() => {
     const now = new Date();
@@ -37,6 +40,7 @@ export default function TeacherReportsPage() {
   const [classOverall, setClassOverall] = useState<string>("");
   const [participation, setParticipation] = useState<string>("");
   const [selectedBulk, setSelectedBulk] = useState<Record<string, boolean>>({});
+  const [classCatalog, setClassCatalog] = useState<string[]>([]);
   const videoCats = [
     { key: "fluency", label: "Fluency" },
     { key: "volume", label: "Volume" },
@@ -103,6 +107,18 @@ export default function TeacherReportsPage() {
       }
     };
     load();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("admin_class_catalog");
+      let list: string[] = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(list) || list.length === 0) {
+        list = [...KINDER, ...JUNIOR];
+      }
+      setClassCatalog(list);
+      localStorage.setItem("admin_class_catalog", JSON.stringify(list));
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -221,11 +237,11 @@ export default function TeacherReportsPage() {
   }, [selected, month, gender, scores, comments, videoScores, overall, classOverall, videoSummary]);
 
   const classes = useMemo(() => {
-    const set = new Set(students.map(s => s.className));
+    const set = new Set<string>([...classCatalog, ...students.map(s => s.className)]);
     return ["All", ...Array.from(set)];
-  }, [students]);
+  }, [students, classCatalog]);
   const campuses = useMemo(() => {
-    const set = new Set(students.map(s => s.campus));
+    const set = new Set<string>([...BASE_CAMPUSES, ...students.map(s => s.campus)]);
     return ["All", ...Array.from(set)];
   }, [students]);
 

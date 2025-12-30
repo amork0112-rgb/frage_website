@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Video, FileText, CheckCircle2, Clock, ArrowRight, Calendar, Brain, ExternalLink } from "lucide-react";
 
+type Student = { id: string; name: string; englishName: string; className: string; campus: string };
+
 type ScheduleType = "수업일" | "방학" | "시험" | "행사" | "차량" | "리포트" | "공휴일";
 type CalendarEvent = {
   id: string;
@@ -38,6 +40,10 @@ const typeDot = (t: ScheduleType) =>
 
 export default function TeacherHome() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [rememberItems, setRememberItems] = useState<string[]>([]);
+  const [teacherClass, setTeacherClass] = useState<string | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
 
   useEffect(() => {
     try {
@@ -49,11 +55,65 @@ export default function TeacherHome() {
     }
   }, []);
 
+  useEffect(() => {
+    try {
+      const id = localStorage.getItem("current_teacher_id");
+      setTeacherId(id || null);
+      let assigned = localStorage.getItem("teacher_class") || null;
+      try {
+        const mapRaw = localStorage.getItem("admin_teacher_class_map");
+        if (id && mapRaw) {
+          const map = JSON.parse(mapRaw) || {};
+          if (map && typeof map === "object" && map[id]) {
+            assigned = map[id];
+          }
+        }
+      } catch {}
+      setTeacherClass(assigned);
+    } catch {}
+  }, []);
+
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth();
   const ym = `${y}-${String(m + 1).padStart(2, "0")}`;
 
+  useEffect(() => {
+    try {
+      const key = `teacher_remember_${ym}`;
+      const raw = localStorage.getItem(key);
+      const arr: string[] = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(arr) && arr.length > 0) {
+        setRememberItems(arr);
+      } else {
+        setRememberItems([
+          `Please submit ${String(m + 1).padStart(2, "0")} reports by ${String(m + 1).padStart(2, "0")}-30`,
+          `No classes on ${String(m + 1).padStart(2, "0")}-10 (Holiday)`
+        ]);
+      }
+    } catch {
+      setRememberItems([]);
+    }
+  }, [ym, m]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/admin/students");
+        const data = await res.json();
+        const arr: Student[] = Array.isArray(data) ? data : data.items || [];
+        setStudents(arr);
+      } catch {
+        setStudents([]);
+      }
+    };
+    load();
+  }, []);
+
+  const myStudents = useMemo(() => {
+    if (!teacherClass) return [];
+    return students.filter(s => s.className === teacherClass).slice(0, 12);
+  }, [students, teacherClass]);
   const monthEvents = useMemo(() => {
     const parse = (s: string) => {
       const [yy, mm, dd] = s.split("-").map(Number);
@@ -73,7 +133,7 @@ export default function TeacherHome() {
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-black text-slate-900">Hello, Ms. Anna! 👋</h1>
+        <h1 className="text-2xl font-black text-slate-900">Hello, {teacherId === "master_teacher" ? "관리자" : "Ms. Anna"}! 👋</h1>
         <p className="text-slate-500 mt-1">Here is your dashboard for today.</p>
       </div>
 
@@ -109,16 +169,40 @@ export default function TeacherHome() {
             <Brain className="w-5 h-5 text-purple-500" />
             Remember
           </h2>
-          <ul className="space-y-3">
-            <li className="flex gap-2 items-start text-sm text-slate-600">
-              <span className="text-purple-500">•</span>
-              Please submit April reports by April 30
-            </li>
-            <li className="flex gap-2 items-start text-sm text-slate-600">
-              <span className="text-purple-500">•</span>
-              No classes on April 10 (Holiday)
-            </li>
-          </ul>
+          {teacherId === "master_teacher" ? (
+            <div className="space-y-3">
+              <textarea
+                value={rememberItems.join("\n")}
+                onChange={(e) => setRememberItems(e.target.value.split("\n").map(s => s.trim()).filter(Boolean))}
+                rows={6}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white"
+                placeholder="Enter one item per line"
+              />
+              <button
+                onClick={() => {
+                  const key = `teacher_remember_${ym}`;
+                  localStorage.setItem(key, JSON.stringify(rememberItems));
+                  alert("이번달 Remember가 저장되었습니다. 모든 선생님 화면에 반영됩니다.");
+                }}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
+              >
+                Save Remember
+              </button>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {rememberItems.length === 0 ? (
+                <li className="text-sm text-slate-500">No reminders for this month.</li>
+              ) : (
+                rememberItems.map((txt, i) => (
+                  <li key={i} className="flex gap-2 items-start text-sm text-slate-600">
+                    <span className="text-purple-500">•</span>
+                    {txt}
+                  </li>
+                ))
+              )}
+            </ul>
+          )}
         </section>
 
         <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
@@ -146,51 +230,41 @@ export default function TeacherHome() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Video className="w-5 h-5 text-slate-400" />
-              Videos to Review
+              My Students
             </h2>
-            <span className="bg-red-50 text-red-600 text-xs font-bold px-2.5 py-1 rounded-full border border-red-100">3 pending</span>
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer group">
-              <div className="flex justify-between items-start">
-                <div className="flex gap-3">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-sm">JS</div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 group-hover:text-frage-blue transition-colors">Junseo (Terry)</h3>
-                    <p className="text-xs text-slate-500">Submitted 2 hours ago</p>
+            {myStudents.length === 0 ? (
+              <div className="p-4 text-sm text-slate-500">담임 반 학생 데이터가 없습니다.</div>
+            ) : (
+              myStudents.map((s) => {
+                const initials = (s.englishName || s.name)
+                  .split(" ")
+                  .map(w => w[0]?.toUpperCase())
+                  .slice(0, 2)
+                  .join("");
+                return (
+                  <div key={s.id} className="p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer group">
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-sm">{initials}</div>
+                        <div>
+                          <h3 className="font-bold text-slate-900 group-hover:text-frage-blue transition-colors">
+                            {s.name} ({s.englishName})
+                          </h3>
+                          <p className="text-xs text-slate-500">{s.className} • {s.campus}</p>
+                        </div>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-frage-blue group-hover:translate-x-1 transition-all" />
+                    </div>
                   </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-frage-blue group-hover:translate-x-1 transition-all" />
-              </div>
-            </div>
-            <div className="p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer group">
-              <div className="flex justify-between items-start">
-                <div className="flex gap-3">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-sm">MK</div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 group-hover:text-frage-blue transition-colors">Minji Kim</h3>
-                    <p className="text-xs text-slate-500">Submitted 5 hours ago</p>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-frage-blue group-hover:translate-x-1 transition-all" />
-              </div>
-            </div>
-            <div className="p-4 hover:bg-slate-50 transition-colors cursor-pointer group">
-              <div className="flex justify-between items-start">
-                <div className="flex gap-3">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-sm">DK</div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 group-hover:text-frage-blue transition-colors">Donghyun Kim</h3>
-                    <p className="text-xs text-slate-500">Submitted yesterday</p>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-frage-blue group-hover:translate-x-1 transition-all" />
-              </div>
-            </div>
+                );
+              })
+            )}
           </div>
-          <Link href="/teacher/video" className="block text-center text-sm font-bold text-slate-500 hover:text-frage-blue mt-3 py-2">
-            View All Videos
+          <Link href="/teacher/students" className="block text-center text-sm font-bold text-slate-500 hover:text-frage-blue mt-3 py-2">
+            View Students
           </Link>
         </section>
 
