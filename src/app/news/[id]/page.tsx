@@ -26,12 +26,14 @@ export default function NewsPostPage({ params }: { params: { id: string } }) {
         .from("posts")
         .select("*")
         .eq("id", Number.isNaN(idNum) ? params.id : idNum)
-        .single();
-      if (error || !data) {
+        .limit(1);
+      const row = Array.isArray((data as any)) ? (data as any)[0] : null;
+      if (error || !row) {
+        setLoading(false);
         router.push("/news");
         return;
       }
-      setPost(data as Post);
+      setPost(row as Post);
       setLoading(false);
     };
     load();
@@ -41,7 +43,16 @@ export default function NewsPostPage({ params }: { params: { id: string } }) {
     return <div className="min-h-screen bg-white flex items-center justify-center text-slate-400">Loading…</div>;
   }
 
-  if (!post) return null;
+  if (!post) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-500 mb-4">해당 소식을 찾을 수 없습니다.</p>
+          <Link href="/news" className="text-sm font-bold text-frage-blue">뉴스 목록으로 돌아가기</Link>
+        </div>
+      </div>
+    );
+  }
 
   const formatted = new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",

@@ -274,20 +274,38 @@ export default function TeacherHome() {
             Quick Actions
           </h2>
           <div className="space-y-3">
-            <Link href="/teacher/reports" className="group block bg-white p-4 rounded-xl border border-slate-200 hover:border-orange-300 hover:shadow-md transition-all">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-orange-50 text-frage-orange flex items-center justify-center group-hover:bg-frage-orange group-hover:text-white transition-colors">
-                    <FileText className="w-5 h-5" />
+            {(() => {
+              const today = new Date();
+              const ymStr = `${y}-${String(m + 1).padStart(2, "0")}`;
+              const candidates = events
+                .filter(ev => ev.type === "리포트" && ev.start.startsWith(ymStr))
+                .map(ev => new Date(ev.start));
+              const lastDay = new Date(y, m + 1, 0);
+              const deadline = candidates
+                .filter(d => d.getTime() >= today.setHours(0,0,0,0))
+                .sort((a, b) => a.getTime() - b.getTime())[0] || lastDay;
+              const diff = Math.ceil((deadline.getTime() - new Date().setHours(0,0,0,0)) / 86400000);
+              const label =
+                diff > 0 ? `Report Deadline: D-${diff}` :
+                diff === 0 ? "Report Deadline: Today" :
+                "Report Deadline: Passed";
+              return (
+                <Link href="/teacher/reports" className="group block bg-white p-4 rounded-xl border border-slate-200 hover:border-orange-300 hover:shadow-md transition-all">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-orange-50 text-frage-orange flex items-center justify-center group-hover:bg-frage-orange group-hover:text-white transition-colors">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-900">Write Monthly Reports</h3>
+                        <p className="text-xs text-slate-500">{label}</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-frage-orange group-hover:translate-x-1 transition-all" />
                   </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900">Write Monthly Reports</h3>
-                    <p className="text-xs text-slate-500">April Report Deadline: D-3</p>
-                  </div>
-                </div>
-                <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-frage-orange group-hover:translate-x-1 transition-all" />
-              </div>
-            </Link>
+                </Link>
+              );
+            })()}
           </div>
         </section>
       </div>

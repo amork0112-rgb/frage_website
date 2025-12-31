@@ -67,7 +67,7 @@ export default function HomePage() {
         {/* Background Image/Video Overlay */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2000&auto=format&fit=crop" 
+            src={(pinnedNews[0]?.image_url) || "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2000&auto=format&fit=crop"} 
             alt="Students Studying Hard" 
             className="w-full h-full object-cover transform scale-105 animate-slow-zoom opacity-30 mix-blend-overlay"
           />

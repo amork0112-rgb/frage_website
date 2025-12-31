@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import Script from "next/script";
-import { MapPin, Bus, Users, Clock, AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Bus, Clock, AlertTriangle } from "lucide-react";
 
 type Status = "재원" | "휴원" | "퇴원";
 
@@ -30,8 +29,6 @@ type BusCar = {
   timeSlot: string;
 };
 
-type Coord = { lat: number; lng: number };
-
 export default function AdminTransportPage() {
   const [role, setRole] = useState<"admin" | "teacher">("admin");
   const [campusFilter, setCampusFilter] = useState<string>("All");
@@ -39,33 +36,16 @@ export default function AdminTransportPage() {
   const [busFilter, setBusFilter] = useState<string>("All");
   const [students, setStudents] = useState<Student[]>([]);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
-  const [coords, setCoords] = useState<Record<string, Coord>>({});
   const [dirty, setDirty] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [requests, setRequests] = useState<{ id: string; childId: string; childName: string; type: "bus_change"; note?: string; dateStart: string }[]>([]);
-  const mapRef = useRef<HTMLDivElement | null>(null);
-  const mapInstRef = useRef<any>(null);
-  const markersLayerRef = useRef<any>(null);
-  const [leafletReady, setLeafletReady] = useState(false);
-  const [kakaoReady, setKakaoReady] = useState(false);
-  const kakaoAppKey = (process.env.NEXT_PUBLIC_KAKAO_APP_KEY as string) || "";
   const [mode, setMode] = useState<"dropoff" | "pickup">("dropoff");
   const [arrivalTimes, setArrivalTimes] = useState<Record<string, string>>({});
-  const [etas, setEtas] = useState<Record<string, number>>({});
-  const [stopAddresses, setStopAddresses] = useState<Record<string, string>>({});
   const [busCars, setBusCars] = useState<BusCar[]>([]);
   const [newBusName, setNewBusName] = useState("");
   const [newBusStaff, setNewBusStaff] = useState("");
   const [newBusTime, setNewBusTime] = useState("");
-
-  const [campusSites, setCampusSites] = useState<
-    { id: string; name: "International" | "Andover" | "Platz" | "Atheneum"; label: string; addr: string; coord: Coord | null }[]
-  >([
-    { id: "camp_intl", name: "International", label: "국제관", addr: "대구 수성구 수성로54길 45", coord: null },
-    { id: "camp_and", name: "Andover", label: "앤도버", addr: "대구 수성구 달구벌대로 2482", coord: null },
-    { id: "camp_plt", name: "Platz", label: "플라츠", addr: "대구 수성구 범어천로 175", coord: null },
-    { id: "camp_ath", name: "Atheneum", label: "아테네움관", addr: "대구 수성구 범어천로 167", coord: null },
-  ]);
+  const [orderMap, setOrderMap] = useState<Record<string, string[]>>({});
+  const [studentUpdates, setStudentUpdates] = useState<Record<string, { departureTime?: string }>>({});
 
   useEffect(() => {
     try {
@@ -78,6 +58,9 @@ export default function AdminTransportPage() {
       const rawArr = localStorage.getItem("admin_arrival_times");
       const map = rawArr ? JSON.parse(rawArr) : {};
       setArrivalTimes(map || {});
+      const updRaw = localStorage.getItem("admin_student_updates");
+      const updMap = updRaw ? JSON.parse(updRaw) : {};
+      setStudentUpdates(updMap || {});
     } catch {}
   }, []);
 
@@ -102,6 +85,7 @@ export default function AdminTransportPage() {
           { id: "b4", name: "4호차", staff: "정기사 / 윤교사", timeSlot: "17:30" },
           { id: "b5", name: "5호차", staff: "오기사 / 김교사", timeSlot: "18:00" },
           { id: "b6", name: "6호차", staff: "최기사 / 이교사", timeSlot: "18:30" },
+          { id: "b7", name: "7호차", staff: "한기사 / 임교사", timeSlot: "19:00" },
         ];
         localStorage.setItem("admin_bus_cars", JSON.stringify(list));
       }
@@ -118,24 +102,14 @@ export default function AdminTransportPage() {
       const all = raw ? JSON.parse(raw) : {};
       const scopeKey = `${campusFilter}-${timeFilter}`;
       setAssignments(all[scopeKey] || {});
+      const omRaw = localStorage.getItem("admin_transport_order");
+      const omAll = omRaw ? JSON.parse(omRaw) : {};
+      setOrderMap(omAll[scopeKey] || {});
     } catch {
       setAssignments({});
+      setOrderMap({});
     }
   }, [campusFilter, timeFilter]);
-
-  const campusCenter = campusCenterFactory(campusSites);
-
-  useEffect(() => {
-    const next: Record<string, Coord> = {};
-    students.forEach((s) => {
-      const seed = hashString(`${s.address}-${s.campus}`);
-      const center = campusCenter(s.campus);
-      const lat = center.lat + ((seed % 1000) / 1000 - 0.5) * 0.08;
-      const lng = center.lng + (((Math.floor(seed / 1000)) % 1000) / 1000 - 0.5) * 0.08;
-      next[s.id] = { lat, lng };
-    });
-    setCoords(next);
-  }, [students, campusSites]);
 
   const parseTime = (t: string) => {
     const m = /^(\d{1,2}):(\d{2})$/.exec(t || "");
@@ -162,28 +136,25 @@ export default function AdminTransportPage() {
       ? "bg-amber-500"
       : busName === "6호차"
       ? "bg-pink-500"
+      : busName === "7호차"
+      ? "bg-teal-500"
       : "bg-slate-400";
 
   const filteredStudents = useMemo(() => {
     return students
       .filter((s) => (campusFilter === "All" ? true : s.campus === campusFilter))
-      .filter((s) => (timeFilter === "All" ? true : s.departureTime.startsWith(timeFilter) || s.departureTime === timeFilter));
-  }, [students, campusFilter, timeFilter]);
+      .filter((s) => (timeFilter === "All" ? true : (studentUpdates[s.id]?.departureTime || s.departureTime).startsWith(timeFilter) || (studentUpdates[s.id]?.departureTime || s.departureTime) === timeFilter));
+  }, [students, campusFilter, timeFilter, studentUpdates]);
 
-  const assignedListFor = (busName: string) =>
-    filteredStudents
-      .filter((s) => (assignments[s.id] || s.bus) === busName)
-      .slice()
-      .sort((a, b) => {
-        if (mode === "dropoff") {
-          const ea = typeof etas[a.id] === "number" ? etas[a.id] : Number.MAX_SAFE_INTEGER;
-          const eb = typeof etas[b.id] === "number" ? etas[b.id] : Number.MAX_SAFE_INTEGER;
-          return ea - eb;
-        }
-        const ta = parseTime(arrivalTimes[a.id] || "08:30");
-        const tb = parseTime(arrivalTimes[b.id] || "08:30");
-        return ta - tb;
-      });
+  const assignedListFor = (busName: string) => {
+    const list = filteredStudents.filter((s) => (assignments[s.id] || s.bus) === busName).slice();
+    const order = orderMap[busName] || [];
+    const indexOf = (id: string) => {
+      const idx = order.indexOf(id);
+      return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+    };
+    return list.sort((a, b) => indexOf(a.id) - indexOf(b.id));
+  };
 
   const hasBusChangeRequest = (s: Student) =>
     !!requests.find((r) => r.childId === s.childId || r.childName === s.name);
@@ -193,14 +164,91 @@ export default function AdminTransportPage() {
   const onDropToBus = (busName: string, e: React.DragEvent<HTMLDivElement>) => {
     if (!canEdit) return;
     const id = e.dataTransfer.getData("student_id");
+    const fromBus = e.dataTransfer.getData("from_bus");
     if (!id) return;
-    const next = { ...assignments, [id]: busName };
-    setAssignments(next);
+    const nextAssign = { ...assignments, [id]: busName };
+    setAssignments(nextAssign);
+    const scopeKey = `${campusFilter}-${timeFilter}`;
+    try {
+      const raw = localStorage.getItem("admin_transport_assignments");
+      const all = raw ? JSON.parse(raw) : {};
+      all[scopeKey] = nextAssign;
+      localStorage.setItem("admin_transport_assignments", JSON.stringify(all));
+    } catch {}
+    const nextOrder = { ...orderMap };
+    const removeFrom = (bn: string) => {
+      const arr = nextOrder[bn] || [];
+      nextOrder[bn] = arr.filter((sid) => sid !== id);
+    };
+    if (fromBus) removeFrom(fromBus);
+    const arr = nextOrder[busName] || [];
+    nextOrder[busName] = [...arr, id];
+    setOrderMap(nextOrder);
+    try {
+      const omRaw = localStorage.getItem("admin_transport_order");
+      const omAll = omRaw ? JSON.parse(omRaw) : {};
+      omAll[scopeKey] = nextOrder;
+      localStorage.setItem("admin_transport_order", JSON.stringify(omAll));
+    } catch {}
     setDirty(true);
   };
 
-  const onDragStartStudent = (id: string, e: React.DragEvent) => {
+  const onDragStartStudent = (id: string, busName: string, e: React.DragEvent) => {
     e.dataTransfer.setData("student_id", id);
+    e.dataTransfer.setData("from_bus", busName);
+  };
+
+  const onDropOnItem = (busName: string, targetId: string, e: React.DragEvent) => {
+    if (!canEdit) return;
+    const id = e.dataTransfer.getData("student_id");
+    const fromBus = e.dataTransfer.getData("from_bus");
+    if (!id) return;
+    const nextOrder = { ...orderMap };
+    const clean = (bn: string) => {
+      const arr = nextOrder[bn] || [];
+      nextOrder[bn] = arr.filter((sid) => sid !== id);
+    };
+    if (fromBus) clean(fromBus);
+    const arr = nextOrder[busName] || [];
+    const idx = arr.indexOf(targetId);
+    const newArr = [...arr];
+    if (!newArr.includes(id)) {
+      newArr.splice(idx, 0, id);
+    } else {
+      const oldIdx = newArr.indexOf(id);
+      newArr.splice(oldIdx, 1);
+      const insertIdx = newArr.indexOf(targetId);
+      newArr.splice(insertIdx, 0, id);
+    }
+    nextOrder[busName] = newArr;
+    setOrderMap(nextOrder);
+    const scopeKey = `${campusFilter}-${timeFilter}`;
+    try {
+      const omRaw = localStorage.getItem("admin_transport_order");
+      const omAll = omRaw ? JSON.parse(omRaw) : {};
+      omAll[scopeKey] = nextOrder;
+      localStorage.setItem("admin_transport_order", JSON.stringify(omAll));
+    } catch {}
+    setDirty(true);
+  };
+
+  const updateArrivalTime = (id: string, t: string) => {
+    const next = { ...arrivalTimes, [id]: t };
+    setArrivalTimes(next);
+    try {
+      localStorage.setItem("admin_arrival_times", JSON.stringify(next));
+    } catch {}
+  };
+
+  const updateDepartureTime = (id: string, t: string) => {
+    const updRaw = localStorage.getItem("admin_student_updates");
+    const updMap = updRaw ? JSON.parse(updRaw) : {};
+    const prev = updMap[id] || {};
+    const nextMap = { ...updMap, [id]: { ...prev, departureTime: t } };
+    setStudentUpdates(nextMap);
+    try {
+      localStorage.setItem("admin_student_updates", JSON.stringify(nextMap));
+    } catch {}
   };
 
   const saveAll = () => {
@@ -211,8 +259,15 @@ export default function AdminTransportPage() {
       const scopeKey = `${campusFilter}-${timeFilter}`;
       all[scopeKey] = assignments;
       localStorage.setItem(key, JSON.stringify(all));
-      setDirty(false);
     } catch {}
+    try {
+      const omRaw = localStorage.getItem("admin_transport_order");
+      const omAll = omRaw ? JSON.parse(omRaw) : {};
+      const scopeKey = `${campusFilter}-${timeFilter}`;
+      omAll[scopeKey] = orderMap;
+      localStorage.setItem("admin_transport_order", JSON.stringify(omAll));
+    } catch {}
+    setDirty(false);
   };
   const saveBusCars = (next: BusCar[]) => {
     setBusCars(next);
@@ -244,350 +299,12 @@ export default function AdminTransportPage() {
     saveBusCars(next);
   };
 
-  const mapBox = { minLat: 35.84, maxLat: 35.89, minLng: 128.59, maxLng: 128.66 };
+  // 지도 및 지오코딩 관련 로직 제거
 
-  const toXY = (c: Coord, box: typeof mapBox, w: number, h: number) => {
-    const x = ((c.lng - box.minLng) / (box.maxLng - box.minLng)) * w;
-    const y = (1 - (c.lat - box.minLat) / (box.maxLat - box.minLat)) * h;
-    return { x, y };
-  };
-
-  useEffect(() => {
-    const cssHref = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-    const exists = Array.from(document.styleSheets).some((s: any) => s.href === cssHref);
-    if (!exists) {
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = cssHref;
-      document.head.appendChild(link);
-    }
-  }, []);
-
-  useEffect(() => {
-    const key = "campus_geocode_cache";
-    const load = async () => {
-      try {
-        const raw = localStorage.getItem(key);
-        const cache: Record<string, Coord> = raw ? JSON.parse(raw) : {};
-        const next = [...campusSites];
-        for (let i = 0; i < next.length; i++) {
-          const addr = next[i].addr;
-          const cached = cache[addr];
-          if (cached) {
-            next[i] = { ...next[i], coord: cached };
-            continue;
-          }
-          const q = encodeURIComponent(addr);
-          const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=kr&q=${q}`;
-          const res = await fetch(url, { headers: { Accept: "application/json" } });
-          const arr = await res.json();
-          if (Array.isArray(arr) && arr.length > 0) {
-            const lat = parseFloat(arr[0].lat);
-            const lon = parseFloat(arr[0].lon);
-            if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
-              const c = { lat, lng: lon };
-              cache[addr] = c;
-              next[i] = { ...next[i], coord: c };
-              localStorage.setItem(key, JSON.stringify(cache));
-            }
-          }
-        }
-        setCampusSites(next);
-      } catch {}
-    };
-    load();
-  }, []);
-
-  useEffect(() => {
-    if (!kakaoAppKey) return;
-    const id = "kakao-maps-sdk";
-    if (document.getElementById(id)) return;
-    const src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoAppKey}&autoload=false&libraries=services`;
-    const s = document.createElement("script");
-    s.id = id;
-    s.src = src;
-    s.async = true;
-    s.onload = () => setKakaoReady(true);
-    document.head.appendChild(s);
-  }, [kakaoAppKey]);
-
-  useEffect(() => {
-    if (!leafletReady || !mapRef.current || mapInstRef.current) return;
-    const L = (window as any).L;
-    if (!L) return;
-    const centerLat = (mapBox.minLat + mapBox.maxLat) / 2;
-    const centerLng = (mapBox.minLng + mapBox.maxLng) / 2;
-    const map = L.map(mapRef.current, { zoomControl: true }).setView([centerLat, centerLng], 13);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "",
-      updateWhenIdle: true,
-      keepBuffer: 3
-    }).addTo(map);
-    const layer = L.layerGroup().addTo(map);
-    mapInstRef.current = map;
-    markersLayerRef.current = layer;
-  }, [leafletReady, mapRef.current]);
-
-  const busColorHex = (busName: string) =>
-    busName === "1호차"
-      ? "#ef4444"
-      : busName === "2호차"
-      ? "#3b82f6"
-      : busName === "3호차"
-      ? "#22c55e"
-      : busName === "4호차"
-      ? "#a855f7"
-      : busName === "5호차"
-      ? "#f59e0b"
-      : busName === "6호차"
-      ? "#ec4899"
-      : "#94a3b8";
-
-  useEffect(() => {
-    const kakao = (window as any).kakao;
-    if (kakaoReady && kakao && mapRef.current) {
-      kakao.maps.load(() => {
-        if (!mapInstRef.current) {
-          const centerLat = (mapBox.minLat + mapBox.maxLat) / 2;
-          const centerLng = (mapBox.minLng + mapBox.maxLng) / 2;
-          const map = new kakao.maps.Map(mapRef.current, {
-            center: new kakao.maps.LatLng(centerLat, centerLng),
-            level: 6,
-          });
-          mapInstRef.current = map;
-        }
-        const map = mapInstRef.current;
-        const geocoder = new kakao.maps.services.Geocoder();
-        const campusMarkers: any[] = [];
-        const studentMarkers: any[] = [];
-        campusMarkers.forEach(m => m.setMap(null));
-        studentMarkers.forEach(m => m.setMap(null));
-        campusSites.forEach(site => {
-          if (!site.coord) return;
-          const marker = new kakao.maps.Marker({
-            position: new kakao.maps.LatLng(site.coord.lat, site.coord.lng),
-          });
-          marker.setMap(map);
-          campusMarkers.push(marker);
-        });
-        const cacheKey = "kakao_geocode_students";
-        const cacheRaw = localStorage.getItem(cacheKey);
-        const cache: Record<string, Coord> = cacheRaw ? JSON.parse(cacheRaw) : {};
-        const tasks: Promise<void>[] = [];
-        filteredStudents.forEach(s => {
-          const addr = s.address || "";
-          const currBus = assignments[s.id] || s.bus || "";
-          const isUnassigned = !currBus || currBus === "없음";
-          const color = isUnassigned ? "#94a3b8" : busColorHex(currBus);
-          const placeMarker = (c: Coord) => {
-            const marker = new kakao.maps.CustomOverlay({
-              position: new kakao.maps.LatLng(c.lat, c.lng),
-              content: `<div style="background:${color};width:10px;height:10px;border-radius:9999px;border:1px solid #fff"></div>`,
-              yAnchor: 0.5,
-              xAnchor: 0.5,
-            });
-            marker.setMap(map);
-            studentMarkers.push(marker);
-          };
-          const cached = cache[addr];
-          if (cached) {
-            placeMarker(cached);
-          } else {
-            tasks.push(
-              new Promise((resolve) => {
-                geocoder.addressSearch(addr, (result: any, status: any) => {
-                  if (status === kakao.maps.services.Status.OK && result && result.length > 0) {
-                    const lat = parseFloat(result[0].y);
-                    const lng = parseFloat(result[0].x);
-                    if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
-                      const c = { lat, lng };
-                      cache[addr] = c;
-                      placeMarker(c);
-                      localStorage.setItem(cacheKey, JSON.stringify(cache));
-                    }
-                  } else {
-                    const c = coords[s.id];
-                    if (c) placeMarker(c);
-                  }
-                  resolve();
-                });
-              })
-            );
-          }
-        });
-        Promise.all(tasks).then(() => {
-          const stopMap: Record<string, Coord | null> = {};
-          busCarsSorted.forEach(b => {
-            const list = filteredStudents.filter(s => (assignments[s.id] || s.bus) === b.name);
-            if (!list.length) {
-              stopMap[b.name] = null;
-              return;
-            }
-            const pts = list.map(s => {
-              const addr = s.address || "";
-              const c = cache[addr] || coords[s.id];
-              return c;
-            }).filter(Boolean) as Coord[];
-            if (!pts.length) {
-              stopMap[b.name] = null;
-              return;
-            }
-            const lat = pts.reduce((a, p) => a + p.lat, 0) / pts.length;
-            const lng = pts.reduce((a, p) => a + p.lng, 0) / pts.length;
-            stopMap[b.name] = { lat, lng };
-          });
-          const nextEtas: Record<string, number> = {};
-          const nextStopsAddr: Record<string, string> = {};
-          const addrCacheKey = "kakao_stop_addr_cache";
-          const addrRaw = localStorage.getItem(addrCacheKey);
-          const addrCache: Record<string, string> = addrRaw ? JSON.parse(addrRaw) : {};
-          const addrTasks: Promise<void>[] = [];
-          Object.entries(stopMap).forEach(([bus, c]) => {
-            if (!c) return;
-            const marker = new kakao.maps.Marker({
-              position: new kakao.maps.LatLng(c.lat, c.lng),
-            });
-            marker.setMap(map);
-            const speed = 25;
-            const key = `${c.lat.toFixed(6)},${c.lng.toFixed(6)}`;
-            if (addrCache[key]) {
-              nextStopsAddr[bus] = addrCache[key];
-            } else {
-              addrTasks.push(
-                new Promise((resolve) => {
-                  geocoder.coord2Address(c.lng, c.lat, (result: any, status: any) => {
-                    if (status === kakao.maps.services.Status.OK && result && result.length > 0) {
-                      const road = result[0].road_address?.address_name || result[0].address?.address_name || "";
-                      nextStopsAddr[bus] = road;
-                      addrCache[key] = road;
-                      localStorage.setItem(addrCacheKey, JSON.stringify(addrCache));
-                    } else {
-                      nextStopsAddr[bus] = key;
-                    }
-                    resolve();
-                  });
-                })
-              );
-            }
-            filteredStudents
-              .filter(s => (assignments[s.id] || s.bus) === bus)
-              .forEach(s => {
-                const addr = s.address || "";
-                const sc = cache[addr] || coords[s.id];
-                if (!sc) return;
-                const dKm = haversine(sc.lat, sc.lng, c.lat, c.lng);
-                const min = Math.round((dKm / speed) * 60);
-                nextEtas[s.id] = min;
-              });
-          });
-          Promise.all(addrTasks).then(() => {
-            setStopAddresses(nextStopsAddr);
-            setEtas(nextEtas);
-          });
-        });
-      });
-      return;
-    }
-    const L = (window as any).L;
-    if (!L || !markersLayerRef.current) return;
-    const layer = markersLayerRef.current;
-    layer.clearLayers();
-    campusSites.forEach((site) => {
-      if (!site.coord) return;
-      L.circleMarker([site.coord.lat, site.coord.lng], {
-        radius: 6,
-        color: "#0f172a",
-        weight: 2,
-        fillColor: "#facc15",
-        fillOpacity: 0.9
-      }).addTo(layer);
-    });
-    filteredStudents.forEach((s) => {
-      const c = coords[s.id];
-      if (!c) return;
-      const currBus = assignments[s.id] || s.bus || "";
-      const isUnassigned = !currBus || currBus === "없음";
-      const fill = isUnassigned ? "#94a3b8" : busColorHex(currBus);
-      L.circleMarker([c.lat, c.lng], {
-        radius: 5,
-        color: "#ffffff",
-        weight: 1.5,
-        fillColor: fill,
-        fillOpacity: 0.95
-      })
-        .addTo(layer)
-        .on("click", () => setSelectedId(s.id));
-    });
-    const stopMap: Record<string, Coord | null> = {};
-    busCarsSorted.forEach(b => {
-      const list = filteredStudents.filter(s => (assignments[s.id] || s.bus) === b.name);
-      if (!list.length) {
-        stopMap[b.name] = null;
-        return;
-      }
-      const pts = list.map(s => coords[s.id]).filter(Boolean) as Coord[];
-      if (!pts.length) {
-        stopMap[b.name] = null;
-        return;
-      }
-      const lat = pts.reduce((a, p) => a + p.lat, 0) / pts.length;
-      const lng = pts.reduce((a, p) => a + p.lng, 0) / pts.length;
-      stopMap[b.name] = { lat, lng };
-    });
-    const speed = 25;
-    const nextEtas: Record<string, number> = {};
-    const nextStopsAddr: Record<string, string> = {};
-    const addrCacheKey = "nominatim_stop_addr_cache";
-    let addrCache: Record<string, string> = {};
-    try {
-      const raw = localStorage.getItem(addrCacheKey);
-      addrCache = raw ? JSON.parse(raw) : {};
-    } catch {}
-    const addrTasks: Promise<void>[] = [];
-    Object.entries(stopMap).forEach(([bus, c]) => {
-      if (!c) return;
-      const key = `${c.lat.toFixed(6)},${c.lng.toFixed(6)}`;
-      const assignList = filteredStudents.filter(s => (assignments[s.id] || s.bus) === bus);
-      if (addrCache[key]) {
-        nextStopsAddr[bus] = addrCache[key];
-      } else {
-        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${c.lat}&lon=${c.lng}&zoom=18&addressdetails=1`;
-        addrTasks.push(
-          fetch(url, { headers: { Accept: "application/json" } })
-            .then(res => res.json())
-            .then(j => {
-              const name =
-                j?.address?.road ||
-                j?.display_name ||
-                key;
-              nextStopsAddr[bus] = name;
-              addrCache[key] = name;
-              try {
-                localStorage.setItem(addrCacheKey, JSON.stringify(addrCache));
-              } catch {}
-            })
-            .catch(() => {
-              nextStopsAddr[bus] = key;
-            })
-        );
-      }
-      assignList.forEach(s => {
-        const sc = coords[s.id];
-        if (!sc) return;
-        const dKm = haversine(sc.lat, sc.lng, c.lat, c.lng);
-        nextEtas[s.id] = Math.round((dKm / speed) * 60);
-      });
-    });
-    Promise.all(addrTasks).then(() => {
-      setStopAddresses(nextStopsAddr);
-      setEtas(nextEtas);
-    });
-  }, [filteredStudents, coords, assignments, leafletReady, campusSites, kakaoReady]);
+  // 지도 렌더링 제거
 
   return (
     <main dir="ltr" style={{ writingMode: "horizontal-tb" }} className="mx-auto max-w-6xl px-4 py-8">
-      {!kakaoAppKey && <Script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" strategy="afterInteractive" onLoad={() => setLeafletReady(true)} />}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div className="flex items-center gap-2">
           <Bus className="w-6 h-6 text-frage-yellow" />
@@ -671,31 +388,12 @@ export default function AdminTransportPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-slate-500" />
-              <span className="text-sm font-bold text-slate-700">지도</span>
-            </div>
-            <div className="flex items-center gap-4 text-xs text-slate-500">
-              <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-slate-400 inline-block" />미배정</div>
-              {busCarsSorted.slice(0,3).map((b) => (
-                <div key={b.id} className="flex items-center gap-1">
-                  <span className={`w-3 h-3 rounded-full ${colorForBus(b.name)} inline-block`} />
-                  {b.name}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div ref={mapRef} className="relative h-[420px] md:h-[520px] bg-slate-100" />
-        </div>
-
+      <div className="grid grid-cols-1 gap-6">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bus className="w-5 h-5 text-slate-500" />
-              <span className="text-sm font-bold text-slate-700">호차</span>
+              <span className="text-sm font-bold text-slate-700">호차 배치</span>
             </div>
             {canEdit && (
               <div className="flex items-center gap-2">
@@ -721,7 +419,7 @@ export default function AdminTransportPage() {
               </div>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
+          <div className="grid grid-cols-1 gap-3 p-4">
             {busCarsSorted
               .filter((b) => (busFilter === "All" ? true : b.name === busFilter))
               .map((b) => {
@@ -780,25 +478,38 @@ export default function AdminTransportPage() {
                         <div
                           key={s.id}
                           draggable={canEdit}
-                          onDragStart={(e) => onDragStartStudent(s.id, e)}
-                          className="flex flex-row items-center justify-between px-3 py-2 rounded-lg border border-slate-200 bg-white"
+                          onDragStart={(e) => onDragStartStudent(s.id, b.name, e)}
+                          onDrop={(e) => onDropOnItem(b.name, s.id, e)}
+                          onDragOver={(e) => e.preventDefault()}
+                          className="flex flex-row items-center justify-between px-3 py-3 rounded-lg border border-slate-200 bg-white"
                         >
-                          <div>
+                          <div className="flex-1">
                             <div className="text-sm font-bold text-slate-900 text-left whitespace-normal break-words">{s.name}</div>
-                            <div className="text-xs text-slate-600 text-left whitespace-normal break-words">
-                              {s.className} • {mode === "dropoff" ? (s.departureTime || "-") : (arrivalTimes[s.id] || "08:30")}
-                            </div>
-                            <div className="text-xs text-slate-500 text-left whitespace-normal break-words mt-0.5">
-                              정류장: {stopAddresses[(assignments[s.id] || s.bus)] || "계산중"} • 예상 {typeof etas[s.id] === "number" ? `${etas[s.id]}분` : "-"}
-                            </div>
+                            <div className="text-xs text-slate-600 text-left whitespace-normal break-words">{s.className}</div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {hasBusChangeRequest(s) && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200">
-                                <AlertTriangle className="w-3 h-3" />
-                                차량 요청
-                              </span>
+                          <div className="flex items-center gap-3">
+                            {mode === "pickup" ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-slate-500">등원</span>
+                                <input
+                                  type="time"
+                                  value={arrivalTimes[s.id] || "08:30"}
+                                  onChange={(e) => updateArrivalTime(s.id, e.target.value)}
+                                  className="px-2 py-1 rounded border border-slate-200 text-xs w-24"
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-slate-500">하원</span>
+                                <input
+                                  type="time"
+                                  value={studentUpdates[s.id]?.departureTime || s.departureTime || "16:30"}
+                                  onChange={(e) => updateDepartureTime(s.id, e.target.value)}
+                                  className="px-2 py-1 rounded border border-slate-200 text-xs w-24"
+                                />
+                              </div>
                             )}
+                            <div className="text-xs text-slate-400 select-none" title="드래그하여 순서 변경">↕︎</div>
                           </div>
                         </div>
                       ))}
@@ -824,34 +535,4 @@ export default function AdminTransportPage() {
     </main>
   );
 }
-
-function hashString(s: string) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
-  return Math.abs(h);
-}
-
-function campusCenterFactory(sites: { name: string; coord: Coord | null }[]) {
-  return (campus: string): Coord => {
-    const f = sites.find((x) => x.name === campus && x.coord);
-    if (f && f.coord) return f.coord;
-    if (campus === "International") return { lat: 35.858, lng: 128.627 };
-    if (campus === "Andover") return { lat: 35.864, lng: 128.603 };
-    if (campus === "Platz") return { lat: 35.880, lng: 128.640 };
-    if (campus === "Atheneum") return { lat: 35.872, lng: 128.615 };
-    return { lat: 35.86, lng: 128.60 };
-  };
-}
-
-function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const toRad = (v: number) => (v * Math.PI) / 180;
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+ 

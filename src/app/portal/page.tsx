@@ -30,6 +30,11 @@ export default function PortalPage() {
       const uidLower = uid.toLowerCase();
       const pw = password.trim();
       if (uidLower === "admin" && pw === "frage1234") {
+        try {
+          localStorage.setItem("admin_role", "admin");
+          localStorage.setItem("admin_name", "관리자");
+          localStorage.removeItem("current_teacher_id");
+        } catch {}
         router.push("/admin");
       } else if (uidLower === "master_teacher" && pw === "teacher1234") {
         try {

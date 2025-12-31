@@ -142,9 +142,13 @@ export default function AdminStudentsPage() {
         const res = await fetch("/api/admin/students");
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.items || [];
-        // Merge signup profiles into student list for immediate visibility
         let mergedItems: Student[] = items;
         try {
+          const bulkRaw = localStorage.getItem("admin_bulk_students");
+          const bulkArr: Student[] = bulkRaw ? JSON.parse(bulkRaw) : [];
+          if (Array.isArray(bulkArr) && bulkArr.length > 0) {
+            mergedItems = [...mergedItems, ...bulkArr];
+          }
           const rawProfiles = localStorage.getItem("signup_profiles");
           const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
           const arr: any[] = Array.isArray(profiles) ? profiles : [];
@@ -559,6 +563,132 @@ export default function AdminStudentsPage() {
     reader.readAsText(file);
   };
 
+  const downloadStudentTemplate = () => {
+    const headers = [
+      "id",
+      "childId",
+      "name",
+      "englishName",
+      "birthDate",
+      "phone",
+      "className",
+      "campus",
+      "status",
+      "parentName",
+      "parentAccountId",
+      "parentEmail",
+      "parentPassword",
+      "address",
+      "bus",
+      "departureTime",
+      "portalId",
+      "portalPassword"
+    ];
+    const sample = [
+      "S0001",
+      "",
+      "홍길동",
+      "Gildong Hong",
+      "2016-03-05",
+      "01012345678",
+      "Kepler",
+      "International",
+      "재원",
+      "홍부모",
+      "P0001",
+      "parent@example.com",
+      "Passw0rd!",
+      "서울시 강남구 테헤란로 1",
+      "1호차",
+      "16:30",
+      "portal_gildong",
+      "Portal123!"
+    ];
+    const csv = `${headers.join(",")}\n${sample.join(",")}\n`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "students_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleStudentBulkUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || "");
+        const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+        if (lines.length < 2) {
+          alert("CSV 내용이 비어있습니다.");
+          return;
+        }
+        const headers = lines[0].split(",").map(h => h.trim());
+        const idx = (name: string) => headers.indexOf(name);
+        const required = ["id", "name", "englishName", "birthDate", "phone", "className", "campus", "status", "parentName", "parentAccountId", "address", "bus", "departureTime"];
+        const hasAll = required.every(h => idx(h) >= 0);
+        if (!hasAll) {
+          alert("필수 헤더가 누락되었습니다. 템플릿을 사용하세요.");
+          return;
+        }
+        const rows = lines.slice(1);
+        const parsed: Student[] = rows.map(line => {
+          const cols = line.split(",").map(s => s?.trim() || "");
+          const s: Student = {
+            id: cols[idx("id")] || `S_${Date.now()}`,
+            childId: cols[idx("childId")] || undefined,
+            name: cols[idx("name")] || "",
+            englishName: cols[idx("englishName")] || "",
+            birthDate: cols[idx("birthDate")] || "",
+            phone: cols[idx("phone")] || "",
+            className: cols[idx("className")] || "미배정",
+            campus: cols[idx("campus")] || "미지정",
+            status: (cols[idx("status")] as Status) || "재원",
+            parentName: cols[idx("parentName")] || "",
+            parentAccountId: cols[idx("parentAccountId")] || "",
+            address: cols[idx("address")] || "",
+            bus: cols[idx("bus")] || "없음",
+            departureTime: cols[idx("departureTime")] || ""
+          };
+          return s;
+        }).filter(s => s.name && s.phone);
+        const credMapKey = "portal_accounts_map";
+        try {
+          const raw = localStorage.getItem(credMapKey);
+          const map: Record<string, { portalId?: string; portalPassword?: string; parentEmail?: string; parentPassword?: string }> = raw ? JSON.parse(raw) : {};
+          rows.forEach(line => {
+            const cols = line.split(",").map(s => s?.trim() || "");
+            const sid = cols[idx("id")];
+            if (sid) {
+              map[sid] = {
+                portalId: cols[idx("portalId")] || undefined,
+                portalPassword: cols[idx("portalPassword")] || undefined,
+                parentEmail: cols[idx("parentEmail")] || undefined,
+                parentPassword: cols[idx("parentPassword")] || undefined
+              };
+            }
+          });
+          localStorage.setItem(credMapKey, JSON.stringify(map));
+        } catch {}
+        const key = "admin_bulk_students";
+        const rawPrev = localStorage.getItem(key);
+        const prevArr: Student[] = rawPrev ? JSON.parse(rawPrev) : [];
+        const nextArr = Array.isArray(prevArr) ? [...parsed, ...prevArr] : parsed;
+        localStorage.setItem(key, JSON.stringify(nextArr));
+        alert(`학생 ${parsed.length}명이 업로드되었습니다.`);
+        setStudents(prev => {
+          const existingPhones = new Set(prev.map(s => s.phone));
+          const added = parsed.filter(s => !existingPhones.has(s.phone));
+          return [...prev, ...added];
+        });
+      } catch {
+        alert("CSV 업로드 처리 중 오류가 발생했습니다.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -566,17 +696,20 @@ export default function AdminStudentsPage() {
           <Users className="w-6 h-6 text-slate-400" />
           <h1 className="text-2xl font-black text-slate-900">원생 관리</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-700">영어이름 CSV</label>
-          <input
-            type="file"
-            accept=".csv"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleCSVUpload(f);
-            }}
-            className="text-xs"
-          />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button onClick={downloadStudentTemplate} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold bg-white">템플릿 다운로드</button>
+            <label className="text-xs font-bold text-slate-700">학생 일괄 업로드</label>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleStudentBulkUpload(f);
+              }}
+              className="text-xs"
+            />
+          </div>
         </div>
       </div>
 
@@ -688,6 +821,11 @@ export default function AdminStudentsPage() {
             <option value="All">전체</option>
             <option value="1호차">1호차</option>
             <option value="2호차">2호차</option>
+            <option value="3호차">3호차</option>
+            <option value="4호차">4호차</option>
+            <option value="5호차">5호차</option>
+            <option value="6호차">6호차</option>
+            <option value="7호차">7호차</option>
             <option value="없음">없음</option>
           </select>
         </div>
@@ -1840,6 +1978,11 @@ export default function AdminStudentsPage() {
                   <option value="">선택</option>
                   <option value="1호차">1호차</option>
                   <option value="2호차">2호차</option>
+                  <option value="3호차">3호차</option>
+                  <option value="4호차">4호차</option>
+                  <option value="5호차">5호차</option>
+                  <option value="6호차">6호차</option>
+                  <option value="7호차">7호차</option>
                   <option value="없음">없음</option>
                 </select>
               </div>
@@ -1925,6 +2068,11 @@ export default function AdminStudentsPage() {
                   <option value="">선택</option>
                   <option value="1호차">1호차</option>
                   <option value="2호차">2호차</option>
+                  <option value="3호차">3호차</option>
+                  <option value="4호차">4호차</option>
+                  <option value="5호차">5호차</option>
+                  <option value="6호차">6호차</option>
+                  <option value="7호차">7호차</option>
                   <option value="없음">없음</option>
                 </select>
               </div>

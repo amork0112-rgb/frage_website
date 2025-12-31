@@ -27,6 +27,8 @@ const notoSansKr = Noto_Sans_KR({
 export const metadata: Metadata = {
   title: "FRAGE EDU | English for Thinking Minds",
   description: "Building strong readers, clear thinkers, and confident communicators.",
+  manifest: "/manifest.json",
+  themeColor: "#5B3FFF",
   icons: {
     icon: "/favicon.ico",
   },
