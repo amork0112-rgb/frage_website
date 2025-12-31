@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Nunito, Noto_Sans_KR } from "next/font/google";
 import MainLayout from "@/components/MainLayout";
+import PWARegister from "@/components/PWARegister";
 import "./globals.css";
 import type { Metadata } from "next";
 import { LanguageProvider } from "@/context/LanguageContext";
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ko" className={`${nunito.variable} ${notoSansKr.variable}`}>
       <body className="flex min-h-screen flex-col font-sans bg-white text-slate-800 antialiased selection:bg-frage-yellow selection:text-frage-blue">
+        <PWARegister />
         <LanguageProvider>
           <MainLayout>
             {children}
