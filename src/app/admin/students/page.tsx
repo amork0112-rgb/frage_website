@@ -889,7 +889,6 @@ export default function AdminStudentsPage() {
                   <td className="p-3">
                     <button onClick={() => openInfoPanel(s)} className="text-slate-900 font-bold hover:underline">{s.name}</button>
                     <div className="text-xs text-slate-400">{s.phone}</div>
-                    {s.address && <div className="text-[11px] text-slate-500">{s.address}</div>}
                   </td>
                   <td className="p-3 text-slate-700">{s.englishName}</td>
                   <td className="p-3 text-slate-700">{s.className}</td>

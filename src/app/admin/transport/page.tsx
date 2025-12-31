@@ -20,6 +20,10 @@ type Student = {
   address: string;
   bus: string;
   departureTime: string;
+  arrivalMethod?: string;
+  arrivalPlace?: string;
+  departureMethod?: string;
+  departurePlace?: string;
 };
 
 type BusCar = {
@@ -70,7 +74,45 @@ export default function AdminTransportPage() {
         const res = await fetch("/api/admin/students?pageSize=400");
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.items || [];
-        setStudents(items);
+        let mergedItems: Student[] = items;
+        try {
+          const bulkRaw = localStorage.getItem("admin_bulk_students");
+          const bulkArr: Student[] = bulkRaw ? JSON.parse(bulkRaw) : [];
+          if (Array.isArray(bulkArr) && bulkArr.length > 0) {
+            mergedItems = [...mergedItems, ...bulkArr];
+          }
+          const rawProfiles = localStorage.getItem("signup_profiles");
+          const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
+          const arr: any[] = Array.isArray(profiles) ? profiles : [];
+          if (arr.length > 0) {
+            const existingPhones = new Set(mergedItems.map(s => s.phone));
+            const mapped: Student[] = arr
+              .filter(p => (p?.phone || "").trim() !== "")
+              .map((p, idx) => ({
+                id: `signup_${(p.phone || String(idx)).replace(/[^0-9a-zA-Z]/g, "")}`,
+                childId: undefined,
+                name: String(p.studentName || "").trim(),
+                englishName: String(p.englishFirstName || p.passportEnglishName || "").trim(),
+                birthDate: String(p.childBirthDate || "").trim(),
+                phone: String(p.phone || "").trim(),
+                className: "미배정",
+                campus: "미지정",
+                status: "재원" as Status,
+                parentName: String(p.parentName || "").trim(),
+                parentAccountId: String(p.id || "").trim(),
+                address: [String(p.address || "").trim(), String(p.addressDetail || "").trim()].filter(Boolean).join(" "),
+                bus: "미배정",
+                departureTime: "",
+                arrivalMethod: String(p.arrivalMethod || "").trim(),
+                arrivalPlace: String(p.arrivalPlace || "").trim(),
+                departureMethod: String(p.departureMethod || "").trim(),
+                departurePlace: String(p.departurePlace || "").trim()
+              }))
+              .filter(s => !existingPhones.has(s.phone));
+            mergedItems = [...mergedItems, ...mapped];
+          }
+        } catch {}
+        setStudents(mergedItems);
       } catch {}
     };
     load();
@@ -155,6 +197,19 @@ export default function AdminTransportPage() {
     };
     return list.sort((a, b) => indexOf(a.id) - indexOf(b.id));
   };
+
+  const unassignedList = useMemo(() => {
+    return filteredStudents.filter(s => {
+      const assignedBus = assignments[s.id] || s.bus;
+      const isUnassigned = !assignedBus || assignedBus === "미배정" || assignedBus === "없음";
+      const isShuttle = 
+        mode === "pickup" ? (s.arrivalMethod || "").includes("셔틀") :
+        mode === "dropoff" ? (s.departureMethod || "").includes("셔틀") :
+        false;
+      const hasRequest = requests.some(r => r.childId === s.childId || r.childName === s.name);
+      return isUnassigned && (isShuttle || hasRequest);
+    });
+  }, [filteredStudents, assignments, mode, requests]);
 
   const hasBusChangeRequest = (s: Student) =>
     !!requests.find((r) => r.childId === s.childId || r.childName === s.name);
@@ -388,6 +443,41 @@ export default function AdminTransportPage() {
         </div>
       )}
 
+      {unassignedList.length > 0 && (
+        <div className="mb-6 bg-orange-50 rounded-2xl border border-orange-200 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-orange-500 text-white font-bold text-xs">!</div>
+            <div className="text-sm font-bold text-slate-900">미배정 (셔틀 요청)</div>
+            <div className="text-xs text-orange-600 font-bold">{unassignedList.length}명</div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {unassignedList.map(s => (
+              <div
+                key={s.id}
+                draggable={canEdit}
+                onDragStart={(e) => onDragStartStudent(s.id, "미배정", e)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-orange-200 bg-white shadow-sm cursor-grab active:cursor-grabbing"
+              >
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-slate-900">{s.name}</span>
+                  <span className="text-xs text-slate-500">{s.className}</span>
+                </div>
+                {mode === "pickup" && s.arrivalPlace && (
+                  <div className="text-[10px] text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                    등원: {s.arrivalPlace}
+                  </div>
+                )}
+                {mode === "dropoff" && s.departurePlace && (
+                  <div className="text-[10px] text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                    하원: {s.departurePlace}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-6">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex items-center justify-between">
@@ -486,6 +576,16 @@ export default function AdminTransportPage() {
                           <div className="flex-1">
                             <div className="text-sm font-bold text-slate-900 text-left whitespace-normal break-words">{s.name}</div>
                             <div className="text-xs text-slate-600 text-left whitespace-normal break-words">{s.className}</div>
+                            {mode === "pickup" && s.arrivalPlace && (
+                              <div className="mt-1 text-[11px] text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 inline-block">
+                                등원: {s.arrivalPlace}
+                              </div>
+                            )}
+                            {mode === "dropoff" && s.departurePlace && (
+                              <div className="mt-1 text-[11px] text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 inline-block">
+                                하원: {s.departurePlace}
+                              </div>
+                            )}
                           </div>
                           <div className="flex items-center gap-3">
                             {mode === "pickup" ? (

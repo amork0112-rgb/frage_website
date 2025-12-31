@@ -11,7 +11,7 @@ type CalendarEvent = {
   type: ScheduleType;
   start: string;
   end: string;
-  campus?: "International" | "Andover" | "Platz" | "Atheneum";
+  campus?: "International" | "Andover" | "Platz" | "Atheneum" | "All";
   className?: string;
   place?: string;
   exposeToParent: boolean;
@@ -31,6 +31,8 @@ export default function AdminAcademicCalendarPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  
+  // Form State
   const [title, setTitle] = useState("");
   const [type, setType] = useState<ScheduleType>("행사");
   const [start, setStart] = useState("");
@@ -41,6 +43,9 @@ export default function AdminAcademicCalendarPage() {
   const [exposeToParent, setExposeToParent] = useState<boolean>(true);
   const [notify, setNotify] = useState<boolean>(false);
   const [noticeLink, setNoticeLink] = useState<string>("");
+
+  // Edit State
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
   useEffect(() => {
     try {
@@ -105,18 +110,35 @@ export default function AdminAcademicCalendarPage() {
 
   const monthStr = `${year}-${pad(month + 1)}`;
   const monthEvents = useMemo(() => {
+    // Keep this for list view if needed, but mainly we use eventsByDay
     return events.filter(ev => ev.start.startsWith(monthStr)).sort((a, b) => a.start.localeCompare(b.start));
   }, [events, monthStr]);
 
   const eventsByDay = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
-    monthEvents.forEach(ev => {
-      const k = ev.start;
-      if (!map[k]) map[k] = [];
-      map[k].push(ev);
+    events.forEach(ev => {
+      let curr = new Date(ev.start);
+      const endDt = new Date(ev.end);
+      // Safety: limit loop to prevent infinite loop if bad data
+      let safety = 0;
+      while (curr <= endDt && safety < 365) {
+        const y = curr.getFullYear();
+        const m = pad(curr.getMonth() + 1);
+        const d = pad(curr.getDate());
+        const dateStr = `${y}-${m}-${d}`;
+        
+        if (!map[dateStr]) map[dateStr] = [];
+        // Avoid duplicates if multiple passes
+        if (!map[dateStr].find(x => x.id === ev.id)) {
+          map[dateStr].push(ev);
+        }
+        
+        curr.setDate(curr.getDate() + 1);
+        safety++;
+      }
     });
     return map;
-  }, [monthEvents]);
+  }, [events]);
 
   const addEvent = () => {
     const s = (start || "").trim();
@@ -152,6 +174,24 @@ export default function AdminAcademicCalendarPage() {
       setNoticeLink("");
       alert("일정이 추가되었습니다.");
     } catch {}
+  };
+
+  const updateEvent = () => {
+    if (!editingEvent) return;
+    const next = events.map(ev => ev.id === editingEvent.id ? editingEvent : ev);
+    setEvents(next);
+    localStorage.setItem("admin_calendar_events", JSON.stringify(next));
+    setEditingEvent(null);
+    alert("일정이 수정되었습니다.");
+  };
+
+  const deleteEvent = () => {
+    if (!editingEvent) return;
+    if (!confirm("정말 삭제하시겠습니까?")) return;
+    const next = events.filter(ev => ev.id !== editingEvent.id);
+    setEvents(next);
+    localStorage.setItem("admin_calendar_events", JSON.stringify(next));
+    setEditingEvent(null);
   };
 
   const prevMonth = () => {
@@ -205,7 +245,14 @@ export default function AdminAcademicCalendarPage() {
                   <div className="text-xs font-bold">{cell.label}</div>
                   <div className="mt-1 space-y-1">
                     {list.slice(0, 3).map(ev => (
-                      <div key={ev.id} className={`text-[11px] px-2 py-1 rounded ${ev.type === "공휴일" ? "bg-red-50 text-red-600 border border-red-100" : "bg-slate-50 text-slate-600 border border-slate-100"}`}>
+                      <div 
+                        key={ev.id} 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingEvent(ev);
+                        }}
+                        className={`text-[11px] px-2 py-1 rounded cursor-pointer hover:opacity-80 ${ev.type === "공휴일" ? "bg-red-50 text-red-600 border border-red-100" : "bg-slate-50 text-slate-600 border border-slate-100"}`}
+                      >
                         {ev.title}
                       </div>
                     ))}
@@ -239,6 +286,7 @@ export default function AdminAcademicCalendarPage() {
             <div className="grid grid-cols-2 gap-2">
               <select value={campus || ""} onChange={(e) => setCampus((e.target.value || "") as any)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
                 <option value="">캠퍼스 선택</option>
+                <option value="All">전체</option>
                 <option value="International">International</option>
                 <option value="Andover">Andover</option>
                 <option value="Platz">Platz</option>
@@ -265,6 +313,86 @@ export default function AdminAcademicCalendarPage() {
           </div>
         </section>
       </div>
+
+      {editingEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setEditingEvent(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-bold mb-4 text-slate-900">일정 수정</h3>
+            <div className="space-y-3">
+              <input 
+                value={editingEvent.title} 
+                onChange={(e) => setEditingEvent({...editingEvent, title: e.target.value})} 
+                placeholder="제목" 
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" 
+              />
+              <select 
+                value={editingEvent.type} 
+                onChange={(e) => setEditingEvent({...editingEvent, type: e.target.value as ScheduleType})} 
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              >
+                <option value="수업일">수업일</option>
+                <option value="방학">방학</option>
+                <option value="시험">시험</option>
+                <option value="행사">행사</option>
+                <option value="차량">차량</option>
+                <option value="리포트">리포트</option>
+                <option value="공휴일">공휴일</option>
+              </select>
+              <div className="grid grid-cols-2 gap-2">
+                <input type="date" value={editingEvent.start} onChange={(e) => setEditingEvent({...editingEvent, start: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+                <input type="date" value={editingEvent.end} onChange={(e) => setEditingEvent({...editingEvent, end: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <select 
+                  value={editingEvent.campus || ""} 
+                  onChange={(e) => setEditingEvent({...editingEvent, campus: (e.target.value || undefined) as any})} 
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                >
+                  <option value="">캠퍼스 선택</option>
+                  <option value="All">전체</option>
+                  <option value="International">International</option>
+                  <option value="Andover">Andover</option>
+                  <option value="Platz">Platz</option>
+                  <option value="Atheneum">Atheneum</option>
+                </select>
+                <input 
+                  value={editingEvent.className || ""} 
+                  onChange={(e) => setEditingEvent({...editingEvent, className: e.target.value})} 
+                  placeholder="반 이름(선택)" 
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" 
+                />
+              </div>
+              <input 
+                value={editingEvent.place || ""} 
+                onChange={(e) => setEditingEvent({...editingEvent, place: e.target.value})} 
+                placeholder="장소(선택)" 
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" 
+              />
+              <input 
+                value={editingEvent.noticeLink || ""} 
+                onChange={(e) => setEditingEvent({...editingEvent, noticeLink: e.target.value})} 
+                placeholder="공지 링크(선택)" 
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" 
+              />
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input type="checkbox" checked={editingEvent.exposeToParent} onChange={(e) => setEditingEvent({...editingEvent, exposeToParent: e.target.checked})} />
+                  학부모에게 공개
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input type="checkbox" checked={editingEvent.notify} onChange={(e) => setEditingEvent({...editingEvent, notify: e.target.checked})} />
+                  알림 발송
+                </label>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={updateEvent} className="flex-1 px-3 py-2 rounded-lg bg-blue-600 text-white font-bold text-sm hover:bg-blue-700">저장</button>
+                <button onClick={deleteEvent} className="flex-1 px-3 py-2 rounded-lg bg-red-50 text-red-600 font-bold text-sm hover:bg-red-100 border border-red-200">삭제</button>
+                <button onClick={() => setEditingEvent(null)} className="flex-1 px-3 py-2 rounded-lg bg-slate-100 text-slate-600 font-bold text-sm hover:bg-slate-200">취소</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

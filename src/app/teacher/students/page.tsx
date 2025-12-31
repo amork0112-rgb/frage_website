@@ -65,7 +65,58 @@ export default function TeacherStudentsPage() {
         const res = await fetch("/api/admin/students");
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.items || [];
-        setStudents(items);
+        let mergedItems: Student[] = items;
+
+        try {
+          const bulkRaw = localStorage.getItem("admin_bulk_students");
+          const bulkArr: Student[] = bulkRaw ? JSON.parse(bulkRaw) : [];
+          if (Array.isArray(bulkArr) && bulkArr.length > 0) {
+            mergedItems = [...mergedItems, ...bulkArr];
+          }
+        } catch {}
+
+        try {
+          const rawProfiles = localStorage.getItem("signup_profiles");
+          const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
+          const arr: any[] = Array.isArray(profiles) ? profiles : [];
+          if (arr.length > 0) {
+            const existingPhones = new Set(mergedItems.map(s => s.phone));
+            const mapped: Student[] = arr
+              .filter(p => (p?.phone || "").trim() !== "")
+              .map((p, idx) => ({
+                id: `signup_${(p.phone || String(idx)).replace(/[^0-9a-zA-Z]/g, "")}`,
+                childId: undefined,
+                name: String(p.studentName || "").trim(),
+                englishName: String(p.englishFirstName || p.passportEnglishName || "").trim(),
+                birthDate: String(p.childBirthDate || "").trim(),
+                phone: String(p.phone || "").trim(),
+                className: "미배정",
+                campus: "미지정",
+                status: "재원" as Status,
+                parentName: String(p.parentName || "").trim(),
+                parentAccountId: String(p.id || "").trim(),
+                address: [String(p.address || "").trim(), String(p.addressDetail || "").trim()].filter(Boolean).join(" "),
+                bus: "미배정",
+                departureTime: ""
+              }))
+              .filter(s => !existingPhones.has(s.phone));
+            mergedItems = [...mergedItems, ...mapped];
+          }
+        } catch {}
+
+        try {
+          const updatesRaw = localStorage.getItem("admin_student_updates");
+          const updates = updatesRaw ? JSON.parse(updatesRaw) : {};
+          mergedItems = mergedItems.map(s => {
+            const u = updates[s.id];
+            if (u) {
+              return { ...s, ...u };
+            }
+            return s;
+          });
+        } catch {}
+
+        setStudents(mergedItems);
       } catch {}
     };
     load();

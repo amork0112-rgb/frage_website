@@ -101,8 +101,50 @@ export default function TeacherHome() {
       try {
         const res = await fetch("/api/admin/students");
         const data = await res.json();
-        const arr: Student[] = Array.isArray(data) ? data : data.items || [];
-        setStudents(arr);
+        const items = Array.isArray(data) ? data : data.items || [];
+        let mergedItems: Student[] = items;
+
+        try {
+          const bulkRaw = localStorage.getItem("admin_bulk_students");
+          const bulkArr: Student[] = bulkRaw ? JSON.parse(bulkRaw) : [];
+          if (Array.isArray(bulkArr) && bulkArr.length > 0) {
+            mergedItems = [...mergedItems, ...bulkArr];
+          }
+        } catch {}
+
+        try {
+          const rawProfiles = localStorage.getItem("signup_profiles");
+          const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
+          const arr: any[] = Array.isArray(profiles) ? profiles : [];
+          if (arr.length > 0) {
+            const existingPhones = new Set(mergedItems.map((s: any) => s.phone));
+            const mapped: Student[] = arr
+              .filter(p => (p?.phone || "").trim() !== "")
+              .map((p, idx) => ({
+                id: `signup_${(p.phone || String(idx)).replace(/[^0-9a-zA-Z]/g, "")}`,
+                name: String(p.studentName || "").trim(),
+                englishName: String(p.englishFirstName || p.passportEnglishName || "").trim(),
+                className: "미배정",
+                campus: "미지정",
+              } as Student))
+              .filter((s: any) => !existingPhones.has(s.phone));
+            mergedItems = [...mergedItems, ...mapped];
+          }
+        } catch {}
+
+        try {
+          const updatesRaw = localStorage.getItem("admin_student_updates");
+          const updates = updatesRaw ? JSON.parse(updatesRaw) : {};
+          mergedItems = mergedItems.map(s => {
+            const u = updates[s.id];
+            if (u) {
+              return { ...s, ...u };
+            }
+            return s;
+          });
+        } catch {}
+
+        setStudents(mergedItems);
       } catch {
         setStudents([]);
       }

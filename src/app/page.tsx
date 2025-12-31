@@ -135,7 +135,7 @@ export default function HomePage() {
             <div className="md:col-span-5 relative">
               <div className="relative z-10 overflow-hidden rounded-[2rem] shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-500">
                 <img 
-                  src="https://images.unsplash.com/photo-1588072432836-e10032774350?q=80&w=2072&auto=format&fit=crop" 
+                  src="https://images.unsplash.com/photo-1577896333243-d36081dd588d?q=80&w=2072&auto=format&fit=crop" 
                   alt="Students Studying in Classroom" 
                   className="w-full h-auto object-cover"
                 />
