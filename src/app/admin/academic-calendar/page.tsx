@@ -167,11 +167,20 @@ export default function AdminAcademicCalendarPage() {
     setMonth(d.getMonth());
   };
 
+  const goToToday = () => {
+    const d = new Date();
+    setYear(d.getFullYear());
+    setMonth(d.getMonth());
+  };
+
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-black text-slate-900">학사 캘린더</h1>
+          <button onClick={goToToday} className="px-3 py-1 text-xs font-bold bg-frage-navy text-white rounded-full hover:bg-slate-800 transition-colors">
+            오늘
+          </button>
         </div>
         <Link href="/admin/home" className="text-sm font-bold text-slate-700 underline underline-offset-4">대시보드</Link>
       </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, MapPin, Type, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Eye, Upload, FilePlus2, Table, Info } from "lucide-react";
+import { Bell, MapPin, Type, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Eye, Upload, FilePlus2, Table, Info, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminNewNoticePage() {
@@ -91,6 +91,14 @@ export default function AdminNewNoticePage() {
     const filesArr = Array.from(e.dataTransfer.files || []);
     const next = filesArr.map(f => ({ name: f.name, url: URL.createObjectURL(f), type: f.type }));
     setFiles(prev => [...prev, ...next]);
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const plainText = (html: string) => {
@@ -290,9 +298,18 @@ export default function AdminNewNoticePage() {
             </div>
             <div className="space-y-2">
               {files.map((f, i) => (
-                <div key={`${f.name}-${i}`} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                  <span className="text-sm font-medium text-slate-700">{f.name}</span>
-                  <a href={f.url} target="_blank" rel="noreferrer" className="text-xs font-bold text-frage-blue">열기</a>
+                <div key={`${f.name}-${i}`} className="flex items-center justify-between rounded-lg border px-3 py-2 bg-slate-50">
+                  <span className="text-sm font-medium text-slate-700 truncate flex-1 mr-2">{f.name}</span>
+                  <div className="flex items-center gap-2">
+                    <a href={f.url} target="_blank" rel="noreferrer" className="text-xs font-bold text-frage-blue hover:underline">열기</a>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFile(i)}
+                      className="text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

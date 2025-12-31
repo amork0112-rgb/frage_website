@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Bell, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Eye, FilePlus2, Table, Info, ExternalLink, CheckCircle2 } from "lucide-react";
+import { Bell, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Eye, FilePlus2, Table, Info, ExternalLink, CheckCircle2, X } from "lucide-react";
 import { notices } from "@/data/notices";
+import { supabase } from "@/lib/supabase";
 
 export default function AdminEditNoticePage() {
   const params = useParams();
@@ -20,8 +21,12 @@ export default function AdminEditNoticePage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isStatic, setIsStatic] = useState(false);
-  const [promotion, setPromotion] = useState<{ newsPostId?: number } | null>(null);
+  const [promotion, setPromotion] = useState<{ newsPostId?: number; featured?: boolean; pushEnabled?: boolean } | null>(null);
   const [role, setRole] = useState<"admin" | "teacher" | "unknown">("unknown");
+  const [promote, setPromote] = useState(false);
+  const [newsTitle, setNewsTitle] = useState("");
+  const [newsFeatured, setNewsFeatured] = useState(false);
+  const [newsPushEnabled, setNewsPushEnabled] = useState(true);
 
   useEffect(() => {
     const raw = localStorage.getItem("frage_notices");
@@ -40,7 +45,12 @@ export default function AdminEditNoticePage() {
       try {
         const mapRaw = localStorage.getItem("frage_notice_promotions");
         const map = mapRaw ? JSON.parse(mapRaw) : {};
-        if (map[id]) setPromotion(map[id]);
+        if (map[id]) {
+          setPromotion(map[id]);
+          setPromote(true);
+          setNewsFeatured(map[id].featured || false);
+          setNewsPushEnabled(map[id].pushEnabled !== false);
+        }
       } catch {}
       return;
     }
@@ -102,6 +112,14 @@ export default function AdminEditNoticePage() {
     setFiles(prev => [...prev, ...next]);
   };
 
+  const handleRemoveImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const plainText = (html: string) => {
     const div = document.createElement("div");
     div.innerHTML = html;
@@ -147,6 +165,54 @@ export default function AdminEditNoticePage() {
         : it
     );
     localStorage.setItem(key, JSON.stringify(updated));
+
+    const doPromote = async () => {
+      // If promote is unchecked but it was promoted before -> Delete? 
+      // User request: "checkbox to decide whether to upload to homepage news".
+      // Usually unchecking means removing from news or just not updating.
+      // For MVP, if unchecking, we can try to delete from 'posts' if we have the ID.
+      
+      const mapRaw = localStorage.getItem("frage_notice_promotions");
+      const map = mapRaw ? JSON.parse(mapRaw) : {};
+      const currentPromo = map[id];
+
+      if (!promote) {
+        if (currentPromo && currentPromo.newsPostId) {
+          // Unchecked -> Remove from news
+          await supabase.from("posts").delete().eq("id", currentPromo.newsPostId);
+          delete map[id];
+          localStorage.setItem("frage_notice_promotions", JSON.stringify(map));
+        }
+        return;
+      }
+
+      // Promote is checked
+      const insert = {
+        title: (newsTitle || title).trim(),
+        content: plainText(contentHtml),
+        category: "news",
+        published: true,
+        is_pinned: newsFeatured,
+        image_url: null as any,
+      };
+
+      if (currentPromo && currentPromo.newsPostId) {
+        // Update existing
+        await supabase.from("posts").update(insert).eq("id", currentPromo.newsPostId);
+        map[id] = { ...currentPromo, featured: newsFeatured, pushEnabled: newsPushEnabled };
+        localStorage.setItem("frage_notice_promotions", JSON.stringify(map));
+      } else {
+        // Create new
+        const { data, error } = await supabase.from("posts").insert(insert).select("id").single();
+        if (!error && data?.id) {
+          map[id] = { newsPostId: data.id, at: new Date().toISOString(), featured: newsFeatured, pushEnabled: newsPushEnabled };
+          localStorage.setItem("frage_notice_promotions", JSON.stringify(map));
+        }
+      }
+    };
+    
+    doPromote();
+
     setTimeout(() => {
       alert("공지 수정이 저장되었습니다.");
       router.push("/admin/notices");
@@ -318,8 +384,19 @@ export default function AdminEditNoticePage() {
             <div className="space-y-2">
               {files.map((f, i) => (
                 <div key={`${f.name}-${i}`} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                  <span className="text-sm font-medium text-slate-700">{f.name}</span>
-                  <a href={f.url} target="_blank" rel="noreferrer" className="text-xs font-bold text-frage-blue">열기</a>
+                  <span className="text-sm font-medium text-slate-700 truncate flex-1 mr-2">{f.name}</span>
+                  <div className="flex items-center gap-2">
+                    <a href={f.url} target="_blank" rel="noreferrer" className="text-xs font-bold text-frage-blue hover:underline">열기</a>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(i)}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -342,6 +419,66 @@ export default function AdminEditNoticePage() {
             {loading ? "저장 중..." : "수정 저장"}
           </button>
         </div>
+
+        {canEdit && (
+          <div className="pt-4 border-t border-slate-100 space-y-3">
+            <label className={`flex items-center gap-3 cursor-pointer ${role === "teacher" ? "opacity-50 cursor-not-allowed" : ""}`}>
+              <input
+                type="checkbox"
+                className="w-5 h-5 rounded border-slate-300 text-frage-orange focus:ring-frage-orange"
+                checked={promote}
+                onChange={(e) => role === "teacher" ? null : setPromote(e.target.checked)}
+                disabled={role === "teacher"}
+              />
+              <span className="font-bold text-slate-700">프라게 소식으로 함께 게시</span>
+            </label>
+            {promote && (
+              <div className="space-y-3">
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-sm text-orange-800 flex items-start gap-2">
+                  <Info className="w-4 h-4 mt-0.5" />
+                  <div>
+                    이 공지는 프라게 공식 소식 페이지와 홈페이지 소식 영역에도 함께 게시됩니다. (전체 학부모 대상)
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 p-3">
+                  <div className="text-xs font-bold text-slate-500 mb-2">소식 게시 옵션</div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">소식 제목</label>
+                      <input
+                        type="text"
+                        value={newsTitle}
+                        onChange={(e) => setNewsTitle(e.target.value)}
+                        placeholder="(미입력 시 공지 제목 사용)"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+                      />
+                    </div>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="w-5 h-5 rounded border-slate-300 text-frage-orange focus:ring-frage-orange"
+                        checked={newsFeatured}
+                        onChange={(e) => setNewsFeatured(e.target.checked)}
+                      />
+                      <span className="text-sm font-bold text-slate-700">홈 상단 강조 소식으로 표시</span>
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="w-5 h-5 rounded border-slate-300 text-frage-orange focus:ring-frage-orange"
+                          checked={newsPushEnabled}
+                          onChange={(e) => setNewsPushEnabled(e.target.checked)}
+                        />
+                        <span className="text-sm font-bold text-slate-700">앱 푸시 발송 (기본 ON)</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </form>
     </main>
   );
