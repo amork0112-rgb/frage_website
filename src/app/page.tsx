@@ -240,7 +240,7 @@ export default function HomePage() {
                 {pinnedNews.length > 0 ? (
                     <>
                         {/* Featured News (First Pinned Item) */}
-                        <div className="md:col-span-2 relative rounded-3xl overflow-hidden group shadow-lg h-[300px]">
+                        <Link href={`/news/${pinnedNews[0].id}`} className="md:col-span-2 relative rounded-3xl overflow-hidden group shadow-lg h-[300px] block">
                             <Image
                                 src={pinnedNews[0].image_url || t.awards_news.news[0].image}
                                 alt={pinnedNews[0].title}
@@ -260,11 +260,11 @@ export default function HomePage() {
                                     {new Date(pinnedNews[0].created_at).toLocaleDateString()}
                                 </span>
                             </div>
-                        </div>
+                        </Link>
 
                         {/* Other Pinned News Items */}
                         {pinnedNews.slice(1).map((news, index) => (
-                            <div key={index} className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 group">
+                            <Link href={`/news/${news.id}`} key={index} className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 group block">
                                 <div className="h-40 overflow-hidden">
                                     {news.image_url ? (
                                         <Image
@@ -294,7 +294,7 @@ export default function HomePage() {
                                         {news.content}
                                     </p>
                                 </div>
-                            </div>
+                            </Link>
                         ))}
                     </>
                 ) : (
