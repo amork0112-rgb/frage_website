@@ -234,7 +234,7 @@ export default function AdminNewStudentsPage() {
         // Google Calendar Logic
         const student = students.find(s => s.id === studentId);
         const title = `[신규상담] ${student?.studentName || '학생'} (${student?.parentName || '학부모'})`;
-        const details = `학생 연락처: ${student?.studentPhone || '없음'}\n학부모 연락처: ${student?.parentPhone || '없음'}`;
+        const details = `연락처: ${student?.phone || '없음'}`;
         
         let dates = "";
         if (hasReservation) {

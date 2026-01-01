@@ -67,6 +67,21 @@ export default function PortalAdmissionPage() {
     }
   }, []);
 
+  const handleSubmitDoc = (docId: number) => {
+    if (!confirm("이 서류를 작성 및 제출하시겠습니까? (MVP: 확인 시 자동 제출됨)")) return;
+    
+    try {
+      const accountRaw = localStorage.getItem("portal_account");
+      if (!accountRaw) return;
+      const account = JSON.parse(accountRaw);
+      const studentId = account.id;
+
+      const nextSubmitted = [...submittedDocs, docId];
+      setSubmittedDocs(nextSubmitted);
+      localStorage.setItem(`portal_admission_docs_${studentId}`, JSON.stringify(nextSubmitted));
+    } catch {}
+  };
+
   const handleSignAndSubmit = () => {
     if (!confirm("모든 서류의 내용을 확인하였으며, 전자서명으로 일괄 제출하시겠습니까?")) return;
 
