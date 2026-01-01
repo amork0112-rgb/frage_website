@@ -23,6 +23,18 @@ export default function ParentPortalHome() {
 
   const [studentId, setStudentId] = useState<string>("s8");
 
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [allSlots, setAllSlots] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Initialize selectedDate to today
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    setSelectedDate(`${y}-${m}-${d}`);
+  }, []);
+
   useEffect(() => {
     try {
       // 1. Get logged in user
@@ -46,7 +58,8 @@ export default function ParentPortalHome() {
         const rawSlots = localStorage.getItem("admission_test_slots");
         if (rawSlots) {
             const slots = JSON.parse(rawSlots);
-            // Show all slots, filter logic can be improved later
+            setAllSlots(slots);
+            // We don't use setAvailableSlots anymore for the list view, but keep it for compatibility if needed
             setAvailableSlots(slots.filter((s: any) => s.isOpen));
         }
 
@@ -261,48 +274,87 @@ export default function ParentPortalHome() {
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-3">
-                        {availableSlots.length === 0 ? (
-                            <div className="bg-white p-6 rounded-xl border border-slate-200 text-center text-slate-500 text-sm">
-                                현재 예약 가능한 일정이 없습니다.<br/>
-                                학원으로 문의 부탁드립니다.
-                            </div>
-                        ) : (
-                            availableSlots.map(slot => {
-                                const isFull = (slot.current || 0) >= slot.max;
-                                return (
+                    <div className="space-y-4">
+                        {/* Date Picker */}
+                        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+                          {Array.from({ length: 14 }).map((_, i) => {
+                            const d = new Date();
+                            d.setDate(d.getDate() + i);
+                            const y = d.getFullYear();
+                            const m = String(d.getMonth() + 1).padStart(2, '0');
+                            const day = String(d.getDate()).padStart(2, '0');
+                            const dateStr = `${y}-${m}-${day}`;
+                            const isSelected = selectedDate === dateStr;
+                            const weekDay = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
+                            
+                            return (
+                              <button
+                                key={dateStr}
+                                onClick={() => setSelectedDate(dateStr)}
+                                className={`flex-shrink-0 w-14 h-20 rounded-2xl flex flex-col items-center justify-center border transition-all ${
+                                  isSelected 
+                                    ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-200' 
+                                    : 'bg-white border-slate-200 text-slate-500 hover:border-purple-300'
+                                }`}
+                              >
+                                <span className="text-xs">{weekDay}</span>
+                                <span className="text-lg font-bold">{day}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Time Grid */}
+                        <div className="grid grid-cols-3 gap-2">
+                          {(() => {
+                            const times = [];
+                            for (let h = 10; h <= 19; h++) {
+                              times.push(`${String(h).padStart(2, '0')}:00`);
+                              if (h !== 19 || (h === 19 && 30 <= 30)) { // 19:30 included
+                                times.push(`${String(h).padStart(2, '0')}:30`);
+                              }
+                            }
+                            // Clean up 19:30 logic manually
+                            const timeList = [
+                              "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", 
+                              "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", 
+                              "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", 
+                              "19:00", "19:30"
+                            ];
+
+                            return timeList.map(time => {
+                              // Find matching slot
+                              const slot = allSlots.find(s => s.date === selectedDate && s.time === time);
+                              const isOpen = slot?.isOpen;
+                              const isFull = slot ? (slot.current || 0) >= slot.max : false;
+                              const canReserve = isOpen && !isFull;
+
+                              return (
                                 <button
-                                    key={slot.id}
-                                    onClick={() => !isFull && handleReserve(slot)}
-                                    disabled={isFull}
-                                    className={`w-full p-4 rounded-xl border transition-all text-left flex justify-between items-center group ${
-                                        isFull 
-                                        ? 'bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed' 
-                                        : 'bg-white border-slate-200 hover:border-purple-500 hover:shadow-md'
-                                    }`}
+                                  key={time}
+                                  onClick={() => canReserve && handleReserve(slot)}
+                                  disabled={!canReserve}
+                                  className={`py-3 rounded-xl border text-sm font-bold transition-all ${
+                                    canReserve
+                                      ? 'bg-white border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-500 shadow-sm'
+                                      : isFull
+                                        ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed decoration-slate-400'
+                                        : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'
+                                  }`}
                                 >
-                                    <div>
-                                        <div className={`font-bold transition-colors ${isFull ? 'text-slate-400' : 'text-slate-800 group-hover:text-purple-600'}`}>
-                                            {slot.date}
-                                        </div>
-                                        <div className="text-sm text-slate-500">
-                                            {slot.time} <span className="text-slate-300">|</span> 
-                                            <span className={isFull ? "text-red-500 font-bold ml-1" : "ml-1"}>
-                                                {isFull ? "마감" : `잔여 ${slot.max - (slot.current || 0)}석`}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
-                                        isFull 
-                                        ? 'bg-slate-200 text-slate-400' 
-                                        : 'bg-slate-50 text-slate-600 group-hover:bg-purple-600 group-hover:text-white'
-                                    }`}>
-                                        {isFull ? "예약불가" : "예약하기"}
-                                    </div>
+                                  {time}
+                                  {isFull && <span className="block text-[10px] font-normal text-red-400">마감</span>}
+                                  {!slot && <span className="block text-[10px] font-normal text-slate-300">-</span>}
+                                  {canReserve && <span className="block text-[10px] font-normal text-purple-500">가능</span>}
                                 </button>
-                                );
-                            })
-                        )}
+                              );
+                            });
+                          })()}
+                        </div>
+                        
+                        <p className="text-xs text-center text-slate-400 mt-2">
+                          * 활성화된 시간만 예약 가능합니다. (회색: 예약 불가/미오픈)
+                        </p>
                     </div>
                 )}
             </section>
