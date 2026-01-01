@@ -16,9 +16,12 @@ const CAMPUS_LABELS: Record<string, string> = {
   Platz: "플라츠관"
 };
 
+const DEFAULT_CLASSES = ["Seed", "Sprout", "Sapling", "Tree", "Forest", "Master", "TOEFL", "Debate"];
+
 export default function AdminVideoAssignmentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [classCatalog, setClassCatalog] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [filterClass, setFilterClass] = useState<string>("All");
   const [filterCampus, setFilterCampus] = useState<string>("All");
