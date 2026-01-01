@@ -33,7 +33,8 @@ export default function SignupPage() {
     arrivalPlace: "",
     departureMethod: "",
     departurePlace: "",
-    privacyAgreed: false
+    privacyAgreed: false,
+    campus: ""
   });
   
   const [loading, setLoading] = useState(false);
@@ -159,6 +160,11 @@ export default function SignupPage() {
       return;
     }
 
+    if (!formData.campus) {
+      alert("캠퍼스를 선택해 주세요.");
+      return;
+    }
+
     setLoading(true);
 
     // Simulate API call
@@ -184,7 +190,9 @@ export default function SignupPage() {
           arrivalPlace: formData.arrivalPlace.trim(),
           departureMethod: formData.departureMethod.trim(),
           departurePlace: formData.departurePlace.trim(),
-          createdAt: new Date().toISOString()
+          campus: formData.campus,
+          createdAt: new Date().toISOString(),
+          status: "waiting"
         });
         localStorage.setItem("signup_profiles", JSON.stringify(nextProfiles));
         localStorage.setItem("signup_account", JSON.stringify({
@@ -283,6 +291,36 @@ export default function SignupPage() {
                   />
                 </div>
               </div>
+
+              {/* Campus Selection */}
+              <div>
+                <label htmlFor="campus" className="block text-sm font-bold text-frage-navy mb-2">
+                  캠퍼스 선택 <span className="text-red-500">*</span>
+                </label>
+                <div className="space-y-2">
+                  <select
+                    id="campus"
+                    name="campus"
+                    required
+                    value={formData.campus}
+                    onChange={(e) => handleChange(e as any)}
+                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
+                  >
+                    <option value="">캠퍼스를 선택해주세요</option>
+                    <option value="International">International</option>
+                    <option value="Andover">Andover</option>
+                    <option value="Platz">Platz</option>
+                    <option value="Atheneum">Atheneum</option>
+                  </select>
+                  <p className="text-xs text-frage-gray">
+                    캠퍼스를 모르시나요?{" "}
+                    <Link href="/campuses" target="_blank" className="text-frage-blue font-bold underline hover:text-frage-navy transition-colors">
+                      캠퍼스 안내 페이지로 이동하기
+                    </Link>
+                  </p>
+                </div>
+              </div>
+
               {/* Student Name */}
               <div>
                 <label htmlFor="studentName" className="block text-sm font-bold text-frage-navy mb-2">

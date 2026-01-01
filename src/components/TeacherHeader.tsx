@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Video, FileText, LogOut, Menu, X, Users } from "lucide-react";
+import { Home, Video, FileText, LogOut, Menu, X, Users, UserPlus } from "lucide-react";
 
 export default function TeacherHeader() {
   const pathname = usePathname();
@@ -38,6 +38,7 @@ export default function TeacherHeader() {
 
   const menuItems = [
     { name: "Dashboard", href: "/teacher/home", icon: Home },
+    { name: "신규생관리", href: "/teacher/new-students", icon: UserPlus },
     { name: "Students", href: "/teacher/students", icon: Users },
     { name: "Video Homework", href: "/teacher/video", icon: Video },
     { name: "Reports", href: "/teacher/reports", icon: FileText },
