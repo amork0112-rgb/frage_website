@@ -57,9 +57,9 @@ export default function AdminVideoAssignmentsPage() {
   }, []);
 
   const classes = useMemo(() => {
-    const set = new Set(students.map(s => s.className));
+    const set = new Set<string>([...students.map(s => s.className), ...classCatalog, ...DEFAULT_CLASSES]);
     return ["All", ...Array.from(set)];
-  }, [students]);
+  }, [students, classCatalog]);
 
   const campuses = useMemo(() => CAMPUS_VALUES.slice(), []);
 
@@ -76,6 +76,34 @@ export default function AdminVideoAssignmentsPage() {
       localStorage.setItem("video_assignments", JSON.stringify(next));
     } catch {}
   };
+  
+  const classesByCampus = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    students.forEach(s => {
+      const c = s.campus || "All";
+      if (!map[c]) map[c] = new Set<string>();
+      if (s.className) map[c].add(s.className);
+    });
+    const out: Record<string, string[]> = {};
+    Object.keys(map).forEach(k => {
+      out[k] = Array.from(map[k]);
+    });
+    return out;
+  }, [students]);
+  const classesForCampus = (campusValue: string) => {
+    if (campusValue === "All") return classes;
+    const fromStudents = classesByCampus[campusValue] || [];
+    const merged = Array.from(new Set([...fromStudents, ...DEFAULT_CLASSES]));
+    return ["All", ...merged];
+  };
+  const classesForNewCampus = useMemo(() => classesForCampus(newCampus), [newCampus, classesByCampus, classes]);
+  const classesForFilterCampus = useMemo(() => classesForCampus(filterCampus), [filterCampus, classesByCampus, classes]);
+  useEffect(() => {
+    setNewClass("All");
+  }, [newCampus]);
+  useEffect(() => {
+    setFilterClass("All");
+  }, [filterCampus]);
 
   const createAssignment = () => {
     if (!newTitle.trim() || !newModule.trim() || !newDue || newClass === "All") return;
@@ -133,7 +161,7 @@ export default function AdminVideoAssignmentsPage() {
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
             <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              {classes.map(c => (<option key={c} value={c}>{c}</option>))}
+              {classesForNewCampus.map(c => (<option key={c} value={c}>{c}</option>))}
             </select>
           </div>
           <div>
@@ -167,7 +195,7 @@ export default function AdminVideoAssignmentsPage() {
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">반 필터</label>
             <select value={filterClass} onChange={(e) => setFilterClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              {classes.map(c => (<option key={c} value={c}>{c}</option>))}
+              {classesForFilterCampus.map(c => (<option key={c} value={c}>{c}</option>))}
             </select>
           </div>
           <div>
@@ -193,7 +221,7 @@ export default function AdminVideoAssignmentsPage() {
                   <input value={editItem?.module || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), module: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
                   <input type="date" value={editItem?.dueDate || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), dueDate: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
                   <select value={editItem?.className || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), className: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                    {classes.filter(c => c !== "All").map(c => (<option key={c} value={c}>{c}</option>))}
+                    {classesForCampus((editItem?.campus as string) || "All").filter(c => c !== "All").map(c => (<option key={c} value={c}>{c}</option>))}
                   </select>
                   <select value={editItem?.campus || "All"} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), campus: e.target.value === "All" ? undefined : e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
                     {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
