@@ -25,11 +25,13 @@ type Student = {
 export default function AdminTeacherClassesPage() {
   const [role, setRole] = useState<"admin" | "teacher" | null>(null);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [assign, setAssign] = useState<Record<string, string>>({});
+  const [assign, setAssign] = useState<Record<string, string[]>>({});
   const [students, setStudents] = useState<Student[]>([]);
   const [query, setQuery] = useState("");
   const [campusFilter, setCampusFilter] = useState<"All" | Teacher["campus"]>("All");
   const [classCatalog, setClassCatalog] = useState<string[]>([]);
+  const [addSelect, setAddSelect] = useState<Record<string, string>>({});
+  const [addInput, setAddInput] = useState<Record<string, string>>({});
 
   useEffect(() => {
     try {
@@ -48,7 +50,14 @@ export default function AdminTeacherClassesPage() {
     try {
       const mapRaw = localStorage.getItem("admin_teacher_class_map");
       const map = mapRaw ? JSON.parse(mapRaw) : {};
-      setAssign(map || {});
+      const normalized: Record<string, string[]> = {};
+      Object.keys(map || {}).forEach(k => {
+        const v = map[k];
+        if (Array.isArray(v)) normalized[k] = v.filter(Boolean);
+        else if (typeof v === "string" && v.trim()) normalized[k] = [v.trim()];
+        else normalized[k] = [];
+      });
+      setAssign(normalized);
     } catch {
       setAssign({});
     }
@@ -86,18 +95,34 @@ export default function AdminTeacherClassesPage() {
       .filter(t => (query.trim() === "" ? true : t.name.toLowerCase().includes(query.toLowerCase()) || t.email.toLowerCase().includes(query.toLowerCase())));
   }, [teachers, campusFilter, query]);
 
-  const saveOne = (id: string, value: string) => {
-    const v = value.trim();
-    const map = { ...assign, [id]: v };
+  const saveOne = (id: string, values: string[]) => {
+    const uniq = Array.from(new Set(values.map(v => v.trim()).filter(Boolean))).slice(0, 5);
+    const map = { ...assign, [id]: uniq };
     setAssign(map);
     localStorage.setItem("admin_teacher_class_map", JSON.stringify(map));
     try {
       const raw = localStorage.getItem("admin_class_catalog");
       const list: string[] = raw ? JSON.parse(raw) : [];
-      const next = Array.from(new Set([...(Array.isArray(list) ? list : []), v]));
+      const next = Array.from(new Set([...(Array.isArray(list) ? list : []), ...uniq]));
       localStorage.setItem("admin_class_catalog", JSON.stringify(next));
       setClassCatalog(next);
     } catch {}
+  };
+  const addClass = (id: string) => {
+    const fromSelect = (addSelect[id] || "").trim();
+    const fromInput = (addInput[id] || "").trim();
+    const candidate = fromInput || fromSelect;
+    if (!candidate) return;
+    const current = assign[id] || [];
+    if (current.length >= 5) return;
+    const next = Array.from(new Set([...current, candidate]));
+    setAssign(prev => ({ ...prev, [id]: next }));
+    setAddInput(prev => ({ ...prev, [id]: "" }));
+  };
+  const removeClass = (id: string, value: string) => {
+    const current = assign[id] || [];
+    const next = current.filter(v => v !== value);
+    setAssign(prev => ({ ...prev, [id]: next }));
   };
 
   const isAllowed = role === "admin";
@@ -157,7 +182,7 @@ export default function AdminTeacherClassesPage() {
                 <th className="p-4 font-bold">이름</th>
                 <th className="p-4 font-bold">이메일</th>
                 <th className="p-4 font-bold">캠퍼스</th>
-                <th className="p-4 font-bold w-64">반 지정</th>
+                <th className="p-4 font-bold w-96">반 지정</th>
                 <th className="p-4 font-bold w-24 text-center">저장</th>
               </tr>
             </thead>
@@ -168,28 +193,56 @@ export default function AdminTeacherClassesPage() {
                   <td className="p-4 text-slate-700">{t.email}</td>
                   <td className="p-4 text-slate-700">{t.campus === "International" ? "국제관" : t.campus === "Andover" ? "앤도버" : t.campus === "Platz" ? "플라츠" : "아테네움관"}</td>
                   <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={assign[t.id] || ""}
-                        onChange={(e) => setAssign(prev => ({ ...prev, [t.id]: e.target.value }))}
-                        className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-                      >
-                        <option value="">선택</option>
-                        {classes.map(c => (
-                          <option key={c} value={c}>{c}</option>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={addSelect[t.id] || ""}
+                          onChange={(e) => setAddSelect(prev => ({ ...prev, [t.id]: e.target.value }))}
+                          className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                        >
+                          <option value="">선택</option>
+                          {classes.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                        <input
+                          value={addInput[t.id] || ""}
+                          onChange={(e) => setAddInput(prev => ({ ...prev, [t.id]: e.target.value }))}
+                          placeholder="직접 입력"
+                          className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                        />
+                        <button
+                          onClick={() => addClass(t.id)}
+                          className="px-3 py-2 rounded-lg bg-frage-navy text-white text-sm font-bold"
+                        >
+                          추가
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {(assign[t.id] || []).map(c => (
+                          <span key={c} className="inline-flex items-center gap-2 px-2 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">
+                            {c}
+                            <button
+                              onClick={() => removeClass(t.id, c)}
+                              className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center"
+                              aria-label="remove"
+                            >
+                              ×
+                            </button>
+                          </span>
                         ))}
-                      </select>
-                      <input
-                        value={assign[t.id] || ""}
-                        onChange={(e) => setAssign(prev => ({ ...prev, [t.id]: e.target.value }))}
-                        placeholder="직접 입력"
-                        className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-                      />
+                        {(assign[t.id] || []).length === 0 && (
+                          <span className="text-xs text-slate-400">지정된 반이 없습니다</span>
+                        )}
+                        {(assign[t.id] || []).length >= 5 && (
+                          <span className="text-xs text-red-500 font-bold">최대 5반까지 지정 가능합니다</span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="p-4 text-center">
                     <button
-                      onClick={() => saveOne(t.id, assign[t.id] || "")}
+                      onClick={() => saveOne(t.id, assign[t.id] || [])}
                       className="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-frage-navy text-white"
                       aria-label="저장"
                     >
