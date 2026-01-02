@@ -23,7 +23,7 @@ export default function AdminTeachersPage() {
   const [query, setQuery] = useState("");
   const [campusFilter, setCampusFilter] = useState<"All" | Teacher["campus"]>("All");
   const [toast, setToast] = useState<string>("");
-  const [policy, setPolicy] = useState<string>("Frage@2024");
+  const [policy, setPolicy] = useState<string>("frage");
 
   useEffect(() => {
     try {
@@ -35,8 +35,14 @@ export default function AdminTeachersPage() {
     }
     try {
       const p = localStorage.getItem("teacher_initial_password_policy");
-      if (p) setPolicy(p);
-      else localStorage.setItem("teacher_initial_password_policy", policy);
+      if (p) {
+        setPolicy(p);
+        setPassword(p);
+      } else {
+        localStorage.setItem("teacher_initial_password_policy", "frage");
+        setPolicy("frage");
+        setPassword("frage");
+      }
     } catch {}
   }, []);
 
@@ -49,7 +55,7 @@ export default function AdminTeachersPage() {
   const resetForm = () => {
     setName("");
     setEmail("");
-    setPassword("");
+    setPassword(policy);
     setCampus("International");
     setRole("teacher");
   };
@@ -87,7 +93,7 @@ export default function AdminTeachersPage() {
   };
 
   const resetPassword = (id: string) => {
-    setToast("비밀번호를 초기화했습니다");
+    setToast(`비밀번호를 '${policy}'로 초기화했습니다`);
     setTimeout(() => setToast(""), 2000);
   };
 
@@ -153,10 +159,10 @@ export default function AdminTeachersPage() {
               />
               <input
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="초기 비밀번호"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                value={policy}
+                disabled
+                placeholder="초기 비밀번호 정책"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-slate-50 text-slate-600"
               />
               <div className="flex items-center gap-2">
                 <select
