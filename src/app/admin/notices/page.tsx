@@ -4,9 +4,11 @@ import Link from "next/link";
 import { notices } from "@/data/notices";
 import { Plus, Edit2, Trash2, Pin, MapPin, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { supabase, supabaseReady } from "@/lib/supabase";
 
 export default function AdminNoticesPage() {
   const [dynamicNotices, setDynamicNotices] = useState<any[]>([]);
+  const [serverNotices, setServerNotices] = useState<any[]>([]);
   const [draft, setDraft] = useState<any | null>(null);
   const [overrides, setOverrides] = useState<Record<string, { isPinned?: boolean; isArchived?: boolean }>>({});
   const [statusLogs, setStatusLogs] = useState<Record<string, string[]>>({});
@@ -22,6 +24,49 @@ export default function AdminNoticesPage() {
     setOverrides(ov);
     const logs = JSON.parse(localStorage.getItem("frage_notice_status_logs") || "{}");
     setStatusLogs(logs);
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("posts")
+          .select("*")
+          .eq("category", "notice")
+          .order("created_at", { ascending: false });
+        if (!error && Array.isArray(data)) {
+          const mapped = data.map((p: any) => ({
+            id: String(p.id),
+            title: p.title,
+            date: p.created_at,
+            category: "Schedule",
+            campus: "All",
+            summary: p.content || "",
+            richHtml: "",
+            images: [],
+            files: [],
+            viewCount: 0,
+            isPinned: !!p.is_pinned,
+            isArchived: !!p.is_archived,
+          }));
+          setServerNotices(mapped);
+        }
+      } catch {}
+      try {
+        const migratedRaw = localStorage.getItem("frage_notice_migrated_ids");
+        const migrated: Record<string, boolean> = migratedRaw ? JSON.parse(migratedRaw) : {};
+        const toSync = (arr || []).filter((n: any) => typeof n?.id === "string" && n.id.startsWith("dyn_") && !migrated[n.id]);
+        for (const it of toSync) {
+          await supabase.from("posts").insert({
+            title: it.title,
+            content: String(it.summary || ""),
+            category: "notice",
+            published: true,
+            is_pinned: false,
+            image_url: null as any,
+          });
+          migrated[it.id] = true;
+        }
+        localStorage.setItem("frage_notice_migrated_ids", JSON.stringify(migrated));
+      } catch {}
+    })();
   }, []);
 
   const formatDate = (dateStr: string) => {
@@ -30,7 +75,7 @@ export default function AdminNoticesPage() {
   };
 
   const mergedNotices = useMemo(() => {
-    const base = [...dynamicNotices, ...notices];
+    const base = [...serverNotices, ...dynamicNotices, ...notices];
     return base
       .map((n) => {
         const o = overrides[n.id] || {};

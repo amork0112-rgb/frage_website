@@ -144,11 +144,6 @@ export default function AdminStudentsPage() {
         const items = Array.isArray(data) ? data : data.items || [];
         let mergedItems: Student[] = items;
         try {
-          const bulkRaw = localStorage.getItem("admin_bulk_students");
-          const bulkArr: Student[] = bulkRaw ? JSON.parse(bulkRaw) : [];
-          if (Array.isArray(bulkArr) && bulkArr.length > 0) {
-            mergedItems = [...mergedItems, ...bulkArr];
-          }
           const rawProfiles = localStorage.getItem("signup_profiles");
           const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
           const arr: any[] = Array.isArray(profiles) ? profiles : [];
@@ -178,6 +173,13 @@ export default function AdminStudentsPage() {
               }))
               .filter(s => !existingPhones.has(s.phone));
             mergedItems = [...mergedItems, ...mapped];
+            if (mapped.length > 0) {
+              fetch("/api/admin/students", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ items: mapped })
+              }).catch(() => {});
+            }
 
             // 신규 가입 1개월 자동 메모
             try {
@@ -565,44 +567,38 @@ export default function AdminStudentsPage() {
 
   const downloadStudentTemplate = () => {
     const headers = [
-      "id",
-      "childId",
-      "name",
-      "englishName",
-      "birthDate",
+      "studentName",
+      "englishFirstName",
+      "passportEnglishName",
+      "childBirthDate",
       "phone",
+      "parentName",
+      "address",
+      "addressDetail",
+      "arrivalMethod",
+      "arrivalPlace",
+      "departureMethod",
+      "departurePlace",
       "className",
       "campus",
-      "status",
-      "parentName",
-      "parentAccountId",
-      "parentEmail",
-      "parentPassword",
-      "address",
-      "bus",
-      "departureTime",
-      "portalId",
-      "portalPassword"
+      "status"
     ];
     const sample = [
-      "S0001",
-      "",
       "홍길동",
+      "Gildong",
       "Gildong Hong",
       "2016-03-05",
       "01012345678",
+      "홍부모",
+      "서울시 강남구 테헤란로 1",
+      "101동 1001호",
+      "자가",
+      "정문",
+      "차량",
+      "후문",
       "Kepler",
       "International",
-      "재원",
-      "홍부모",
-      "P0001",
-      "parent@example.com",
-      "Passw0rd!",
-      "서울시 강남구 테헤란로 1",
-      "1호차",
-      "16:30",
-      "portal_gildong",
-      "Portal123!"
+      "재원"
     ];
     const csv = `${headers.join(",")}\n${sample.join(",")}\n`;
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -626,7 +622,7 @@ export default function AdminStudentsPage() {
         }
         const headers = lines[0].split(",").map(h => h.trim());
         const idx = (name: string) => headers.indexOf(name);
-        const required = ["id", "name", "englishName", "birthDate", "phone", "className", "campus", "status", "parentName", "parentAccountId", "address", "bus", "departureTime"];
+        const required = ["studentName", "childBirthDate", "phone", "parentName", "className", "campus", "status"];
         const hasAll = required.every(h => idx(h) >= 0);
         if (!hasAll) {
           alert("필수 헤더가 누락되었습니다. 템플릿을 사용하세요.");
@@ -635,52 +631,57 @@ export default function AdminStudentsPage() {
         const rows = lines.slice(1);
         const parsed: Student[] = rows.map(line => {
           const cols = line.split(",").map(s => s?.trim() || "");
+          const name = cols[idx("studentName")] || "";
+          const englishFirst = cols[idx("englishFirstName")] || "";
+          const passport = cols[idx("passportEnglishName")] || "";
+          const englishName = englishFirst || passport;
+          const birthDate = cols[idx("childBirthDate")] || "";
+          const phone = cols[idx("phone")] || "";
+          const parentName = cols[idx("parentName")] || "";
+          const address = [cols[idx("address")] || "", cols[idx("addressDetail")] || ""].filter(Boolean).join(" ");
+          const className = cols[idx("className")] || "미배정";
+          const campus = cols[idx("campus")] || "미지정";
+          const statusVal = (cols[idx("status")] as Status) || "재원";
+          const arrivalMethod = cols[idx("arrivalMethod")] || "";
+          const arrivalPlace = cols[idx("arrivalPlace")] || "";
+          const departureMethod = cols[idx("departureMethod")] || "";
+          const departurePlace = cols[idx("departurePlace")] || "";
           const s: Student = {
-            id: cols[idx("id")] || `S_${Date.now()}`,
-            childId: cols[idx("childId")] || undefined,
-            name: cols[idx("name")] || "",
-            englishName: cols[idx("englishName")] || "",
-            birthDate: cols[idx("birthDate")] || "",
-            phone: cols[idx("phone")] || "",
-            className: cols[idx("className")] || "미배정",
-            campus: cols[idx("campus")] || "미지정",
-            status: (cols[idx("status")] as Status) || "재원",
-            parentName: cols[idx("parentName")] || "",
-            parentAccountId: cols[idx("parentAccountId")] || "",
-            address: cols[idx("address")] || "",
-            bus: cols[idx("bus")] || "없음",
-            departureTime: cols[idx("departureTime")] || ""
-          };
+            id: `bulk_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+            childId: undefined,
+            name,
+            englishName,
+            birthDate,
+            phone,
+            className,
+            campus,
+            status: statusVal,
+            parentName,
+            parentAccountId: "",
+            address,
+            bus: departureMethod || "없음",
+            departureTime: "",
+            arrivalMethod,
+            arrivalPlace,
+            departureMethod,
+            departurePlace
+          } as any;
           return s;
         }).filter(s => s.name && s.phone);
-        const credMapKey = "portal_accounts_map";
-        try {
-          const raw = localStorage.getItem(credMapKey);
-          const map: Record<string, { portalId?: string; portalPassword?: string; parentEmail?: string; parentPassword?: string }> = raw ? JSON.parse(raw) : {};
-          rows.forEach(line => {
-            const cols = line.split(",").map(s => s?.trim() || "");
-            const sid = cols[idx("id")];
-            if (sid) {
-              map[sid] = {
-                portalId: cols[idx("portalId")] || undefined,
-                portalPassword: cols[idx("portalPassword")] || undefined,
-                parentEmail: cols[idx("parentEmail")] || undefined,
-                parentPassword: cols[idx("parentPassword")] || undefined
-              };
-            }
+        fetch("/api/admin/students", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: parsed })
+        }).then(async (res) => {
+          if (!res.ok) throw new Error("upload_failed");
+          alert(`학생 ${parsed.length}명이 업로드되었습니다.`);
+          setStudents(prev => {
+            const existingPhones = new Set(prev.map(s => s.phone));
+            const added = parsed.filter(s => !existingPhones.has(s.phone));
+            return [...prev, ...added];
           });
-          localStorage.setItem(credMapKey, JSON.stringify(map));
-        } catch {}
-        const key = "admin_bulk_students";
-        const rawPrev = localStorage.getItem(key);
-        const prevArr: Student[] = rawPrev ? JSON.parse(rawPrev) : [];
-        const nextArr = Array.isArray(prevArr) ? [...parsed, ...prevArr] : parsed;
-        localStorage.setItem(key, JSON.stringify(nextArr));
-        alert(`학생 ${parsed.length}명이 업로드되었습니다.`);
-        setStudents(prev => {
-          const existingPhones = new Set(prev.map(s => s.phone));
-          const added = parsed.filter(s => !existingPhones.has(s.phone));
-          return [...prev, ...added];
+        }).catch(() => {
+          alert("업로드 중 오류가 발생했습니다.");
         });
       } catch {
         alert("CSV 업로드 처리 중 오류가 발생했습니다.");

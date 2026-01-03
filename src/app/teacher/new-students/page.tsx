@@ -497,7 +497,7 @@ export default function TeacherNewStudentsPage() {
                           }`}
                         >
                           <div className={`w-2 h-2 rounded-full ${slot.isOpen ? 'bg-green-500' : 'bg-slate-400'}`}></div>
-                          {slot.isOpen ? "접수중" : "마감됨"}
+                          {slot.isOpen ? "닫기" : "열기"}
                         </button>
                         <button 
                           onClick={() => handleDeleteSlot(slot.id)}

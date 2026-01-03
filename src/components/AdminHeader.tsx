@@ -96,6 +96,17 @@ export default function AdminHeader() {
                       </Link>
                       <Link
                         role="menuitem"
+                        href="/admin/new-students"
+                        className={`flex items-center gap-2 px-3 py-2 text-sm font-bold ${
+                          pathname.startsWith("/admin/new-students") ? "text-frage-orange bg-slate-800" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                        }`}
+                        onClick={() => setIsStudentsMenuOpen(false)}
+                      >
+                        <Users className="w-4 h-4" />
+                        신규생 관리
+                      </Link>
+                      <Link
+                        role="menuitem"
                         href="/admin/transport"
                         className={`flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-b-xl ${
                           pathname.startsWith("/admin/transport") ? "text-frage-orange bg-slate-800" : "text-slate-300 hover:bg-slate-800 hover:text-white"

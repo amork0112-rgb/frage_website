@@ -145,6 +145,20 @@ export default function AdminNewNoticePage() {
     localStorage.setItem(key, JSON.stringify([item, ...existing]));
     localStorage.removeItem("frage_notice_draft");
 
+    const persistToSupabase = async () => {
+      try {
+        await supabase.from("posts").insert({
+          title,
+          content: plainText(contentHtml),
+          category: "notice",
+          published: true,
+          is_pinned: false,
+          image_url: null as any,
+        });
+      } catch {}
+    };
+    persistToSupabase();
+
     const doPromote = async () => {
       if (!promote) return;
       try {
