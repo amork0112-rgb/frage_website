@@ -274,47 +274,61 @@ export default function ParentPortalHome() {
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-4">
-                      <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                        <h4 className="text-sm font-bold text-slate-700">등록된 일정 ({allSlots.length})</h4>
-                        {allSlots.length === 0 ? (
-                          <p className="text-center text-slate-400 text-sm py-4">등록된 일정이 없습니다.</p>
-                        ) : (
-                          [...allSlots]
-                            .sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime())
-                            .map(slot => {
-                              const isFull = (slot.current || 0) >= slot.max;
-                              const canReserve = slot.isOpen && !isFull;
-                              return (
-                                <div key={slot.id} className={`flex items-center justify-between p-3 rounded-lg border ${slot.isOpen ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200'}`}>
-                                  <div className="flex items-center gap-3">
-                                    <div className={`w-2 h-2 rounded-full ${slot.isOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                                    <div>
-                                      <div className="font-bold text-slate-800 text-sm">
-                                        {slot.date} <span className="text-slate-400">|</span> {slot.time}
-                                      </div>
-                                      <div className="text-xs text-slate-500">
-                                        신청 {slot.current}명 / 정원 {slot.max}명
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => canReserve && handleReserve(slot)}
-                                      disabled={!canReserve}
-                                      className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-bold border transition-all ${
-                                        canReserve
-                                          ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
-                                          : 'bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed'
-                                      }`}
-                                    >
-                                      {canReserve ? "예약" : (isFull ? "마감" : "미오픈")}
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })
-                        )}
+                    <div className="space-y-6">
+                      <div className="flex gap-2 overflow-x-auto pb-2">
+                        {Array.from({length: 8}).map((_, i) => {
+                          const base = new Date();
+                          const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+                          const y = d.getFullYear();
+                          const m = String(d.getMonth() + 1).padStart(2, '0');
+                          const day = String(d.getDate()).padStart(2, '0');
+                          const dateStr = `${y}-${m}-${day}`;
+                          const week = ["일","월","화","수","목","금","토"][d.getDay()];
+                          const active = selectedDate === dateStr;
+                          return (
+                            <button
+                              key={dateStr}
+                              onClick={() => setSelectedDate(dateStr)}
+                              className={`flex flex-col items-center justify-center w-16 h-20 rounded-2xl font-bold border transition-all ${
+                                active ? "bg-purple-600 text-white border-purple-600 shadow-lg" : "bg-white text-slate-600 border-slate-200"
+                              }`}
+                            >
+                              <span className={`text-xs ${active ? "text-white/90" : "text-slate-400"}`}>{week}</span>
+                              <span className="text-lg">{day}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        {(() => {
+                          const baseTimes = ["10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00"];
+                          const map = new Map<string, any>();
+                          allSlots.forEach(s => {
+                            if (s.date === selectedDate) {
+                              map.set(s.time, s);
+                            }
+                          });
+                          return baseTimes.map(t => {
+                            const slot = map.get(t);
+                            const isFull = slot ? (slot.current || 0) >= slot.max : true;
+                            const canReserve = slot ? slot.isOpen && !isFull : false;
+                            return (
+                              <button
+                                key={t}
+                                onClick={() => slot && canReserve && handleReserve(slot)}
+                                disabled={!canReserve}
+                                className={`h-20 rounded-2xl border text-sm font-bold flex flex-col items-center justify-center ${
+                                  canReserve
+                                    ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                                    : "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
+                                }`}
+                              >
+                                <span>{t}</span>
+                                <span className="text-xs">{slot ? `신청 ${slot.current || 0}/${slot.max}` : "-"}</span>
+                              </button>
+                            );
+                          });
+                        })()}
                       </div>
                     </div>
                 )}
