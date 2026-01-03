@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Check, AlertCircle, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote, ChevronLeft, ChevronRight } from "lucide-react";
+import { CAMPUS_CONFIG } from "@/config/campus";
 
 type StudentProfile = {
   id: string;
@@ -407,6 +408,41 @@ export default function AdminNewStudentsPage() {
       }
       if (stepKey === "admission_confirmed") {
         alert("✅ [자동화] 입학 확정 -> 학부모용 '입학 서류 패키지'가 오픈되었습니다.");
+      }
+      if (stepKey === "consultation_msg") {
+        try {
+          const student = students.find(s => s.id === studentId);
+          const reservation = studentReservations[studentId];
+          const campusKey = student?.campus || "International";
+          const campus = CAMPUS_CONFIG[campusKey] || CAMPUS_CONFIG.International;
+          const text = reservation?.date && reservation?.time
+            ? `상담 안내: ${reservation.date} ${reservation.time} 일정이 확정되었습니다.`
+            : "상담 안내 메시지가 발송되었습니다.";
+          fetch("/api/portal/notifications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ studentId, message: text })
+          }).catch(() => {});
+          fetch("/api/hooks/consultation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message_type: "consultation_confirm",
+              student_id: studentId,
+              student_name: student?.studentName,
+              parent_name: student?.parentName,
+              phone: student?.phone,
+              date: reservation?.date,
+              time: reservation?.time,
+              campus_name: campus.name,
+              address: campus.address,
+              contact_phone: campus.contact_phone,
+            })
+          }).catch(() => {});
+          alert(`✅ ${campus.name} 상담 안내가 발송되었습니다.`);
+        } catch {
+          alert("상담 안내 발송 중 오류가 발생했습니다.");
+        }
       }
       if (stepKey === "consultation_msg") {
         try {
