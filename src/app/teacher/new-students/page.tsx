@@ -160,15 +160,43 @@ export default function TeacherNewStudentsPage() {
         setShowGuide(false);
       }
       
-      const today = new Date();
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, '0');
-      const d = String(today.getDate()).padStart(2, '0');
+      let dt = new Date();
+      while (dt.getDay() === 0 || dt.getDay() === 6) {
+        dt.setDate(dt.getDate() + 1);
+      }
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
       setSelectedDateGrid(`${y}-${m}-${d}`);
     } catch (e) {
       console.error(e);
     }
   }, []);
+
+  useEffect(() => {
+    if (!selectedDateGrid) return;
+    const baseTimes = ["10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00"];
+    const exist = new Set(reservationSlots.filter(s => s.date === selectedDateGrid).map(s => s.time));
+    let updated = [...reservationSlots];
+    let changed = false;
+    baseTimes.forEach(t => {
+      if (!exist.has(t)) {
+        updated.push({
+          id: `${selectedDateGrid}-${t}`,
+          date: selectedDateGrid,
+          time: t,
+          max: 1,
+          current: 0,
+          isOpen: true
+        });
+        changed = true;
+      }
+    });
+    if (changed) {
+      setReservationSlots(updated);
+      localStorage.setItem("admission_test_slots", JSON.stringify(updated));
+    }
+  }, [selectedDateGrid]);
 
   const handleToggleCell = (time: string) => {
     const existing = reservationSlots.find(s => s.date === selectedDateGrid && s.time === time);
@@ -487,28 +515,36 @@ export default function TeacherNewStudentsPage() {
               <div className="space-y-2 max-h-[300px] overflow-y-auto">
                 <h4 className="text-sm font-bold text-slate-700">등록된 일정 ({reservationSlots.length})</h4>
                 <div className="flex gap-2 overflow-x-auto pb-2">
-                  {Array.from({ length: 8 }).map((_, i) => {
-                    const base = new Date();
-                    const dt = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
-                    const y = dt.getFullYear();
-                    const m = String(dt.getMonth() + 1).padStart(2, '0');
-                    const day = String(dt.getDate()).padStart(2, '0');
-                    const dateStr = `${y}-${m}-${day}`;
-                    const week = ["일","월","화","수","목","금","토"][dt.getDay()];
-                    const active = selectedDateGrid === dateStr;
-                    return (
-                      <button
-                        key={dateStr}
-                        onClick={() => setSelectedDateGrid(dateStr)}
-                        className={`flex flex-col items-center justify-center w-16 h-20 rounded-2xl font-bold border transition-all ${
-                          active ? "bg-purple-600 text-white border-purple-600 shadow-lg" : "bg-white text-slate-600 border-slate-200"
-                        }`}
-                      >
-                        <span className={`text-xs ${active ? "text-white/90" : "text-slate-400"}`}>{week}</span>
-                        <span className="text-lg">{day}</span>
-                      </button>
-                    );
-                  })}
+                  {(() => {
+                    const arr: {dateStr: string; day: string; week: string}[] = [];
+                    let dt = new Date();
+                    while (arr.length < 8) {
+                      if (dt.getDay() !== 0 && dt.getDay() !== 6) {
+                        const y = dt.getFullYear();
+                        const m = String(dt.getMonth() + 1).padStart(2, '0');
+                        const day = String(dt.getDate()).padStart(2, '0');
+                        const dateStr = `${y}-${m}-${day}`;
+                        const week = ["일","월","화","수","목","금","토"][dt.getDay()];
+                        arr.push({ dateStr, day, week });
+                      }
+                      dt.setDate(dt.getDate() + 1);
+                    }
+                    return arr.map(({dateStr, day, week}) => {
+                      const active = selectedDateGrid === dateStr;
+                      return (
+                        <button
+                          key={dateStr}
+                          onClick={() => setSelectedDateGrid(dateStr)}
+                          className={`flex flex-col items-center justify-center w-16 h-20 rounded-2xl font-bold border transition-all ${
+                            active ? "bg-purple-600 text-white border-purple-600 shadow-lg" : "bg-white text-slate-600 border-slate-200"
+                          }`}
+                        >
+                          <span className={`text-xs ${active ? "text-white/90" : "text-slate-400"}`}>{week}</span>
+                          <span className="text-lg">{day}</span>
+                        </button>
+                      );
+                    });
+                  })()}
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {(() => {
@@ -522,6 +558,17 @@ export default function TeacherNewStudentsPage() {
                     return baseTimes.map(t => {
                       const slot = map.get(t);
                       const isOpen = slot ? slot.isOpen : false;
+                      let reservedName = "";
+                      if (slot) {
+                        for (const sid of Object.keys(studentReservations || {})) {
+                          const res = studentReservations[sid];
+                          if (res && ((res.slotId && res.slotId === slot.id) || (res.date === slot.date && res.time === slot.time))) {
+                            const stu = students.find(s => s.id === sid);
+                            reservedName = stu?.studentName || "";
+                            break;
+                          }
+                        }
+                      }
                       return (
                         <button
                           key={t}
@@ -535,6 +582,11 @@ export default function TeacherNewStudentsPage() {
                           <span>{t}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-xs">{slot ? `신청 ${slot.current || 0}/1` : "-"}</span>
+                            {reservedName ? (
+                              <span className="text-[10px] font-bold text-green-700">신청됨 ({reservedName})</span>
+                            ) : (
+                              <span className="text-[10px] font-bold">{isOpen ? "신청가능" : "신청불가"}</span>
+                            )}
                           </div>
                         </button>
                       );

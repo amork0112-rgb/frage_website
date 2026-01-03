@@ -28,6 +28,8 @@ export default function AdminHome() {
   const [recentRequests, setRecentRequests] = useState<
     { id: string; type: "Absence" | "Transport"; campus: CampusType | "Atheneum"; student: string; class: string; time: string; content: string }[]
   >([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [studentUpdates, setStudentUpdates] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const childCampusMap: Record<string, CampusType | "Atheneum"> = {
@@ -91,7 +93,67 @@ export default function AdminHome() {
     ? recentRequests
     : recentRequests.filter(req => req.campus === selectedCampus);
 
-  // Mock Stats (Dynamic based on filter)
+  useEffect(() => {
+    const loadStudents = async () => {
+      try {
+        const res = await fetch("/api/admin/students?pageSize=1000");
+        const data = await res.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
+        setStudents(items);
+      } catch {}
+      try {
+        const updRaw = localStorage.getItem("admin_student_updates");
+        const map = updRaw ? JSON.parse(updRaw) : {};
+        setStudentUpdates(map || {});
+      } catch {}
+    };
+    loadStudents();
+    const timer = setInterval(loadStudents, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const mergedStudents = useMemo(() => {
+    return students.map((s) => ({ ...s, ...(studentUpdates[s.id] || {}) }));
+  }, [students, studentUpdates]);
+
+  const totalStudents = useMemo(() => {
+    const list = mergedStudents.filter((s) => (s.status || "재원") === "재원");
+    if (selectedCampus === "All") return list.length;
+    return list.filter((s) => s.campus === selectedCampus).length;
+  }, [mergedStudents, selectedCampus]);
+
+  const todaysAbsences = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("portal_requests");
+      const list: PortalRequest[] = raw ? JSON.parse(raw) : [];
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, "0");
+      const d = String(today.getDate()).padStart(2, "0");
+      const todayStr = `${y}-${m}-${d}`;
+      const inRange = (start: string, end?: string) => {
+        if (!start) return false;
+        if (end && end >= start) {
+          return todayStr >= start && todayStr <= end;
+        }
+        return todayStr === start;
+      };
+      const childCampusMap: Record<string, CampusType | "Atheneum"> = { c1: "International", c2: "Andover", c3: "Platz" };
+      const arr = list.filter((r) => r.type === "absence" && inRange(r.dateStart, r.dateEnd));
+      if (selectedCampus === "All") return arr.length;
+      return arr.filter((r) => childCampusMap[r.childId] === selectedCampus).length;
+    } catch {
+      return 0;
+    }
+  }, [selectedCampus, recentRequests]);
+
+  const attendanceRate = useMemo(() => {
+    if (!totalStudents) return "—";
+    const present = Math.max(0, totalStudents - todaysAbsences);
+    const pct = Math.round((present / totalStudents) * 100);
+    return `${pct}%`;
+  }, [totalStudents, todaysAbsences]);
+
   const stats = {
     newRequests: filteredRequests.length,
     activeNotices: (
@@ -100,16 +162,8 @@ export default function AdminHome() {
         : dashboardNotices.filter(n => n.campus === selectedCampus)
       ).filter(n => !n.isArchived).length
     ),
-    totalStudents:
-      selectedCampus === 'All' ? 0 :
-      selectedCampus === 'International' ? 0 :
-      selectedCampus === 'Andover' ? 0 :
-      selectedCampus === 'Platz' ? 0 : 0,
-    attendance:
-      selectedCampus === 'All' ? '—' :
-      selectedCampus === 'International' ? '—' :
-      selectedCampus === 'Andover' ? '—' :
-      selectedCampus === 'Platz' ? '—' : '—',
+    totalStudents,
+    attendance: attendanceRate,
   };
 
   useEffect(() => {
@@ -242,14 +296,14 @@ export default function AdminHome() {
                 <Users className="w-5 h-5" />
             </div>
         </Link>
-        <Link href="/admin/students" className="group bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:border-green-300 hover:shadow-md transition-all">
-            <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">오늘 출석률</p>
-                <p className="text-3xl font-black text-green-600">{stats.attendance}</p>
-            </div>
-            <div className="w-10 h-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center group-hover:bg-green-600 group-hover:text-white transition-colors">
-                <CheckCircle2 className="w-5 h-5" />
-            </div>
+        <Link href="/admin/requests" className="group bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:border-green-300 hover:shadow-md transition-all">
+          <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">오늘 출석률</p>
+              <p className="text-3xl font-black text-green-600">{stats.attendance}</p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center group-hover:bg-green-600 group-hover:text-white transition-colors">
+              <CheckCircle2 className="w-5 h-5" />
+          </div>
         </Link>
       </div>
 

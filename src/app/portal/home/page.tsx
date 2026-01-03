@@ -27,8 +27,10 @@ export default function ParentPortalHome() {
   const [allSlots, setAllSlots] = useState<any[]>([]);
 
   useEffect(() => {
-    // Initialize selectedDate to today
     const today = new Date();
+    while (today.getDay() === 0 || today.getDay() === 6) {
+      today.setDate(today.getDate() + 1);
+    }
     const y = today.getFullYear();
     const m = String(today.getMonth() + 1).padStart(2, '0');
     const d = String(today.getDate()).padStart(2, '0');
@@ -276,28 +278,36 @@ export default function ParentPortalHome() {
                 ) : (
                     <div className="space-y-6">
                       <div className="flex gap-2 overflow-x-auto pb-2">
-                        {Array.from({length: 8}).map((_, i) => {
-                          const base = new Date();
-                          const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
-                          const y = d.getFullYear();
-                          const m = String(d.getMonth() + 1).padStart(2, '0');
-                          const day = String(d.getDate()).padStart(2, '0');
-                          const dateStr = `${y}-${m}-${day}`;
-                          const week = ["일","월","화","수","목","금","토"][d.getDay()];
-                          const active = selectedDate === dateStr;
-                          return (
-                            <button
-                              key={dateStr}
-                              onClick={() => setSelectedDate(dateStr)}
-                              className={`flex flex-col items-center justify-center w-16 h-20 rounded-2xl font-bold border transition-all ${
-                                active ? "bg-purple-600 text-white border-purple-600 shadow-lg" : "bg-white text-slate-600 border-slate-200"
-                              }`}
-                            >
-                              <span className={`text-xs ${active ? "text-white/90" : "text-slate-400"}`}>{week}</span>
-                              <span className="text-lg">{day}</span>
-                            </button>
-                          );
-                        })}
+                        {(() => {
+                          const arr: { dateStr: string; day: string; week: string }[] = [];
+                          let dt = new Date();
+                          while (arr.length < 8) {
+                            if (dt.getDay() !== 0 && dt.getDay() !== 6) {
+                              const y = dt.getFullYear();
+                              const m = String(dt.getMonth() + 1).padStart(2, '0');
+                              const day = String(dt.getDate()).padStart(2, '0');
+                              const dateStr = `${y}-${m}-${day}`;
+                              const week = ["일","월","화","수","목","금","토"][dt.getDay()];
+                              arr.push({ dateStr, day, week });
+                            }
+                            dt.setDate(dt.getDate() + 1);
+                          }
+                          return arr.map(({ dateStr, day, week }) => {
+                            const active = selectedDate === dateStr;
+                            return (
+                              <button
+                                key={dateStr}
+                                onClick={() => setSelectedDate(dateStr)}
+                                className={`flex flex-col items-center justify-center w-16 h-20 rounded-2xl font-bold border transition-all ${
+                                  active ? "bg-purple-600 text-white border-purple-600 shadow-lg" : "bg-white text-slate-600 border-slate-200"
+                                }`}
+                              >
+                                <span className={`text-xs ${active ? "text-white/90" : "text-slate-400"}`}>{week}</span>
+                                <span className="text-lg">{day}</span>
+                              </button>
+                            );
+                          });
+                        })()}
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                         {(() => {
