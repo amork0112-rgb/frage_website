@@ -142,74 +142,7 @@ export default function AdminStudentsPage() {
         const res = await fetch("/api/admin/students");
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.items || [];
-        let mergedItems: Student[] = items;
-        try {
-          const rawProfiles = localStorage.getItem("signup_profiles");
-          const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
-          const arr: any[] = Array.isArray(profiles) ? profiles : [];
-          if (arr.length > 0) {
-            const existingPhones = new Set(mergedItems.map(s => s.phone));
-            const mapped: Student[] = arr
-              .filter(p => (p?.phone || "").trim() !== "")
-              .map((p, idx) => ({
-                id: `signup_${(p.phone || String(idx)).replace(/[^0-9a-zA-Z]/g, "")}`,
-                childId: undefined,
-                name: String(p.studentName || "").trim(),
-                englishName: String(p.englishFirstName || p.passportEnglishName || "").trim(),
-                birthDate: String(p.childBirthDate || "").trim(),
-                phone: String(p.phone || "").trim(),
-                className: "미배정",
-                campus: "미지정",
-                status: "재원" as Status,
-                parentName: String(p.parentName || "").trim(),
-                parentAccountId: String(p.id || "").trim(),
-                address: [String(p.address || "").trim(), String(p.addressDetail || "").trim()].filter(Boolean).join(" "),
-                bus: "미배정",
-                departureTime: "",
-                arrivalMethod: String(p.arrivalMethod || "").trim(),
-                arrivalPlace: String(p.arrivalPlace || "").trim(),
-                departureMethod: String(p.departureMethod || "").trim(),
-                departurePlace: String(p.departurePlace || "").trim()
-              }))
-              .filter(s => !existingPhones.has(s.phone));
-            mergedItems = [...mergedItems, ...mapped];
-            if (mapped.length > 0) {
-              fetch("/api/admin/students", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ items: mapped })
-              }).catch(() => {});
-            }
-
-            // 신규 가입 1개월 자동 메모
-            try {
-              const now = Date.now();
-              const memRaw = localStorage.getItem("admin_memos");
-              const memMap: Record<string, { text: string; author: string; at: string; tag?: "상담" | "결제" | "특이사항" | "기타" }[]> =
-                memRaw ? JSON.parse(memRaw) : {};
-              const admin = localStorage.getItem("admin_name") || "관리자";
-              const nextMap = { ...memMap };
-              arr.forEach((p) => {
-                const createdAtStr = String(p.createdAt || "");
-                const createdAtMs = Date.parse(createdAtStr);
-                if (!Number.isNaN(createdAtMs)) {
-                  const diffDays = Math.floor((now - createdAtMs) / (1000 * 60 * 60 * 24));
-                  if (diffDays >= 0 && diffDays <= 30) {
-                    const sid = `signup_${(p.phone || "").replace(/[^0-9a-zA-Z]/g, "")}`;
-                    const list = Array.isArray(nextMap[sid]) ? nextMap[sid] : [];
-                    const hasNew = list.some((m) => (m.text || "").includes("신규"));
-                    if (!hasNew) {
-                      list.unshift({ text: "신규", author: admin, at: new Date().toISOString(), tag: "기타" });
-                      nextMap[sid] = list;
-                    }
-                  }
-                }
-              });
-              localStorage.setItem("admin_memos", JSON.stringify(nextMap));
-            } catch {}
-          }
-        } catch {}
-        setStudents(mergedItems);
+        setStudents(items);
       } catch {}
     };
     load();

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Check, AlertCircle, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote } from "lucide-react";
+import { Check, AlertCircle, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote, ChevronLeft, ChevronRight } from "lucide-react";
 
 type StudentProfile = {
   id: string;
@@ -112,6 +112,16 @@ const WORKFLOW_STEPS = [
 ];
 
 export default function AdminNewStudentsPage() {
+  const fmtYMD = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${dd}`;
+  };
+  const parseYMD = (s: string) => {
+    const [y, m, d] = s.split("-").map((v) => parseInt(v, 10));
+    return new Date(y, m - 1, d);
+  };
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [checklists, setChecklists] = useState<Record<string, StudentChecklist>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -123,8 +133,17 @@ export default function AdminNewStudentsPage() {
   const [showReservationModal, setShowReservationModal] = useState(false);
   const [reservationSlots, setReservationSlots] = useState<{id: string, date: string, time: string, max: number, current: number, isOpen: boolean}[]>([]);
   const [studentReservations, setStudentReservations] = useState<Record<string, any>>({});
-  const [newSlotDate, setNewSlotDate] = useState("");
   const [newSlotTime, setNewSlotTime] = useState("");
+  const [viewMode, setViewMode] = useState<"month" | "week">("month");
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [selectedDate, setSelectedDate] = useState<string>(() => fmtYMD(new Date()));
+  const [daySlots, setDaySlots] = useState<{id: string, date: string, time: string, max: number, current: number, isOpen: boolean}[]>([]);
+  const [loadingDaySlots, setLoadingDaySlots] = useState(false);
+  const [errorDaySlots, setErrorDaySlots] = useState<string | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   useEffect(() => {
     // Load students
@@ -141,12 +160,6 @@ export default function AdminNewStudentsPage() {
         setChecklists(JSON.parse(rawChecklists));
       }
 
-      // Load Reservation Slots
-      const rawSlots = localStorage.getItem("admission_test_slots");
-      if (rawSlots) {
-        setReservationSlots(JSON.parse(rawSlots));
-      }
-
       // Load Student Reservations
       const rawRes = localStorage.getItem("student_reservations");
       if (rawRes) {
@@ -157,39 +170,115 @@ export default function AdminNewStudentsPage() {
     }
   }, []);
 
-  const handleAddSlot = () => {
-    if (!newSlotDate || !newSlotTime) return alert("날짜와 시간을 입력해주세요.");
-    
-    const newSlot = {
-      id: Date.now().toString(),
-      date: newSlotDate,
-      time: newSlotTime,
-      max: 5, // Default capacity
-      current: 0,
-      isOpen: true
+  useEffect(() => {
+    const loadAll = async () => {
+      try {
+        const res = await fetch("/api/admin/schedules");
+        const data = await res.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
+        setReservationSlots(items);
+        localStorage.setItem("admission_test_slots", JSON.stringify(items));
+      } catch {}
     };
-    
-    const updated = [...reservationSlots, newSlot];
-    // Sort by date
-    updated.sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime());
-    
-    setReservationSlots(updated);
-    localStorage.setItem("admission_test_slots", JSON.stringify(updated));
-    setNewSlotDate("");
-    setNewSlotTime("");
+    loadAll();
+    const t = setInterval(loadAll, 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  const fetchDaySlots = async (date: string) => {
+    setLoadingDaySlots(true);
+    setErrorDaySlots(null);
+    try {
+      const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(date)}`);
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setDaySlots(items);
+    } catch {
+      setErrorDaySlots("일정 데이터를 불러오지 못했습니다.");
+    } finally {
+      setLoadingDaySlots(false);
+    }
   };
 
-  const handleDeleteSlot = (id: string) => {
+  useEffect(() => {
+    if (showReservationModal) {
+      fetchDaySlots(selectedDate);
+      const t = setInterval(() => fetchDaySlots(selectedDate), 5000);
+      return () => clearInterval(t);
+    }
+  }, [showReservationModal, selectedDate]);
+
+  const addDaySlot = async () => {
+    if (!selectedDate || !newSlotTime) return alert("시간을 입력해주세요.");
+    try {
+      const res = await fetch("/api/admin/schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: selectedDate, time: newSlotTime, max: 5, current: 0, isOpen: true })
+      });
+      if (res.status === 409) {
+        alert("중복 일정이 있습니다.");
+        return;
+      }
+      await fetchDaySlots(selectedDate);
+      setNewSlotTime("");
+    } catch {}
+  };
+
+  const deleteDaySlot = async (id: string) => {
     if (!confirm("정말 삭제하시겠습니까?")) return;
-    const updated = reservationSlots.filter(s => s.id !== id);
-    setReservationSlots(updated);
-    localStorage.setItem("admission_test_slots", JSON.stringify(updated));
+    try {
+      await fetch("/api/admin/schedules", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+      await fetchDaySlots(selectedDate);
+    } catch {}
   };
 
-  const toggleSlotStatus = (id: string) => {
-    const updated = reservationSlots.map(s => s.id === id ? { ...s, isOpen: !s.isOpen } : s);
-    setReservationSlots(updated);
-    localStorage.setItem("admission_test_slots", JSON.stringify(updated));
+  const toggleDaySlot = async (id: string, next: boolean) => {
+    try {
+      await fetch("/api/admin/schedules", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, isOpen: next })
+      });
+      await fetchDaySlots(selectedDate);
+    } catch {}
+  };
+  
+  const refreshAllSchedules = async () => {
+    try {
+      const res = await fetch("/api/admin/schedules");
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setReservationSlots(items);
+    } catch {}
+  };
+  
+  const ensureDefaultDaySlots = async (date: string) => {
+    try {
+      const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(date)}`);
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      if (items.length === 0) {
+        const tasks: Promise<any>[] = [];
+        for (let h = 10; h <= 20; h++) {
+          const t = `${String(h).padStart(2, "0")}:00`;
+          tasks.push(
+            fetch("/api/admin/schedules", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ date, time: t, max: 5, current: 0, isOpen: true })
+            })
+          );
+        }
+        await Promise.all(tasks);
+      }
+      await refreshAllSchedules();
+      await fetchDaySlots(date);
+    } catch {}
   };
 
   const toggleCheck = (studentId: string, stepKey: string, stepLabel: string) => {
@@ -271,7 +360,40 @@ export default function AdminNewStudentsPage() {
       if (stepKey === "band_invite") {
          const today = new Date();
          // Just a mock check
-         alert("✅ 밴드 초대 링크가 발송되었습니다. (입학 전날 원칙 준수 요망)");
+        alert("✅ 밴드 초대 링크가 발송되었습니다. (입학 전날 원칙 준수 요망)");
+      }
+      if (stepKey === "docs_submitted") {
+        try {
+          const raw = localStorage.getItem("signup_profiles");
+          const arr = raw ? JSON.parse(raw) : [];
+          const next = Array.isArray(arr) ? arr.map((p: any) => p.id === studentId ? { ...p, status: "enrolled" } : p) : [];
+          localStorage.setItem("signup_profiles", JSON.stringify(next));
+          const prof = Array.isArray(arr) ? arr.find((p: any) => p.id === studentId) : null;
+          if (prof) {
+            const item = {
+              id: `signup_${(prof.phone || "").replace(/[^0-9a-zA-Z]/g, "")}`,
+              childId: undefined,
+              name: String(prof.studentName || ""),
+              englishName: String(prof.englishFirstName || prof.passportEnglishName || ""),
+              birthDate: String(prof.childBirthDate || ""),
+              phone: String(prof.phone || ""),
+              className: "미배정",
+              campus: String(prof.campus || "미지정"),
+              status: "재원",
+              parentName: String(prof.parentName || ""),
+              parentAccountId: String(prof.id || ""),
+              address: [String(prof.address || ""), String(prof.addressDetail || "")].filter(Boolean).join(" "),
+              bus: "미배정",
+              departureTime: ""
+            };
+            fetch("/api/admin/students", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ items: [item] })
+            }).catch(() => {});
+            alert("✅ 입학 서류 완료 처리 • 원생 관리에 등록되었습니다.");
+          }
+        } catch {}
       }
     }
   };
@@ -292,13 +414,46 @@ export default function AdminNewStudentsPage() {
             <p className="text-slate-500 text-sm mt-1">문의부터 입학 사후관리까지 원스톱 처리</p>
           </div>
           <div className="flex gap-3">
-            <button 
-              onClick={() => setShowReservationModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors shadow-sm"
-            >
-              <Calendar className="w-4 h-4" />
-              입학 테스트 예약 관리
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setViewMode("month")}
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${viewMode === "month" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-700 border-slate-200"}`}
+                aria-pressed={viewMode === "month"}
+              >
+                월간
+              </button>
+              <button 
+                onClick={() => setViewMode("week")}
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${viewMode === "week" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-700 border-slate-200"}`}
+                aria-pressed={viewMode === "week"}
+              >
+                주간
+              </button>
+              <div className="flex items-center gap-1 ml-2">
+                <button
+                  onClick={() => {
+                    const d = new Date(currentMonth);
+                    d.setMonth(d.getMonth() - 1);
+                    setCurrentMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+                  }}
+                  className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50"
+                  aria-label="이전 달"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    const d = new Date(currentMonth);
+                    d.setMonth(d.getMonth() + 1);
+                    setCurrentMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+                  }}
+                  className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50"
+                  aria-label="다음 달"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
             <select 
               value={filterCampus}
               onChange={(e) => setFilterCampus(e.target.value)}
@@ -311,6 +466,118 @@ export default function AdminNewStudentsPage() {
               <option value="Atheneum">Atheneum</option>
             </select>
           </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mb-8">
+          <div className="p-4 flex items-center justify-between">
+            <div className="font-bold text-slate-900">
+              {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
+            </div>
+            <button
+              onClick={() => setShowCalendar(prev => !prev)}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold"
+              aria-controls="calendar-section"
+              aria-expanded={showCalendar}
+            >
+              <Calendar className="w-4 h-4" />
+              선택 날짜 일정 관리
+            </button>
+          </div>
+          {showCalendar && (
+          <div className="p-4 pt-0" id="calendar-section">
+            {viewMode === "month" ? (
+              <div role="grid" aria-label="월간 달력" className="grid grid-cols-7 gap-2">
+                {["일","월","화","수","목","금","토"].map((d) => (
+                  <div key={d} className="text-xs font-bold text-slate-400 text-center">{d}</div>
+                ))}
+                {(() => {
+                  const startDay = new Date(currentMonth);
+                  const firstDayIndex = startDay.getDay();
+                  const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+                  const today = new Date();
+                  const cells = [];
+                  for (let i = 0; i < firstDayIndex; i++) {
+                    cells.push(<div key={`pad-${i}`} />);
+                  }
+                  for (let day = 1; day <= daysInMonth; day++) {
+                    const y = currentMonth.getFullYear();
+                    const m = String(currentMonth.getMonth() + 1).padStart(2, "0");
+                    const dd = String(day).padStart(2, "0");
+                    const dateStr = `${y}-${m}-${dd}`;
+                    const isToday = today.getFullYear() === y && today.getMonth() === currentMonth.getMonth() && today.getDate() === day;
+                    const isSelected = selectedDate === dateStr;
+                    cells.push(
+                      <button
+                        key={dateStr}
+                        role="gridcell"
+                        aria-selected={isSelected}
+                        onClick={() => {
+                          setSelectedDate(dateStr);
+                          setShowReservationModal(true);
+                          ensureDefaultDaySlots(dateStr);
+                        }}
+                        className={`h-20 md:h-24 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                      >
+                        <div className={`text-sm font-bold ${isToday ? "text-blue-600" : "text-slate-700"}`}>
+                          {day}
+                        </div>
+                        <div className="mt-1 text-[10px] font-bold text-slate-400">
+                          {reservationSlots.filter(s => s.date === dateStr && s.isOpen).length}개 오픈
+                        </div>
+                      </button>
+                    );
+                  }
+                  return cells;
+                })()}
+              </div>
+            ) : (
+              <div role="grid" aria-label="주간 달력" className="grid grid-cols-7 gap-2">
+                {["일","월","화","수","목","금","토"].map((d) => (
+                  <div key={d} className="text-xs font-bold text-slate-400 text-center">{d}</div>
+                ))}
+                {(() => {
+                  const base = parseYMD(selectedDate);
+                  const dayIdx = base.getDay();
+                  const start = new Date(base);
+                  start.setDate(base.getDate() - dayIdx);
+                  const today = new Date();
+                  const cells = [];
+                  for (let i = 0; i < 7; i++) {
+                    const d = new Date(start);
+                    d.setDate(start.getDate() + i);
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, "0");
+                    const dd = String(d.getDate()).padStart(2, "0");
+                    const dateStr = `${y}-${m}-${dd}`;
+                    const isToday = today.getFullYear() === y && today.getMonth() === d.getMonth() && today.getDate() === d.getDate();
+                    const isSelected = selectedDate === dateStr;
+                    cells.push(
+                      <button
+                        key={dateStr}
+                        role="gridcell"
+                        aria-selected={isSelected}
+                        onClick={() => {
+                          setSelectedDate(dateStr);
+                          setShowReservationModal(true);
+                          ensureDefaultDaySlots(dateStr);
+                        }}
+                        className={`h-20 md:h-24 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                      >
+                        <div className={`text-sm font-bold ${isToday ? "text-blue-600" : "text-slate-700"}`}>
+                          {d.getDate()}
+                        </div>
+                        <div className="mt-1 text-[10px] font-bold text-slate-400">
+                          {reservationSlots.filter(s => s.date === dateStr && s.isOpen).length}개 오픈
+                        </div>
+                      </button>
+                    );
+                  }
+                  return cells;
+                })()}
+              </div>
+            )}
+          </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -430,29 +697,22 @@ export default function AdminNewStudentsPage() {
       </div>
       {/* Reservation Management Modal */}
       {showReservationModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-fade-in-up">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="선택 날짜 일정 관리">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-blue-600" />
-                입학 테스트 일정 관리
+                {selectedDate} 일정
               </h3>
               <button onClick={() => setShowReservationModal(false)} className="text-slate-400 hover:text-slate-600">
-                <AlertCircle className="w-6 h-6 rotate-45" /> {/* Close Icon substitute */}
+                <AlertCircle className="w-6 h-6 rotate-45" />
               </button>
             </div>
             
             <div className="p-6 space-y-6">
-              {/* Add New Slot */}
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                <h4 className="text-sm font-bold text-blue-800 mb-3">새 일정 추가</h4>
+                <h4 className="text-sm font-bold text-blue-800 mb-3">시간 추가</h4>
                 <div className="flex gap-2">
-                  <input 
-                    type="date" 
-                    value={newSlotDate}
-                    onChange={(e) => setNewSlotDate(e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-lg border border-blue-200 text-sm focus:outline-none focus:border-blue-500"
-                  />
                   <input 
                     type="time" 
                     value={newSlotTime}
@@ -460,7 +720,7 @@ export default function AdminNewStudentsPage() {
                     className="w-32 px-3 py-2 rounded-lg border border-blue-200 text-sm focus:outline-none focus:border-blue-500"
                   />
                   <button 
-                    onClick={handleAddSlot}
+                    onClick={addDaySlot}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors"
                   >
                     추가
@@ -468,28 +728,28 @@ export default function AdminNewStudentsPage() {
                 </div>
               </div>
 
-              {/* Slot List */}
               <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                <h4 className="text-sm font-bold text-slate-700">등록된 일정 ({reservationSlots.length})</h4>
-                {reservationSlots.length === 0 ? (
-                  <p className="text-center text-slate-400 text-sm py-4">등록된 일정이 없습니다.</p>
+                <h4 className="text-sm font-bold text-slate-700">등록된 시간대 ({daySlots.length})</h4>
+                {loadingDaySlots ? (
+                  <p className="text-center text-slate-400 text-sm py-4">로딩중...</p>
+                ) : errorDaySlots ? (
+                  <p className="text-center text-red-500 text-sm py-4">{errorDaySlots}</p>
+                ) : daySlots.length === 0 ? (
+                  <p className="text-center text-slate-400 text-sm py-4">시간대가 없습니다.</p>
                 ) : (
-                  reservationSlots.map(slot => (
+                  daySlots.map(slot => (
                     <div key={slot.id} className={`flex items-center justify-between p-3 rounded-lg border ${slot.isOpen ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200'}`}>
                       <div className="flex items-center gap-3">
                         <div className={`w-2 h-2 rounded-full ${slot.isOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
                         <div>
                           <div className="font-bold text-slate-800 text-sm">
-                            {slot.date} <span className="text-slate-400">|</span> {slot.time}
-                          </div>
-                          <div className="text-xs text-slate-500">
-                             신청 {slot.current}명 / 정원 {slot.max}명
+                            {slot.time}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <button 
-                          onClick={() => toggleSlotStatus(slot.id)}
+                          onClick={() => toggleDaySlot(slot.id, !slot.isOpen)}
                           className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-bold border transition-all ${
                             slot.isOpen 
                               ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
@@ -500,7 +760,7 @@ export default function AdminNewStudentsPage() {
                           {slot.isOpen ? "접수중" : "마감됨"}
                         </button>
                         <button 
-                          onClick={() => handleDeleteSlot(slot.id)}
+                          onClick={() => deleteDaySlot(slot.id)}
                           className="p-1.5 text-slate-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
                           title="삭제"
                         >

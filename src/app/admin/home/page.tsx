@@ -285,10 +285,10 @@ export default function AdminHome() {
                 <Bell className="w-5 h-5" />
             </div>
         </Link>
-        <Link href="/admin/students" className="group bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:border-blue-300 hover:shadow-md transition-all">
+        <Link href="/admin/new-students" className="group bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:border-blue-300 hover:shadow-md transition-all">
             <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                    {selectedCampus === 'All' ? '전체 원생' : '캠퍼스 원생'}
+                    {selectedCampus === 'All' ? '신규테스트문의' : '캠퍼스 신규문의'}
                 </p>
                 <p className="text-3xl font-black text-slate-900">{stats.totalStudents}</p>
             </div>

@@ -91,7 +91,19 @@ export default function ParentPortalHome() {
           }
         }
       } else {
-        setStudentStatus("enrolled");
+        const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+        const preview = params?.get("preview");
+        if (preview === "new") {
+          setStudentStatus("new");
+          setNewStudentProfile(profile || { id: account?.id || "demo", studentName: "테스트", englishFirstName: "Test" });
+          const rawSlots = localStorage.getItem("admission_test_slots");
+          if (rawSlots) {
+              const slots = JSON.parse(rawSlots);
+              setAllSlots(slots);
+          }
+        } else {
+          setStudentStatus("enrolled");
+        }
       }
 
     } catch (e) {
@@ -216,7 +228,7 @@ export default function ParentPortalHome() {
           <div className="text-center mb-8">
             <h1 className="text-2xl font-black text-slate-900">
               환영합니다,<br/>
-              <span className="text-frage-blue">{newStudentProfile?.studentName}</span> 학부모님!
+              <span className="text-frage-blue">{newStudentProfile?.englishFirstName || newStudentProfile?.passportEnglishName || newStudentProfile?.studentName}</span> 학부모님!
             </h1>
             <p className="text-slate-500 mt-2 text-sm">현재 입학 절차가 진행 중입니다.</p>
           </div>
@@ -312,20 +324,23 @@ export default function ParentPortalHome() {
                       <div className="grid grid-cols-3 gap-3">
                         {(() => {
                           const baseTimes = ["10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00"];
-                          const map = new Map<string, any>();
-                          allSlots.forEach(s => {
-                            if (s.date === selectedDate) {
-                              map.set(s.time, s);
-                            }
-                          });
-                          return baseTimes.map(t => {
-                            const slot = map.get(t);
-                            const isFull = slot ? (slot.current || 0) >= slot.max : true;
-                            const canReserve = slot ? slot.isOpen && !isFull : false;
+                          const openSlots = allSlots
+                            .filter(s => s.date === selectedDate && s.isOpen)
+                            .sort((a, b) => baseTimes.indexOf(a.time) - baseTimes.indexOf(b.time));
+                          if (openSlots.length === 0) {
+                            return (
+                              <div className="col-span-3 text-center text-slate-400 text-sm font-medium py-6">
+                                선택한 날짜에 예약 가능한 시간이 없습니다.
+                              </div>
+                            );
+                          }
+                          return openSlots.map(slot => {
+                            const isFull = (slot.current || 0) >= slot.max;
+                            const canReserve = !isFull;
                             return (
                               <button
-                                key={t}
-                                onClick={() => slot && canReserve && handleReserve(slot)}
+                                key={slot.id}
+                                onClick={() => canReserve && handleReserve(slot)}
                                 disabled={!canReserve}
                                 className={`h-20 rounded-2xl border text-sm font-bold flex flex-col items-center justify-center ${
                                   canReserve
@@ -333,8 +348,8 @@ export default function ParentPortalHome() {
                                     : "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
                                 }`}
                               >
-                                <span>{t}</span>
-                                <span className="text-xs">{slot ? `신청 ${slot.current || 0}/${slot.max}` : "-"}</span>
+                                <span>{slot.time}</span>
+                                <span className="text-xs">{`신청 ${slot.current || 0}/${slot.max}`}</span>
                               </button>
                             );
                           });

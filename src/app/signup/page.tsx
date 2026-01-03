@@ -360,6 +360,7 @@ export default function SignupPage() {
               <div>
                 <label htmlFor="englishFirstName" className="block text-sm font-bold text-frage-navy mb-2">
                   자녀 영어이름 <span className="text-red-500">*</span>
+                  <span className="ml-2 text-xs text-slate-500">• 영어이름을 못정했다면 영어이름 추천가이드를 확인해보세요!</span>
                 </label>
                 <input
                   type="text"
@@ -373,6 +374,11 @@ export default function SignupPage() {
                   className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
                 />
                 <p className="text-xs text-slate-500 mt-1">영문자/공백/하이픈 허용, 최대 30자</p>
+                <p className="text-xs mt-1">
+                  <Link href="https://blog.naver.com/frage_2030/223271899974" target="_blank" className="text-xs text-frage-blue underline hover:text-frage-navy transition-colors">
+                    영어 이름 추천 가이드 보기
+                  </Link>
+                </p>
               </div>
 
               {/* Child Birth Date */}
