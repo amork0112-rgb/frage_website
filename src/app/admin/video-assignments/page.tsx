@@ -22,6 +22,7 @@ export default function AdminVideoAssignmentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [classCatalog, setClassCatalog] = useState<string[]>([]);
+  const [teacherClassMap, setTeacherClassMap] = useState<Record<string, string[]>>({});
   const [query, setQuery] = useState("");
   const [filterClass, setFilterClass] = useState<string>("All");
   const [filterCampus, setFilterCampus] = useState<string>("All");
@@ -52,14 +53,36 @@ export default function AdminVideoAssignmentsPage() {
       } catch {
         setAssignments([]);
       }
+      try {
+        const rawCatalog = localStorage.getItem("admin_class_catalog");
+        const list: string[] = rawCatalog ? JSON.parse(rawCatalog) : [];
+        setClassCatalog(Array.isArray(list) ? list : []);
+      } catch {
+        setClassCatalog([]);
+      }
+      try {
+        const rawMap = localStorage.getItem("admin_teacher_class_map");
+        const map = rawMap ? JSON.parse(rawMap) : {};
+        const normalized: Record<string, string[]> = {};
+        Object.keys(map || {}).forEach(k => {
+          const v = map[k];
+          if (Array.isArray(v)) normalized[k] = v.filter(Boolean);
+          else if (typeof v === "string" && v.trim()) normalized[k] = [v.trim()];
+          else normalized[k] = [];
+        });
+        setTeacherClassMap(normalized);
+      } catch {
+        setTeacherClassMap({});
+      }
     };
     load();
   }, []);
 
   const classes = useMemo(() => {
-    const set = new Set<string>([...students.map(s => s.className), ...classCatalog, ...DEFAULT_CLASSES]);
+    const fromTeachers = Object.values(teacherClassMap).flat();
+    const set = new Set<string>([...students.map(s => s.className), ...classCatalog, ...fromTeachers, ...DEFAULT_CLASSES]);
     return ["All", ...Array.from(set)];
-  }, [students, classCatalog]);
+  }, [students, classCatalog, teacherClassMap]);
 
   const campuses = useMemo(() => CAMPUS_VALUES.slice(), []);
 
@@ -93,11 +116,12 @@ export default function AdminVideoAssignmentsPage() {
   const classesForCampus = (campusValue: string) => {
     if (campusValue === "All") return classes;
     const fromStudents = classesByCampus[campusValue] || [];
-    const merged = Array.from(new Set([...fromStudents, ...DEFAULT_CLASSES]));
+    const fromTeachers = Object.values(teacherClassMap).flat();
+    const merged = Array.from(new Set([...fromStudents, ...classCatalog, ...fromTeachers, ...DEFAULT_CLASSES]));
     return ["All", ...merged];
   };
-  const classesForNewCampus = useMemo(() => classesForCampus(newCampus), [newCampus, classesByCampus, classes]);
-  const classesForFilterCampus = useMemo(() => classesForCampus(filterCampus), [filterCampus, classesByCampus, classes]);
+  const classesForNewCampus = useMemo(() => classesForCampus(newCampus), [newCampus, classesByCampus, classCatalog, teacherClassMap, classes]);
+  const classesForFilterCampus = useMemo(() => classesForCampus(filterCampus), [filterCampus, classesByCampus, classCatalog, teacherClassMap, classes]);
   useEffect(() => {
     setNewClass("All");
   }, [newCampus]);
