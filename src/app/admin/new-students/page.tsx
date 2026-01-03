@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Check, AlertCircle, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -144,6 +144,13 @@ export default function AdminNewStudentsPage() {
   const [loadingDaySlots, setLoadingDaySlots] = useState(false);
   const [errorDaySlots, setErrorDaySlots] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
+  const DEFAULT_TIMES = useMemo(() => {
+    const times: string[] = [];
+    for (let h = 10; h <= 20; h++) {
+      times.push(`${String(h).padStart(2, "0")}:00`);
+    }
+    return times;
+  }, []);
 
   useEffect(() => {
     // Load students
@@ -199,6 +206,12 @@ export default function AdminNewStudentsPage() {
       setLoadingDaySlots(false);
     }
   };
+
+  useEffect(() => {
+    if (showCalendar) {
+      ensureDefaultWeekdaySlotsForMonth(currentMonth);
+    }
+  }, [showCalendar, currentMonth]);
 
   useEffect(() => {
     if (showReservationModal) {
@@ -262,22 +275,60 @@ export default function AdminNewStudentsPage() {
       const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(date)}`);
       const data = await res.json();
       const items = Array.isArray(data?.items) ? data.items : [];
-      if (items.length === 0) {
-        const tasks: Promise<any>[] = [];
-        for (let h = 10; h <= 20; h++) {
-          const t = `${String(h).padStart(2, "0")}:00`;
-          tasks.push(
-            fetch("/api/admin/schedules", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ date, time: t, max: 5, current: 0, isOpen: true })
-            })
-          );
-        }
-        await Promise.all(tasks);
-      }
+      const existing = new Set(items.map((s: any) => s.time));
+      const tasks: Promise<any>[] = [];
+  DEFAULT_TIMES.forEach((t: string) => {
+    if (!existing.has(t)) {
+      tasks.push(
+        fetch("/api/admin/schedules", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date, time: t, max: 5, current: 0, isOpen: true })
+        })
+      );
+    }
+  });
+      if (tasks.length) await Promise.all(tasks);
       await refreshAllSchedules();
       await fetchDaySlots(date);
+    } catch {}
+  };
+  
+  const ensureDefaultWeekdaySlotsForMonth = async (month: Date) => {
+    try {
+      const start = new Date(month.getFullYear(), month.getMonth(), 1);
+      const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+      const startStr = fmtYMD(start);
+      const endStr = fmtYMD(end);
+      const res = await fetch(`/api/admin/schedules?rangeStart=${encodeURIComponent(startStr)}&rangeEnd=${encodeURIComponent(endStr)}`);
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const byDate: Record<string, Set<string>> = {};
+      items.forEach((s: any) => {
+        if (!byDate[s.date]) byDate[s.date] = new Set();
+        byDate[s.date].add(s.time);
+      });
+      const tasks: Promise<any>[] = [];
+      for (let d = 1; d <= end.getDate(); d++) {
+        const curr = new Date(month.getFullYear(), month.getMonth(), d);
+        const day = curr.getDay(); // 0=Sun..6=Sat
+        if (day === 0 || day === 6) continue; // weekdays only
+        const dateStr = fmtYMD(curr);
+        const set = byDate[dateStr] || new Set<string>();
+        DEFAULT_TIMES.forEach((t: string) => {
+          if (!set.has(t)) {
+            tasks.push(
+              fetch("/api/admin/schedules", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ date: dateStr, time: t, max: 5, current: 0, isOpen: true })
+              })
+            );
+          }
+        });
+      }
+      if (tasks.length) await Promise.all(tasks);
+      await refreshAllSchedules();
     } catch {}
   };
 
@@ -469,20 +520,23 @@ export default function AdminNewStudentsPage() {
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mb-8">
-          <div className="p-4 flex items-center justify-between">
-            <div className="font-bold text-slate-900">
-              {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
-            </div>
-            <button
+            <div className="p-4 flex items-center justify-between">
+              <div className="font-bold text-slate-900">
+                {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
+              </div>
+              <button
               onClick={() => setShowCalendar(prev => !prev)}
-              className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold"
-              aria-controls="calendar-section"
-              aria-expanded={showCalendar}
-            >
-              <Calendar className="w-4 h-4" />
-              선택 날짜 일정 관리
-            </button>
-          </div>
+                className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold"
+                aria-controls="calendar-section"
+                aria-expanded={showCalendar}
+              >
+                <Calendar className="w-4 h-4" />
+                선택 날짜 일정 관리
+              </button>
+            </div>
+            {showCalendar && (
+              <div className="px-4 pb-2 text-[11px] text-slate-500">주중(월~금)은 기본 11개 시간대가 자동 오픈됩니다.</div>
+            )}
           {showCalendar && (
           <div className="p-4 pt-0" id="calendar-section">
             {viewMode === "month" ? (
