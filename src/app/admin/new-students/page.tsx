@@ -408,6 +408,26 @@ export default function AdminNewStudentsPage() {
       if (stepKey === "admission_confirmed") {
         alert("✅ [자동화] 입학 확정 -> 학부모용 '입학 서류 패키지'가 오픈되었습니다.");
       }
+      if (stepKey === "consultation_msg") {
+        try {
+          const student = students.find(s => s.id === studentId);
+          const reservation = studentReservations[studentId];
+          const text = reservation?.date && reservation?.time
+            ? `상담 안내: ${reservation.date} ${reservation.time} 일정 안내가 발송되었습니다.`
+            : "상담 안내 메시지가 발송되었습니다.";
+          fetch("/api/portal/notifications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ studentId, message: text })
+          }).then(() => {
+            alert("✅ 학부모 포털 공지(앱푸시)로 상담 안내가 발송되었습니다.");
+          }).catch(() => {
+            alert("상담 안내 앱푸시 발송 중 오류가 발생했습니다.");
+          });
+        } catch {
+          alert("상담 안내 앱푸시 발송 중 오류가 발생했습니다.");
+        }
+      }
       if (stepKey === "band_invite") {
          const today = new Date();
          // Just a mock check
@@ -656,6 +676,8 @@ export default function AdminNewStudentsPage() {
             filteredStudents.map(student => {
               const studentChecklist = checklists[student.id] || {};
               const isExpanded = expandedId === student.id;
+              const reservation = studentReservations[student.id];
+              const reservedText = reservation && reservation.date && reservation.time ? `${reservation.date} ${reservation.time}` : null;
               
               // Progress calculation (Total items across all steps)
               const allItems = WORKFLOW_STEPS.flatMap(s => s.items);
@@ -679,9 +701,12 @@ export default function AdminNewStudentsPage() {
                           <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                             {student.campus || "미지정"}
                           </span>
-                          {student.id.startsWith("manual_") && (
-                            <span className="text-[10px] font-bold text-white bg-slate-400 px-1.5 py-0.5 rounded">
-                              대기
+                          <span className="text-[10px] font-bold text-white bg-slate-400 px-1.5 py-0.5 rounded">
+                            {student.status || (student.id.startsWith("manual_") ? "대기" : "대기")}
+                          </span>
+                          {reservedText && (
+                            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+                              {reservedText}
                             </span>
                           )}
                         </div>

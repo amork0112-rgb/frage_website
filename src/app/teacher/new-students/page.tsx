@@ -308,6 +308,25 @@ export default function TeacherNewStudentsPage() {
       if (stepKey === "admission_confirmed") {
         alert("✅ [자동화] 입학 확정 -> 학부모용 '입학 서류 패키지'가 오픈되었습니다.");
       }
+      if (stepKey === "consultation_msg") {
+        try {
+          const reservation = studentReservations[studentId];
+          const text = reservation?.date && reservation?.time
+            ? `상담 안내: ${reservation.date} ${reservation.time} 일정 안내가 발송되었습니다.`
+            : "상담 안내 메시지가 발송되었습니다.";
+          fetch("/api/portal/notifications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ studentId, message: text })
+          }).then(() => {
+            alert("✅ 학부모 포털 공지(앱푸시)로 상담 안내가 발송되었습니다.");
+          }).catch(() => {
+            alert("상담 안내 앱푸시 발송 중 오류가 발생했습니다.");
+          });
+        } catch {
+          alert("상담 안내 앱푸시 발송 중 오류가 발생했습니다.");
+        }
+      }
       if (stepKey === "docs_submitted") {
         try {
           const raw = localStorage.getItem("signup_profiles");

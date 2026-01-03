@@ -149,6 +149,18 @@ export default function AdminStudentsPage() {
   }, []);
 
   useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch("/api/admin/students");
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : data.items || [];
+        setStudents(items);
+      } catch {}
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     try {
       const memRaw = localStorage.getItem("admin_memos");
       const map = memRaw ? JSON.parse(memRaw) : {};
