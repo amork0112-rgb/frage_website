@@ -518,6 +518,16 @@ export default function AdminNewStudentsPage() {
             </select>
           </div>
         </div>
+        <div className="bg-slate-100 border border-slate-200 rounded-xl p-4 mb-6">
+          <p className="text-sm font-bold text-slate-800 mb-2">신규생 관리 사용 가이드</p>
+          <div className="text-xs text-slate-600 space-y-1">
+            <p>1) 상단 달력을 열고 날짜를 클릭하면 주중 기본 11개 시간대가 자동 오픈됩니다.</p>
+            <p>2) 상담 일정 확정 체크 시 구글 캘린더 팝업으로 등록하세요.</p>
+            <p>3) STEP 3 문서 완료 체크 시 자동 재원 등록됩니다.</p>
+            <p>4) 시간대는 필요 시 마감으로 변경해 닫을 수 있습니다.</p>
+            <p>5) 주말은 자동 오픈 제외이며 필요 시 수동 추가하세요.</p>
+          </div>
+        </div>
 
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mb-8">
             <div className="p-4 flex items-center justify-between">
@@ -570,12 +580,12 @@ export default function AdminNewStudentsPage() {
                           setShowReservationModal(true);
                           ensureDefaultDaySlots(dateStr);
                         }}
-                        className={`h-20 md:h-24 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                        className={`h-16 md:h-20 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
                       >
-                        <div className={`text-sm font-bold ${isToday ? "text-blue-600" : "text-slate-700"}`}>
+                        <div className={`text-xs md:text-sm font-bold ${isToday ? "text-blue-600" : "text-slate-700"}`}>
                           {day}
                         </div>
-                        <div className="mt-1 text-[10px] font-bold text-slate-400">
+                        <div className="mt-0.5 text-[10px] font-bold text-slate-400">
                           {reservationSlots.filter(s => s.date === dateStr && s.isOpen).length}개 오픈
                         </div>
                       </button>
@@ -615,12 +625,12 @@ export default function AdminNewStudentsPage() {
                           setShowReservationModal(true);
                           ensureDefaultDaySlots(dateStr);
                         }}
-                        className={`h-20 md:h-24 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                        className={`h-16 md:h-20 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
                       >
-                        <div className={`text-sm font-bold ${isToday ? "text-blue-600" : "text-slate-700"}`}>
+                        <div className={`text-xs md:text-sm font-bold ${isToday ? "text-blue-600" : "text-slate-700"}`}>
                           {d.getDate()}
                         </div>
-                        <div className="mt-1 text-[10px] font-bold text-slate-400">
+                        <div className="mt-0.5 text-[10px] font-bold text-slate-400">
                           {reservationSlots.filter(s => s.date === dateStr && s.isOpen).length}개 오픈
                         </div>
                       </button>
@@ -792,19 +802,19 @@ export default function AdminNewStudentsPage() {
                   <p className="text-center text-slate-400 text-sm py-4">시간대가 없습니다.</p>
                 ) : (
                   daySlots.map(slot => (
-                    <div key={slot.id} className={`flex items-center justify-between p-3 rounded-lg border ${slot.isOpen ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200'}`}>
-                      <div className="flex items-center gap-3">
+                    <div key={slot.id} className={`flex items-center justify-between p-2 rounded-lg border ${slot.isOpen ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200'}`}>
+                      <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${slot.isOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
                         <div>
-                          <div className="font-bold text-slate-800 text-sm">
+                          <div className="font-bold text-slate-800 text-xs md:text-sm">
                             {slot.time}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <button 
                           onClick={() => toggleDaySlot(slot.id, !slot.isOpen)}
-                          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-bold border transition-all ${
+                          className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-bold border transition-all ${
                             slot.isOpen 
                               ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
                               : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
@@ -815,7 +825,7 @@ export default function AdminNewStudentsPage() {
                         </button>
                         <button 
                           onClick={() => deleteDaySlot(slot.id)}
-                          className="p-1.5 text-slate-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
+                          className="p-1 text-slate-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
                           title="삭제"
                         >
                           <Search className="w-4 h-4 rotate-45" />
