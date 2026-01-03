@@ -16,8 +16,6 @@ const CAMPUS_LABELS: Record<string, string> = {
   Platz: "플라츠관"
 };
 
-const DEFAULT_CLASSES = ["Seed", "Sprout", "Sapling", "Tree", "Forest", "Master", "TOEFL", "Debate"];
-
 export default function AdminVideoAssignmentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -80,7 +78,7 @@ export default function AdminVideoAssignmentsPage() {
 
   const classes = useMemo(() => {
     const fromTeachers = Object.values(teacherClassMap).flat();
-    const set = new Set<string>([...students.map(s => s.className), ...classCatalog, ...fromTeachers, ...DEFAULT_CLASSES]);
+    const set = new Set<string>([...students.map(s => s.className), ...classCatalog, ...fromTeachers]);
     return ["All", ...Array.from(set)];
   }, [students, classCatalog, teacherClassMap]);
 
@@ -117,7 +115,7 @@ export default function AdminVideoAssignmentsPage() {
     if (campusValue === "All") return classes;
     const fromStudents = classesByCampus[campusValue] || [];
     const fromTeachers = Object.values(teacherClassMap).flat();
-    const merged = Array.from(new Set([...fromStudents, ...classCatalog, ...fromTeachers, ...DEFAULT_CLASSES]));
+    const merged = Array.from(new Set([...fromStudents, ...classCatalog, ...fromTeachers]));
     return ["All", ...merged];
   };
   const classesForNewCampus = useMemo(() => classesForCampus(newCampus), [newCampus, classesByCampus, classCatalog, teacherClassMap, classes]);
