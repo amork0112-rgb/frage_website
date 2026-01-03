@@ -118,6 +118,7 @@ export default function TeacherNewStudentsPage() {
   const [filterCampus, setFilterCampus] = useState("All");
   const [memoEditingId, setMemoEditingId] = useState<string | null>(null);
   const [memoText, setMemoText] = useState("");
+  const [showGuide, setShowGuide] = useState(true);
   
   // Reservation Management State
   const [showReservationModal, setShowReservationModal] = useState(false);
@@ -151,6 +152,11 @@ export default function TeacherNewStudentsPage() {
       const rawRes = localStorage.getItem("student_reservations");
       if (rawRes) {
         setStudentReservations(JSON.parse(rawRes));
+      }
+      
+      const guideDismissed = localStorage.getItem("teacher_new_students_guide_dismissed");
+      if (guideDismissed === "1") {
+        setShowGuide(false);
       }
     } catch (e) {
       console.error(e);
@@ -280,9 +286,35 @@ export default function TeacherNewStudentsPage() {
     filterCampus === "All" || s.campus === filterCampus
   );
 
+  const dismissGuide = () => {
+    setShowGuide(false);
+    localStorage.setItem("teacher_new_students_guide_dismissed", "1");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-8 font-sans">
       <div className="max-w-5xl mx-auto">
+        {showGuide && (
+          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-yellow-900 font-bold">
+                <StickyNote className="w-4 h-4" />
+                교사용 신규생 관리 가이드
+              </div>
+              <button
+                onClick={dismissGuide}
+                className="text-xs font-bold text-yellow-800 bg-yellow-100 px-3 py-1 rounded-full border border-yellow-200"
+              >
+                다시 보지 않기
+              </button>
+            </div>
+            <div className="mt-3 text-sm text-yellow-900 space-y-1">
+              <div>1. 상단의 ‘입학 테스트 예약 관리’ 버튼으로 예약 팝업을 열어 일정 추가/열기/닫기를 관리하세요.</div>
+              <div>2. 예약 팝업에서 일정의 ‘열기/닫기’ 버튼으로 접수 가능 여부를 설정하세요.</div>
+              <div>3. 아래 신규생 카드에서 STEP 1~7 체크리스트로 진행 상태를 업데이트하세요.</div>
+            </div>
+          </div>
+        )}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
@@ -474,41 +506,40 @@ export default function TeacherNewStudentsPage() {
                 {reservationSlots.length === 0 ? (
                   <p className="text-center text-slate-400 text-sm py-4">등록된 일정이 없습니다.</p>
                 ) : (
-                  reservationSlots.map(slot => (
-                    <div key={slot.id} className={`flex items-center justify-between p-3 rounded-lg border ${slot.isOpen ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200'}`}>
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${slot.isOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                        <div>
-                          <div className="font-bold text-slate-800 text-sm">
-                            {slot.date} <span className="text-slate-400">|</span> {slot.time}
+                  [...reservationSlots]
+                    .sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime())
+                    .map(slot => {
+                      const isFull = (slot.current || 0) >= slot.max;
+                      const canReserve = slot.isOpen && !isFull;
+                      return (
+                        <div key={slot.id} className={`flex items-center justify-between p-3 rounded-lg border ${slot.isOpen ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200'}`}>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-2 h-2 rounded-full ${slot.isOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                            <div>
+                              <div className="font-bold text-slate-800 text-sm">
+                                {slot.date} <span className="text-slate-400">|</span> {slot.time}
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                신청 {slot.current}명 / 정원 {slot.max}명
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-xs text-slate-500">
-                             신청 {slot.current}명 / 정원 {slot.max}명
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {}}
+                              disabled={!canReserve}
+                              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-bold border transition-all ${
+                                canReserve
+                                  ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+                                  : 'bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed'
+                              }`}
+                            >
+                              {canReserve ? "예약" : (isFull ? "마감" : "미오픈")}
+                            </button>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => toggleSlotStatus(slot.id)}
-                          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-bold border transition-all ${
-                            slot.isOpen 
-                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
-                              : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div className={`w-2 h-2 rounded-full ${slot.isOpen ? 'bg-green-500' : 'bg-slate-400'}`}></div>
-                          {slot.isOpen ? "닫기" : "열기"}
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteSlot(slot.id)}
-                          className="p-1.5 text-slate-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
-                          title="삭제"
-                        >
-                          <Search className="w-4 h-4 rotate-45" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                      );
+                    })
                 )}
               </div>
             </div>

@@ -275,86 +275,47 @@ export default function ParentPortalHome() {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {/* Date Picker */}
-                        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-                          {Array.from({ length: 14 }).map((_, i) => {
-                            const d = new Date();
-                            d.setDate(d.getDate() + i);
-                            const y = d.getFullYear();
-                            const m = String(d.getMonth() + 1).padStart(2, '0');
-                            const day = String(d.getDate()).padStart(2, '0');
-                            const dateStr = `${y}-${m}-${day}`;
-                            const isSelected = selectedDate === dateStr;
-                            const weekDay = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
-                            
-                            return (
-                              <button
-                                key={dateStr}
-                                onClick={() => setSelectedDate(dateStr)}
-                                className={`flex-shrink-0 w-14 h-20 rounded-2xl flex flex-col items-center justify-center border transition-all ${
-                                  isSelected 
-                                    ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-200' 
-                                    : 'bg-white border-slate-200 text-slate-500 hover:border-purple-300'
-                                }`}
-                              >
-                                <span className="text-xs">{weekDay}</span>
-                                <span className="text-lg font-bold">{day}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Time Grid */}
-                        <div className="grid grid-cols-3 gap-2">
-                          {(() => {
-                            const times = [];
-                            for (let h = 10; h <= 19; h++) {
-                              times.push(`${String(h).padStart(2, '0')}:00`);
-                              if (h !== 19 || (h === 19 && 30 <= 30)) { // 19:30 included
-                                times.push(`${String(h).padStart(2, '0')}:30`);
-                              }
-                            }
-                            // Clean up 19:30 logic manually
-                            const timeList = [
-                              "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", 
-                              "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", 
-                              "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", 
-                              "19:00", "19:30"
-                            ];
-
-                            return timeList.map(time => {
-                              // Find matching slot
-                              const slot = allSlots.find(s => s.date === selectedDate && s.time === time);
-                              const isOpen = slot?.isOpen;
-                              const isFull = slot ? (slot.current || 0) >= slot.max : false;
-                              const canReserve = isOpen && !isFull;
-
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                        <h4 className="text-sm font-bold text-slate-700">등록된 일정 ({allSlots.length})</h4>
+                        {allSlots.length === 0 ? (
+                          <p className="text-center text-slate-400 text-sm py-4">등록된 일정이 없습니다.</p>
+                        ) : (
+                          [...allSlots]
+                            .sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime())
+                            .map(slot => {
+                              const isFull = (slot.current || 0) >= slot.max;
+                              const canReserve = slot.isOpen && !isFull;
                               return (
-                                <button
-                                  key={time}
-                                  onClick={() => canReserve && handleReserve(slot)}
-                                  disabled={!canReserve}
-                                  className={`py-3 rounded-xl border text-sm font-bold transition-all ${
-                                    canReserve
-                                      ? 'bg-white border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-500 shadow-sm'
-                                      : isFull
-                                        ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed decoration-slate-400'
-                                        : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'
-                                  }`}
-                                >
-                                  {time}
-                                  {isFull && <span className="block text-[10px] font-normal text-red-400">마감</span>}
-                                  {!slot && <span className="block text-[10px] font-normal text-slate-300">-</span>}
-                                  {canReserve && <span className="block text-[10px] font-normal text-purple-500">가능</span>}
-                                </button>
+                                <div key={slot.id} className={`flex items-center justify-between p-3 rounded-lg border ${slot.isOpen ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200'}`}>
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-2 h-2 rounded-full ${slot.isOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                    <div>
+                                      <div className="font-bold text-slate-800 text-sm">
+                                        {slot.date} <span className="text-slate-400">|</span> {slot.time}
+                                      </div>
+                                      <div className="text-xs text-slate-500">
+                                        신청 {slot.current}명 / 정원 {slot.max}명
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => canReserve && handleReserve(slot)}
+                                      disabled={!canReserve}
+                                      className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-bold border transition-all ${
+                                        canReserve
+                                          ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+                                          : 'bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed'
+                                      }`}
+                                    >
+                                      {canReserve ? "예약" : (isFull ? "마감" : "미오픈")}
+                                    </button>
+                                  </div>
+                                </div>
                               );
-                            });
-                          })()}
-                        </div>
-                        
-                        <p className="text-xs text-center text-slate-400 mt-2">
-                          * 활성화된 시간만 예약 가능합니다. (회색: 예약 불가/미오픈)
-                        </p>
+                            })
+                        )}
+                      </div>
                     </div>
                 )}
             </section>
@@ -413,7 +374,7 @@ export default function ParentPortalHome() {
 
           <div className="text-center">
             <p className="text-xs text-slate-400">
-              입학 관련 문의: 02-1234-5678 (행정실)
+              입학 관련 문의: 053-754-0577
             </p>
           </div>
 

@@ -149,7 +149,7 @@ export default function PortalHeader() {
             })}
           </nav>
           <div className="flex items-center gap-3 relative">
-             <span className="text-sm font-bold text-slate-700">{parentName} (학부모)</span>
+             <span className="text-sm font-bold text-slate-700">{studentDisplayName || parentName}</span>
              
              <div className="relative">
                <button 
