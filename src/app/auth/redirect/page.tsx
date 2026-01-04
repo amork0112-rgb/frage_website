@@ -10,28 +10,27 @@ export default function AuthRedirectPage() {
 
   useEffect(() => {
     let retry = 0;
-    const minDelay = 100;
-    const maxDelay = 200;
     const maxRetries = 8;
 
     const run = async () => {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
 
-      // ⏳ Supabase 세션 대기 (핵심)
       if (!user) {
         if (retry < maxRetries) {
           retry += 1;
-          const delay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
-          setTimeout(run, delay);
+          setTimeout(run, 150);
         } else {
           router.replace("/portal");
         }
         return;
       }
 
-      // ✅ 여기까지 왔다는 건 user 확보 완료
-      redirectAfterAuth(router, user.email ?? null);
+      const normalizedEmail = String(user.email ?? "")
+        .trim()
+        .toLowerCase();
+
+      redirectAfterAuth(router, normalizedEmail);
     };
 
     run();
