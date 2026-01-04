@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Video, CheckCircle, Search, X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type Student = { id: string; name: string; englishName: string; className: string; campus: string; parentAccountId?: string };
 type Status = "미제출" | "제출 완료" | "피드백 완료";
 type Homework = {
   id: string;
+  assignmentId: string;
   studentId: string;
   name: string;
   englishName: string;
@@ -111,176 +113,64 @@ export default function TeacherVideoPage() {
   const focusMax = 120;
   const guideMax = 120;
 
-  useEffect(() => {
-    try {
-      const r = localStorage.getItem("admin_role");
-      const c = localStorage.getItem("teacher_class");
-      const id = localStorage.getItem("current_teacher_id");
-      setRole(r || null);
-      setTeacherId(id || null);
-      let assigned = c || null;
-      try {
-        const mapRaw = localStorage.getItem("admin_teacher_class_map");
-        if (id && mapRaw) {
-          const map = JSON.parse(mapRaw) || {};
-          if (map && typeof map === "object" && map[id]) {
-            assigned = map[id];
-          }
-        }
-      } catch {}
-      setTeacherClass(assigned);
-    } catch {}
-  }, []);
+  
+
+  
+
+  
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/admin/students");
+        const res = await fetch("/api/teacher/video-dashboard", { cache: "no-store" });
         const data = await res.json();
-        const items = Array.isArray(data) ? data : data.items || [];
-        let mergedItems: Student[] = items;
-
-        try {
-          const bulkRaw = localStorage.getItem("admin_bulk_students");
-          const bulkArr: Student[] = bulkRaw ? JSON.parse(bulkRaw) : [];
-          if (Array.isArray(bulkArr) && bulkArr.length > 0) {
-            mergedItems = [...mergedItems, ...bulkArr];
-          }
-        } catch {}
-
-        try {
-          const rawProfiles = localStorage.getItem("signup_profiles");
-          const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
-          const arr: any[] = Array.isArray(profiles) ? profiles : [];
-          if (arr.length > 0) {
-            const existingPhones = new Set(mergedItems.map((s: any) => s.phone));
-            const mapped: Student[] = arr
-              .filter(p => (p?.phone || "").trim() !== "")
-              .map((p, idx) => ({
-                id: `signup_${(p.phone || String(idx)).replace(/[^0-9a-zA-Z]/g, "")}`,
-                name: String(p.studentName || "").trim(),
-                englishName: String(p.englishFirstName || p.passportEnglishName || "").trim(),
-                className: "미배정",
-                campus: "미지정",
-                parentAccountId: String(p.id || "").trim()
-              } as Student))
-              .filter((s: any) => !existingPhones.has(s.phone));
-            mergedItems = [...mergedItems, ...mapped];
-          }
-        } catch {}
-
-        try {
-          // admin_student_updates 제거: Supabase를 단일 데이터 소스로 사용
-        } catch {}
-
-        setStudents(mergedItems);
+        const assigns: any[] = Array.isArray(data?.assignments) ? data.assignments : [];
+        const flattened: Homework[] = assigns.flatMap(a => {
+          const title = String(a.title || "");
+          const due = String(a.due_date || "");
+          const cls = String(a.class_name || "");
+          const campus = String(a.campus || "");
+          const aid = String(a.assignment_id || a.id || "");
+          return (Array.isArray(a.students) ? a.students : []).map((s: any) => {
+            const sid = String(s.student_id || "");
+            const name = String(s.student_name || "");
+            const eng = String(s.english_name || "");
+            const submission = s.submission || null;
+            const feedback = s.feedback || null;
+            let status: Status = "미제출";
+            if (submission && !feedback) status = "제출 완료";
+            if (submission && feedback) status = "피드백 완료";
+            let videoUrl: string | null = null;
+            const vp = submission?.video_path || null;
+            if (vp) {
+              const pub = supabase.storage.from("student-videos").getPublicUrl(vp);
+              videoUrl = pub?.data?.publicUrl || null;
+            }
+            return {
+              id: `hw_${sid}_${aid}`,
+              assignmentId: aid,
+              studentId: sid,
+              name,
+              englishName: eng,
+              className: cls,
+              campus,
+              title,
+              dueDate: due,
+              status,
+              videoUrl
+            };
+          });
+        });
+        setItems(flattened);
+        const classes = Array.from(new Set(flattened.map(i => i.className)));
+        setClassCatalog(classes);
       } catch {
-        setStudents([]);
+        setItems([]);
+        setClassCatalog([]);
       }
     };
     load();
   }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("admin_class_catalog");
-      let list: string[] = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(list) || list.length === 0) {
-        list = [...KINDER, ...JUNIOR];
-      }
-      setClassCatalog(list);
-      localStorage.setItem("admin_class_catalog", JSON.stringify(list));
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("video_assignments");
-      const list: { title: string; module: string; dueDate: string; className: string; campus?: string }[] = raw ? JSON.parse(raw) : [];
-      const arr = Array.isArray(list) ? list : [];
-      if (arr.length > 0) {
-        const merged: Homework[] = arr.flatMap(a => {
-          return students
-            .filter(s => s.className === a.className)
-            .filter(s => (a.campus ? s.campus === a.campus : true))
-            .map(s => {
-              let status: Status = "미제출";
-              let videoUrl: string | null = null;
-              try {
-                const key = `student_video_${s.id}`;
-                const url = localStorage.getItem(key);
-                if (url) {
-                  status = "제출 완료";
-                  videoUrl = url;
-                }
-                const fbKey = `teacher_video_feedback_${s.id}_${a.dueDate}`;
-                const rawFb = localStorage.getItem(fbKey);
-                if (rawFb) {
-                  status = "피드백 완료";
-                }
-              } catch {}
-              return {
-                id: `hw_${s.id}_${a.dueDate}`,
-                studentId: s.id,
-                name: s.name,
-                englishName: s.englishName,
-                className: s.className,
-                campus: s.campus,
-                title: `${a.title} • ${a.module}`,
-                dueDate: a.dueDate,
-                status,
-                videoUrl
-              };
-            });
-        });
-        setItems(merged);
-        return;
-      }
-    } catch {}
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, "0");
-    const d = String(now.getDate()).padStart(2, "0");
-    const today = `${y}-${m}-${d}`;
-    const weekAhead = new Date(now.getTime() + 6 * 86400000);
-    const y2 = weekAhead.getFullYear();
-    const m2 = String(weekAhead.getMonth() + 1).padStart(2, "0");
-    const d2 = String(weekAhead.getDate()).padStart(2, "0");
-    const due1 = today;
-    const due2 = `${y2}-${m2}-${d2}`;
-    const fallback: Homework[] = students.slice(0, 40).map((s, i) => {
-      const lessonTitle = i % 2 === 0 ? "[Module 5-1] Day 18" : "[Module 5-2] Day 19";
-      const due = i % 3 === 0 ? due1 : due2;
-      let status: Status = "미제출";
-      let videoUrl: string | null = null;
-      try {
-        const key = `student_video_${s.id}`;
-        const url = localStorage.getItem(key);
-        if (url) {
-          status = "제출 완료";
-          videoUrl = url;
-        }
-        const fbKey = `teacher_video_feedback_${s.id}_${due}`;
-        const rawFb = localStorage.getItem(fbKey);
-        if (rawFb) {
-          status = "피드백 완료";
-        }
-      } catch {}
-      return {
-        id: `hw_${s.id}_${due}`,
-        studentId: s.id,
-        name: s.name,
-        englishName: s.englishName,
-        className: s.className,
-        campus: s.campus,
-        title: lessonTitle,
-        dueDate: due,
-        status,
-        videoUrl
-      };
-    });
-    setItems(fallback);
-  }, [students]);
 
   // Removed playback speed controls per requirement
 
@@ -293,8 +183,6 @@ export default function TeacherVideoPage() {
     const base = new Set<string>([...BASE_CAMPUSES, ...items.map(i => i.campus)]);
     return ["All", ...Array.from(base)];
   }, [items]);
-
-  const canSeeAll = true;
 
   const filtered = useMemo(() => {
     const inRange = (due: string) => {
@@ -330,7 +218,7 @@ export default function TeacherVideoPage() {
             i.englishName.toLowerCase().includes(query.toLowerCase()) ||
             i.title.toLowerCase().includes(query.toLowerCase())
       ));
-  }, [items, canSeeAll, teacherClass, classFilter, campusFilter, dateFilter, statusFilter, query]);
+  }, [items, classFilter, campusFilter, dateFilter, statusFilter, query]);
 
   const startFeedback = async (hw: Homework) => {
     setOpenVideoFor(hw);
@@ -349,15 +237,7 @@ export default function TeacherVideoPage() {
     });
     setAttachments([]);
     try {
-      const key = `teacher_video_feedback_${hw.studentId}_${hw.dueDate}`;
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const prev = JSON.parse(raw);
-        setFb(prev);
-      }
-    } catch {}
-    try {
-      const url = `/api/teacher/video/feedback?studentId=${encodeURIComponent(hw.studentId)}&dueDate=${encodeURIComponent(hw.dueDate)}`;
+      const url = `/api/teacher/video/feedback?studentId=${encodeURIComponent(hw.studentId)}&assignmentId=${encodeURIComponent(hw.assignmentId)}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -379,7 +259,6 @@ export default function TeacherVideoPage() {
 
   const saveFeedback = async () => {
     if (!openVideoFor || !canSave) return;
-    const key = `teacher_video_feedback_${openVideoFor.studentId}_${openVideoFor.dueDate}`;
     const avg = Math.round(((fb.fluency + fb.volume + fb.speed + fb.pronunciation + fb.performance) / 5) * 10) / 10;
     const payload = { ...fb, average: avg, updatedAt: new Date().toISOString() };
     setSaving(true);
@@ -390,26 +269,14 @@ export default function TeacherVideoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentId: openVideoFor.studentId,
-          dueDate: openVideoFor.dueDate,
+          assignmentId: openVideoFor.assignmentId,
           feedback: payload,
           attachments: attachments.map(a => ({ name: a.name, size: a.size, type: a.type }))
         })
       });
       if (!res.ok) throw new Error("save_failed");
-      localStorage.setItem(key, JSON.stringify(payload));
       const list = items.map(i => (i.id === openVideoFor.id ? { ...i, status: "피드백 완료" as Status } : i));
       setItems(list);
-      const notifKey = "portal_notifications";
-      const raw = localStorage.getItem(notifKey);
-      const arr = raw ? JSON.parse(raw) : [];
-      const msg = {
-        id: `notif_${Date.now()}`,
-        type: "video_feedback",
-        studentId: openVideoFor.studentId,
-        message: `비디오 과제 피드백이 도착했어요: ${fb.overall_message}`,
-        createdAt: new Date().toISOString()
-      };
-      localStorage.setItem(notifKey, JSON.stringify([msg, ...(Array.isArray(arr) ? arr : [])]));
       setSaveToast("저장되었습니다.");
     } catch {
       setSaveToast("저장에 실패했습니다. 잠시 후 다시 시도하세요.");
@@ -477,12 +344,7 @@ export default function TeacherVideoPage() {
     if (!openVideoFor) return;
     const f = e.target.files?.[0];
     if (!f) return;
-    const url = URL.createObjectURL(f);
-    try {
-      localStorage.setItem(`student_video_${openVideoFor.studentId}`, url);
-      const list = items.map(i => (i.id === openVideoFor.id ? { ...i, status: "제출 완료" as Status, videoUrl: url } : i));
-      setItems(list);
-    } catch {}
+    setItems(prev => prev.map(i => (i.id === openVideoFor.id ? { ...i, status: "제출 완료" as Status } : i)));
   };
 
   const enterFullscreen = () => {
