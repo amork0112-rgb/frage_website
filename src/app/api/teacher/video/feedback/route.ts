@@ -26,7 +26,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
     const { data } = await supabase
-      .from("video_feedbacks")
+      .from("portal_video_feedback")
       .select("*")
       .eq("student_id", studentId)
       .eq("assignment_id", assignmentId)
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
       updated_at: feedback.updatedAt,
       attachments: Array.isArray(attachments) ? attachments : ([] as AttachMeta),
     };
-    const { error } = await supabase.from("video_feedbacks").insert(row);
+    const { error } = await supabase.from("portal_video_feedback").insert(row);
     if (error) return NextResponse.json({ ok: false, error: "db_error" }, { status: 500 });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch {
@@ -91,35 +91,4 @@ export async function POST(req: Request) {
   }
 }
 
-export async function PUT(req: Request) {
-  try {
-    const body = await req.json();
-    const { studentId, assignmentId, feedback, attachments } = body || {};
-    if (!studentId || !assignmentId || !feedback) {
-      return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
-    }
-    const payload = {
-      overall_message: feedback.overall_message,
-      fluency: feedback.fluency,
-      volume: feedback.volume,
-      speed: feedback.speed,
-      pronunciation: feedback.pronunciation,
-      performance: feedback.performance,
-      strengths: feedback.strengths,
-      focus_point: feedback.focus_point,
-      next_try_guide: feedback.next_try_guide,
-      average: feedback.average,
-      updated_at: feedback.updatedAt,
-      attachments: Array.isArray(attachments) ? attachments : [],
-    };
-    const { error } = await supabase
-      .from("video_feedbacks")
-      .update(payload)
-      .eq("student_id", studentId)
-      .eq("assignment_id", assignmentId);
-    if (error) return NextResponse.json({ ok: false, error: "db_error" }, { status: 500 });
-    return NextResponse.json({ ok: true }, { status: 200 });
-  } catch {
-    return NextResponse.json({ ok: false }, { status: 500 });
-  }
-}
+// update 없음: 최신 insert만 사용

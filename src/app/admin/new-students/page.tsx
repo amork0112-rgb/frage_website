@@ -181,6 +181,11 @@ export default function AdminNewStudentsPage() {
       try {
         const y = currentMonth.getFullYear();
         const m = currentMonth.getMonth() + 1;
+        await fetch("/api/admin/schedules/init-month", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ year: y, month: m, weekdaysOnly: true })
+        });
         const res = await fetch(`/api/admin/schedules?year=${y}&month=${m}`, { cache: "no-store" });
         const data = await res.json();
         setScheduleMap(data?.days || {});
@@ -617,7 +622,7 @@ export default function AdminNewStudentsPage() {
         <div className="bg-slate-100 border border-slate-200 rounded-xl p-4 mb-6">
           <p className="text-sm font-bold text-slate-800 mb-2">신규생 관리 사용 가이드</p>
           <div className="text-xs text-slate-600 space-y-1">
-            <p>1) 상단 달력을 열고 날짜를 클릭하면 주중 기본 11개 시간대가 자동 오픈됩니다.</p>
+            <p>1) 달력 진입 시 주중 기본 11개 시간대가 자동으로 오픈됩니다.</p>
             <p>2) 상담 일정 확정 체크 시 구글 캘린더 팝업으로 등록하세요.</p>
             <p>3) STEP 3 문서 완료 체크 시 자동 재원 등록됩니다.</p>
             <p>4) 시간대는 필요 시 마감으로 변경해 닫을 수 있습니다.</p>
@@ -630,22 +635,17 @@ export default function AdminNewStudentsPage() {
               <div className="font-bold text-slate-900">
                 {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
               </div>
-              <button
-              onClick={() => setShowCalendar(prev => !prev)}
-                className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold"
-                aria-controls="calendar-section"
-                aria-expanded={showCalendar}
-              >
-                <Calendar className="w-4 h-4" />
-                선택 날짜 일정 관리
-              </button>
-              <button
-                onClick={() => deleteWeekdaySlotsForMonth(currentMonth)}
-                className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-bold"
-                aria-label="월간 기본 시간대 삭제"
-              >
-                전체 주중 시간대 삭제
-              </button>
+              <div className="ml-auto">
+                <button
+                  onClick={() => setShowCalendar(prev => !prev)}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold"
+                  aria-controls="calendar-section"
+                  aria-expanded={showCalendar}
+                >
+                  <Calendar className="w-4 h-4" />
+                  선택 날짜 일정 관리
+                </button>
+              </div>
             </div>
             {showCalendar && (
               <div className="px-4 pb-2 text-[11px] text-slate-500">캘린더 렌더링은 조회만 수행합니다. 시간대 생성은 월 초기화 버튼으로 실행됩니다.</div>

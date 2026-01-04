@@ -9,11 +9,11 @@ export async function GET() {
       .order("due_date", { ascending: true });
 
     const { data: submissions } = await supabase
-      .from("student_video_submissions")
+      .from("portal_video_submissions")
       .select("*");
 
     const { data: feedbacks } = await supabase
-      .from("video_feedbacks")
+      .from("portal_video_feedback")
       .select("*");
 
     const { data: students } = await supabase
