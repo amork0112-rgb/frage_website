@@ -7,6 +7,7 @@ import Script from "next/script";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Check, Search } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 declare global {
   interface Window {
@@ -38,6 +39,7 @@ export default function SignupPage() {
   });
   
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -149,9 +151,10 @@ export default function SignupPage() {
       return;
     }
 
-    const idOk = /^[a-zA-Z0-9]{4,20}$/.test(formData.id.trim());
-    if (!idOk) {
-      alert("아이디는 영문/숫자 4~20자만 허용됩니다.");
+    const email = formData.id.trim();
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!emailOk) {
+      alert("이메일 형식이 올바르지 않습니다.");
       return;
     }
     const pwOk = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,30}$/.test(formData.password.trim());
@@ -166,74 +169,46 @@ export default function SignupPage() {
     }
 
     setLoading(true);
+    setErrorMessage(null);
 
-    // Simulate API call
-    setTimeout(() => {
-      // Save to local storage for MVP linkage
+    (async () => {
       try {
-        const rawProfiles = localStorage.getItem("signup_profiles");
-        const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
-        const nextProfiles = Array.isArray(profiles) ? profiles : [];
-        nextProfiles.push({
-          id: formData.id.trim().toLowerCase(),
+        const { data, error } = await supabase.auth.signUp({
+          email,
           password: formData.password.trim(),
-          studentName: formData.studentName.trim(),
-          gender: formData.gender,
-          parentName: formData.parentName.trim(),
-          phone: formData.phone.trim(),
-          passportEnglishName: formData.passportEnglishName.trim(),
-          englishFirstName: formData.englishFirstName.trim(),
-          childBirthDate: formData.childBirthDate,
-          address: formData.address.trim(),
-          addressDetail: formData.addressDetail.trim(),
-          arrivalMethod: formData.arrivalMethod.trim(),
-          arrivalPlace: formData.arrivalPlace.trim(),
-          departureMethod: formData.departureMethod.trim(),
-          departurePlace: formData.departurePlace.trim(),
-          campus: formData.campus,
-          createdAt: new Date().toISOString(),
-          status: "waiting"
         });
-        localStorage.setItem("signup_profiles", JSON.stringify(nextProfiles));
-        localStorage.setItem("signup_account", JSON.stringify({
-          id: formData.id.trim().toLowerCase(),
-          password: formData.password.trim()
-        }));
-        localStorage.setItem("portal_account", JSON.stringify({
-          id: formData.id.trim().toLowerCase(),
-          password: formData.password.trim()
-        }));
-        localStorage.setItem("portal_role", "parent");
-        localStorage.setItem("portal_parent_profile", JSON.stringify({
-          parentName: formData.parentName.trim(),
-          phone: formData.phone.trim()
-        }));
-        localStorage.setItem("needs_child_setup", "false");
-      } catch {}
-      // Call backend API (stub)
-      fetch("/api/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: formData.id.trim(),
-          studentName: formData.studentName.trim(),
-          gender: formData.gender,
-          parentName: formData.parentName.trim(),
-          phone: formData.phone.trim(),
-          address: formData.address.trim(),
-          addressDetail: formData.addressDetail.trim(),
-          passportEnglishName: formData.passportEnglishName.trim(),
-          englishFirstName: formData.englishFirstName.trim(),
-          childBirthDate: formData.childBirthDate,
-          arrivalMethod: formData.arrivalMethod.trim(),
-          arrivalPlace: formData.arrivalPlace.trim(),
-          departureMethod: formData.departureMethod.trim(),
-          departurePlace: formData.departurePlace.trim()
-        })
-      }).catch(() => {});
-      alert("회원가입이 완료되었습니다!");
-      router.push("/portal/signup");
-    }, 1000);
+        if (error) {
+          const msg = error.message?.toLowerCase() || "";
+          if (msg.includes("already") && msg.includes("registered")) {
+            setErrorMessage("이미 가입된 이메일입니다. 다른 이메일로 가입하거나 로그인해 주세요.");
+            alert("이미 가입된 이메일입니다.");
+          } else if (msg.includes("password")) {
+            setErrorMessage("비밀번호 정책 오류: 영문+숫자 6자 이상으로 설정해 주세요.");
+            alert("비밀번호 정책 오류입니다.");
+          } else {
+            setErrorMessage(`인증 오류: ${error.message}`);
+            alert(error.message);
+          }
+          setLoading(false);
+          return;
+        }
+        const userId = data.user?.id;
+        if (!userId) {
+          setErrorMessage("인증 서버에서 사용자 정보를 받지 못했습니다. 잠시 후 다시 시도해 주세요.");
+          alert("회원가입 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+          setLoading(false);
+          return;
+        }
+        alert("회원가입이 완료되었습니다!");
+        router.push("/portal/home");
+      } catch (e: any) {
+        const m = typeof e?.message === "string" ? e.message : "알 수 없는 오류가 발생했습니다.";
+        setErrorMessage(`처리 오류: ${m}`);
+        alert(m);
+      } finally {
+        setLoading(false);
+      }
+    })();
   };
 
   return (
@@ -255,20 +230,25 @@ export default function SignupPage() {
                 필수 정보를 입력해 주세요.
               </p>
             </div>
+            {errorMessage && (
+              <div className="mb-6 rounded-xl border border-red-200 bg-red-50 text-red-700 px-4 py-3">
+                {errorMessage}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="id" className="block text-sm font-bold text-frage-navy mb-2">
-                    아이디 <span className="text-red-500">*</span>
+                    이메일 <span className="text-red-500">*</span>
                   </label>
                   <input
-                    type="text"
+                    type="email"
                     id="id"
                     name="id"
                     required
-                    maxLength={20}
-                    placeholder="영문/숫자 4~20자"
+                    maxLength={100}
+                    placeholder="you@example.com"
                     value={formData.id}
                     onChange={handleChange}
                     className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"

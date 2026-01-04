@@ -28,7 +28,33 @@ export default function LoginPage() {
       setError(error.message);
       return;
     }
-    router.push("/community");
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) {
+        router.push("/login");
+        return;
+      }
+      const { data: parentsRows } = await supabase
+        .from("parents")
+        .select("*")
+        .eq("auth_user_id", userId)
+        .limit(1);
+      if (!Array.isArray(parentsRows) || parentsRows.length === 0) {
+        const now = new Date().toISOString();
+        await supabase
+          .from("parents")
+          .insert({
+            auth_user_id: userId,
+            name: "학부모",
+            phone: "",
+            created_at: now,
+          });
+      }
+      router.push("/portal/home");
+    } catch {
+      router.push("/portal/home");
+    }
   }
 
   useEffect(() => {

@@ -30,6 +30,7 @@ export default function AdminHome() {
   >([]);
   const [students, setStudents] = useState<any[]>([]);
   const [studentUpdates, setStudentUpdates] = useState<Record<string, any>>({});
+  const [signups, setSignups] = useState<any[]>([]);
 
   useEffect(() => {
     const childCampusMap: Record<string, CampusType | "Atheneum"> = {
@@ -106,6 +107,11 @@ export default function AdminHome() {
         const map = updRaw ? JSON.parse(updRaw) : {};
         setStudentUpdates(map || {});
       } catch {}
+      try {
+        const rawProfiles = localStorage.getItem("signup_profiles");
+        const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
+        setSignups(Array.isArray(profiles) ? profiles : []);
+      } catch {}
     };
     loadStudents();
     const timer = setInterval(loadStudents, 5000);
@@ -121,6 +127,11 @@ export default function AdminHome() {
     if (selectedCampus === "All") return list.length;
     return list.filter((s) => s.campus === selectedCampus).length;
   }, [mergedStudents, selectedCampus]);
+  const newInquiryCount = useMemo(() => {
+    const list = signups.filter((p) => (p.status || "waiting") !== "enrolled");
+    if (selectedCampus === "All") return list.length;
+    return list.filter((p) => p.campus === selectedCampus).length;
+  }, [signups, selectedCampus]);
 
   const todaysAbsences = useMemo(() => {
     try {
@@ -163,6 +174,7 @@ export default function AdminHome() {
       ).filter(n => !n.isArchived).length
     ),
     totalStudents,
+    newInquiries: newInquiryCount,
     attendance: attendanceRate,
   };
 
@@ -290,7 +302,7 @@ export default function AdminHome() {
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
                     {selectedCampus === 'All' ? '신규테스트문의' : '캠퍼스 신규문의'}
                 </p>
-                <p className="text-3xl font-black text-slate-900">{stats.totalStudents}</p>
+                <p className="text-3xl font-black text-slate-900">{stats.newInquiries}</p>
             </div>
             <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors">
                 <Users className="w-5 h-5" />

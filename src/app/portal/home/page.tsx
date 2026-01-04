@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bell, FileText, HelpCircle, CheckCircle, FileCheck, Calendar, Truck, AlertTriangle } from "lucide-react";
 import PortalHeader from "@/components/PortalHeader";
+import { supabase } from "@/lib/supabase";
 
 export default function ParentPortalHome() {
   const [loading, setLoading] = useState(true);
@@ -25,6 +26,95 @@ export default function ParentPortalHome() {
 
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [allSlots, setAllSlots] = useState<any[]>([]);
+  const fmtYMD = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${dd}`;
+  };
+  const parseYMD = (s: string) => {
+    const [y, m, d] = s.split("-").map((v) => parseInt(v, 10));
+    return new Date(y, m - 1, d);
+  };
+  const [viewMode, setViewMode] = useState<"month" | "week">("month");
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const DEFAULT_TIMES = useMemo((): string[] => {
+    const times: string[] = [];
+    for (let h = 10; h <= 20; h++) {
+      times.push(`${String(h).padStart(2, "0")}:00`);
+    }
+    return times;
+  }, []);
+  const ensureDefaultDaySlots = async (date: string) => {
+    try {
+      const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(date)}`);
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const existing = new Set(items.map((s: any) => s.time));
+      const tasks: Promise<any>[] = [];
+      DEFAULT_TIMES.forEach((t: string) => {
+        if (!existing.has(t)) {
+          tasks.push(
+            fetch("/api/admin/schedules", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ date, time: t, max: 5, current: 0, isOpen: true })
+            })
+          );
+        }
+      });
+      if (tasks.length) await Promise.all(tasks);
+      const allRes = await fetch("/api/admin/schedules");
+      const allData = await allRes.json();
+      const allItems = Array.isArray(allData?.items) ? allData.items : [];
+      setAllSlots(allItems);
+      localStorage.setItem("admission_test_slots", JSON.stringify(allItems));
+    } catch {}
+  };
+  const ensureDefaultWeekdaySlotsForMonth = useCallback(async (month: Date) => {
+    try {
+      const start = new Date(month.getFullYear(), month.getMonth(), 1);
+      const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+      const startStr = fmtYMD(start);
+      const endStr = fmtYMD(end);
+      const res = await fetch(`/api/admin/schedules?rangeStart=${encodeURIComponent(startStr)}&rangeEnd=${encodeURIComponent(endStr)}`);
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const byDate: Record<string, Set<string>> = {};
+      items.forEach((s: any) => {
+        if (!byDate[s.date]) byDate[s.date] = new Set();
+        byDate[s.date].add(s.time);
+      });
+      const tasks: Promise<any>[] = [];
+      for (let d = 1; d <= end.getDate(); d++) {
+        const curr = new Date(month.getFullYear(), month.getMonth(), d);
+        const day = curr.getDay();
+        if (day === 0 || day === 6) continue;
+        const dateStr = fmtYMD(curr);
+        const set = byDate[dateStr] || new Set<string>();
+        DEFAULT_TIMES.forEach((t: string) => {
+          if (!set.has(t)) {
+            tasks.push(
+              fetch("/api/admin/schedules", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ date: dateStr, time: t, max: 5, current: 0, isOpen: true })
+              })
+            );
+          }
+        });
+      }
+      if (tasks.length) await Promise.all(tasks);
+      const allRes = await fetch("/api/admin/schedules");
+      const allData = await allRes.json();
+      const allItems = Array.isArray(allData?.items) ? allData.items : [];
+      setAllSlots(allItems);
+      localStorage.setItem("admission_test_slots", JSON.stringify(allItems));
+    } catch {}
+  }, [DEFAULT_TIMES]);
 
   useEffect(() => {
     const today = new Date();
@@ -38,80 +128,50 @@ export default function ParentPortalHome() {
   }, []);
 
   useEffect(() => {
-    try {
-      // 1. Get logged in user
-      const accountRaw = localStorage.getItem("portal_account");
-      const account = accountRaw ? JSON.parse(accountRaw) : null;
-      
-      if (account) {
-        setStudentId(account.id);
-      }
-
-      // 2. Check if this user is in signup_profiles (New Student)
-      const rawProfiles = localStorage.getItem("signup_profiles");
-      const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
-      const profile = profiles.find((p: any) => p.id === (account?.id || "unknown"));
-
-      if (profile && profile.status !== "enrolled") {
-        setStudentStatus("new");
-        setNewStudentProfile(profile);
-
-        // Load Slots
-        const rawSlots = localStorage.getItem("admission_test_slots");
-        if (rawSlots) {
-            const slots = JSON.parse(rawSlots);
-            setAllSlots(slots);
-            // We don't use setAvailableSlots anymore for the list view, but keep it for compatibility if needed
-            setAvailableSlots(slots.filter((s: any) => s.isOpen));
+    (async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const user = userData?.user;
+        if (!user) {
+          setLoading(false);
+          window.location.href = "/login";
+          return;
         }
-
-        // Load My Reservation
-        const rawRes = localStorage.getItem("student_reservations");
-        if (rawRes) {
-            const allRes = JSON.parse(rawRes);
-            const myRes = allRes[profile.id];
-            if (myRes) {
-                setMyReservation(myRes);
-            }
-        }
-
-        // Check admission progress
-        const checklistsRaw = localStorage.getItem("teacher_new_student_checklists");
-        if (checklistsRaw) {
-          const checklists = JSON.parse(checklistsRaw);
-          const checklist = checklists[profile.id];
-          
-          if (checklist?.admission_confirmed?.checked) {
-            setAdmissionOpen(true);
-            setCurrentStep("입학 확정");
-          } else if (checklist?.consultation_confirmed?.checked) {
-            setCurrentStep("상담 확정");
-          } else {
-            setCurrentStep(profile.status === "waiting" ? "입학 대기" : "상담 전");
-          }
-        }
-      } else {
-        const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-        const preview = params?.get("preview");
-        if (preview === "new") {
+        setStudentId(user.id);
+        const { data: rows } = await supabase
+          .from("parents")
+          .select("*")
+          .eq("auth_user_id", user.id)
+          .limit(1);
+        const parent = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+        if (!parent) {
           setStudentStatus("new");
-          setNewStudentProfile(profile || { id: account?.id || "demo", studentName: "테스트", englishFirstName: "Test" });
-          const rawSlots = localStorage.getItem("admission_test_slots");
-          if (rawSlots) {
-              const slots = JSON.parse(rawSlots);
-              setAllSlots(slots);
-          }
+          setNewStudentProfile({ id: user.id, studentName: "", englishFirstName: "" });
+          const loadAll = async () => {
+            try {
+              const res = await fetch("/api/admin/schedules");
+              const data = await res.json();
+              const items = Array.isArray(data?.items) ? data.items : [];
+              setAllSlots(items);
+              localStorage.setItem("admission_test_slots", JSON.stringify(items));
+              setAvailableSlots(items.filter((s: any) => s.isOpen));
+            } catch {}
+          };
+          loadAll();
+          const t = setInterval(loadAll, 5000);
+          const m = new Date();
+          ensureDefaultWeekdaySlotsForMonth(new Date(m.getFullYear(), m.getMonth(), 1));
+          return () => clearInterval(t);
         } else {
           setStudentStatus("enrolled");
         }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
-
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    })();
+  }, [ensureDefaultWeekdaySlotsForMonth]);
 
   const handleReserve = (slot: any) => {
     if (!confirm(`${slot.date} ${slot.time}에 입학 테스트를 예약하시겠습니까?`)) return;
@@ -289,44 +349,171 @@ export default function ParentPortalHome() {
                     </div>
                 ) : (
                     <div className="space-y-6">
-                      <div className="flex gap-2 overflow-x-auto pb-2">
-                        {(() => {
-                          const arr: { dateStr: string; day: string; week: string }[] = [];
-                          let dt = new Date();
-                          while (arr.length < 8) {
-                            if (dt.getDay() !== 0 && dt.getDay() !== 6) {
-                              const y = dt.getFullYear();
-                              const m = String(dt.getMonth() + 1).padStart(2, '0');
-                              const day = String(dt.getDate()).padStart(2, '0');
-                              const dateStr = `${y}-${m}-${day}`;
-                              const week = ["일","월","화","수","목","금","토"][dt.getDay()];
-                              arr.push({ dateStr, day, week });
-                            }
-                            dt.setDate(dt.getDate() + 1);
-                          }
-                          return arr.map(({ dateStr, day, week }) => {
-                            const active = selectedDate === dateStr;
-                            return (
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+                        <div className="p-4 flex items-center justify-between">
+                          <div className="font-bold text-slate-900">
+                            {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => setViewMode("month")}
+                              className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${viewMode === "month" ? "bg-purple-600 text-white border-purple-600" : "bg-white text-slate-700 border-slate-200"}`}
+                            >
+                              월간
+                            </button>
+                            <button 
+                              onClick={() => setViewMode("week")}
+                              className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${viewMode === "week" ? "bg-purple-600 text-white border-purple-600" : "bg-white text-slate-700 border-slate-200"}`}
+                            >
+                              주간
+                            </button>
+                            <div className="flex items-center gap-1 ml-2">
                               <button
-                                key={dateStr}
-                                onClick={() => setSelectedDate(dateStr)}
-                                className={`flex flex-col items-center justify-center w-16 h-20 rounded-2xl font-bold border transition-all ${
-                                  active ? "bg-purple-600 text-white border-purple-600 shadow-lg" : "bg-white text-slate-600 border-slate-200"
-                                }`}
+                                onClick={() => {
+                                  if (viewMode === "month") {
+                                    const d = new Date(currentMonth);
+                                    d.setMonth(d.getMonth() - 1);
+                                    const nextMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+                                    setCurrentMonth(nextMonth);
+                                    ensureDefaultWeekdaySlotsForMonth(nextMonth);
+                                  } else {
+                                    const base = parseYMD(selectedDate || fmtYMD(new Date()));
+                                    base.setDate(base.getDate() - 7);
+                                    const nextDate = fmtYMD(base);
+                                    setSelectedDate(nextDate);
+                                    const nextMonth = new Date(base.getFullYear(), base.getMonth(), 1);
+                                    setCurrentMonth(nextMonth);
+                                    ensureDefaultWeekdaySlotsForMonth(nextMonth);
+                                  }
+                                }}
+                                className="p-2 rounded-lg border border-slate-200 bg-white"
                               >
-                                <span className={`text-xs ${active ? "text-white/90" : "text-slate-400"}`}>{week}</span>
-                                <span className="text-lg">{day}</span>
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                               </button>
-                            );
-                          });
-                        })()}
+                              <button
+                                onClick={() => {
+                                  if (viewMode === "month") {
+                                    const d = new Date(currentMonth);
+                                    d.setMonth(d.getMonth() + 1);
+                                    const nextMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+                                    setCurrentMonth(nextMonth);
+                                    ensureDefaultWeekdaySlotsForMonth(nextMonth);
+                                  } else {
+                                    const base = parseYMD(selectedDate || fmtYMD(new Date()));
+                                    base.setDate(base.getDate() + 7);
+                                    const nextDate = fmtYMD(base);
+                                    setSelectedDate(nextDate);
+                                    const nextMonth = new Date(base.getFullYear(), base.getMonth(), 1);
+                                    setCurrentMonth(nextMonth);
+                                    ensureDefaultWeekdaySlotsForMonth(nextMonth);
+                                  }
+                                }}
+                                className="p-2 rounded-lg border border-slate-200 bg-white"
+                              >
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-4 pt-0">
+                          {viewMode === "month" ? (
+                            <div className="grid grid-cols-7 gap-2">
+                              {["일","월","화","수","목","금","토"].map((d) => (
+                                <div key={d} className="text-xs font-bold text-slate-400 text-center">{d}</div>
+                              ))}
+                              {(() => {
+                                const startDay = new Date(currentMonth);
+                                const firstDayIndex = startDay.getDay();
+                                const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+                                const today = new Date();
+                                const cells = [];
+                                for (let i = 0; i < firstDayIndex; i++) {
+                                  cells.push(<div key={`pad-${i}`} />);
+                                }
+                                for (let day = 1; day <= daysInMonth; day++) {
+                                  const y = currentMonth.getFullYear();
+                                  const m = String(currentMonth.getMonth() + 1).padStart(2, "0");
+                                  const dd = String(day).padStart(2, "0");
+                                  const dateStr = `${y}-${m}-${dd}`;
+                                  const isToday = today.getFullYear() === y && today.getMonth() === currentMonth.getMonth() && today.getDate() === day;
+                                  const isSelected = selectedDate === dateStr;
+                                  cells.push(
+                                    <button
+                                      key={dateStr}
+                                      onClick={() => {
+                                        setSelectedDate(dateStr);
+                                        ensureDefaultDaySlots(dateStr);
+                                      }}
+                                      className={`h-16 md:h-20 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-purple-400 bg-purple-50" : "border-slate-200 bg-white"}`}
+                                    >
+                                      <div className={`text-xs md:text-sm font-bold ${isToday ? "text-purple-600" : "text-slate-700"}`}>
+                                        {day}
+                                      </div>
+                                      <div className="mt-0.5 text-[10px] font-bold text-slate-400">
+                                        {allSlots.filter(s => s.date === dateStr && s.isOpen).length}개 오픈
+                                      </div>
+                                    </button>
+                                  );
+                                }
+                                return cells;
+                              })()}
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-7 gap-2">
+                              {["일","월","화","수","목","금","토"].map((d) => (
+                                <div key={d} className="text-xs font-bold text-slate-400 text-center">{d}</div>
+                              ))}
+                              {(() => {
+                                const base = parseYMD(selectedDate || fmtYMD(new Date()));
+                                const dayIdx = base.getDay();
+                                const start = new Date(base);
+                                start.setDate(base.getDate() - dayIdx);
+                                const today = new Date();
+                                const cells = [];
+                                for (let i = 0; i < 7; i++) {
+                                  const d = new Date(start);
+                                  d.setDate(start.getDate() + i);
+                                  const y = d.getFullYear();
+                                  const m = String(d.getMonth() + 1).padStart(2, "0");
+                                  const dd = String(d.getDate()).padStart(2, "0");
+                                  const dateStr = `${y}-${m}-${dd}`;
+                                  const isToday = today.getFullYear() === y && today.getMonth() === d.getMonth() && today.getDate() === d.getDate();
+                                  const isSelected = selectedDate === dateStr;
+                                  cells.push(
+                                    <button
+                                      key={dateStr}
+                                      onClick={() => {
+                                        setSelectedDate(dateStr);
+                                        ensureDefaultDaySlots(dateStr);
+                                      }}
+                                      className={`h-16 md:h-20 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-purple-400 bg-purple-50" : "border-slate-200 bg-white"}`}
+                                    >
+                                      <div className={`text-xs md:text-sm font-bold ${isToday ? "text-purple-600" : "text-slate-700"}`}>
+                                        {d.getDate()}
+                                      </div>
+                                      <div className="mt-0.5 text-[10px] font-bold text-slate-400">
+                                        {allSlots.filter(s => s.date === dateStr && s.isOpen).length}개 오픈
+                                      </div>
+                                    </button>
+                                  );
+                                }
+                                return cells;
+                              })()}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                         {(() => {
-                          const baseTimes = ["10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00"];
+                          const baseTimes = DEFAULT_TIMES;
                           const openSlots = allSlots
                             .filter(s => s.date === selectedDate && s.isOpen)
-                            .sort((a, b) => baseTimes.indexOf(a.time) - baseTimes.indexOf(b.time));
+                            .sort((a, b) => {
+                              const ai = baseTimes.indexOf(a.time);
+                              const bi = baseTimes.indexOf(b.time);
+                              if (ai === -1 || bi === -1) return a.time.localeCompare(b.time);
+                              return ai - bi;
+                            });
                           if (openSlots.length === 0) {
                             return (
                               <div className="col-span-3 text-center text-slate-400 text-sm font-medium py-6">

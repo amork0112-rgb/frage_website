@@ -7,6 +7,7 @@ import { ArrowRight, Play, UserPlus, Eye, EyeOff } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { supabase } from "@/lib/supabase";
 
 export default function PortalPage() {
   const { t } = useLanguage();
@@ -24,55 +25,47 @@ export default function PortalPage() {
     setLoading(true);
     setError(null);
 
-    // Mock Login Logic
-    setTimeout(() => {
-      const uid = id.trim();
-      const uidLower = uid.toLowerCase();
-      const pw = password.trim();
-      if (uidLower === "admin" && pw === "frage1234") {
-        try {
-          localStorage.setItem("admin_role", "admin");
-          localStorage.setItem("admin_name", "관리자");
-          localStorage.removeItem("current_teacher_id");
-        } catch {}
-        router.push("/admin");
-      } else if (uidLower === "master_teacher" && pw === "teacher1234") {
-        try {
-          localStorage.setItem("admin_role", "teacher");
-          localStorage.setItem("current_teacher_id", "master_teacher");
-          localStorage.setItem("admin_name", "관리자");
-        } catch {}
-        router.push("/teacher/students");
-      } else {
-        try {
-          const saved = localStorage.getItem("signup_account");
-          const profilesRaw = localStorage.getItem("signup_profiles");
-          const profiles = profilesRaw ? JSON.parse(profilesRaw) : [];
-          const matchSignup = saved ? JSON.parse(saved) : null;
-          const matched =
-            (matchSignup && String(matchSignup.id || "").trim().toLowerCase() === uidLower && String(matchSignup.password || "").trim() === pw) ||
-            (Array.isArray(profiles) && profiles.some((p: any) => String(p.id || "").trim().toLowerCase() === uidLower && String(p.password || "").trim() === pw));
-
-          if (matched) {
-            localStorage.setItem("portal_account", JSON.stringify({ id: uidLower, password: pw }));
-            localStorage.setItem("portal_role", "parent");
-            localStorage.setItem("needs_child_setup", "false");
-            router.push("/portal/home");
-            return;
-          }
-          // Fallback: already logged-in account stored earlier
-          const portalAccRaw = localStorage.getItem("portal_account");
-          const portalAcc = portalAccRaw ? JSON.parse(portalAccRaw) : null;
-          if (portalAcc && String(portalAcc.id || "").trim().toLowerCase() === uidLower && String(portalAcc.password || "").trim() === pw) {
-            localStorage.setItem("portal_role", "parent");
-            router.push("/portal/home");
-            return;
-          }
-        } catch {}
-        setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+    (async () => {
+      try {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: id.trim(),
+          password: password.trim(),
+        });
+        if (error) {
+          setError(error.message);
+          setLoading(false);
+          return;
+        }
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        if (!userId) {
+          setError("로그인 상태를 확인할 수 없습니다. 다시 시도해주세요.");
+          setLoading(false);
+          return;
+        }
+        const { data: rows } = await supabase
+          .from("parents")
+          .select("*")
+          .eq("auth_user_id", userId)
+          .limit(1);
+        const parent = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+        if (!parent) {
+          const now = new Date().toISOString();
+          await supabase
+            .from("parents")
+            .insert({
+              auth_user_id: userId,
+              name: "학부모",
+              phone: "",
+              created_at: now,
+            });
+        }
+        router.push("/portal/home");
+      } catch {
+        setError("로그인 중 문제가 발생했습니다.");
         setLoading(false);
       }
-    }, 800);
+    })();
   };
 
   useEffect(() => {
@@ -139,13 +132,13 @@ export default function PortalPage() {
               <div className="md:w-1/2 w-full max-w-md bg-white p-8 md:p-10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 relative">
                 <form onSubmit={handleLogin} autoComplete="off" className="flex flex-col gap-5">
                   <div>
-                    <label htmlFor="id" className="sr-only">ID</label>
+                    <label htmlFor="id" className="sr-only">Email</label>
                     <input 
-                      type="text" 
+                      type="email" 
                       id="id" 
                       value={id}
                       onChange={(e) => setId(e.target.value)}
-                      placeholder={t.portal.login_placeholder_id} 
+                      placeholder="you@example.com" 
                       className="w-full px-6 py-4 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all font-medium text-frage-navy placeholder:text-gray-400"
                       autoComplete="off"
                     />

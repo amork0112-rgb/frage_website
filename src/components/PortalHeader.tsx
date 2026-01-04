@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, Video, Bell, MessageCircle, User, LogOut, FileText } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import Image from "next/image";
 
 export default function PortalHeader() {
   const pathname = usePathname();
@@ -15,55 +17,36 @@ export default function PortalHeader() {
   const [studentDisplayName, setStudentDisplayName] = useState<string>("");
 
   useEffect(() => {
-    try {
-      const rawAccount = localStorage.getItem("portal_account");
-      const acc = rawAccount ? JSON.parse(rawAccount) : null;
-      const accountId = acc?.id || "";
-      const rawParent = localStorage.getItem("portal_parent_profile");
-      if (rawParent) {
-        const p = JSON.parse(rawParent);
-        const name =
-          p.parentName ||
-          p.name ||
-          p.parent?.name ||
-          "학부모";
-        setParentName(name);
+    (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) {
+        router.push("/login");
+        return;
       }
-      try {
-        const profilesRaw = localStorage.getItem("signup_profiles");
-        const profiles = profilesRaw ? JSON.parse(profilesRaw) : [];
-        const match = Array.isArray(profiles)
-          ? profiles.find((p: any) => String(p.id || "").trim().toLowerCase() === String(accountId || "").trim().toLowerCase())
-          : null;
-        if (match) {
-          const en = String(match.passportEnglishName || match.englishFirstName || "").trim();
-          const ko = String(match.studentName || "").trim();
-          setStudentDisplayName(en || ko || "");
-          const initFromStudent = () => {
-            const s = en || ko;
-            const v = String(s || "").trim();
-            if (!v) return "S";
-            const parts = v.split(/\s+/);
-            if (/[A-Za-z]/.test(v)) {
-              const a = parts[0]?.[0] || "";
-              const b = parts[1]?.[0] || "";
-              return (a + b).toUpperCase() || a.toUpperCase() || "S";
-            }
-            return v.slice(0, 2);
-          };
-          setAvatarInitials(initFromStudent());
-        }
-      } catch {}
-      if (accountId) {
-        const key = `portal_parent_photos_${accountId}`;
-        const rawPhotos = localStorage.getItem(key);
-        const arr = rawPhotos ? JSON.parse(rawPhotos) : [];
-        if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === "string") {
-          setAvatarUrl(arr[0]);
-        }
+      const { data: rows } = await supabase
+        .from("parents")
+        .select("*")
+        .eq("auth_user_id", userId)
+        .limit(1);
+      const parent = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+      if (!parent) {
+        router.push("/login");
+        return;
       }
-    } catch {}
-  }, []);
+      const name: string = parent.name || "학부모";
+      setParentName(name);
+      const initFromName = () => {
+        const v = String(name || "").trim();
+        if (!v) return "S";
+        const parts = v.split(/\s+/);
+        const a = parts[0]?.[0] || "";
+        const b = parts[1]?.[0] || "";
+        return (a + b).toUpperCase() || a.toUpperCase() || "S";
+      };
+      setAvatarInitials(initFromName());
+    })();
+  }, [router]);
 
   const menuItems = [
     { name: "홈", href: "/portal/home", icon: Home },
@@ -74,10 +57,9 @@ export default function PortalHeader() {
     { name: "내 자녀", href: "/portal/child", icon: User },
   ];
 
-  const handleLogout = () => {
-    // In a real app, clear auth tokens here
-    // localStorage.removeItem("token");
-    router.push("/");
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
   };
 
   return (
@@ -91,7 +73,7 @@ export default function PortalHeader() {
             className="w-8 h-8 rounded-full bg-frage-blue text-white flex items-center justify-center font-bold text-xs hover:opacity-80 transition-opacity"
           >
             {avatarUrl ? (
-              <img src={avatarUrl} alt={studentDisplayName || "아바타"} className="w-8 h-8 rounded-full object-cover" />
+              <Image src={avatarUrl} alt={studentDisplayName || "아바타"} width={32} height={32} className="rounded-full object-cover" />
             ) : (
               avatarInitials
             )}
@@ -157,7 +139,7 @@ export default function PortalHeader() {
                  className="w-8 h-8 rounded-full bg-frage-blue text-white flex items-center justify-center font-bold text-xs hover:opacity-80 transition-opacity"
                >
                  {avatarUrl ? (
-                  <img src={avatarUrl} alt={studentDisplayName || "아바타"} className="w-8 h-8 rounded-full object-cover" />
+                  <Image src={avatarUrl} alt={studentDisplayName || "아바타"} width={32} height={32} className="rounded-full object-cover" />
                  ) : (
                   avatarInitials
                  )}

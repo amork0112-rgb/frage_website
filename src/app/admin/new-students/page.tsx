@@ -213,6 +213,9 @@ export default function AdminNewStudentsPage() {
       ensureDefaultWeekdaySlotsForMonth(currentMonth);
     }
   }, [showCalendar, currentMonth]);
+  useEffect(() => {
+    ensureDefaultWeekdaySlotsForMonth(currentMonth);
+  }, [currentMonth]);
 
   useEffect(() => {
     if (showReservationModal) {
@@ -475,6 +478,7 @@ export default function AdminNewStudentsPage() {
           const arr = raw ? JSON.parse(raw) : [];
           const next = Array.isArray(arr) ? arr.map((p: any) => p.id === studentId ? { ...p, status: "enrolled" } : p) : [];
           localStorage.setItem("signup_profiles", JSON.stringify(next));
+          setStudents(next);
           const prof = Array.isArray(arr) ? arr.find((p: any) => p.id === studentId) : null;
           if (prof) {
             const item = {
@@ -723,28 +727,34 @@ export default function AdminNewStudentsPage() {
 
               return (
                 <div key={student.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
-                  <div 
-                    onClick={() => setExpandedId(isExpanded ? null : student.id)}
-                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-black text-lg">
-                        {student.studentName[0]}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-slate-900 text-lg">{student.studentName}</h3>
-                          <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                            {student.campus || "미지정"}
+              <div 
+                onClick={() => setExpandedId(isExpanded ? null : student.id)}
+                className="flex items-center justify-between p-6 cursor-pointer hover:bg-slate-50 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-black text-lg">
+                    {student.studentName[0]}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-slate-900 text-lg">{student.studentName}</h3>
+                      <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                        {student.campus || "미지정"}
+                      </span>
+                      {(() => {
+                        const st = student.status || (student.id.startsWith("manual_") ? "대기" : "대기");
+                        const enrolled = st === "enrolled" || st === "재원";
+                        return (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${enrolled ? "text-white bg-green-600" : "text-white bg-slate-400"}`}>
+                            {st}
                           </span>
-                          <span className="text-[10px] font-bold text-white bg-slate-400 px-1.5 py-0.5 rounded">
-                            {student.status || (student.id.startsWith("manual_") ? "대기" : "대기")}
-                          </span>
-                          {reservedText && (
-                            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
-                              {reservedText}
-                            </span>
-                          )}
+                        );
+                      })()}
+                      {reservedText && (
+                        <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+                          {reservedText}
+                        </span>
+                      )}
                         </div>
                         <div className="text-sm text-slate-500 font-medium mt-0.5">
                           {student.gender === "M" ? "남" : "여"} • {student.parentName} ({student.phone})

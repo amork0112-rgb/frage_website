@@ -114,6 +114,7 @@ function createMockSupabase(): SupabaseClient {
   const mock = {
     from: (table: string) => tableApi(table),
     auth: {
+      signUp: async (_payload?: any) => ({ data: { user: { id: "mock-user" } }, error: null }),
       signInWithPassword: async () => ({ data: { session: null, user: { id: "mock-user" } }, error: null }),
       getSession: async () => ({ data: { session: null }, error: null }),
       getUser: async () => ({ data: { user: { id: "mock-user" } }, error: null }),
