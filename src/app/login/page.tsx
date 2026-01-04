@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { redirectAfterAuth } from "@/lib/authRedirect";
 import type { FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -29,32 +28,9 @@ export default function LoginPage() {
         setError(error.message);
         return;
       }
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id;
-      const userEmail = userData?.user?.email || "";
-      if (!userId) {
-        router.replace("/login");
-        return;
-      }
-      const { data: parentsRows } = await supabase
-        .from("parents")
-        .select("*")
-        .eq("auth_user_id", userId)
-        .limit(1);
-      if (!Array.isArray(parentsRows) || parentsRows.length === 0) {
-        const now = new Date().toISOString();
-        await supabase
-          .from("parents")
-          .insert({
-            auth_user_id: userId,
-            name: "학부모",
-            phone: "",
-            created_at: now,
-          });
-      }
-      redirectAfterAuth(router, userEmail);
+      router.replace("/auth/redirect");
     } catch {
-      router.replace("/portal/home");
+      router.replace("/auth/redirect");
     } finally {
       setLoading(false);
     }

@@ -8,7 +8,6 @@ import { useLanguage } from "@/context/LanguageContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
-import { redirectAfterAuth } from "@/lib/authRedirect";
 
 export default function PortalPage() {
   const { t } = useLanguage();
@@ -37,32 +36,7 @@ export default function PortalPage() {
           setLoading(false);
           return;
         }
-        const { data: userData } = await supabase.auth.getUser();
-        const userId = userData?.user?.id;
-        const userEmail = userData?.user?.email || "";
-        if (!userId) {
-          setError("로그인 상태를 확인할 수 없습니다. 다시 시도해주세요.");
-          setLoading(false);
-          return;
-        }
-        const { data: rows } = await supabase
-          .from("parents")
-          .select("*")
-          .eq("auth_user_id", userId)
-          .limit(1);
-        const parent = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-        if (!parent) {
-          const now = new Date().toISOString();
-          await supabase
-            .from("parents")
-            .insert({
-              auth_user_id: userId,
-              name: "학부모",
-              phone: "",
-              created_at: now,
-            });
-        }
-        redirectAfterAuth(router, userEmail);
+        router.replace("/auth/redirect");
       } catch {
         setError("로그인 중 문제가 발생했습니다.");
       } finally {
