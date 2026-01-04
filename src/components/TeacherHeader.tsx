@@ -23,14 +23,11 @@ export default function TeacherHeader() {
     (async () => {
       try {
         const { data } = await supabase.auth.getUser();
-        const email = data?.user?.email || "";
-        const teacherEmail = process.env.NEXT_PUBLIC_MASTER_TEACHER_EMAIL || "";
-        if (email && teacherEmail && email.toLowerCase() === teacherEmail.toLowerCase()) {
-          localStorage.setItem("admin_role", "teacher");
-          localStorage.setItem("current_teacher_id", "master_teacher");
-          setRole("teacher");
-          setTeacherId("master_teacher");
-        }
+        const appRole = (data?.user?.app_metadata as any)?.role ?? null;
+        setRole(appRole);
+        try {
+          if (appRole) localStorage.setItem("admin_role", String(appRole));
+        } catch {}
       } catch {}
     })();
     const onStorage = (e: StorageEvent) => {
@@ -45,9 +42,7 @@ export default function TeacherHeader() {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  const isTeacher =
-    !role ||
-    ["teacher", "교사"].some((k) => role.toLowerCase().includes(k));
+  const isTeacher = !!role && ["teacher", "교사"].some((k) => role!.toLowerCase().includes(k));
   if (!isTeacher) return null;
 
   const menuItems = [
