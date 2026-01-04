@@ -2,7 +2,7 @@
   "id": "/",
   "name": "FRAGE EDU",
   "short_name": "FRAGE",
-  "start_url": "/",
+  "start_url": "/portal",
   "display": "standalone",
   "background_color": "#8f3fff",
   "theme_color": "#8f3fff",

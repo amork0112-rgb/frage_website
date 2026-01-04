@@ -48,40 +48,53 @@ export default function AdminAcademicCalendarPage() {
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("admin_calendar_events");
-      const list = raw ? JSON.parse(raw) : [];
-      setEvents(Array.isArray(list) ? list : []);
-    } catch {
-      setEvents([]);
-    }
-  }, []);
+    (async () => {
+      try {
+        const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
+        const data = await res.json();
+        const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+        setEvents(items);
+      } catch {
+        setEvents([]);
+      }
+    })();
+  }, [year, month]);
 
   useEffect(() => {
-    try {
-      const y = year;
-      const hol: HolidayEvent[] = getKoreanHolidays(y);
-      const monthStr = `${y}-${pad(month + 1)}`;
-      const monthHolidays = hol.filter((h: HolidayEvent) => h.start.startsWith(monthStr));
-      const raw = localStorage.getItem("admin_calendar_events");
-      const list: CalendarEvent[] = raw ? JSON.parse(raw) : [];
-      const exists = new Set(list.filter(e => e.type === "공휴일").map(e => `${e.title}|${e.start}`));
-      const toAdd = monthHolidays.filter((h: HolidayEvent) => !exists.has(`${h.title}|${h.start}`)).map((h: HolidayEvent) => ({
-        id: `ev_${h.title}_${h.start}`,
-        title: h.title,
-        type: "공휴일" as ScheduleType,
-        start: h.start,
-        end: h.end,
-        exposeToParent: h.exposeToParent,
-        notify: false,
-        createdAt: new Date().toISOString()
-      })) as CalendarEvent[];
-      if (toAdd.length > 0) {
-        const merged = [...toAdd, ...(Array.isArray(list) ? list : [])];
-        localStorage.setItem("admin_calendar_events", JSON.stringify(merged));
-        setEvents(merged);
-      }
-    } catch {}
+    (async () => {
+      try {
+        const y = year;
+        const hol: HolidayEvent[] = getKoreanHolidays(y);
+        const monthStr = `${y}-${pad(month + 1)}`;
+        const monthHolidays = hol.filter((h: HolidayEvent) => h.start.startsWith(monthStr));
+        if (monthHolidays.length > 0) {
+          await Promise.all(
+            monthHolidays.map((h: HolidayEvent) =>
+              fetch("/api/admin/academic-calendar", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  title: h.title,
+                  type: "공휴일",
+                  start_date: h.start,
+                  end_date: h.end,
+                  campus: null,
+                  class_name: null,
+                  place: null,
+                  expose_to_parent: h.exposeToParent ?? true,
+                  notify: false,
+                  notice_link: null,
+                }),
+              })
+            )
+          );
+          const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
+          const data = await res.json();
+          const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+          setEvents(items);
+        }
+      } catch {}
+    })();
   }, [year, month]);
 
   const monthDays = useMemo(() => {
@@ -145,53 +158,87 @@ export default function AdminAcademicCalendarPage() {
     const e = (end || "").trim();
     const t = title.trim();
     if (!t || !s || !e) return;
-    const item: CalendarEvent = {
-      id: `ev_${Date.now()}`,
-      title: t,
-      type,
-      start: s,
-      end: e,
-      campus,
-      className: className || undefined,
-      place: place || undefined,
-      exposeToParent,
-      notify,
-      noticeLink: noticeLink || undefined,
-      createdAt: new Date().toISOString()
-    };
-    const next = [item, ...events];
-    setEvents(next);
-    try {
-      localStorage.setItem("admin_calendar_events", JSON.stringify(next));
-      setTitle("");
-      setStart("");
-      setEnd("");
-      setCampus(undefined);
-      setClassName("");
-      setPlace("");
-      setExposeToParent(true);
-      setNotify(false);
-      setNoticeLink("");
-      alert("일정이 추가되었습니다.");
-    } catch {}
+    fetch("/api/admin/academic-calendar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: t,
+        type,
+        start_date: s,
+        end_date: e,
+        campus: campus ?? null,
+        class_name: className || null,
+        place: place || null,
+        expose_to_parent: exposeToParent,
+        notify,
+        notice_link: noticeLink || null,
+      }),
+    })
+      .then(async () => {
+        const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
+        const data = await res.json();
+        const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+        setEvents(items);
+        setTitle("");
+        setStart("");
+        setEnd("");
+        setCampus(undefined);
+        setClassName("");
+        setPlace("");
+        setExposeToParent(true);
+        setNotify(false);
+        setNoticeLink("");
+        alert("일정이 추가되었습니다.");
+      })
+      .catch(() => {});
   };
 
   const updateEvent = () => {
     if (!editingEvent) return;
-    const next = events.map(ev => ev.id === editingEvent.id ? editingEvent : ev);
-    setEvents(next);
-    localStorage.setItem("admin_calendar_events", JSON.stringify(next));
-    setEditingEvent(null);
-    alert("일정이 수정되었습니다.");
+    fetch("/api/admin/academic-calendar", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: editingEvent.id,
+        title: editingEvent.title,
+        type: editingEvent.type,
+        start_date: editingEvent.start,
+        end_date: editingEvent.end,
+        campus: editingEvent.campus ?? null,
+        class_name: editingEvent.className || null,
+        place: editingEvent.place || null,
+        expose_to_parent: editingEvent.exposeToParent,
+        notify: editingEvent.notify,
+        notice_link: editingEvent.noticeLink || null,
+      }),
+    })
+      .then(async () => {
+        const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
+        const data = await res.json();
+        const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+        setEvents(items);
+        setEditingEvent(null);
+        alert("일정이 수정되었습니다.");
+      })
+      .catch(() => {});
   };
 
   const deleteEvent = () => {
     if (!editingEvent) return;
     if (!confirm("정말 삭제하시겠습니까?")) return;
-    const next = events.filter(ev => ev.id !== editingEvent.id);
-    setEvents(next);
-    localStorage.setItem("admin_calendar_events", JSON.stringify(next));
-    setEditingEvent(null);
+    fetch("/api/admin/academic-calendar", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editingEvent.id }),
+    })
+      .then(async () => {
+        const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
+        const data = await res.json();
+        const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+        setEvents(items);
+        setEditingEvent(null);
+      })
+      .catch(() => {});
   };
 
   const prevMonth = () => {

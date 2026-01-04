@@ -1,655 +1,395 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bus, Clock, AlertTriangle } from "lucide-react";
+import { Bus, Clock, AlertTriangle, Save, Sparkles } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-type Status = "재원" | "휴원" | "퇴원";
+type Bus = {
+  id: number;
+  name: string;
+  capacity: number;
+  assignedCount: number;
+  estimatedTime: number;
+};
 
 type Student = {
   id: string;
-  childId?: string;
   name: string;
-  englishName: string;
-  birthDate: string;
-  phone: string;
   className: string;
   campus: string;
-  status: Status;
-  parentName: string;
-  parentAccountId: string;
-  address: string;
-  bus: string;
-  departureTime: string;
-  arrivalMethod?: string;
-  arrivalPlace?: string;
-  departureMethod?: string;
-  departurePlace?: string;
+  flags?: {
+    sibling?: boolean;
+    timeSensitive?: boolean;
+    warning?: boolean;
+  };
 };
 
-type BusCar = {
+type RouteBlock = {
   id: string;
-  name: string;
-  staff: string;
-  timeSlot: string;
+  label: string;
+  order: number;
+  estimatedExtraTime: number;
+  students: Student[];
 };
 
 export default function AdminTransportPage() {
-  const [role, setRole] = useState<"admin" | "teacher">("admin");
-  const [campusFilter, setCampusFilter] = useState<string>("All");
-  const [timeFilter, setTimeFilter] = useState<string>("All");
-  const [busFilter, setBusFilter] = useState<string>("All");
-  const [students, setStudents] = useState<Student[]>([]);
-  const [assignments, setAssignments] = useState<Record<string, string>>({});
-  const [dirty, setDirty] = useState(false);
-  const [requests, setRequests] = useState<{ id: string; childId: string; childName: string; type: "bus_change"; note?: string; dateStart: string }[]>([]);
-  const [mode, setMode] = useState<"dropoff" | "pickup">("dropoff");
-  const [arrivalTimes, setArrivalTimes] = useState<Record<string, string>>({});
-  const [busCars, setBusCars] = useState<BusCar[]>([]);
-  const [newBusName, setNewBusName] = useState("");
-  const [newBusStaff, setNewBusStaff] = useState("");
-  const [newBusTime, setNewBusTime] = useState("");
-  const [orderMap, setOrderMap] = useState<Record<string, string[]>>({});
-  const [studentUpdates, setStudentUpdates] = useState<Record<string, { departureTime?: string }>>({});
+  const [semester, setSemester] = useState<string>(() => {
+    const d = new Date();
+    const term = d.getMonth() < 6 ? "1" : "2";
+    return `${d.getFullYear()}-${term}`;
+  });
+  const [campus, setCampus] = useState<string>("All");
+  const [mode, setMode] = useState<"pickup" | "dropoff">("pickup");
+  const [dirty, setDirty] = useState<boolean>(false);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [selectedBusId, setSelectedBusId] = useState<number>(2);
+  const [buses, setBuses] = useState<Bus[]>(() =>
+    Array.from({ length: 6 }, (_, i) => {
+      const id = i + 2;
+      return { id, name: `${id}호차`, capacity: 12, assignedCount: 0, estimatedTime: 0 };
+    })
+  );
+  const [routesByBus, setRoutesByBus] = useState<Record<number, RouteBlock[]>>({});
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
 
   useEffect(() => {
-    try {
-      const r = localStorage.getItem("admin_role");
-      setRole(r === "teacher" ? "teacher" : "admin");
-      (async () => {
-        const { data } = await supabase
-          .from("portal_requests")
-          .select("*")
-          .eq("type", "bus_change")
-          .order("created_at", { ascending: false });
-        const mapped = Array.isArray(data)
-          ? data.map((row: any) => ({
-              id: String(row.id),
-              childId: String(row.student_id || ""),
-              childName: "",
-              type: "bus_change" as const,
-              note: String(row?.payload?.note || ""),
-              dateStart: String(row?.payload?.dateStart || row?.created_at || ""),
-            }))
-          : [];
-        setRequests(mapped);
-      })();
-      const rawArr = localStorage.getItem("admin_arrival_times");
-      const map = rawArr ? JSON.parse(rawArr) : {};
-      setArrivalTimes(map || {});
-      setStudentUpdates({});
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch("/api/admin/students?pageSize=400");
-        const data = await res.json();
-        const items = Array.isArray(data) ? data : data.items || [];
-        let mergedItems: Student[] = items;
-        try {
-          const bulkRaw = localStorage.getItem("admin_bulk_students");
-          const bulkArr: Student[] = bulkRaw ? JSON.parse(bulkRaw) : [];
-          if (Array.isArray(bulkArr) && bulkArr.length > 0) {
-            mergedItems = [...mergedItems, ...bulkArr];
-          }
-          const rawProfiles = localStorage.getItem("signup_profiles");
-          const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
-          const arr: any[] = Array.isArray(profiles) ? profiles : [];
-          if (arr.length > 0) {
-            const existingPhones = new Set(mergedItems.map(s => s.phone));
-            const mapped: Student[] = arr
-              .filter(p => (p?.phone || "").trim() !== "")
-              .map((p, idx) => ({
-                id: `signup_${(p.phone || String(idx)).replace(/[^0-9a-zA-Z]/g, "")}`,
-                childId: undefined,
-                name: String(p.studentName || "").trim(),
-                englishName: String(p.englishFirstName || p.passportEnglishName || "").trim(),
-                birthDate: String(p.childBirthDate || "").trim(),
-                phone: String(p.phone || "").trim(),
-                className: "미배정",
-                campus: "미지정",
-                status: "재원" as Status,
-                parentName: String(p.parentName || "").trim(),
-                parentAccountId: String(p.id || "").trim(),
-                address: [String(p.address || "").trim(), String(p.addressDetail || "").trim()].filter(Boolean).join(" "),
-                bus: "미배정",
-                departureTime: "",
-                arrivalMethod: String(p.arrivalMethod || "").trim(),
-                arrivalPlace: String(p.arrivalPlace || "").trim(),
-                departureMethod: String(p.departureMethod || "").trim(),
-                departurePlace: String(p.departurePlace || "").trim()
-              }))
-              .filter(s => !existingPhones.has(s.phone));
-            mergedItems = [...mergedItems, ...mapped];
-          }
-        } catch {}
-        setStudents(mergedItems);
-      } catch {}
-    };
-    load();
-    try {
-      const raw = localStorage.getItem("admin_bus_cars");
-      let list: BusCar[] = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(list) || list.length === 0) {
-        list = [
-          { id: "b1", name: "1호차", staff: "김기사 / 박교사", timeSlot: "16:00" },
-          { id: "b2", name: "2호차", staff: "이기사 / 최교사", timeSlot: "16:30" },
-          { id: "b3", name: "3호차", staff: "박기사 / 장교사", timeSlot: "17:00" },
-          { id: "b4", name: "4호차", staff: "정기사 / 윤교사", timeSlot: "17:30" },
-          { id: "b5", name: "5호차", staff: "오기사 / 김교사", timeSlot: "18:00" },
-          { id: "b6", name: "6호차", staff: "최기사 / 이교사", timeSlot: "18:30" },
-          { id: "b7", name: "7호차", staff: "한기사 / 임교사", timeSlot: "19:00" },
-        ];
-        localStorage.setItem("admin_bus_cars", JSON.stringify(list));
-      }
-      setBusCars(list);
-    } catch {
-      setBusCars([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      const key = "admin_transport_assignments";
-      const raw = localStorage.getItem(key);
-      const all = raw ? JSON.parse(raw) : {};
-      const scopeKey = `${campusFilter}-${timeFilter}`;
-      setAssignments(all[scopeKey] || {});
-      const omRaw = localStorage.getItem("admin_transport_order");
-      const omAll = omRaw ? JSON.parse(omRaw) : {};
-      setOrderMap(omAll[scopeKey] || {});
-    } catch {
-      setAssignments({});
-      setOrderMap({});
-    }
-  }, [campusFilter, timeFilter]);
-
-  const parseTime = (t: string) => {
-    const m = /^(\d{1,2}):(\d{2})$/.exec(t || "");
-    if (!m) return Number.MAX_SAFE_INTEGER;
-    const hh = parseInt(m[1], 10);
-    const mm = parseInt(m[2], 10);
-    return hh * 60 + mm;
-  };
-
-  const busCarsSorted: BusCar[] = useMemo(() => {
-    return (busCars || []).slice().sort((a, b) => parseTime(a.timeSlot) - parseTime(b.timeSlot));
-  }, [busCars]);
-
-  const colorForBus = (busName: string) =>
-    busName === "1호차"
-      ? "bg-red-500"
-      : busName === "2호차"
-      ? "bg-blue-500"
-      : busName === "3호차"
-      ? "bg-green-500"
-      : busName === "4호차"
-      ? "bg-purple-500"
-      : busName === "5호차"
-      ? "bg-amber-500"
-      : busName === "6호차"
-      ? "bg-pink-500"
-      : busName === "7호차"
-      ? "bg-teal-500"
-      : "bg-slate-400";
-
-  const filteredStudents = useMemo(() => {
-    return students
-      .filter((s) => (campusFilter === "All" ? true : s.campus === campusFilter))
-      .filter((s) => (timeFilter === "All" ? true : (s.departureTime || "").startsWith(timeFilter) || (s.departureTime || "") === timeFilter));
-  }, [students, campusFilter, timeFilter]);
-
-  const assignedListFor = (busName: string) => {
-    const list = filteredStudents.filter((s) => (assignments[s.id] || s.bus) === busName).slice();
-    const order = orderMap[busName] || [];
-    const indexOf = (id: string) => {
-      const idx = order.indexOf(id);
-      return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
-    };
-    return list.sort((a, b) => indexOf(a.id) - indexOf(b.id));
-  };
-
-  const unassignedList = useMemo(() => {
-    return filteredStudents.filter(s => {
-      const assignedBus = assignments[s.id] || s.bus;
-      const isUnassigned = !assignedBus || assignedBus === "미배정" || assignedBus === "없음";
-      const isShuttle = 
-        mode === "pickup" ? (s.arrivalMethod || "").includes("셔틀") :
-        mode === "dropoff" ? (s.departureMethod || "").includes("셔틀") :
-        false;
-      const hasRequest = requests.some(r => r.childId === s.childId || r.childName === s.name);
-      return isUnassigned && (isShuttle || hasRequest);
-    });
-  }, [filteredStudents, assignments, mode, requests]);
-
-  const hasBusChangeRequest = (s: Student) =>
-    !!requests.find((r) => r.childId === s.childId || r.childName === s.name);
-
-  const canEdit = role === "admin";
-
-  const onDropToBus = (busName: string, e: React.DragEvent<HTMLDivElement>) => {
-    if (!canEdit) return;
-    const id = e.dataTransfer.getData("student_id");
-    const fromBus = e.dataTransfer.getData("from_bus");
-    if (!id) return;
-    const nextAssign = { ...assignments, [id]: busName };
-    setAssignments(nextAssign);
-    const scopeKey = `${campusFilter}-${timeFilter}`;
-    try {
-      const raw = localStorage.getItem("admin_transport_assignments");
-      const all = raw ? JSON.parse(raw) : {};
-      all[scopeKey] = nextAssign;
-      localStorage.setItem("admin_transport_assignments", JSON.stringify(all));
-    } catch {}
-    const nextOrder = { ...orderMap };
-    const removeFrom = (bn: string) => {
-      const arr = nextOrder[bn] || [];
-      nextOrder[bn] = arr.filter((sid) => sid !== id);
-    };
-    if (fromBus) removeFrom(fromBus);
-    const arr = nextOrder[busName] || [];
-    nextOrder[busName] = [...arr, id];
-    setOrderMap(nextOrder);
-    try {
-      const omRaw = localStorage.getItem("admin_transport_order");
-      const omAll = omRaw ? JSON.parse(omRaw) : {};
-      omAll[scopeKey] = nextOrder;
-      localStorage.setItem("admin_transport_order", JSON.stringify(omAll));
-    } catch {}
-    setDirty(true);
-  };
-
-  const onDragStartStudent = (id: string, busName: string, e: React.DragEvent) => {
-    e.dataTransfer.setData("student_id", id);
-    e.dataTransfer.setData("from_bus", busName);
-  };
-
-  const onDropOnItem = (busName: string, targetId: string, e: React.DragEvent) => {
-    if (!canEdit) return;
-    const id = e.dataTransfer.getData("student_id");
-    const fromBus = e.dataTransfer.getData("from_bus");
-    if (!id) return;
-    const nextOrder = { ...orderMap };
-    const clean = (bn: string) => {
-      const arr = nextOrder[bn] || [];
-      nextOrder[bn] = arr.filter((sid) => sid !== id);
-    };
-    if (fromBus) clean(fromBus);
-    const arr = nextOrder[busName] || [];
-    const idx = arr.indexOf(targetId);
-    const newArr = [...arr];
-    if (!newArr.includes(id)) {
-      newArr.splice(idx, 0, id);
-    } else {
-      const oldIdx = newArr.indexOf(id);
-      newArr.splice(oldIdx, 1);
-      const insertIdx = newArr.indexOf(targetId);
-      newArr.splice(insertIdx, 0, id);
-    }
-    nextOrder[busName] = newArr;
-    setOrderMap(nextOrder);
-    const scopeKey = `${campusFilter}-${timeFilter}`;
-    try {
-      const omRaw = localStorage.getItem("admin_transport_order");
-      const omAll = omRaw ? JSON.parse(omRaw) : {};
-      omAll[scopeKey] = nextOrder;
-      localStorage.setItem("admin_transport_order", JSON.stringify(omAll));
-    } catch {}
-    setDirty(true);
-  };
-
-  const updateArrivalTime = (id: string, t: string) => {
-    const next = { ...arrivalTimes, [id]: t };
-    setArrivalTimes(next);
-    try {
-      localStorage.setItem("admin_arrival_times", JSON.stringify(next));
-    } catch {}
-  };
-
-  const updateDepartureTime = (id: string, t: string) => {
-    const prev = studentUpdates[id] || {};
-    const nextMap = { ...studentUpdates, [id]: { ...prev, departureTime: t } };
-    setStudentUpdates(nextMap);
-    (async () => {
-      await supabase.from("students").update({ departureTime: t }).eq("id", id);
-      await supabase.from("student_status_logs").insert({
-        student_id: id,
-        field: "departureTime",
-        value: t,
-        created_at: new Date().toISOString(),
+    const init = async () => {
+      const demo: Student[] = Array.from({ length: 36 }, (_, i) => {
+        const campus = ["International", "Andover", "Platz", "Atheneum"][i % 4];
+        const cls = ["K1", "K2", "J1", "J2", "S1"][i % 5];
+        const flags = {
+          sibling: i % 11 === 0,
+          timeSensitive: i % 7 === 0,
+          warning: i % 13 === 0,
+        };
+        return { id: `stu_${i + 1}`, name: `학생${i + 1}`, className: cls, campus, flags };
       });
-    })();
+      setAllStudents(demo);
+      setRoutesByBus({});
+      setDirty(false);
+    };
+    init();
+  }, []);
+
+  const visibleStudents = useMemo(() => {
+    return allStudents.filter(s => (campus === "All" ? true : s.campus === campus));
+  }, [allStudents, campus]);
+
+  const recalcBusStats = (rb: Record<number, RouteBlock[]>) => {
+    const next = buses.map(b => {
+      const blocks = rb[b.id] || [];
+      const count = blocks.reduce((sum, blk) => sum + blk.students.length, 0);
+      const extra = blocks.reduce((sum, blk) => sum + blk.estimatedExtraTime, 0);
+      const base = mode === "pickup" ? 30 : 35;
+      return { ...b, assignedCount: count, estimatedTime: base + extra };
+    });
+    setBuses(next);
   };
 
-  const saveAll = () => {
-    try {
-      const key = "admin_transport_assignments";
-      const raw = localStorage.getItem(key);
-      const all = raw ? JSON.parse(raw) : {};
-      const scopeKey = `${campusFilter}-${timeFilter}`;
-      all[scopeKey] = assignments;
-      localStorage.setItem(key, JSON.stringify(all));
-    } catch {}
-    try {
-      const omRaw = localStorage.getItem("admin_transport_order");
-      const omAll = omRaw ? JSON.parse(omRaw) : {};
-      const scopeKey = `${campusFilter}-${timeFilter}`;
-      omAll[scopeKey] = orderMap;
-      localStorage.setItem("admin_transport_order", JSON.stringify(omAll));
-    } catch {}
+  const aiAutoAssign = async () => {
+    const base = visibleStudents.slice();
+    const byCampus: Record<string, Student[]> = {};
+    base.forEach(s => {
+      const k = s.campus || "Unknown";
+      (byCampus[k] ||= []).push(s);
+    });
+    const rb: Record<number, RouteBlock[]> = {};
+    let seq = 1;
+    const busIds = buses.map(b => b.id);
+    Object.keys(byCampus).forEach((camp) => {
+      const group = byCampus[camp];
+      const blocks: RouteBlock[] = [];
+      for (let i = 0; i < group.length; i += 5) {
+        const chunk = group.slice(i, i + 5);
+        const label = `${camp} 블록 ${Math.floor(i / 5) + 1}`;
+        const est = Math.max(2, Math.round(chunk.length * 2));
+        blocks.push({ id: `blk_${seq++}`, label, order: seq, estimatedExtraTime: est, students: chunk });
+      }
+      blocks.forEach((blk, idx) => {
+        const targetBus = busIds[(seq + idx) % busIds.length];
+        (rb[targetBus] ||= []).push(blk);
+      });
+    });
+    const normalized: Record<number, RouteBlock[]> = {};
+    busIds.forEach(id => {
+      const arr = (rb[id] || []).slice().sort((a, b) => a.order - b.order);
+      normalized[id] = arr;
+    });
+    setRoutesByBus(normalized);
+    recalcBusStats(normalized);
+    setDirty(true);
+  };
+
+  const handleDragStartStudent = (s: Student, fromBusId: number, fromBlockId: string, e: React.DragEvent) => {
+    e.dataTransfer.setData("drag_type", "student");
+    e.dataTransfer.setData("student_id", s.id);
+    e.dataTransfer.setData("from_bus_id", String(fromBusId));
+    e.dataTransfer.setData("from_block_id", fromBlockId);
+  };
+
+  const handleDropStudentToBlock = (toBusId: number, toBlockId: string, e: React.DragEvent) => {
+    const type = e.dataTransfer.getData("drag_type");
+    if (type !== "student") return;
+    const sid = e.dataTransfer.getData("student_id");
+    const fromBusId = Number(e.dataTransfer.getData("from_bus_id"));
+    const fromBlockId = e.dataTransfer.getData("from_block_id");
+    if (!sid || !fromBusId || !fromBlockId) return;
+    const rb = { ...routesByBus };
+    const fromBlocks = (rb[fromBusId] || []).map(b => ({ ...b }));
+    const fromBlock = fromBlocks.find(b => b.id === fromBlockId);
+    if (!fromBlock) return;
+    const student = fromBlock.students.find(s => s.id === sid);
+    if (!student) return;
+    fromBlock.students = fromBlock.students.filter(s => s.id !== sid);
+    rb[fromBusId] = fromBlocks;
+    const toBlocks = (rb[toBusId] || []).map(b => ({ ...b }));
+    const toBlock = toBlocks.find(b => b.id === toBlockId);
+    if (!toBlock) return;
+    toBlock.students = [...toBlock.students, student];
+    rb[toBusId] = toBlocks;
+    setRoutesByBus(rb);
+    recalcBusStats(rb);
+    setDirty(true);
+  };
+
+  const handleDragStartBlock = (blockId: string, fromBusId: number, e: React.DragEvent) => {
+    e.dataTransfer.setData("drag_type", "block");
+    e.dataTransfer.setData("block_id", blockId);
+    e.dataTransfer.setData("from_bus_id", String(fromBusId));
+  };
+
+  const handleDropBlockToBus = (toBusId: number, e: React.DragEvent) => {
+    const type = e.dataTransfer.getData("drag_type");
+    if (type !== "block") return;
+    const blockId = e.dataTransfer.getData("block_id");
+    const fromBusId = Number(e.dataTransfer.getData("from_bus_id"));
+    if (!blockId || !fromBusId) return;
+    const rb = { ...routesByBus };
+    const from = (rb[fromBusId] || []).slice();
+    const moving = from.find(b => b.id === blockId);
+    if (!moving) return;
+    rb[fromBusId] = from.filter(b => b.id !== blockId);
+    const to = (rb[toBusId] || []).slice();
+    to.push(moving);
+    rb[toBusId] = to;
+    setRoutesByBus(rb);
+    recalcBusStats(rb);
+    setDirty(true);
+  };
+
+  const handleDropBlockBefore = (toBusId: number, beforeBlockId: string, e: React.DragEvent) => {
+    const type = e.dataTransfer.getData("drag_type");
+    if (type !== "block") return;
+    const blockId = e.dataTransfer.getData("block_id");
+    const fromBusId = Number(e.dataTransfer.getData("from_bus_id"));
+    if (!blockId || !fromBusId) return;
+    const rb = { ...routesByBus };
+    const from = (rb[fromBusId] || []).slice();
+    const moving = from.find(b => b.id === blockId);
+    if (!moving) return;
+    rb[fromBusId] = from.filter(b => b.id !== blockId);
+    const to = (rb[toBusId] || []).slice();
+    const idx = to.findIndex(b => b.id === beforeBlockId);
+    const next = [...to];
+    next.splice(Math.max(0, idx), 0, moving);
+    rb[toBusId] = next;
+    setRoutesByBus(rb);
+    recalcBusStats(rb);
+    setDirty(true);
+  };
+
+  const anyCapacityExceeded = useMemo(() => {
+    return buses.some(b => b.assignedCount > b.capacity);
+  }, [buses]);
+
+  const anyTimeExceeded = useMemo(() => {
+    return buses.some(b => b.estimatedTime > 60);
+  }, [buses]);
+
+  const colorForBusStatus = (b: Bus) => {
+    if (b.assignedCount > b.capacity) return "border-red-200 bg-red-50";
+    if (b.estimatedTime > 60) return "border-amber-200 bg-amber-50";
+    return "border-emerald-200 bg-emerald-50";
+  };
+
+  const saveRoutes = async () => {
+    if (!dirty || anyCapacityExceeded) return;
+    setSaving(true);
+    const payload = {
+      semester,
+      campus,
+      mode,
+      routes: routesByBus,
+      buses,
+      saved_at: new Date().toISOString(),
+    };
+    await supabase.from("transport_routes").insert(payload as any);
+    setSaving(false);
     setDirty(false);
   };
-  const saveBusCars = (next: BusCar[]) => {
-    setBusCars(next);
-    try {
-      localStorage.setItem("admin_bus_cars", JSON.stringify(next));
-    } catch {}
-  };
-  const addBusCar = () => {
-    if (!canEdit) return;
-    const name = newBusName.trim();
-    const staff = newBusStaff.trim();
-    const timeSlot = newBusTime.trim();
-    if (!name || !staff || !/^\d{1,2}:\d{2}$/.test(timeSlot)) return;
-    const id = `b_${Date.now().toString(36)}`;
-    const next = [...busCars, { id, name, staff, timeSlot }];
-    saveBusCars(next);
-    setNewBusName("");
-    setNewBusStaff("");
-    setNewBusTime("");
-  };
-  const updateBusCar = (id: string, patch: Partial<BusCar>) => {
-    if (!canEdit) return;
-    const next = busCars.map((b) => (b.id === id ? { ...b, ...patch } : b));
-    saveBusCars(next);
-  };
-  const removeBusCar = (id: string) => {
-    if (!canEdit) return;
-    const next = busCars.filter((b) => b.id !== id);
-    saveBusCars(next);
-  };
-
-  // 지도 및 지오코딩 관련 로직 제거
-
-  // 지도 렌더링 제거
 
   return (
-    <main dir="ltr" style={{ writingMode: "horizontal-tb" }} className="mx-auto max-w-6xl px-4 py-8">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+    <main className="mx-auto max-w-7xl px-4 py-8">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Bus className="w-6 h-6 text-frage-yellow" />
-          <h1 className="text-2xl font-black text-slate-900 whitespace-nowrap">차량 관리</h1>
+          <h1 className="text-2xl font-black text-slate-900">운영용 차량 관리</h1>
+          {dirty && <span className="ml-2 px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">변경 사항 있음</span>}
         </div>
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs md:text-sm font-bold text-slate-700 whitespace-nowrap">운영</span>
-            <div className="flex gap-2">
-              {[
-                { k: "dropoff", label: "하원" },
-                { k: "pickup", label: "등원" },
-              ].map((o) => (
-                <button
-                  key={o.k}
-                  onClick={() => setMode(o.k as any)}
-                  className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg border text-xs md:text-sm font-bold ${
-                    mode === o.k ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
-                  }`}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
+        <div className="flex items-center gap-2">
+          <select value={semester} onChange={(e) => setSemester(e.target.value)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white">
+            {["2026-1","2026-2","2027-1","2027-2"].map(s => (<option key={s} value={s}>{s}</option>))}
+          </select>
+          <select value={campus} onChange={(e) => setCampus(e.target.value)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white">
+            {["All","International","Andover","Platz","Atheneum"].map(c => (<option key={c} value={c}>{c === "All" ? "전체" : c}</option>))}
+          </select>
+          <div className="flex gap-1">
+            {["pickup","dropoff"].map(m => (
+              <button
+                key={m}
+                onClick={() => setMode(m as "pickup" | "dropoff")}
+                className={`px-3 py-1.5 rounded-lg border text-sm font-bold ${mode === m ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"}`}
+              >
+                {m === "pickup" ? "등원" : "하원"}
+              </button>
+            ))}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs md:text-sm font-bold text-slate-700 whitespace-nowrap">캠퍼스</span>
-            <div className="flex gap-2 overflow-x-auto md:overflow-visible whitespace-nowrap md:whitespace-normal md:flex-wrap -mx-1 px-1">
-              {["All", "International", "Andover", "Platz", "Atheneum"].map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCampusFilter(c)}
-                  className={`shrink-0 px-2 py-1 md:px-3 md:py-1.5 rounded-lg border text-xs md:text-sm font-bold ${
-                    campusFilter === c ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
-                  }`}
-                >
-                  {c === "All" ? "전체" : c === "International" ? "국제관" : c === "Andover" ? "앤도버" : c === "Platz" ? "플라츠" : "아테네움관"}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs md:text-sm font-bold text-slate-700 whitespace-nowrap">시간대</span>
-            <div className="flex gap-2 overflow-x-auto md:overflow-visible whitespace-nowrap md:whitespace-normal md:flex-wrap -mx-1 px-1">
-              {["All", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30"].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTimeFilter(t)}
-                  className={`shrink-0 px-2 py-1 md:px-3 md:py-1.5 rounded-lg border text-xs md:text-sm font-bold ${
-                    timeFilter === t ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
-                  }`}
-                >
-                  {t === "All" ? "전체" : t}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs md:text-sm font-bold text-slate-700 whitespace-nowrap">호차</span>
-            <div className="flex gap-2 overflow-x-auto md:overflow-visible whitespace-nowrap md:whitespace-normal md:flex-wrap -mx-1 px-1">
-              {["All", ...busCarsSorted.map((b) => b.name)].map((b) => (
-                <button
-                  key={b}
-                  onClick={() => setBusFilter(b)}
-                  className={`shrink-0 px-2 py-1 md:px-3 md:py-1.5 rounded-lg border text-xs md:text-sm font-bold ${
-                    busFilter === b ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
-                  }`}
-                >
-                  {b}
-                </button>
-              ))}
-            </div>
-          </div>
+          <button
+            onClick={aiAutoAssign}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-bold bg-white"
+          >
+            <Sparkles className="w-4 h-4 text-purple-600" />
+            AI 자동 배치
+          </button>
+          <button
+            onClick={saveRoutes}
+            disabled={!dirty || saving || anyCapacityExceeded}
+            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-bold ${!dirty || saving || anyCapacityExceeded ? "bg-slate-200 text-slate-500" : "bg-frage-navy text-white"}`}
+          >
+            <Save className="w-4 h-4" />
+            저장
+          </button>
         </div>
       </div>
 
-      {!canEdit && (
-        <div className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-700">
-          <AlertTriangle className="w-4 h-4 text-slate-500" />
-          열람 전용입니다. 권한이 있는 계정으로 로그인하세요.
-        </div>
-      )}
-
-      {unassignedList.length > 0 && (
-        <div className="mb-6 bg-orange-50 rounded-2xl border border-orange-200 shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-orange-500 text-white font-bold text-xs">!</div>
-            <div className="text-sm font-bold text-slate-900">미배정 (셔틀 요청)</div>
-            <div className="text-xs text-orange-600 font-bold">{unassignedList.length}명</div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {unassignedList.map(s => (
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <aside className="md:col-span-3 space-y-3">
+          {buses.map(b => {
+            const status = colorForBusStatus(b);
+            const timeColor = b.estimatedTime > 60 ? "text-amber-600" : "text-slate-500";
+            const capColor = b.assignedCount > b.capacity ? "text-red-600" : "text-slate-500";
+            return (
               <div
-                key={s.id}
-                draggable={canEdit}
-                onDragStart={(e) => onDragStartStudent(s.id, "미배정", e)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-orange-200 bg-white shadow-sm cursor-grab active:cursor-grabbing"
+                key={b.id}
+                onClick={() => setSelectedBusId(b.id)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleDropBlockToBus(b.id, e)}
+                className={`border rounded-xl p-4 cursor-pointer ${status} ${selectedBusId === b.id ? "ring-2 ring-slate-400" : ""}`}
               >
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-slate-900">{s.name}</span>
-                  <span className="text-xs text-slate-500">{s.className}</span>
+                <div className="flex items-center justify-between">
+                  <div className="font-bold text-slate-900">{b.name}</div>
+                  <div className="text-xs font-bold text-slate-500">{mode === "pickup" ? "등원" : "하원"}</div>
                 </div>
-                {mode === "pickup" && s.arrivalPlace && (
-                  <div className="text-[10px] text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
-                    등원: {s.arrivalPlace}
+                <div className="mt-2 flex items-center justify-between text-xs">
+                  <div className={`font-bold ${capColor}`}>정원 {b.capacity} / 현재 {b.assignedCount}</div>
+                  <div className={`flex items-center gap-1 ${timeColor}`}>
+                    <Clock className="w-3.5 h-3.5" />
+                    예상 {b.estimatedTime}분
                   </div>
-                )}
-                {mode === "dropoff" && s.departurePlace && (
-                  <div className="text-[10px] text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
-                    하원: {s.departurePlace}
-                  </div>
-                )}
+                </div>
               </div>
-            ))}
+            );
+          })}
+          <div className="text-xs text-slate-500">
+            초록 정상, 노랑 시간 초과, 빨강 정원 초과
           </div>
-        </div>
-      )}
+        </aside>
 
-      <div className="grid grid-cols-1 gap-6">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bus className="w-5 h-5 text-slate-500" />
-              <span className="text-sm font-bold text-slate-700">호차 배치</span>
+        <section className="md:col-span-6">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+              <div className="text-lg font-bold text-slate-900">{buses.find(b => b.id === selectedBusId)?.name}</div>
+              <div className="text-xs font-bold text-slate-500">정류 블록 및 학생</div>
             </div>
-            {canEdit && (
-              <div className="flex items-center gap-2">
-                <input
-                  value={newBusName}
-                  onChange={(e) => setNewBusName(e.target.value)}
-                  placeholder="호차명(예: 7호차)"
-                  className="px-2 py-1 rounded-lg border border-slate-200 text-xs"
-                />
-                <input
-                  value={newBusStaff}
-                  onChange={(e) => setNewBusStaff(e.target.value)}
-                  placeholder="담당자"
-                  className="px-2 py-1 rounded-lg border border-slate-200 text-xs"
-                />
-                <input
-                  value={newBusTime}
-                  onChange={(e) => setNewBusTime(e.target.value)}
-                  placeholder="시간대(HH:MM)"
-                  className="px-2 py-1 rounded-lg border border-slate-200 text-xs"
-                />
-                <button onClick={addBusCar} className="px-2 py-1 rounded-lg bg-frage-navy text-white text-xs font-bold">추가</button>
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-1 gap-3 p-4">
-            {busCarsSorted
-              .filter((b) => (busFilter === "All" ? true : b.name === busFilter))
-              .map((b) => {
-                const list = assignedListFor(b.name);
+            <div className="p-4 space-y-4">
+              {(routesByBus[selectedBusId] || []).map((blk) => {
+                const count = blk.students.length;
                 return (
                   <div
-                    key={b.id}
+                    key={blk.id}
+                    draggable
+                    onDragStart={(e) => handleDragStartBlock(blk.id, selectedBusId, e)}
                     onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => onDropToBus(b.name, e)}
-                    className="rounded-xl border border-slate-200 bg-white shadow-sm p-4"
+                    onDrop={(e) => handleDropBlockBefore(selectedBusId, blk.id, e)}
+                    className="rounded-xl border border-slate-200 bg-slate-50"
                   >
-                    <div className="flex flex-row items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full ${colorForBus(b.name)} text-white font-bold text-xs`}>{b.name.replace("호차","")}</span>
-                        <div>
-                          <div className="text-sm font-bold text-slate-900 text-left whitespace-normal break-words">{b.name}</div>
-                          <div className="text-xs text-slate-500 text-left whitespace-normal break-words">{b.staff}</div>
-                        </div>
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+                      <div className="text-sm font-bold text-slate-900">
+                        {mode === "pickup" ? "[07:50]" : "[16:30]"} {blk.label}
                       </div>
-                      <div className="flex items-center gap-1 text-xs font-bold text-slate-700">
-                        <Clock className="w-3 h-3" />
-                        {b.timeSlot}
-                        {canEdit && (
-                          <div className="flex items-center gap-1 ml-2">
-                            <input
-                              defaultValue={b.name}
-                              onBlur={(e) => {
-                                const v = e.target.value.trim();
-                                if (!v) return;
-                                updateBusCar(b.id, { name: v });
-                              }}
-                              className="px-2 py-1 rounded border border-slate-200 text-[11px]"
-                            />
-                            <input
-                              defaultValue={b.staff}
-                              onBlur={(e) => updateBusCar(b.id, { staff: e.target.value })}
-                              className="px-2 py-1 rounded border border-slate-200 text-[11px]"
-                            />
-                            <input
-                              defaultValue={b.timeSlot}
-                              onBlur={(e) => {
-                                const v = e.target.value.trim();
-                                if (!/^\d{1,2}:\d{2}$/.test(v)) return;
-                                updateBusCar(b.id, { timeSlot: v });
-                              }}
-                              className="px-2 py-1 rounded border border-slate-200 text-[11px] w-20"
-                            />
-                            <button onClick={() => removeBusCar(b.id)} className="px-2 py-1 rounded border border-red-200 bg-red-50 text-red-700 text-[11px]">삭제</button>
-                          </div>
-                        )}
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                        <div className="flex items-center gap-1">
+                          ⏱ +{blk.estimatedExtraTime}분
+                        </div>
+                        <div className="flex items-center gap-1">
+                          👥 {count}명
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      {list.length === 0 && <div className="text-xs text-slate-500">배정된 원생 없음</div>}
-                      {list.map((s) => (
-                        <div
-                          key={s.id}
-                          draggable={canEdit}
-                          onDragStart={(e) => onDragStartStudent(s.id, b.name, e)}
-                          onDrop={(e) => onDropOnItem(b.name, s.id, e)}
-                          onDragOver={(e) => e.preventDefault()}
-                          className="flex flex-row items-center justify-between px-3 py-3 rounded-lg border border-slate-200 bg-white"
-                        >
-                          <div className="flex-1">
-                            <div className="text-sm font-bold text-slate-900 text-left whitespace-normal break-words">{s.name}</div>
-                            <div className="text-xs text-slate-600 text-left whitespace-normal break-words">{s.className}</div>
-                            {mode === "pickup" && s.arrivalPlace && (
-                              <div className="mt-1 text-[11px] text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 inline-block">
-                                등원: {s.arrivalPlace}
-                              </div>
-                            )}
-                            {mode === "dropoff" && s.departurePlace && (
-                              <div className="mt-1 text-[11px] text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 inline-block">
-                                하원: {s.departurePlace}
-                              </div>
-                            )}
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => handleDropStudentToBlock(selectedBusId, blk.id, e)}
+                      className="p-3 flex flex-wrap gap-2"
+                    >
+                      {blk.students.map(s => {
+                        const sibling = s.flags?.sibling;
+                        const timeSensitive = s.flags?.timeSensitive;
+                        const warn = s.flags?.warning;
+                        const border = sibling ? "border-violet-500" : "border-slate-200";
+                        const ring = warn ? "ring-2 ring-red-300" : timeSensitive ? "ring-2 ring-amber-300" : "";
+                        return (
+                          <div
+                            key={s.id}
+                            draggable
+                            onDragStart={(e) => handleDragStartStudent(s, selectedBusId, blk.id, e)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border bg-white shadow-sm cursor-grab active:cursor-grabbing ${border} ${ring}`}
+                          >
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-slate-900">{s.name}</span>
+                              <span className="text-xs text-slate-500">{s.className} · {s.campus}</span>
+                            </div>
+                            {timeSensitive && <Clock className="w-3.5 h-3.5 text-amber-600" />}
+                            {warn && <AlertTriangle className="w-3.5 h-3.5 text-red-600" />}
                           </div>
-                          <div className="flex items-center gap-3">
-                            {mode === "pickup" ? (
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs text-slate-500">등원</span>
-                                <input
-                                  type="time"
-                                  value={arrivalTimes[s.id] || "08:30"}
-                                  onChange={(e) => updateArrivalTime(s.id, e.target.value)}
-                                  className="px-2 py-1 rounded border border-slate-200 text-xs w-24"
-                                />
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs text-slate-500">하원</span>
-                                <input
-                                  type="time"
-                                  value={studentUpdates[s.id]?.departureTime || s.departureTime || "16:30"}
-                                  onChange={(e) => updateDepartureTime(s.id, e.target.value)}
-                                  className="px-2 py-1 rounded border border-slate-200 text-xs w-24"
-                                />
-                              </div>
-                            )}
-                            <div className="text-xs text-slate-400 select-none" title="드래그하여 순서 변경">↕︎</div>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 );
               })}
+              {(routesByBus[selectedBusId] || []).length === 0 && (
+                <div className="text-sm text-slate-500">AI 자동 배치로 블록을 생성하세요.</div>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      {dirty && canEdit && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-xl border border-slate-200 shadow-lg px-4 py-3 flex items-center gap-3 z-50">
-          <span className="text-sm font-bold text-slate-700">변경 사항이 있습니다</span>
-          <button
-            onClick={saveAll}
-            className="px-3 py-2 rounded-lg bg-frage-navy text-white text-sm font-bold"
-          >
-            저장
-          </button>
-        </div>
-      )}
+        <aside className="md:col-span-3">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 h-full flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-lg font-bold text-slate-900">지도 미리보기</div>
+              <div className="text-xs text-slate-500 mt-1">추후 연결</div>
+              {anyCapacityExceeded && (
+                <div className="mt-4 text-xs font-bold text-red-600">정원 초과로 저장 불가</div>
+              )}
+              {anyTimeExceeded && !anyCapacityExceeded && (
+                <div className="mt-4 text-xs font-bold text-amber-600">시간 초과 예상</div>
+              )}
+            </div>
+          </div>
+        </aside>
+      </div>
     </main>
   );
 }
- 
+

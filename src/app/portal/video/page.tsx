@@ -45,60 +45,29 @@ export default function VideoListPage() {
   }, []);
 
   useEffect(() => {
-    try {
-      const studentId = localStorage.getItem("portal_student_id") || "s8";
-      const raw = localStorage.getItem("video_assignments");
-      const arr: { title: string; module: string; dueDate: string; className: string; campus?: string }[] = raw ? JSON.parse(raw) : [];
-      const list = (Array.isArray(arr) ? arr : []).map(a => {
-        let status: "Pending" | "Submitted" | "Reviewed" = "Pending";
-        let score: string | null = null;
-        let feedback: {
-          overall_message: string;
-          strengths: string[];
-          focus_point: string;
-          next_try_guide: string;
-          details: Record<string, string>;
-        } | null = null;
-        try {
-          const fbKey = `teacher_video_feedback_${studentId}_${a.dueDate}`;
-          const rawFb = localStorage.getItem(fbKey);
-          if (rawFb) {
-            const fb = JSON.parse(rawFb);
-            status = "Reviewed";
-            score = String(fb.average || "");
-            feedback = {
-              overall_message: String(fb.overall_message || ""),
-              strengths: Array.isArray(fb.strengths) ? fb.strengths : [],
-              focus_point: String(fb.focus_point || ""),
-              next_try_guide: String(fb.next_try_guide || ""),
-              details: {
-                Fluency: mapScore(Number(fb.fluency || 0), "fluency"),
-                Volume: mapScore(Number(fb.volume || 0), "volume"),
-                Speed: mapScore(Number(fb.speed || 0), "speed"),
-                Pronunciation: mapScore(Number(fb.pronunciation || 0), "pronunciation"),
-                Performance: mapScore(Number(fb.performance || 0), "performance")
-              }
-            };
-          } else {
-            const url = localStorage.getItem(`student_video_${studentId}`);
-            if (url) status = "Submitted";
-          }
-        } catch {}
-        return {
-          id: `hw_${studentId}_${a.dueDate}`,
-          title: a.title,
-          module: a.module,
-          dueDate: a.dueDate,
-          status,
-          isToday: a.dueDate === todayStr,
-          score,
-          feedback
-        };
-      });
-      setHomeworkList(list);
-    } catch {
-      setHomeworkList([]);
-    }
+    (async () => {
+      try {
+        const { data: userData } = await (await import("@/lib/supabase")).supabase.auth.getUser();
+        const userId = userData?.user?.id || "";
+        const studentId = userId || "s8";
+        const res = await fetch(`/api/portal/video?studentId=${encodeURIComponent(studentId)}`);
+        const data = await res.json();
+        const list = Array.isArray(data?.items) ? data.items : [];
+        const mapped = list.map((item: any) => ({
+          id: String(item.id),
+          title: String(item.title || ""),
+          module: String(item.module || ""),
+          dueDate: String(item.dueDate || ""),
+          status: item.status === "Submitted" ? "Submitted" : item.status === "Reviewed" ? "Reviewed" : "Pending",
+          isToday: String(item.dueDate || "") === todayStr,
+          score: item.score ? String(item.score) : null,
+          feedback: item.feedback || null
+        }));
+        setHomeworkList(mapped);
+      } catch {
+        setHomeworkList([]);
+      }
+    })();
   }, [todayStr]);
 
   return (
