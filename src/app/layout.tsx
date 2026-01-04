@@ -9,6 +9,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 export const viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#5B3FFF",
 };
 
 const nunito = Nunito({ 
@@ -29,11 +30,12 @@ export const metadata: Metadata = {
   title: "FRAGE EDU | English for Thinking Minds",
   description: "Building strong readers, clear thinkers, and confident communicators.",
   manifest: "/manifest.json",
-  themeColor: "#5B3FFF",
   icons: {
     icon: "/favicon.ico",
   },
 };
+
+export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
