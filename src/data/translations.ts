@@ -78,7 +78,7 @@ export const translations = {
           grade: "Goldberg 1st Prize", 
           date: "2023.08.10", 
           issuer: "World Creativity Association",
-          image: "https://postfiles.pstatic.net/MjAyMzA5MDdfMjU0/MDAxNjk0MDg4ODIyMjIx.HmT4dToc6uw3QT4FrAPXWxIwp7ievrHOaBav8T2ynPgg.MKi42-0EAvRRomO6ucbZSD9fezzld71MHh-F1xb35TYg.JPEG.amork0112/BAND__%ED%94%84%EB%9D%BC%EA%B2%8C%EC%97%90%EB%93%80_%EC%9C%85%ED%95%A9%EC%82%AC%EA%B3%A0%EB%A0%A5%EC%98%81%EC%96%B4%EA%B5%90%EC%9C%A1__2023-08-12-11-21-51_02.jpg?type=w3840",
+          image: "/images/credeca.jpg",
           link: "https://www.g-enews.com/article/General-News/2023/08/202308211553138913e8b8a793f7_1"
         },
         { 
@@ -87,7 +87,7 @@ export const translations = {
           grade: "Selected Academy", 
           date: "2023.05.15", 
           issuer: "KCIA",
-          image: "https://postfiles.pstatic.net/MjAyMzA0MTdfMTUz/MDAxNjgxNzA4NDI1ODk0._JmkoTiMSgbRlWFB0y_3KW9twUOs4_kKB_1zUpMTJ0gg.urpJuJUhhf7NE4kW1yrYDj0S6J0BMxQmoKJ0XkwZ2d4g.JPEG.amork0112/1681214131453.jpg?type=w3840",
+          image: "/images/herald.jpg",
           link: "https://postfiles.pstatic.net/MjAyMzA0MTdfMjk5/MDAxNjgxNzA4NjE1NTA0.fsLD0vDXi3fxm9syjydwyffaC4zUEcathY7RPObULewg.QpPTYplChsD4H3j38BuD_qFk2J_BvyR8Fbu6_30ZPNog.JPEG.amork0112/1681458019598.jpg?type=w3840"
         },
         { 
@@ -268,7 +268,7 @@ export const translations = {
           grade: "골드버그 1등상", 
           date: "2023.08.10", 
           issuer: "세계창의력협회",
-          image: "https://postfiles.pstatic.net/MjAyMzA5MDdfMjU0/MDAxNjk4ODg4ODIyMjIx.HmT4dToc6uw3QT4FrAPXWxIwp7ievrHOaBav8T2ynPgg.MKi42-0EAvRRomO6ucbZSD9fezzld71MHh-F1xb35TYg.JPEG.amork0112/BAND__%ED%94%84%EB%9D%BC%EA%B2%8C%EC%97%90%EB%93%80_%EC%9C%85%ED%95%A9%EC%82%AC%EA%B3%A0%EB%A0%A5%EC%98%81%EC%96%B4%EA%B5%90%EC%9C%A1__2023-08-12-11-21-51_02.jpg?type=w3840",
+          image: "/images/credeca.jpg",
           link: "https://www.g-enews.com/article/General-News/2023/08/202308211553138913e8b8a793f7_1"
         },
         { 
@@ -277,7 +277,7 @@ export const translations = {
           grade: "아카데미 부문 선정", 
           date: "2023.05.15", 
           issuer: "KCIA",
-          image: "https://postfiles.pstatic.net/MjAyMzA0MTdfMTUz/MDAxNjgxNzA4NDI1ODk0._JmkoTiMSgbRlWFB0y_3KW9twUOs4_kKB_1zUpMTJ0gg.urpJuJUhhf7NE4kW1yrYDj0S6J0BMxQmoKJ0XkwZ2d4g.JPEG.amork0112/1681214131453.jpg?type=w3840",
+          image: "/images/herald.jpg",
           link: "https://postfiles.pstatic.net/MjAyMzA0MTdfMjk5/MDAxNjgxNzA4NjE1NTA0.fsLD0vDXi3fxm9syjydwyffaC4zUEcathY7RPObULewg.QpPTYplChsD4H3j38BuD_qFk2J_BvyR8Fbu6_30ZPNog.JPEG.amork0112/1681458019598.jpg?type=w3840"
         },
         { 
