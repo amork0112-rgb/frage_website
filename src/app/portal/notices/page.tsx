@@ -3,77 +3,40 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PortalHeader from "@/components/PortalHeader";
-import { notices, type Notice } from "@/data/notices";
+import type { Notice } from "@/data/notices";
 import { Pin, Calendar, ChevronRight, ChevronDown, Archive, Megaphone } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function NoticesPage() {
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
-  const [allNotices, setAllNotices] = useState(notices);
-  const [overrides, setOverrides] = useState<Record<string, { isPinned?: boolean; pinnedOrder?: number }>>({});
+  const [allNotices, setAllNotices] = useState<Notice[]>([]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("frage_notices");
-      const dyn = raw ? JSON.parse(raw) : [];
-      const mapped = Array.isArray(dyn)
-        ? dyn.map((d: any) => ({
-          id: d.id,
-          title: d.title,
-          date: d.date,
-          category: d.category,
-          campus: d.campus,
-          summary: d.summary,
-          content: [],
-          isPinned: false,
-          pinnedOrder: undefined,
-          isArchived: false,
-          viewCount: d.viewCount || 0,
-          isRead: false,
-          reactions: { check: 0, heart: 0, smile: 0 },
-          __dyn: true,
-        }))
+    (async () => {
+      const { data } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("category", "notice")
+        .order("created_at", { ascending: false });
+      const server: Notice[] = Array.isArray(data)
+        ? data.map((p: any) => ({
+            id: String(p.id),
+            title: p.title,
+            date: p.created_at,
+            category: "Academic",
+            campus: "All",
+            summary: p.content || "",
+            content: [],
+            isPinned: !!p.is_pinned,
+            pinnedOrder: undefined,
+            isArchived: !!p.is_archived,
+            viewCount: 0,
+            isRead: false,
+            reactions: { check: 0, heart: 0, smile: 0 },
+          }))
         : [];
-      const ov = JSON.parse(localStorage.getItem("frage_notice_overrides") || "{}");
-      setOverrides(ov);
-      const baseLocal: Notice[] = [...mapped, ...notices].map(n => ({
-        ...n,
-        isPinned: ov[n.id]?.isPinned ?? n.isPinned,
-        pinnedOrder: ov[n.id]?.pinnedOrder ?? n.pinnedOrder
-      }));
-      (async () => {
-        try {
-          const { data, error } = await supabase
-            .from("posts")
-            .select("*")
-            .eq("category", "notice")
-            .order("created_at", { ascending: false });
-          const server: Notice[] = !error && Array.isArray(data)
-            ? data.map((p: any) => ({
-                id: String(p.id),
-                title: p.title,
-                date: p.created_at,
-                category: "Academic",
-                campus: "All",
-                summary: p.content || "",
-                content: [],
-                isPinned: !!p.is_pinned,
-                pinnedOrder: undefined,
-                isArchived: !!p.is_archived,
-                viewCount: 0,
-                isRead: false,
-                reactions: { check: 0, heart: 0, smile: 0 },
-              }))
-            : [];
-          const merged: Notice[] = [...server, ...baseLocal];
-          setAllNotices(merged);
-        } catch {
-          setAllNotices(baseLocal);
-        }
-      })();
-    } catch {
-      setAllNotices(notices);
-    }
+      setAllNotices(server);
+    })();
   }, []);
 
   const pinnedNotices = useMemo(

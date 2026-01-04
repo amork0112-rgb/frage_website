@@ -170,15 +170,7 @@ export default function TeacherVideoPage() {
         } catch {}
 
         try {
-          const updatesRaw = localStorage.getItem("admin_student_updates");
-          const updates = updatesRaw ? JSON.parse(updatesRaw) : {};
-          mergedItems = mergedItems.map(s => {
-            const u = updates[s.id];
-            if (u) {
-              return { ...s, ...u };
-            }
-            return s;
-          });
+          // admin_student_updates 제거: Supabase를 단일 데이터 소스로 사용
         } catch {}
 
         setStudents(mergedItems);

@@ -3,26 +3,44 @@
 import { useEffect, useMemo, useState } from "react";
 import PortalHeader from "@/components/PortalHeader";
 import { FileText, Calendar, User, School, CheckCircle, BarChart3, MessageSquare, ChevronDown, Mic, Video, PenTool } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type PublishedSummary = { id: string; title: string; date: string; month: string };
 
 export default function ReportPage() {
-  const [studentId] = useState<string>(() => {
-    try {
-      const v = localStorage.getItem("portal_student_id");
-      return v || "s8";
-    } catch {
-      return "s8";
-    }
-  });
+  const [studentId, setStudentId] = useState<string>("");
   const [list, setList] = useState<PublishedSummary[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [report, setReport] = useState<any>(null);
 
   useEffect(() => {
+    (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData?.user?.id || "";
+      if (!uid) return;
+      const { data: parents } = await supabase
+        .from("parents")
+        .select("*")
+        .eq("auth_user_id", uid)
+        .limit(1);
+      const parent = Array.isArray(parents) && parents.length > 0 ? parents[0] : null;
+      if (!parent) return;
+      const { data: students } = await supabase
+        .from("students")
+        .select("*")
+        .eq("parent_account_id", parent.id)
+        .limit(1);
+      const child = Array.isArray(students) && students.length > 0 ? students[0] : null;
+      const sid = child ? String(child.id) : "";
+      if (sid) setStudentId(sid);
+    })();
+  }, []);
+
+  useEffect(() => {
     let alive = true;
     const load = async () => {
       try {
+        if (!studentId) return;
         const res = await fetch(`/api/portal/reports?studentId=${studentId}`);
         const data = await res.json();
         const items: PublishedSummary[] = (data?.items || []).map((r: any) => ({

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Bus, Clock, AlertTriangle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type Status = "재원" | "휴원" | "퇴원";
 
@@ -55,16 +56,28 @@ export default function AdminTransportPage() {
     try {
       const r = localStorage.getItem("admin_role");
       setRole(r === "teacher" ? "teacher" : "admin");
-      const rawReq = localStorage.getItem("portal_requests");
-      const list = rawReq ? JSON.parse(rawReq) : [];
-      const busReqs = (Array.isArray(list) ? list : []).filter((x: any) => x.type === "bus_change");
-      setRequests(busReqs);
+      (async () => {
+        const { data } = await supabase
+          .from("portal_requests")
+          .select("*")
+          .eq("type", "bus_change")
+          .order("created_at", { ascending: false });
+        const mapped = Array.isArray(data)
+          ? data.map((row: any) => ({
+              id: String(row.id),
+              childId: String(row.student_id || ""),
+              childName: "",
+              type: "bus_change" as const,
+              note: String(row?.payload?.note || ""),
+              dateStart: String(row?.payload?.dateStart || row?.created_at || ""),
+            }))
+          : [];
+        setRequests(mapped);
+      })();
       const rawArr = localStorage.getItem("admin_arrival_times");
       const map = rawArr ? JSON.parse(rawArr) : {};
       setArrivalTimes(map || {});
-      const updRaw = localStorage.getItem("admin_student_updates");
-      const updMap = updRaw ? JSON.parse(updRaw) : {};
-      setStudentUpdates(updMap || {});
+      setStudentUpdates({});
     } catch {}
   }, []);
 
@@ -185,8 +198,8 @@ export default function AdminTransportPage() {
   const filteredStudents = useMemo(() => {
     return students
       .filter((s) => (campusFilter === "All" ? true : s.campus === campusFilter))
-      .filter((s) => (timeFilter === "All" ? true : (studentUpdates[s.id]?.departureTime || s.departureTime).startsWith(timeFilter) || (studentUpdates[s.id]?.departureTime || s.departureTime) === timeFilter));
-  }, [students, campusFilter, timeFilter, studentUpdates]);
+      .filter((s) => (timeFilter === "All" ? true : (s.departureTime || "").startsWith(timeFilter) || (s.departureTime || "") === timeFilter));
+  }, [students, campusFilter, timeFilter]);
 
   const assignedListFor = (busName: string) => {
     const list = filteredStudents.filter((s) => (assignments[s.id] || s.bus) === busName).slice();
@@ -296,14 +309,18 @@ export default function AdminTransportPage() {
   };
 
   const updateDepartureTime = (id: string, t: string) => {
-    const updRaw = localStorage.getItem("admin_student_updates");
-    const updMap = updRaw ? JSON.parse(updRaw) : {};
-    const prev = updMap[id] || {};
-    const nextMap = { ...updMap, [id]: { ...prev, departureTime: t } };
+    const prev = studentUpdates[id] || {};
+    const nextMap = { ...studentUpdates, [id]: { ...prev, departureTime: t } };
     setStudentUpdates(nextMap);
-    try {
-      localStorage.setItem("admin_student_updates", JSON.stringify(nextMap));
-    } catch {}
+    (async () => {
+      await supabase.from("students").update({ departureTime: t }).eq("id", id);
+      await supabase.from("student_status_logs").insert({
+        student_id: id,
+        field: "departureTime",
+        value: t,
+        created_at: new Date().toISOString(),
+      });
+    })();
   };
 
   const saveAll = () => {

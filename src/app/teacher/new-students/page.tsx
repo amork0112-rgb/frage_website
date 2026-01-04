@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Check, X, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type StudentProfile = {
   id: string;
@@ -131,11 +132,26 @@ export default function TeacherNewStudentsPage() {
   useEffect(() => {
     // Load students
     try {
-      const raw = localStorage.getItem("signup_profiles");
-      const data = raw ? JSON.parse(raw) : [];
-      // Sort by newest
-      data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setStudents(data);
+      (async () => {
+        const { data } = await supabase
+          .from("signup_requests")
+          .select("*")
+          .order("created_at", { ascending: false });
+        const mapped: StudentProfile[] = Array.isArray(data)
+          ? data.map((r: any) => ({
+              id: String(r.id),
+              studentName: String(r.studentName || r.childName || ""),
+              gender: String(r.gender || ""),
+              parentName: String(r.parentName || ""),
+              phone: String(r.phone || ""),
+              campus: String(r.campus || ""),
+              createdAt: String(r.created_at || ""),
+              status: String(r.status || "waiting"),
+              memo: String(r.memo || ""),
+            }))
+          : [];
+        setStudents(mapped);
+      })();
 
       // Load checklists
       const rawChecklists = localStorage.getItem("teacher_new_student_checklists");
@@ -232,7 +248,7 @@ export default function TeacherNewStudentsPage() {
     localStorage.setItem("admission_test_slots", JSON.stringify(updated));
   };
 
-  const toggleCheck = (studentId: string, stepKey: string, stepLabel: string) => {
+  const toggleCheck = async (studentId: string, stepKey: string, stepLabel: string) => {
     const currentList = checklists[studentId] || {};
     const currentItem = currentList[stepKey] || { key: stepKey, label: stepLabel, checked: false };
     
@@ -329,33 +345,21 @@ export default function TeacherNewStudentsPage() {
       }
       if (stepKey === "docs_submitted") {
         try {
-          const raw = localStorage.getItem("signup_profiles");
-          const arr = raw ? JSON.parse(raw) : [];
-          const next = Array.isArray(arr) ? arr.map((p: any) => p.id === studentId ? { ...p, status: "enrolled" } : p) : [];
-          localStorage.setItem("signup_profiles", JSON.stringify(next));
-          const prof = Array.isArray(arr) ? arr.find((p: any) => p.id === studentId) : null;
+          const prof = students.find((s) => s.id === studentId) || null;
+          await supabase.from("signup_requests").update({ status: "enrolled" }).eq("id", studentId);
           if (prof) {
             const item = {
               id: `signup_${(prof.phone || "").replace(/[^0-9a-zA-Z]/g, "")}`,
-              childId: undefined,
               name: String(prof.studentName || ""),
-              englishName: String(prof.englishFirstName || prof.passportEnglishName || ""),
-              birthDate: String(prof.childBirthDate || ""),
               phone: String(prof.phone || ""),
               className: "미배정",
               campus: String(prof.campus || "미지정"),
               status: "재원",
               parentName: String(prof.parentName || ""),
-              parentAccountId: String(prof.id || ""),
-              address: [String(prof.address || ""), String(prof.addressDetail || "")].filter(Boolean).join(" "),
               bus: "미배정",
               departureTime: ""
             };
-            fetch("/api/admin/students", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ items: [item] })
-            }).catch(() => {});
+            await supabase.from("students").insert(item);
             alert("✅ 입학 서류 완료 처리 • 원생 관리에 등록되었습니다.");
           }
         } catch {}

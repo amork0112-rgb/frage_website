@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FileText, Search, ChevronDown } from "lucide-react";
 import { reportTemplates } from "@/data/reportTemplates";
 import { classGoals } from "@/data/classGoals";
+import { supabase } from "@/lib/supabase";
 
 type Status = "미작성" | "작성중" | "저장완료" | "발송요청" | "발송완료";
 type Gender = "M" | "F";
@@ -100,58 +101,16 @@ export default function TeacherReportsPage() {
       try {
         const res = await fetch("/api/admin/students");
         const data = await res.json();
-        const items = Array.isArray(data) ? data : data.items || [];
-        let mergedItems: Student[] = items;
-
-        try {
-          const bulkRaw = localStorage.getItem("admin_bulk_students");
-          const bulkArr: Student[] = bulkRaw ? JSON.parse(bulkRaw) : [];
-          if (Array.isArray(bulkArr) && bulkArr.length > 0) {
-            mergedItems = [...mergedItems, ...bulkArr];
-          }
-        } catch {}
-
-        try {
-          const rawProfiles = localStorage.getItem("signup_profiles");
-          const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
-          const arr: any[] = Array.isArray(profiles) ? profiles : [];
-          if (arr.length > 0) {
-            const existingPhones = new Set(mergedItems.map((s: any) => s.phone));
-            const mapped: Student[] = arr
-              .filter(p => (p?.phone || "").trim() !== "")
-              .map((p, idx) => ({
-                id: `signup_${(p.phone || String(idx)).replace(/[^0-9a-zA-Z]/g, "")}`,
-                name: String(p.studentName || "").trim(),
-                englishName: String(p.englishFirstName || p.passportEnglishName || "").trim(),
-                className: "미배정",
-                campus: "미지정",
-              } as Student))
-              .filter((s: any) => !existingPhones.has(s.phone)); // Note: 'phone' might not be on Student type in this file, but logic needs it. 
-              // Actually, Student type here is { id, name, englishName, className, campus }. 
-              // 'phone' is missing from type definition in reports/page.tsx. 
-              // But 'mergedItems' comes from API which has 'phone'.
-              // I should be careful about the filter check. 
-              // Let's just assume unique ID check or trust the logic.
-              // Wait, the API data definitely has phone. 
-              // The type definition in this file is just a partial view.
-              // I will cast to 'any' for the filter check to be safe.
-            mergedItems = [...mergedItems, ...mapped];
-          }
-        } catch {}
-
-        try {
-          const updatesRaw = localStorage.getItem("admin_student_updates");
-          const updates = updatesRaw ? JSON.parse(updatesRaw) : {};
-          mergedItems = mergedItems.map(s => {
-            const u = updates[s.id];
-            if (u) {
-              return { ...s, ...u };
-            }
-            return s;
-          });
-        } catch {}
-
-        setStudents(mergedItems);
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const enrolled = items.filter((s: any) => String(s.status) === "재원");
+        const mapped: Student[] = enrolled.map((s: any) => ({
+          id: String(s.id || ""),
+          name: String(s.name || ""),
+          englishName: String(s.englishName || ""),
+          className: String(s.className || "미배정"),
+          campus: String(s.campus || "미지정"),
+        }));
+        setStudents(mapped);
       } catch {
         setStudents([]);
       }
@@ -160,63 +119,61 @@ export default function TeacherReportsPage() {
   }, []);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("admin_class_catalog");
-      let list: string[] = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(list) || list.length === 0) {
-        list = [...KINDER, ...JUNIOR];
-      }
-      setClassCatalog(list);
-      localStorage.setItem("admin_class_catalog", JSON.stringify(list));
-    } catch {}
+    const list = [...KINDER, ...JUNIOR];
+    setClassCatalog(list);
   }, []);
 
   useEffect(() => {
     if (!selected) return;
-    try {
-      const key = `teacher_report_${selected.id}_${month}`;
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const obj = JSON.parse(raw);
-        setGender(obj.gender || "M");
-        setScores(obj.scores || { Reading: 0, Listening: 0, Speaking: 0, Writing: 0 });
-        setComments(obj.comments || { Reading: "", Listening: "", Speaking: "", Writing: "" });
-        setVideoScores(obj.videoScores || { fluency: 0, volume: 0, speed: 0, pronunciation: 0, performance: 0 });
-        setOverall(obj.overall || "");
-        setParticipation(obj.participation || "");
-        setVideoSummary(obj.videoSummary || "");
-      } else {
-        setScores({ Reading: 0, Listening: 0, Speaking: 0, Writing: 0 });
-        setComments({ Reading: "", Listening: "", Speaking: "", Writing: "" });
-        setVideoScores({ fluency: 0, volume: 0, speed: 0, pronunciation: 0, performance: 0 });
-        setOverall("");
-        setParticipation("");
-        setVideoSummary("");
-        try {
-          const profilesRaw = localStorage.getItem("signup_profiles");
-          const profiles = profilesRaw ? JSON.parse(profilesRaw) : [];
-          const match = Array.isArray(profiles)
-            ? profiles.find((p: any) => String(p.id || "").trim().toLowerCase() === String(selected.id || "").trim().toLowerCase())
-            : null;
-          const g = match?.gender;
-          if (g === "M" || g === "F") setGender(g);
-        } catch {}
-      }
+    (async () => {
       try {
-        const v = localStorage.getItem(`student_video_${selected.id}`);
-        setVideoUrl(v || null);
+        const res = await fetch(`/api/teacher/reports?studentId=${selected.id}&month=${encodeURIComponent(month)}`);
+        const data = await res.json();
+        const obj = data?.item || null;
+        if (obj) {
+          setGender(obj.gender || "M");
+          setScores(obj.scores || { Reading: 0, Listening: 0, Speaking: 0, Writing: 0 });
+          setComments(obj.comments || { Reading: "", Listening: "", Speaking: "", Writing: "" });
+          setVideoScores(obj.videoScores || { fluency: 0, volume: 0, speed: 0, pronunciation: 0, performance: 0 });
+          setOverall(obj.overall || "");
+          setParticipation(obj.participation || "");
+          setVideoSummary(obj.videoSummary || "");
+        } else {
+          setScores({ Reading: 0, Listening: 0, Speaking: 0, Writing: 0 });
+          setComments({ Reading: "", Listening: "", Speaking: "", Writing: "" });
+          setVideoScores({ fluency: 0, volume: 0, speed: 0, pronunciation: 0, performance: 0 });
+          setOverall("");
+          setParticipation("");
+          setVideoSummary("");
+        }
+      } catch {}
+      try {
+        const { data } = await supabase
+          .from("portal_video_submissions")
+          .select("*")
+          .eq("student_id", selected.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+        if (row && row.video_path) {
+          const { data: urlData, error } = await supabase.storage
+            .from("student-videos")
+            .createSignedUrl(String(row.video_path), 60 * 60);
+          if (!error && urlData?.signedUrl) {
+            setVideoUrl(urlData.signedUrl);
+          } else {
+            setVideoUrl(null);
+          }
+        } else {
+          setVideoUrl(null);
+        }
       } catch {
         setVideoUrl(null);
       }
-      try {
-        const ck = `teacher_class_overall_${selected.className}_${month}`;
-        const rawCo = localStorage.getItem(ck);
-        const defCo = getDefaultOverall(month, selected.className);
-        const co = rawCo || defCo;
-        setClassOverall(co);
-        setOverall(co);
-      } catch {}
-    } catch {}
+      const defCo = getDefaultOverall(month, selected.className);
+      setClassOverall(defCo);
+      setOverall(defCo);
+    })();
   }, [selected, month]);
 
   useEffect(() => {
@@ -238,16 +195,24 @@ export default function TeacherReportsPage() {
         return [];
       }
     })();
-    try {
-      const status = fridays.map((date) => {
-        const key = `teacher_video_feedback_${selected.id}_${date}`;
-        return !!localStorage.getItem(key);
-      });
-      while (status.length < 4) status.push(false);
-      setWeeklyStatus(status.slice(0, 4));
-    } catch {
-      setWeeklyStatus([false, false, false, false]);
-    }
+    (async () => {
+      try {
+        const status: boolean[] = [];
+        for (const date of fridays) {
+          const { data } = await supabase
+            .from("portal_video_feedback")
+            .select("*")
+            .eq("student_id", selected.id)
+            .eq("due_date", date)
+            .limit(1);
+          status.push(Array.isArray(data) && data.length > 0);
+        }
+        while (status.length < 4) status.push(false);
+        setWeeklyStatus(status.slice(0, 4));
+      } catch {
+        setWeeklyStatus([false, false, false, false]);
+      }
+    })();
   }, [selected, month]);
 
   useEffect(() => {
@@ -272,11 +237,6 @@ export default function TeacherReportsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        localStorage.setItem(`teacher_report_${selected.id}_${month}`, JSON.stringify(payload));
-        try {
-          const ck = `teacher_class_overall_${selected.className}_${month}`;
-          localStorage.setItem(ck, classOverall || overall || "");
-        } catch {}
         setAutoSave("saved");
         setStatusMap(prev => ({ ...prev, [selected.id]: "작성중" }));
       } catch {
@@ -414,11 +374,6 @@ export default function TeacherReportsPage() {
   const saveStatus = async (next: Status) => {
     if (!selected) return;
     try {
-      const key = `teacher_report_${selected.id}_${month}`;
-      const raw = localStorage.getItem(key);
-      const obj = raw ? JSON.parse(raw) : {};
-      const payload = { ...obj, status: next };
-      localStorage.setItem(key, JSON.stringify(payload));
       await fetch("/api/teacher/reports", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -433,11 +388,6 @@ export default function TeacherReportsPage() {
       if (ids.length === 0) return;
       await Promise.all(
         ids.map(async (id) => {
-          const key = `teacher_report_${id}_${month}`;
-          const raw = localStorage.getItem(key);
-          const obj = raw ? JSON.parse(raw) : {};
-          const payload = { ...obj, status: "발송요청" };
-          localStorage.setItem(key, JSON.stringify(payload));
           await fetch("/api/teacher/reports", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },

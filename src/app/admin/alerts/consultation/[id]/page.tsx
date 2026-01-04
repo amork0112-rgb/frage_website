@@ -2,35 +2,73 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 export default function AlertsConsultationPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const [returnHint, setReturnHint] = useState<string>("");
   const [student, setStudent] = useState<any>(null);
   const [memos, setMemos] = useState<any[]>([]);
+  const [newMemo, setNewMemo] = useState<string>("");
+  const [newMemoTag, setNewMemoTag] = useState<string>("기타");
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("admin_alerts_return_state");
-      const state = raw ? JSON.parse(raw) : null;
-      if (state?.selectedId) {
-        setReturnHint(`이전 상태 저장됨 • 선택된 시그널: ${state.selectedId}`);
+    const run = async () => {
+      const { data: sig } = await supabase.from("alert_signals").select("*").eq("id", id).single();
+      const signal = sig || null;
+      let s = null;
+      if (signal?.student_id) {
+        const { data: studentRow } = await supabase.from("students").select("*").eq("id", signal.student_id).single();
+        if (studentRow) {
+          s = {
+            id: String(studentRow.id),
+            name: String(studentRow.name ?? ""),
+            campus: String(studentRow.campus ?? ""),
+            className: String(studentRow.class_name ?? ""),
+          };
+        }
+      } else if (signal) {
+        s = {
+          id: String(signal.student_id ?? ""),
+          name: String(signal.name ?? ""),
+          campus: String(signal.campus ?? ""),
+          className: String(signal.class_name ?? ""),
+        };
       }
-    } catch {
-      setReturnHint("");
-    }
-    try {
-      const updatesRaw = localStorage.getItem("admin_student_updates");
-      const updates = updatesRaw ? JSON.parse(updatesRaw) : {};
-      const studentsRaw = localStorage.getItem("admin_students");
-      const students = studentsRaw ? JSON.parse(studentsRaw) : [];
-      const s = students.find((x: any) => x.id === id) || null;
-      setStudent(s ? { ...s, ...(updates[id] || {}) } : null);
-      const memosRaw = localStorage.getItem("admin_memos");
-      const memosMap = memosRaw ? JSON.parse(memosRaw) : {};
-      setMemos(memosMap[id] || []);
-    } catch {}
+      setStudent(s);
+      const { data: memoRows } = await supabase
+        .from("alert_consult_memos")
+        .select("*")
+        .eq("signal_id", id)
+        .order("created_at", { ascending: false });
+      setMemos(Array.isArray(memoRows) ? memoRows.map((m: any) => ({
+        text: String(m.text ?? ""),
+        author: String(m.author ?? ""),
+        at: String(m.created_at ?? m.at ?? ""),
+        tag: String(m.tag ?? "기타"),
+      })) : []);
+    };
+    run();
   }, [id]);
+
+  const saveMemo = async () => {
+    if (!newMemo.trim()) return;
+    const { data } = await supabase.auth.getUser();
+    const author = String(data?.user?.email ?? "관리자");
+    const at = new Date().toISOString();
+    await supabase
+      .from("alert_consult_memos")
+      .insert({
+        signal_id: id,
+        text: newMemo.trim(),
+        author,
+        tag: newMemoTag,
+        at,
+      });
+    setMemos(prev => [{ text: newMemo.trim(), author, at, tag: newMemoTag }, ...prev]);
+    setNewMemo("");
+    setNewMemoTag("기타");
+  };
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-8">
@@ -71,10 +109,28 @@ export default function AlertsConsultationPage({ params }: { params: { id: strin
           <div>
             <label className="block">
               <span className="text-xs font-bold text-slate-700">상담 메모 추가</span>
-              <textarea className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" rows={4} placeholder="간단 메모" />
+              <div className="mt-1 flex items-center gap-2">
+                <select
+                  value={newMemoTag}
+                  onChange={(e) => setNewMemoTag(e.target.value)}
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                >
+                  <option value="기타">기타</option>
+                  <option value="상담">상담</option>
+                  <option value="결제">결제</option>
+                  <option value="특이사항">특이사항</option>
+                </select>
+                <textarea
+                  className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                  rows={4}
+                  placeholder="간단 메모"
+                  value={newMemo}
+                  onChange={(e) => setNewMemo(e.target.value)}
+                />
+              </div>
             </label>
             <div className="mt-2 flex justify-end">
-              <button className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">저장</button>
+              <button onClick={saveMemo} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">저장</button>
             </div>
           </div>
         </div>

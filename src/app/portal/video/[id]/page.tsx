@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Video, Upload, CheckCircle, RefreshCw, Star, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function VideoHomeworkPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
@@ -42,6 +43,8 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   const [recordingTime, setRecordingTime] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [studentIdState, setStudentIdState] = useState<string | null>(null);
+  const [videoPath, setVideoPath] = useState<string | null>(null);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -49,6 +52,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastBlobRef = useRef<Blob | File | null>(null);
 
   // --- Camera & Recording Logic ---
   const startCamera = async () => {
@@ -91,6 +95,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       const blob = new Blob(chunksRef.current, { type: "video/webm" });
       const url = URL.createObjectURL(blob);
       setVideoUrl(url);
+      lastBlobRef.current = blob;
       stopCamera();
     };
 
@@ -125,6 +130,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       }
       const url = URL.createObjectURL(file);
       setVideoUrl(url);
+      lastBlobRef.current = file;
       stopCamera();
     }
   };
@@ -136,60 +142,93 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   };
 
   const handleSubmit = async () => {
+    if (!lastBlobRef.current) {
+      alert("No video to submit.");
+      return;
+    }
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulating API
-    setIsSubmitting(false);
     try {
-      const parts = String(params.id || "").split("_");
-      const studentId = parts[1] || localStorage.getItem("portal_student_id") || "s8";
-      if (videoUrl) {
-        localStorage.setItem(`student_video_${studentId}`, videoUrl);
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData?.user?.id || studentIdState;
+      if (!uid) {
+        throw new Error("No student session");
       }
-    } catch {}
-    setHomeworkData(prev => ({ ...prev, status: "Submitted" }));
+      const assignmentId = params.id;
+      const file =
+        lastBlobRef.current instanceof File
+          ? lastBlobRef.current
+          : new File([lastBlobRef.current], `${assignmentId}.webm`, { type: "video/webm" });
+      const storagePath = `${uid}/${assignmentId}.webm`;
+      const { error: upErr } = await supabase.storage
+        .from("student-videos")
+        .upload(storagePath, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: exists } = await supabase
+        .from("portal_video_submissions")
+        .select("*")
+        .eq("student_id", uid)
+        .eq("assignment_id", assignmentId)
+        .limit(1);
+      if (Array.isArray(exists) && exists.length > 0) {
+        await supabase
+          .from("portal_video_submissions")
+          .update({ video_path: storagePath, status: "submitted" })
+          .eq("student_id", uid)
+          .eq("assignment_id", assignmentId);
+      } else {
+        await supabase
+          .from("portal_video_submissions")
+          .insert({ student_id: uid, assignment_id: assignmentId, video_path: storagePath, status: "submitted" });
+      }
+      setVideoPath(storagePath);
+      const { data: signed } = await supabase.storage
+        .from("student-videos")
+        .createSignedUrl(storagePath, 3600);
+      const url = signed?.signedUrl || null;
+      setVideoUrl(url);
+      setHomeworkData(prev => ({ ...prev, status: "Submitted" }));
+    } catch {
+      alert("업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
-    try {
-      const parts = String(params.id || "").split("_");
-      const studentId = parts[1] || localStorage.getItem("portal_student_id") || "s8";
-      const dueDate = parts[2] || "";
-      const raw = localStorage.getItem("video_assignments");
-      const arr: { title: string; module: string; dueDate: string }[] = raw ? JSON.parse(raw) : [];
-      const match = (Array.isArray(arr) ? arr : []).find(a => a.dueDate === dueDate) || null;
-      let status: "Pending" | "Submitted" | "Reviewed" | string = initialStatus as any;
-      let fb: any = null;
+    (async () => {
       try {
-        const fbKey = `teacher_video_feedback_${studentId}_${dueDate}`;
-        const rawFb = localStorage.getItem(fbKey);
-        if (rawFb) {
-          const data = JSON.parse(rawFb);
-          status = "Reviewed";
-          fb = {
-            overall_message: String(data.overall_message || ""),
-            fluency_score: Number(data.fluency || 0) >= 4 ? "Excellent" : Number(data.fluency || 0) === 3 ? "Appropriate" : Number(data.fluency || 0) === 2 ? "Developing" : "Needs Support",
-            volume_score: Number(data.volume || 0) >= 4 ? "Strong" : Number(data.volume || 0) === 3 ? "Clear" : Number(data.volume || 0) === 2 ? "Developing" : "Needs Support",
-            speed_score: Number(data.speed || 0) >= 4 ? "Natural" : Number(data.speed || 0) === 3 ? "Appropriate" : Number(data.speed || 0) === 2 ? "Developing" : "Too Slow",
-            pronunciation_score: Number(data.pronunciation || 0) >= 4 ? "Consistently Precise" : Number(data.pronunciation || 0) === 3 ? "Mostly Accurate" : Number(data.pronunciation || 0) === 2 ? "Developing" : "Needs Support",
-            performance_score: Number(data.performance || 0) >= 4 ? "Engaging" : Number(data.performance || 0) === 3 ? "Focused" : Number(data.performance || 0) === 2 ? "Developing" : "Needs Support",
-            strengths: Array.isArray(data.strengths) ? data.strengths : [],
-            focus_point: String(data.focus_point || ""),
-            next_try_guide: String(data.next_try_guide || "")
-          };
-        } else {
-          const url = localStorage.getItem(`student_video_${studentId}`);
-          if (url) status = "Submitted";
+        const { data: userData } = await supabase.auth.getUser();
+        const uid = userData?.user?.id || null;
+        setStudentIdState(uid);
+        const assignmentId = params.id;
+        let status: "Pending" | "Submitted" | "Reviewed" | string = initialStatus as any;
+        const { data: rows } = await supabase
+          .from("portal_video_submissions")
+          .select("*")
+          .eq("student_id", uid)
+          .eq("assignment_id", assignmentId);
+        if (Array.isArray(rows) && rows.length > 0) {
+          status = "Submitted";
+          const path = rows[0]?.video_path || null;
+          if (path) {
+            setVideoPath(path);
+            const { data: signed } = await supabase.storage
+              .from("student-videos")
+              .createSignedUrl(path, 3600);
+            const url = signed?.signedUrl || null;
+            if (url) setVideoUrl(url);
+          }
         }
+        setHomeworkData({
+          id: assignmentId,
+          subject: "",
+          module_code: "",
+          due_date: "",
+          status,
+          feedback: null
+        });
       } catch {}
-      setHomeworkData({
-        id: params.id,
-        subject: String(match?.title || ""),
-        module_code: String(match?.module || ""),
-        due_date: String(match?.dueDate || ""),
-        status,
-        feedback: fb
-      });
-    } catch {}
+    })();
     return () => {
       stopCamera();
       if (timerRef.current) clearInterval(timerRef.current);

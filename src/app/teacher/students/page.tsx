@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Users, Search } from "lucide-react";
 import Image from "next/image";
+import { supabase } from "@/lib/supabase";
 
 type Status = "재원" | "휴원 검토중" | "휴원" | "퇴원 검토중" | "퇴원";
 
@@ -39,24 +40,22 @@ export default function TeacherStudentsPage() {
   const [parentPhotos, setParentPhotos] = useState<string[]>([]);
 
   useEffect(() => {
-    try {
-      const role = localStorage.getItem("admin_role");
-      const classRaw = localStorage.getItem("teacher_class");
-      const teacherId = localStorage.getItem("current_teacher_id");
-      let assigned = classRaw || null;
-      try {
-        const raw = localStorage.getItem("admin_teacher_class_map");
-        const map = raw ? JSON.parse(raw) : {};
-        if (teacherId && map[teacherId]) {
-          assigned = map[teacherId];
-        }
-      } catch {}
-      if (role && role.toLowerCase().includes("teacher")) {
-        setTeacherClass(assigned);
+    const init = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data?.user;
+      const roleMeta = (user?.app_metadata as any)?.role;
+      if (roleMeta === "teacher") {
+        const { data: teacherRow } = await supabase
+          .from("teachers")
+          .select("class_name")
+          .eq("auth_user_id", user?.id)
+          .single();
+        setTeacherClass(teacherRow?.class_name || null);
       } else {
-        setTeacherClass(classRaw || null);
+        setTeacherClass(null);
       }
-    } catch {}
+    };
+    init();
   }, []);
 
   useEffect(() => {
@@ -65,47 +64,33 @@ export default function TeacherStudentsPage() {
         const res = await fetch("/api/admin/students");
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.items || [];
-        let mergedItems: Student[] = items;
-
-        try {
-          const bulkRaw = localStorage.getItem("admin_bulk_students");
-          const bulkArr: Student[] = bulkRaw ? JSON.parse(bulkRaw) : [];
-          if (Array.isArray(bulkArr) && bulkArr.length > 0) {
-            mergedItems = [...mergedItems, ...bulkArr];
-          }
-        } catch {}
-
-        // 신규생(입학 전) 데이터는 교사 페이지에 포함하지 않음
-
-        try {
-          const updatesRaw = localStorage.getItem("admin_student_updates");
-          const updates = updatesRaw ? JSON.parse(updatesRaw) : {};
-          mergedItems = mergedItems.map(s => {
-            const u = updates[s.id];
-            if (u) {
-              return { ...s, ...u };
-            }
-            return s;
-          });
-        } catch {}
-
-        setStudents(mergedItems);
+        setStudents(items);
       } catch {}
     };
     load();
   }, []);
 
   useEffect(() => {
-    try {
-      const updRaw = localStorage.getItem("admin_student_updates");
-      const map = updRaw ? JSON.parse(updRaw) : {};
-      setUpdates(map || {});
-    } catch {}
-    try {
-      const memoRaw = localStorage.getItem("admin_memos");
-      const map = memoRaw ? JSON.parse(memoRaw) : {};
-      setMemos(map || {});
-    } catch {}
+    const load = async () => {
+      const { data } = await supabase
+        .from("student_memos")
+        .select("*")
+        .order("created_at", { ascending: false });
+      const rows = Array.isArray(data) ? data : [];
+      const map: Record<string, { text: string; author: string; at: string; tag?: "상담" | "결제" | "특이사항" | "기타" }[]> = {};
+      rows.forEach((m: any) => {
+        const sid = String(m.student_id);
+        if (!map[sid]) map[sid] = [];
+        map[sid].push({
+          text: String(m.text ?? ""),
+          author: String(m.author ?? ""),
+          at: String(m.created_at ?? m.at ?? ""),
+          tag: (m.tag as any) ?? "기타",
+        });
+      });
+      setMemos(map);
+    };
+    load();
   }, []);
 
   const merged = useMemo(() => {
@@ -128,14 +113,7 @@ export default function TeacherStudentsPage() {
   const openInfoPanel = (s: Student) => {
     setInfoStudent(s);
     setMemoOpenFor(null);
-    try {
-      const key = `portal_parent_photos_${s.parentAccountId}`;
-      const raw = localStorage.getItem(key);
-      const arr = raw ? JSON.parse(raw) : [];
-      setParentPhotos(Array.isArray(arr) ? arr : []);
-    } catch {
-      setParentPhotos([]);
-    }
+    setParentPhotos([]);
   };
 
   const openMemoPanel = (s: Student) => {
@@ -164,16 +142,26 @@ export default function TeacherStudentsPage() {
 
   const saveMemo = () => {
     if (!memoOpenFor || !newMemo.trim()) return;
-    const author = localStorage.getItem("admin_name") || "담임";
-    const at = new Date().toISOString();
-    const next = { ...memos };
-    const list = next[memoOpenFor.id] || [];
-    list.unshift({ text: newMemo.trim(), author, at, tag: newMemoType });
-    next[memoOpenFor.id] = list;
-    setMemos(next);
-    localStorage.setItem("admin_memos", JSON.stringify(next));
-    setNewMemo("");
-    setNewMemoType("기타");
+    const run = async () => {
+      const { data } = await supabase.auth.getUser();
+      const author = String(data?.user?.email ?? "담임");
+      const at = new Date().toISOString();
+      await supabase.from("student_memos").insert({
+        student_id: memoOpenFor.id,
+        text: newMemo.trim(),
+        author,
+        tag: newMemoType,
+        at,
+      });
+      const next = { ...memos };
+      const list = next[memoOpenFor.id] || [];
+      list.unshift({ text: newMemo.trim(), author, at, tag: newMemoType });
+      next[memoOpenFor.id] = list;
+      setMemos(next);
+      setNewMemo("");
+      setNewMemoType("기타");
+    };
+    run();
   };
 
   return (

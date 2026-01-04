@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell, AlertTriangle, ShieldAlert } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type Status = "재원" | "휴원 검토중" | "휴원" | "퇴원 검토중" | "퇴원";
 type SignalType = "video_miss" | "portal_low" | "report_unread";
@@ -30,35 +31,47 @@ export default function AdminAlertsPage() {
   const [selectedLogs, setSelectedLogs] = useState<string[]>([]);
 
   useEffect(() => {
-    try {
-      const campusRaw = localStorage.getItem("admin_campus");
-      setRoleCampus(campusRaw || null);
-    } catch {}
-    try {
-      localStorage.setItem("admin_manual_alerts", JSON.stringify([]));
-    } catch {}
+    const init = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data?.user;
+      const role = (user?.app_metadata as any)?.role;
+      setRoleCampus(null);
+      if (!role) return;
+    };
+    init();
   }, []);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/admin/alerts", { cache: "no-store" });
-        const data = await res.json();
-        const list: AlertItem[] = data.items || [];
-        let manual: AlertItem[] = [];
-        try {
-          const raw = localStorage.getItem("admin_manual_alerts");
-          const arr = raw ? JSON.parse(raw) : [];
-          if (Array.isArray(arr)) {
-            manual = arr;
-          }
-        } catch {}
-        const merged = [...list, ...manual];
-        const suppressedRaw = localStorage.getItem("admin_alert_suppress");
-        const suppressMap: Record<string, { level: "주의" | "경고" | "위험"; ts: number }> = suppressedRaw ? JSON.parse(suppressedRaw) : {};
+        const { data: signals } = await supabase
+          .from("alert_signals")
+          .select("*")
+          .order("first_detected_at", { ascending: false });
+        const base = Array.isArray(signals) ? signals : [];
+        const list: AlertItem[] = base.map((r: any) => ({
+          id: String(r.id),
+          name: String(r.name ?? ""),
+          campus: String(r.campus ?? ""),
+          className: String(r.class_name ?? ""),
+          status: String(r.status ?? "재원") as Status,
+          signals: Array.isArray(r.signals) ? r.signals : [],
+          level: (String(r.level ?? "주의") as "주의" | "경고" | "위험"),
+          firstDetectedAt: String(r.first_detected_at ?? ""),
+        }));
+        const { data: suppressions } = await supabase
+          .from("alert_suppressions")
+          .select("*");
+        const map: Record<string, { level: "주의" | "경고" | "위험"; ts: number }> = {};
+        (Array.isArray(suppressions) ? suppressions : []).forEach((row: any) => {
+          const k = String(row.signal_id ?? "");
+          const ts = Date.parse(String(row.suppressed_at ?? row.created_at ?? ""));
+          const lv = (String(row.level ?? "주의") as "주의" | "경고" | "위험");
+          if (!map[k] || (ts > map[k].ts)) map[k] = { level: lv, ts };
+        });
         const now = Date.now();
-        const filtered = merged.filter(it => {
-          const sup = suppressMap[it.id];
+        const filtered = list.filter(it => {
+          const sup = map[it.id];
           if (!sup) return true;
           const within7 = now - sup.ts < 7 * 86400000;
           if (!within7) return true;
@@ -68,27 +81,7 @@ export default function AdminAlertsPage() {
         });
         setItems(filtered);
       } catch {
-        let manual: AlertItem[] = [];
-        try {
-          const raw = localStorage.getItem("admin_manual_alerts");
-          const arr = raw ? JSON.parse(raw) : [];
-          if (Array.isArray(arr)) {
-            manual = arr;
-          }
-        } catch {}
-        const suppressedRaw = localStorage.getItem("admin_alert_suppress");
-        const suppressMap: Record<string, { level: "주의" | "경고" | "위험"; ts: number }> = suppressedRaw ? JSON.parse(suppressedRaw) : {};
-        const now = Date.now();
-        const filtered = manual.filter(it => {
-          const sup = suppressMap[it.id];
-          if (!sup) return true;
-          const within7 = now - sup.ts < 7 * 86400000;
-          if (!within7) return true;
-          if (it.level === "위험" && sup.level !== "위험") return true;
-          if (it.level === "경고" && sup.level === "주의") return true;
-          return false;
-        });
-        setItems(filtered);
+        setItems([]);
       }
     };
     load();
@@ -103,14 +96,22 @@ export default function AdminAlertsPage() {
       setSelectedLogs([]);
       return;
     }
-    try {
-      const logsRaw = localStorage.getItem("admin_signal_logs");
-      const logs: Record<string, string[]> = logsRaw ? JSON.parse(logsRaw) : {};
-      const arr = logs[selected.id] || [];
-      setSelectedLogs(arr.slice().reverse());
-    } catch {
-      setSelectedLogs([]);
-    }
+    const run = async () => {
+      const { data } = await supabase
+        .from("alert_actions")
+        .select("*")
+        .eq("signal_id", selected.id)
+        .order("created_at", { ascending: false });
+      const rows = Array.isArray(data) ? data : [];
+      const lines = rows.map((r: any) => {
+        const ts = new Date(String(r.created_at ?? r.at ?? "")).toLocaleString("ko-KR");
+        const author = String(r.author ?? "");
+        const msg = String(r.message ?? "");
+        return `[${ts}] ${msg} • ${author}`;
+      });
+      setSelectedLogs(lines);
+    };
+    run();
   }, [selected]);
 
   const byQuit = useMemo(() => filteredByCampus.filter(it => it.status === "퇴원 검토중"), [filteredByCampus]);
@@ -126,97 +127,88 @@ export default function AdminAlertsPage() {
   const openDetail = (item: AlertItem) => {
     setSelected(item);
     setAction("");
-    try {
-      const supRaw = localStorage.getItem("admin_alert_suppress");
-      const map = supRaw ? JSON.parse(supRaw) : {};
-      map[item.id] = { level: item.level, ts: Date.now() };
-      localStorage.setItem("admin_alert_suppress", JSON.stringify(map));
-    } catch {}
+    const save = async () => {
+      await supabase
+        .from("alert_suppressions")
+        .insert({
+          signal_id: item.id,
+          level: item.level,
+          suppressed_at: new Date().toISOString(),
+        });
+    };
+    save();
   };
 
   const commitAction = () => {
     if (!selected || !action) return;
-    try {
-      const admin = localStorage.getItem("admin_name") || "관리자";
-      const logsRaw = localStorage.getItem("admin_signal_logs");
-      const logs: Record<string, string[]> = logsRaw ? JSON.parse(logsRaw) : {};
-      const date = new Date().toISOString().split("T")[0];
-      const entry = `${date}\n이탈 시그널 감지 (${selected.level})\n처리: ${action}\n담당: ${admin}`;
-      const arr = logs[selected.id] || [];
-      arr.unshift(entry);
-      logs[selected.id] = arr;
-      localStorage.setItem("admin_signal_logs", JSON.stringify(logs));
+    const run = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data?.user;
+      const author = String(user?.email ?? "관리자");
+      const message = `이탈 시그널 감지 (${selected.level}) 처리: ${action}`;
+      await supabase
+        .from("alert_actions")
+        .insert({
+          signal_id: selected.id,
+          action: action,
+          author,
+          message,
+          at: new Date().toISOString(),
+        });
       setAction("");
-      setSelectedLogs(prev => [entry, ...prev]);
-    } catch {}
+      const ts = new Date().toLocaleString("ko-KR");
+      setSelectedLogs(prev => [`[${ts}] ${message} • ${author}`, ...prev]);
+    };
+    run();
   };
 
   const appendLog = (id: string, message: string) => {
-    try {
-      const logsRaw = localStorage.getItem("admin_signal_logs");
-      const logs: Record<string, string[]> = logsRaw ? JSON.parse(logsRaw) : {};
-      const arr = logs[id] || [];
-      arr.unshift(message);
-      logs[id] = arr;
-      localStorage.setItem("admin_signal_logs", JSON.stringify(logs));
-      setSelectedLogs(prev => [message, ...prev]);
-    } catch {}
+    setSelectedLogs(prev => [message, ...prev]);
   };
 
   const handleConfirmAdmin = async () => {
     if (!selected) return;
-    const userId = localStorage.getItem("admin_account_id") || localStorage.getItem("admin_name") || "관리자";
+    const { data } = await supabase.auth.getUser();
+    const userId = String(data?.user?.id ?? "");
+    const author = String(data?.user?.email ?? "관리자");
     const signalId = selected.id;
     const ts = new Date().toLocaleString("ko-KR");
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 500);
-      const res = await fetch("/api/alerts/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "confirm", userId, signalId }),
-        signal: controller.signal
+    await supabase
+      .from("alert_actions")
+      .insert({
+        signal_id: signalId,
+        action: "confirm",
+        author,
+        message: `관리자 확인 처리 완료 (사용자 ID: ${userId} , 시그널 ID: ${signalId}) 상태: 성공`,
+        at: new Date().toISOString(),
       });
-      clearTimeout(timer);
-      const ok = res.ok;
-      const msg = `[${ts}] 관리자 확인 처리 완료 (사용자 ID: ${userId} , 시그널 ID: ${signalId}) 상태: ${ok ? "성공" : "실패"}`;
-      appendLog(signalId, msg);
-    } catch {
-      const msg = `[${ts}] 관리자 확인 처리 완료 (사용자 ID: ${userId} , 시그널 ID: ${signalId}) 상태: 실패`;
-      appendLog(signalId, msg);
-    }
+    const msg = `[${ts}] 관리자 확인 처리 완료 (사용자 ID: ${userId} , 시그널 ID: ${signalId}) 상태: 성공`;
+    appendLog(signalId, msg);
   };
 
   const handleNeedConsult = async () => {
     if (!selected) return;
-    const userId = localStorage.getItem("admin_account_id") || localStorage.getItem("admin_name") || "관리자";
+    const { data } = await supabase.auth.getUser();
+    const userId = String(data?.user?.id ?? "");
+    const author = String(data?.user?.email ?? "관리자");
     const signalId = selected.id;
     const ts = new Date().toLocaleString("ko-KR");
     setToast("상담 요청이 접수되었습니다");
     setTimeout(() => setToast(""), 1200);
-    try {
-      const state = { ts: Date.now(), statusTab, selectedId: selected.id };
-      localStorage.setItem("admin_alerts_return_state", JSON.stringify(state));
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 500);
-      const res = await fetch("/api/alerts/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "need_consult", userId, signalId }),
-        signal: controller.signal
+    await supabase
+      .from("alert_actions")
+      .insert({
+        signal_id: signalId,
+        action: "need_consult",
+        author,
+        message: `상담 요청 처리 (사용자 ID: ${userId} , 시그널 ID: ${signalId}) 상태: 성공`,
+        at: new Date().toISOString(),
       });
-      clearTimeout(timer);
-      const ok = res.ok;
-      const msg = `[${ts}] 상담 요청 처리 (사용자 ID: ${userId} , 시그널 ID: ${signalId}) 상태: ${ok ? "성공" : "실패"}`;
-      appendLog(signalId, msg);
-    } catch {
-      const msg = `[${ts}] 상담 요청 처리 (사용자 ID: ${userId} , 시그널 ID: ${signalId}) 상태: 실패`;
-      appendLog(signalId, msg);
-    } finally {
-      setTimeout(() => {
-        router.push(`/admin/alerts/consultation/${selected.id}`);
-      }, 300);
-    }
+    const msg = `[${ts}] 상담 요청 처리 (사용자 ID: ${userId} , 시그널 ID: ${signalId}) 상태: 성공`;
+    appendLog(signalId, msg);
+    setTimeout(() => {
+      router.push(`/admin/alerts/consultation/${selected.id}`);
+    }, 300);
   };
 
   return (

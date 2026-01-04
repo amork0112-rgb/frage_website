@@ -184,8 +184,7 @@ export default function AdminNewStudentsPage() {
       } catch {}
     };
     loadAll();
-    const t = setInterval(loadAll, 5000);
-    return () => clearInterval(t);
+    return () => {};
   }, []);
 
   const fetchDaySlots = async (date: string) => {
@@ -204,16 +203,13 @@ export default function AdminNewStudentsPage() {
   };
 
   useEffect(() => {
-    if (showCalendar) {
-      ensureDefaultWeekdaySlotsForMonth(currentMonth);
-    }
+    // 캘린더 렌더링은 조회만 수행합니다. 월 초기화는 명시적인 버튼 액션으로만 처리합니다.
   }, [showCalendar, currentMonth]);
 
   useEffect(() => {
     if (showReservationModal) {
       fetchDaySlots(selectedDate);
-      const t = setInterval(() => fetchDaySlots(selectedDate), 5000);
-      return () => clearInterval(t);
+      return () => {};
     }
   }, [showReservationModal, selectedDate]);
 
@@ -225,10 +221,7 @@ export default function AdminNewStudentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date: selectedDate, time: newSlotTime, max: 5, current: 0, isOpen: true })
       });
-      if (res.status === 409) {
-        alert("중복 일정이 있습니다.");
-        return;
-      }
+      // 중복인 경우에도 기존 데이터를 200으로 반환합니다.
       await fetchDaySlots(selectedDate);
       setNewSlotTime("");
     } catch {}
@@ -266,72 +259,29 @@ export default function AdminNewStudentsPage() {
     } catch {}
   };
   
-  const ensureDefaultDaySlots = async (date: string) => {
-    if (inFlightDatesRef.current.has(date)) return;
-    inFlightDatesRef.current.add(date);
-    try {
-      const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(date)}`);
-      const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const existing = new Set(items.map((s: any) => s.time));
-      for (const t of DEFAULT_TIMES) {
-        if (!existing.has(t)) {
-          const r = await fetch("/api/admin/schedules", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ date, time: t, max: 5, current: 0, isOpen: true })
-          });
-          if (r.status === 409) {
-            continue;
-          }
-        }
-      }
-      await refreshAllSchedules();
-      await fetchDaySlots(date);
-    } catch {} finally {
-      inFlightDatesRef.current.delete(date);
-    }
-  };
+  // 자동 생성 제거: 날짜 클릭 시 생성하지 않습니다.
   
-  const ensureDefaultWeekdaySlotsForMonth = async (month: Date) => {
-    const key = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
-    if (inFlightMonthRef.current === key) return;
-    inFlightMonthRef.current = key;
+  const initMonthSlots = async (month: Date) => {
     try {
-      const start = new Date(month.getFullYear(), month.getMonth(), 1);
-      const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-      const startStr = fmtYMD(start);
-      const endStr = fmtYMD(end);
-      const res = await fetch(`/api/admin/schedules?rangeStart=${encodeURIComponent(startStr)}&rangeEnd=${encodeURIComponent(endStr)}`);
-      const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const byDate: Record<string, Set<string>> = {};
-      items.forEach((s: any) => {
-        if (!byDate[s.date]) byDate[s.date] = new Set();
-        byDate[s.date].add(s.time);
+      const y = month.getFullYear();
+      const m = month.getMonth() + 1;
+      const res = await fetch("/api/admin/schedules/init-month", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year: y, month: m, weekdaysOnly: true })
       });
-      for (let d = 1; d <= end.getDate(); d++) {
-        const curr = new Date(month.getFullYear(), month.getMonth(), d);
-        const day = curr.getDay(); // 0=Sun..6=Sat
-        if (day === 0 || day === 6) continue; // weekdays only
-        const dateStr = fmtYMD(curr);
-        const set = byDate[dateStr] || new Set<string>();
-        for (const t of DEFAULT_TIMES) {
-          if (!set.has(t)) {
-            const r = await fetch("/api/admin/schedules", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ date: dateStr, time: t, max: 5, current: 0, isOpen: true })
-            });
-            if (r.status === 409) {
-              continue;
-            }
-          }
-        }
-      }
+      const data = await res.json();
       await refreshAllSchedules();
-    } catch {} finally {
-      inFlightMonthRef.current = null;
+      if (showReservationModal) await fetchDaySlots(selectedDate);
+      if (!data?.ok) {
+        alert("월 초기화에 실패했습니다.");
+      } else if (!data.initialized) {
+        alert("월 기본 시간대가 생성되었습니다.");
+      } else {
+        alert("이미 초기화된 월입니다.");
+      }
+    } catch {
+      alert("월 초기화 중 오류가 발생했습니다.");
     }
   };
 
@@ -666,7 +616,7 @@ export default function AdminNewStudentsPage() {
               </button>
             </div>
             {showCalendar && (
-              <div className="px-4 pb-2 text-[11px] text-slate-500">주중(월~금)은 기본 11개 시간대가 자동 오픈됩니다.</div>
+              <div className="px-4 pb-2 text-[11px] text-slate-500">캘린더 렌더링은 조회만 수행합니다. 시간대 생성은 월 초기화 버튼으로 실행됩니다.</div>
             )}
           {showCalendar && (
           <div className="p-4 pt-0" id="calendar-section">
@@ -699,7 +649,6 @@ export default function AdminNewStudentsPage() {
                         onClick={() => {
                           setSelectedDate(dateStr);
                           setShowReservationModal(true);
-                          ensureDefaultDaySlots(dateStr);
                         }}
                         className={`h-16 md:h-20 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
                       >
@@ -744,7 +693,6 @@ export default function AdminNewStudentsPage() {
                         onClick={() => {
                           setSelectedDate(dateStr);
                           setShowReservationModal(true);
-                          ensureDefaultDaySlots(dateStr);
                         }}
                         className={`h-16 md:h-20 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
                       >
@@ -906,6 +854,22 @@ export default function AdminNewStudentsPage() {
             </div>
             
             <div className="p-6 space-y-6">
+              <div className="bg-white p-3 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => initMonthSlots(currentMonth)}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold"
+                  >
+                    월 기본 시간대 초기화
+                  </button>
+                  <button
+                    onClick={refreshAllSchedules}
+                    className="px-3 py-2 bg-slate-100 text-slate-800 rounded-lg text-sm font-bold border border-slate-200"
+                  >
+                    새로고침
+                  </button>
+                </div>
+              </div>
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                 <h4 className="text-sm font-bold text-blue-800 mb-3">시간 추가</h4>
                 <div className="flex gap-2">

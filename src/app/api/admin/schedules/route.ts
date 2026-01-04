@@ -1,16 +1,5 @@
 import { NextResponse } from "next/server";
-
-type ScheduleSlot = {
-  id: string;
-  date: string;
-  time: string;
-  max: number;
-  current: number;
-  isOpen: boolean;
-  note?: string;
-};
-
-let SCHEDULES: ScheduleSlot[] = [];
+import { supabase } from "@/lib/supabase";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -23,26 +12,48 @@ export async function GET(req: Request) {
   const date = searchParams.get("date");
   const start = searchParams.get("rangeStart");
   const end = searchParams.get("rangeEnd");
-  if (date) {
-    const items = SCHEDULES.filter((s) => s.date === date).sort((a, b) =>
-      a.time.localeCompare(b.time)
-    );
+  try {
+    let query = supabase.from("schedules").select("*");
+    if (date) {
+      const { data } = await query.eq("date", date).order("time", { ascending: true });
+      const items = Array.isArray(data) ? data.map((r: any) => ({
+        id: String(r.id),
+        date: String(r.date),
+        time: String(r.time),
+        max: Number(r.max ?? 5),
+        current: Number(r.current ?? 0),
+        isOpen: Boolean(r.is_open ?? true),
+        note: r.note ? String(r.note) : undefined,
+      })) : [];
+      return json({ items });
+    }
+    if (start && end) {
+      const { data } = await query.gte("date", start).lte("date", end).order("date", { ascending: true }).order("time", { ascending: true });
+      const items = Array.isArray(data) ? data.map((r: any) => ({
+        id: String(r.id),
+        date: String(r.date),
+        time: String(r.time),
+        max: Number(r.max ?? 5),
+        current: Number(r.current ?? 0),
+        isOpen: Boolean(r.is_open ?? true),
+        note: r.note ? String(r.note) : undefined,
+      })) : [];
+      return json({ items });
+    }
+    const { data } = await query.order("date", { ascending: true }).order("time", { ascending: true });
+    const items = Array.isArray(data) ? data.map((r: any) => ({
+      id: String(r.id),
+      date: String(r.date),
+      time: String(r.time),
+      max: Number(r.max ?? 5),
+      current: Number(r.current ?? 0),
+      isOpen: Boolean(r.is_open ?? true),
+      note: r.note ? String(r.note) : undefined,
+    })) : [];
     return json({ items });
+  } catch {
+    return json({ items: [] });
   }
-  if (start && end) {
-    const items = SCHEDULES.filter((s) => s.date >= start && s.date <= end).sort((a, b) => {
-      const ad = a.date.localeCompare(b.date);
-      if (ad !== 0) return ad;
-      return a.time.localeCompare(b.time);
-    });
-    return json({ items });
-  }
-  const items = SCHEDULES.slice().sort((a, b) => {
-    const ad = a.date.localeCompare(b.date);
-    if (ad !== 0) return ad;
-    return a.time.localeCompare(b.time);
-  });
-  return json({ items });
 }
 
 export async function POST(req: Request) {
@@ -54,12 +65,54 @@ export async function POST(req: Request) {
     const current = Number(body.current ?? 0);
     const isOpen = Boolean(body.isOpen ?? true);
     if (!date || !time) return json({ error: "missing" }, 400);
-    const dup = SCHEDULES.find((s) => s.date === date && s.time === time);
-    if (dup) return json({ error: "duplicate" }, 409);
-    const id = `sch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const slot: ScheduleSlot = { id, date, time, max, current, isOpen };
-    SCHEDULES.push(slot);
-    return json({ item: slot }, 201);
+    const { data: dupRows } = await supabase
+      .from("schedules")
+      .select("*")
+      .eq("date", date)
+      .eq("time", time)
+      .limit(1);
+    const dup = Array.isArray(dupRows) && dupRows.length > 0 ? dupRows[0] : null;
+    if (dup) {
+      return json({
+        item: {
+          id: String(dup.id),
+          date: String(dup.date),
+          time: String(dup.time),
+          max: Number(dup.max ?? 5),
+          current: Number(dup.current ?? 0),
+          isOpen: Boolean(dup.is_open ?? true),
+          note: dup.note ? String(dup.note) : undefined,
+        }
+      }, 200);
+    }
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("schedules")
+      .insert({
+        date,
+        time,
+        max,
+        current,
+        is_open: isOpen,
+        created_at: now,
+        updated_at: now,
+      })
+      .select()
+      .limit(1);
+    if (error) {
+      return json({ error: "insert_failed" }, 500);
+    }
+    const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+    const item = row ? {
+      id: String(row.id),
+      date: String(row.date),
+      time: String(row.time),
+      max: Number(row.max ?? 5),
+      current: Number(row.current ?? 0),
+      isOpen: Boolean(row.is_open ?? true),
+      note: row.note ? String(row.note) : undefined,
+    } : null;
+    return json({ item }, 201);
   } catch {
     return json({ error: "invalid" }, 400);
   }
@@ -70,23 +123,60 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const id = String(body.id || "");
     if (!id) return json({ error: "missing id" }, 400);
-    const idx = SCHEDULES.findIndex((s) => s.id === id);
-    if (idx < 0) return json({ error: "not found" }, 404);
-    const prev = SCHEDULES[idx];
-    const next: ScheduleSlot = {
-      ...prev,
-      date: body.date ? String(body.date) : prev.date,
-      time: body.time ? String(body.time) : prev.time,
-      max: typeof body.max === "number" ? body.max : prev.max,
-      current: typeof body.current === "number" ? body.current : prev.current,
-      isOpen: typeof body.isOpen === "boolean" ? body.isOpen : prev.isOpen,
-      note: body.note !== undefined ? String(body.note) : prev.note,
-    };
-    if ((next.date !== prev.date || next.time !== prev.time) && SCHEDULES.find((s) => s.date === next.date && s.time === next.time && s.id !== id)) {
-      return json({ error: "duplicate" }, 409);
+    const now = new Date().toISOString();
+    const patch: any = { updated_at: now };
+    if (body.date !== undefined) patch.date = String(body.date);
+    if (body.time !== undefined) patch.time = String(body.time);
+    if (typeof body.max === "number") patch.max = body.max;
+    if (typeof body.current === "number") patch.current = body.current;
+    if (typeof body.isOpen === "boolean") patch.is_open = body.isOpen;
+    if (body.note !== undefined) patch.note = body.note ? String(body.note) : null;
+    // If changing date/time, ensure no duplication; but be idempotent: return existing instead of 409
+    if (patch.date || patch.time) {
+      const dateVal = patch.date ?? undefined;
+      const timeVal = patch.time ?? undefined;
+      if (dateVal && timeVal) {
+        const { data: dupRows } = await supabase
+          .from("schedules")
+          .select("*")
+          .eq("date", dateVal)
+          .eq("time", timeVal)
+          .neq("id", id)
+          .limit(1);
+        const dup = Array.isArray(dupRows) && dupRows.length > 0 ? dupRows[0] : null;
+        if (dup) {
+          return json({
+            item: {
+              id: String(dup.id),
+              date: String(dup.date),
+              time: String(dup.time),
+              max: Number(dup.max ?? 5),
+              current: Number(dup.current ?? 0),
+              isOpen: Boolean(dup.is_open ?? true),
+              note: dup.note ? String(dup.note) : undefined,
+            }
+          }, 200);
+        }
+      }
     }
-    SCHEDULES[idx] = next;
-    return json({ item: next });
+    const { data, error } = await supabase
+      .from("schedules")
+      .update(patch)
+      .eq("id", id)
+      .select()
+      .limit(1);
+    if (error) return json({ error: "update_failed" }, 500);
+    const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+    const item = row ? {
+      id: String(row.id),
+      date: String(row.date),
+      time: String(row.time),
+      max: Number(row.max ?? 5),
+      current: Number(row.current ?? 0),
+      isOpen: Boolean(row.is_open ?? true),
+      note: row.note ? String(row.note) : undefined,
+    } : null;
+    return json({ item });
   } catch {
     return json({ error: "invalid" }, 400);
   }
@@ -97,12 +187,10 @@ export async function DELETE(req: Request) {
     const body = await req.json();
     const id = String(body.id || "");
     if (!id) return json({ error: "missing id" }, 400);
-    const before = SCHEDULES.length;
-    SCHEDULES = SCHEDULES.filter((s) => s.id !== id);
-    if (SCHEDULES.length === before) return json({ error: "not found" }, 404);
+    const { error } = await supabase.from("schedules").delete().eq("id", id);
+    if (error) return json({ error: "delete_failed" }, 500);
     return json({ ok: true });
   } catch {
     return json({ error: "invalid" }, 400);
   }
 }
-

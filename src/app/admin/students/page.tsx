@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Users, Search } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type Status = "재원" | "휴원 검토중" | "휴원" | "퇴원 검토중" | "퇴원";
 
@@ -103,36 +104,31 @@ export default function AdminStudentsPage() {
   const [selectedTime, setSelectedTime] = useState<string>("");
 
   useEffect(() => {
-    try {
-      const roleRaw = localStorage.getItem("admin_role");
-      const classRaw = localStorage.getItem("teacher_class");
-      setRole(roleRaw === "teacher" ? "teacher" : "admin");
-      setRoleClass(classRaw || null);
-    } catch {}
-    try {
-      const memoRaw = localStorage.getItem("admin_memos");
-      const map = memoRaw ? JSON.parse(memoRaw) : {};
-      setMemos(map || {});
-    } catch {}
-    try {
-      const updRaw = localStorage.getItem("admin_student_updates");
-      const map = updRaw ? JSON.parse(updRaw) : {};
-      setUpdates(map || {});
-    } catch {}
-    try {
-      const logsRaw = localStorage.getItem("admin_student_logs");
-      const map = logsRaw ? JSON.parse(logsRaw) : {};
-      setStudentLogs(map || {});
-    } catch {}
-    try {
-      const raw = localStorage.getItem("admin_class_catalog");
-      let list: string[] = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(list) || list.length === 0) {
-        list = [...KINDER, ...JUNIOR];
-      }
-      setClassCatalog(list);
-      localStorage.setItem("admin_class_catalog", JSON.stringify(list));
-    } catch {}
+    const init = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data?.user;
+      const roleMeta = (user?.app_metadata as any)?.role;
+      setRole(roleMeta === "teacher" ? "teacher" : "admin");
+      setRoleClass(null);
+      setClassCatalog([...KINDER, ...JUNIOR]);
+      const { data: memRows } = await supabase
+        .from("student_memos")
+        .select("*")
+        .order("created_at", { ascending: false });
+      const memoMap: Record<string, { text: string; author: string; at: string; tag?: "상담" | "결제" | "특이사항" | "기타" }[]> = {};
+      (Array.isArray(memRows) ? memRows : []).forEach((m: any) => {
+        const sid = String(m.student_id);
+        if (!memoMap[sid]) memoMap[sid] = [];
+        memoMap[sid].push({
+          text: String(m.text ?? ""),
+          author: String(m.author ?? ""),
+          at: String(m.created_at ?? m.at ?? ""),
+          tag: (m.tag as any) ?? "기타",
+        });
+      });
+      setMemos(memoMap);
+    };
+    init();
   }, []);
 
   const [students, setStudents] = useState<Student[]>([]);
@@ -160,37 +156,7 @@ export default function AdminStudentsPage() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    try {
-      const memRaw = localStorage.getItem("admin_memos");
-      const map = memRaw ? JSON.parse(memRaw) : {};
-      const now = Date.now();
-      let changed = false;
-      Object.keys(map).forEach((id) => {
-        const list = Array.isArray(map[id]) ? map[id] : [];
-        const filtered = list.filter((m: any) => {
-          const t = String(m.text || "");
-          if (t.includes("신규")) {
-            const atMs = Date.parse(String(m.at || ""));
-            if (!Number.isNaN(atMs)) {
-              const diffDays = Math.floor((now - atMs) / (1000 * 60 * 60 * 24));
-              return diffDays <= 30;
-            }
-            return false;
-          }
-          return true;
-        });
-        if (filtered.length !== list.length) {
-          map[id] = filtered;
-          changed = true;
-        }
-      });
-      if (changed) {
-        localStorage.setItem("admin_memos", JSON.stringify(map));
-        setMemos(map);
-      }
-    } catch {}
-  }, []);
+  useEffect(() => {}, []);
 
   const limitedByRole = useMemo(() => {
     return students.filter(s => {
@@ -211,16 +177,9 @@ export default function AdminStudentsPage() {
       return { ...s, ...u };
     });
   }, [limitedByRole, updates]);
-  
   const getConsultCount = (id: string) => {
-    try {
-      const raw = localStorage.getItem("admin_consult_logs");
-      const map: Record<string, any[]> = raw ? JSON.parse(raw) : {};
-      const arr = map[id] || [];
-      return Array.isArray(arr) ? arr.length : 0;
-    } catch {
-      return 0;
-    }
+    const list = memos[id] || [];
+    return list.filter(m => m.tag === "상담").length;
   };
 
   const filtered = useMemo(() => {
@@ -260,35 +219,21 @@ export default function AdminStudentsPage() {
     return Array.from(set);
   }, [classCatalog, campusClasses]);
 
-  useEffect(() => {
-    try {
-      const rawProfiles = localStorage.getItem("signup_profiles");
-      const profiles: { phone: string; englishFirstName?: string; englishName?: string }[] = rawProfiles ? JSON.parse(rawProfiles) : [];
-      const hasProfiles = Array.isArray(profiles) && profiles.length > 0;
-      const raw = localStorage.getItem("signup_english_names");
-      const legacy: { phone: string; englishName: string }[] = raw ? JSON.parse(raw) : [];
-      const hasLegacy = Array.isArray(legacy) && legacy.length > 0;
-      if (!hasProfiles && !hasLegacy) return;
-      const next = { ...updates };
-      students.forEach(s => {
-        const matchNew = hasProfiles ? profiles.find(item => item.phone === s.phone) : undefined;
-        const matchLegacy = !matchNew && hasLegacy ? legacy.find(item => item.phone === s.phone) : undefined;
-        const value = matchNew?.englishFirstName || matchNew?.englishName || matchLegacy?.englishName;
-        if (value && value !== s.englishName) {
-          next[s.id] = { ...(next[s.id] || {}), englishName: value };
-        }
-      });
-      setUpdates(next);
-      localStorage.setItem("admin_student_updates", JSON.stringify(next));
-    } catch {}
-  }, [students]);
+  useEffect(() => {}, [students]);
 
-  const saveUpdate = (id: string, next: Partial<{ className: string; status: Status }>) => {
-    const prev = updates[id] || {};
-    const merged = { ...prev, ...next };
-    const map = { ...updates, [id]: merged };
-    setUpdates(map);
-    localStorage.setItem("admin_student_updates", JSON.stringify(map));
+  const saveUpdate = (id: string, next: Partial<{ className: string; status: Status; bus: string; departureTime: string; englishName: string }>) => {
+    const apply = async () => {
+      const payload: any = {};
+      if (typeof next.className !== "undefined") payload.class_name = next.className;
+      if (typeof next.status !== "undefined") payload.status = next.status;
+      if (typeof next.bus !== "undefined") payload.bus = next.bus;
+      if (typeof next.departureTime !== "undefined") payload.departure_time = next.departureTime;
+      if (typeof next.englishName !== "undefined") payload.english_name = next.englishName;
+      if (Object.keys(payload).length === 0) return;
+      await supabase.from("students").update(payload).eq("id", id);
+      setStudents(prev => prev.map(s => (s.id === id ? { ...s, ...next } : s)));
+    };
+    apply();
   };
 
   const toggleSelect = (id: string) => {
@@ -313,7 +258,7 @@ export default function AdminStudentsPage() {
     setBulkModalOpen(false);
   };
 
-  const handleBulkClassChange = () => {
+  const handleBulkClassChange = async () => {
     if (!selectedStudentIds.length) return;
     if (!selectedTargetClass) return;
     if (!availableClasses.includes(selectedTargetClass)) return;
@@ -324,7 +269,8 @@ export default function AdminStudentsPage() {
     try {
       const newUpdates = { ...updates };
       const newLogs = { ...studentLogs };
-      const admin = localStorage.getItem("admin_name") || "관리자";
+      const { data } = await supabase.auth.getUser();
+      const admin = String(data?.user?.email ?? "관리자");
       const date = new Date().toISOString().split("T")[0];
       selectedStudents.forEach(s => {
         const oldClass = s.className;
@@ -333,11 +279,16 @@ export default function AdminStudentsPage() {
         const list = newLogs[s.id] || [];
         list.push(entry);
         newLogs[s.id] = list;
+        saveUpdate(s.id, { className: selectedTargetClass });
+        supabase.from("student_status_logs").insert({
+          student_id: s.id,
+          type: "class_change",
+          message: entry,
+          at: new Date().toISOString(),
+        });
       });
       setUpdates(newUpdates);
       setStudentLogs(newLogs);
-      localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
-      localStorage.setItem("admin_student_logs", JSON.stringify(newLogs));
       setSelectedStudentIds([]);
       setSelectedTargetClass("");
       closeBulkModal();
@@ -350,7 +301,6 @@ export default function AdminStudentsPage() {
     if (!name) return;
     const next = Array.from(new Set([...(classCatalog || []), name]));
     setClassCatalog(next);
-    localStorage.setItem("admin_class_catalog", JSON.stringify(next));
     setNewClassName("");
     setSelectedTargetClass(name);
   };
@@ -380,7 +330,7 @@ export default function AdminStudentsPage() {
     setBulkTimeOpen(false);
   };
 
-  const handleBulkBusChange = () => {
+  const handleBulkBusChange = async () => {
     if (role === "teacher") return;
     if (!selectedStudentIds.length) return;
     if (!selectedTargetBus) return;
@@ -391,7 +341,8 @@ export default function AdminStudentsPage() {
     try {
       const newUpdates = { ...updates };
       const newLogs = { ...studentLogs };
-      const admin = localStorage.getItem("admin_name") || "관리자";
+      const { data } = await supabase.auth.getUser();
+      const admin = String(data?.user?.email ?? "관리자");
       const date = new Date().toISOString().split("T")[0];
       selectedStudents.forEach(s => {
         const oldBus = updates[s.id]?.bus || s.bus;
@@ -400,18 +351,23 @@ export default function AdminStudentsPage() {
         const list = newLogs[s.id] || [];
         list.push(entry);
         newLogs[s.id] = list;
+        saveUpdate(s.id, { bus: selectedTargetBus });
+        supabase.from("student_status_logs").insert({
+          student_id: s.id,
+          type: "bus_change",
+          message: entry,
+          at: new Date().toISOString(),
+        });
       });
       setUpdates(newUpdates);
       setStudentLogs(newLogs);
-      localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
-      localStorage.setItem("admin_student_logs", JSON.stringify(newLogs));
       setSelectedStudentIds([]);
       setSelectedTargetBus("");
       closeBulkBusModal();
     } catch {}
   };
 
-  const handleBulkTimeChange = () => {
+  const handleBulkTimeChange = async () => {
     if (role === "teacher") return;
     if (!selectedStudentIds.length) return;
     if (!selectedTargetTime) return;
@@ -422,7 +378,8 @@ export default function AdminStudentsPage() {
     try {
       const newUpdates = { ...updates };
       const newLogs = { ...studentLogs };
-      const admin = localStorage.getItem("admin_name") || "관리자";
+      const { data } = await supabase.auth.getUser();
+      const admin = String(data?.user?.email ?? "관리자");
       const date = new Date().toISOString().split("T")[0];
       selectedStudents.forEach(s => {
         const oldTime = updates[s.id]?.departureTime || s.departureTime;
@@ -431,11 +388,16 @@ export default function AdminStudentsPage() {
         const list = newLogs[s.id] || [];
         list.push(entry);
         newLogs[s.id] = list;
+        saveUpdate(s.id, { departureTime: selectedTargetTime });
+        supabase.from("student_status_logs").insert({
+          student_id: s.id,
+          type: "time_change",
+          message: entry,
+          at: new Date().toISOString(),
+        });
       });
       setUpdates(newUpdates);
       setStudentLogs(newLogs);
-      localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
-      localStorage.setItem("admin_student_logs", JSON.stringify(newLogs));
       setSelectedStudentIds([]);
       setSelectedTargetTime("");
       closeBulkTimeModal();
@@ -471,16 +433,23 @@ export default function AdminStudentsPage() {
     };
   }, [memoOpenFor]);
 
-  const saveMemo = () => {
+  const saveMemo = async () => {
     if (!memoOpenFor || !newMemo.trim()) return;
-    const author = localStorage.getItem("admin_name") || "관리자";
+    const { data } = await supabase.auth.getUser();
+    const author = String(data?.user?.email ?? "관리자");
     const at = new Date().toISOString();
     const next = { ...memos };
     const list = next[memoOpenFor.id] || [];
     list.unshift({ text: newMemo.trim(), author, at, tag: newMemoType });
     next[memoOpenFor.id] = list;
     setMemos(next);
-    localStorage.setItem("admin_memos", JSON.stringify(next));
+    await supabase.from("student_memos").insert({
+      student_id: memoOpenFor.id,
+      text: newMemo.trim(),
+      author,
+      tag: newMemoType,
+      created_at: at,
+    });
     setNewMemo("");
     setNewMemoType("기타");
   };
@@ -498,10 +467,10 @@ export default function AdminStudentsPage() {
           const target = students.find(s => s.phone === phoneRaw);
           if (target) {
             next[target.id] = { ...(next[target.id] || {}), englishName: engRaw };
+            saveUpdate(target.id, { englishName: engRaw } as any);
           }
         });
         setUpdates(next);
-        localStorage.setItem("admin_student_updates", JSON.stringify(next));
         alert("CSV 업로드로 영어이름이 일괄 업데이트되었습니다.");
       } catch {
         alert("CSV 파싱 중 오류가 발생했습니다.");
@@ -1158,23 +1127,20 @@ export default function AdminStudentsPage() {
                           new Date(leaveEnd) <= new Date(leaveStart) ||
                           (leaveReason || "").trim().length < 5
                         }
-                        onClick={() => {
+                        onClick={async () => {
                           if (!leaveStart || !leaveEnd) return;
                           if (new Date(leaveEnd) <= new Date(leaveStart)) return;
                           if ((leaveReason || "").trim().length < 5) return;
                           const id = statusModalFor!.id;
-                          const admin = localStorage.getItem("admin_name") || "관리자";
-                          const date = new Date().toISOString().split("T")[0];
-                          const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "휴원" as Status } };
-                          const entry = `${date} 상태 변경: 재원 → 휴원 (기간: ${leaveStart}~${leaveEnd}, 사유: ${leaveReason.trim()}) 처리자: ${admin}`;
-                          const newLogs = { ...studentLogs };
-                          const list = newLogs[id] || [];
-                          list.push(entry);
-                          newLogs[id] = list;
-                          setUpdates(newUpdates);
-                          setStudentLogs(newLogs);
-                          localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
-                          localStorage.setItem("admin_student_logs", JSON.stringify(newLogs));
+                          const { data } = await supabase.auth.getUser();
+                          const author = String(data?.user?.email ?? "관리자");
+                          await supabase.from("students").update({ status: "휴원" }).eq("id", id);
+                          await supabase.from("student_status_logs").insert({
+                            student_id: id,
+                            type: "status_change",
+                            message: `상태 변경: 재원 → 휴원 (기간: ${leaveStart}~${leaveEnd}, 사유: ${leaveReason.trim()}) 처리자: ${author}`,
+                            at: new Date().toISOString(),
+                          });
                           setStatusModalFor(null);
                         }}
                         className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
@@ -1202,63 +1168,28 @@ export default function AdminStudentsPage() {
                     <div className="mt-4 flex justify-between">
                       <button onClick={() => setStatusStep(1)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">이전</button>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           const id = statusModalFor!.id;
-                          const admin = localStorage.getItem("admin_name") || "관리자";
-                          const date = new Date().toISOString().split("T")[0];
-                          const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "휴원 검토중" as Status } };
-                          const entry = `${date} 재원상태 변경: ${statusModalFor!.status} → 휴원 검토중 처리자: ${admin}`;
-                          const newLogs = { ...studentLogs };
-                          const list = newLogs[id] || [];
-                          list.push(entry);
-                          newLogs[id] = list;
-                          setUpdates(newUpdates);
-                          setStudentLogs(newLogs);
-                          localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
-                          localStorage.setItem("admin_student_logs", JSON.stringify(newLogs));
-                          try {
-                            const raw = localStorage.getItem("admin_manual_alerts");
-                            const arr = raw ? JSON.parse(raw) : [];
-                            const item = {
-                              id: `manual-${id}-${Date.now()}`,
-                              name: statusModalFor!.name,
-                              campus: statusModalFor!.campus,
-                              className: statusModalFor!.className,
-                              status: "휴원 검토중",
-                              signals: [],
-                              level: "주의",
-                              firstDetectedAt: date
-                            };
-                            const nextArr = Array.isArray(arr) ? [item, ...arr] : [item];
-                            localStorage.setItem("admin_manual_alerts", JSON.stringify(nextArr));
-                          } catch {}
-                          try {
-                            const inboxRaw = localStorage.getItem("admin_consult_inbox");
-                            const inboxMap = inboxRaw ? JSON.parse(inboxRaw) : {};
-                            const leaveList = Array.isArray(inboxMap.leave) ? inboxMap.leave : [];
-                            const consultRaw = localStorage.getItem("admin_consult_logs");
-                            const consultMap: Record<string, any[]> = consultRaw ? JSON.parse(consultRaw) : {};
-                            const consultArr = Array.isArray(consultMap[id]) ? consultMap[id] : [];
-                            const last = consultArr.length ? consultArr[consultArr.length - 1] : null;
-                            const inboxItem = {
-                              id,
-                              name: statusModalFor!.name,
-                              campus: statusModalFor!.campus,
-                              className: statusModalFor!.className,
-                              consultDate: last?.consultDate || date,
-                              consultMethod: last?.consultMethod || "전화",
-                              consultContent: last?.consultContent || "휴원 검토 시작",
-                              consultResult: last?.consultResult || "휴원 검토중"
-                            };
-                            inboxMap.leave = [inboxItem, ...leaveList];
-                            localStorage.setItem("admin_consult_inbox", JSON.stringify(inboxMap));
-                            const moveLogsRaw = localStorage.getItem("admin_consult_move_logs");
-                            const moveLogs: string[] = moveLogsRaw ? JSON.parse(moveLogsRaw) : [];
-                            moveLogs.push(`${date} 상담기록 이동: ${statusModalFor!.name} → 휴원 검토 Inbox 처리자: ${admin}`);
-                            localStorage.setItem("admin_consult_move_logs", JSON.stringify(moveLogs));
-                            alert("상태 변경 완료 • 이탈 시그널 페이지로 이동합니다.");
-                            router.push("/admin/alerts");
-                          } catch {}
+                          const { data } = await supabase.auth.getUser();
+                          const author = String(data?.user?.email ?? "관리자");
+                          await supabase.from("students").update({ status: "휴원 검토중" }).eq("id", id);
+                          await supabase.from("student_status_logs").insert({
+                            student_id: id,
+                            type: "status_change",
+                            message: `재원상태 변경: ${statusModalFor!.status} → 휴원 검토중 처리자: ${author}`,
+                            at: new Date().toISOString(),
+                          });
+                          await supabase.from("alert_signals").insert({
+                            student_id: id,
+                            name: statusModalFor!.name,
+                            campus: statusModalFor!.campus,
+                            class_name: statusModalFor!.className,
+                            status: "휴원 검토중",
+                            signals: [],
+                            level: "주의",
+                            first_detected_at: new Date().toISOString().split("T")[0],
+                          });
+                          router.push("/admin/alerts");
                           setStatusModalFor(null);
                         }}
                         className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
@@ -1276,9 +1207,10 @@ export default function AdminStudentsPage() {
                     <div className="mt-4 flex justify-between">
                       <button onClick={() => setStatusStep(1)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">이전</button>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           const id = statusModalFor!.id;
-                          const admin = localStorage.getItem("admin_name") || "관리자";
+                          const { data } = await supabase.auth.getUser();
+                          const admin = String(data?.user?.email ?? "관리자");
                           const date = new Date().toISOString().split("T")[0];
                           const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "퇴원 검토중" as Status } };
                           const entry = `${date} 재원상태 변경: ${statusModalFor!.status} → 퇴원 검토중 처리자: ${admin}`;
@@ -1288,51 +1220,25 @@ export default function AdminStudentsPage() {
                           newLogs[id] = list;
                           setUpdates(newUpdates);
                           setStudentLogs(newLogs);
-                          localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
-                          localStorage.setItem("admin_student_logs", JSON.stringify(newLogs));
-                          try {
-                            const raw = localStorage.getItem("admin_manual_alerts");
-                            const arr = raw ? JSON.parse(raw) : [];
-                            const item = {
-                              id: `manual-${id}-${Date.now()}`,
-                              name: statusModalFor!.name,
-                              campus: statusModalFor!.campus,
-                              className: statusModalFor!.className,
-                              status: "퇴원 검토중",
-                              signals: [],
-                              level: "경고",
-                              firstDetectedAt: date
-                            };
-                            const nextArr = Array.isArray(arr) ? [item, ...arr] : [item];
-                            localStorage.setItem("admin_manual_alerts", JSON.stringify(nextArr));
-                          } catch {}
-                          try {
-                            const inboxRaw = localStorage.getItem("admin_consult_inbox");
-                            const inboxMap = inboxRaw ? JSON.parse(inboxRaw) : {};
-                            const quitList = Array.isArray(inboxMap.quit) ? inboxMap.quit : [];
-                            const consultRaw = localStorage.getItem("admin_consult_logs");
-                            const consultMap: Record<string, any[]> = consultRaw ? JSON.parse(consultRaw) : {};
-                            const consultArr = Array.isArray(consultMap[id]) ? consultMap[id] : [];
-                            const last = consultArr.length ? consultArr[consultArr.length - 1] : null;
-                            const inboxItem = {
-                              id,
-                              name: statusModalFor!.name,
-                              campus: statusModalFor!.campus,
-                              className: statusModalFor!.className,
-                              consultDate: last?.consultDate || date,
-                              consultMethod: last?.consultMethod || "전화",
-                              consultContent: last?.consultContent || "퇴원 검토 시작",
-                              consultResult: last?.consultResult || "퇴원 검토중"
-                            };
-                            inboxMap.quit = [inboxItem, ...quitList];
-                            localStorage.setItem("admin_consult_inbox", JSON.stringify(inboxMap));
-                            const moveLogsRaw = localStorage.getItem("admin_consult_move_logs");
-                            const moveLogs: string[] = moveLogsRaw ? JSON.parse(moveLogsRaw) : [];
-                            moveLogs.push(`${date} 상담기록 이동: ${statusModalFor!.name} → 퇴원 검토 Inbox 처리자: ${admin}`);
-                            localStorage.setItem("admin_consult_move_logs", JSON.stringify(moveLogs));
-                            alert("상태 변경 완료 • 이탈 시그널 페이지로 이동합니다.");
-                            router.push("/admin/alerts");
-                          } catch {}
+                          await supabase.from("students").update({ status: "퇴원 검토중" }).eq("id", id);
+                          await supabase.from("student_status_logs").insert({
+                            student_id: id,
+                            type: "status_change",
+                            message: entry,
+                            at: new Date().toISOString(),
+                          });
+                          await supabase.from("alert_signals").insert({
+                            student_id: id,
+                            name: statusModalFor!.name,
+                            campus: statusModalFor!.campus,
+                            class_name: statusModalFor!.className,
+                            status: "퇴원 검토중",
+                            signals: [],
+                            level: "경고",
+                            first_detected_at: date
+                          });
+                          alert("상태 변경 완료 • 이탈 시그널 페이지로 이동합니다.");
+                          router.push("/admin/alerts");
                           setStatusModalFor(null);
                         }}
                         className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
@@ -1349,9 +1255,10 @@ export default function AdminStudentsPage() {
                     <div className="mt-4 flex justify-between">
                       <button onClick={() => setStatusStep(1)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">이전</button>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           const id = statusModalFor!.id;
-                          const admin = localStorage.getItem("admin_name") || "관리자";
+                          const { data } = await supabase.auth.getUser();
+                          const admin = String(data?.user?.email ?? "관리자");
                           const date = new Date().toISOString().split("T")[0];
                           const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "재원" as Status } };
                           const entry = `${date} 재원상태 변경: 퇴원 검토중 → 재원 처리자: ${admin}`;
@@ -1361,8 +1268,13 @@ export default function AdminStudentsPage() {
                           newLogs[id] = list;
                           setUpdates(newUpdates);
                           setStudentLogs(newLogs);
-                          localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
-                          localStorage.setItem("admin_student_logs", JSON.stringify(newLogs));
+                          await supabase.from("students").update({ status: "재원" }).eq("id", id);
+                          await supabase.from("student_status_logs").insert({
+                            student_id: id,
+                            type: "status_change",
+                            message: entry,
+                            at: new Date().toISOString(),
+                          });
                           setStatusModalFor(null);
                         }}
                         className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
@@ -1410,12 +1322,13 @@ export default function AdminStudentsPage() {
                           (quitReason || "").trim().length < 5 ||
                           !confirmChecked
                         }
-                        onClick={() => {
+                        onClick={async () => {
                           if (!quitDate) return;
                           if ((quitReason || "").trim().length < 5) return;
                           if (!confirmChecked) return;
                           const id = statusModalFor!.id;
-                          const admin = localStorage.getItem("admin_name") || "관리자";
+                          const { data } = await supabase.auth.getUser();
+                          const admin = String(data?.user?.email ?? "관리자");
                           const date = new Date().toISOString().split("T")[0];
                           const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "퇴원" as Status } };
                           const entry = `${date} 상태 변경: 재원/휴원 → 퇴원 (퇴원일: ${quitDate}, 사유: ${quitReason.trim()}) 처리자: ${admin}`;
@@ -1425,8 +1338,13 @@ export default function AdminStudentsPage() {
                           newLogs[id] = list;
                           setUpdates(newUpdates);
                           setStudentLogs(newLogs);
-                          localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
-                          localStorage.setItem("admin_student_logs", JSON.stringify(newLogs));
+                          await supabase.from("students").update({ status: "퇴원" }).eq("id", id);
+                          await supabase.from("student_status_logs").insert({
+                            student_id: id,
+                            type: "status_change",
+                            message: entry,
+                            at: new Date().toISOString(),
+                          });
                           setStatusModalFor(null);
                         }}
                         className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
@@ -1512,7 +1430,7 @@ export default function AdminStudentsPage() {
                 </div>
                 <div className="mt-4 flex justify-end">
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const ok =
                         !!consultDate &&
                         !!consultMethod &&
@@ -1520,26 +1438,33 @@ export default function AdminStudentsPage() {
                         !!consultResult;
                       if (!ok) return;
                       const id = consultModalFor!.id;
-                      const admin = localStorage.getItem("admin_name") || "관리자";
+                      const { data } = await supabase.auth.getUser();
+                      const admin = String(data?.user?.email ?? "관리자");
                       const date = new Date().toISOString().split("T")[0];
-                      try {
-                        const raw = localStorage.getItem("admin_consult_logs");
-                        const map: Record<string, any[]> = raw ? JSON.parse(raw) : {};
-                        const arr = Array.isArray(map[id]) ? map[id] : [];
-                        arr.push({ consultDate, consultMethod, consultContent: consultContent.trim(), consultResult, actor: admin, at: date });
-                        map[id] = arr;
-                        localStorage.setItem("admin_consult_logs", JSON.stringify(map));
-                      } catch {}
+                      await supabase.from("student_consults").insert({
+                        student_id: id,
+                        consult_date: consultDate,
+                        consult_method: consultMethod,
+                        consult_content: consultContent.trim(),
+                        consult_result: consultResult,
+                        actor: admin,
+                        at: date,
+                      });
                       const logs = { ...studentLogs };
                       const list = logs[id] || [];
                       list.push(`${date} 휴원 검토 상담 완료 결과: ${consultResult} 처리자: ${admin}`);
                       logs[id] = list;
                       setStudentLogs(logs);
-                      localStorage.setItem("admin_student_logs", JSON.stringify(logs));
                       if (consultResult === "계속 재원") {
                         const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "재원" as Status } };
                         setUpdates(newUpdates);
-                        localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
+                        await supabase.from("students").update({ status: "재원" }).eq("id", id);
+                        await supabase.from("student_status_logs").insert({
+                          student_id: id,
+                          type: "consult",
+                          message: `${date} 상담 결과: 계속 재원`,
+                          at: new Date().toISOString(),
+                        });
                         setConsultModalFor(null);
                       } else if (consultResult === "휴원 확정") {
                         setConsultModalFor(null);
@@ -1547,46 +1472,25 @@ export default function AdminStudentsPage() {
                       } else {
                         const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "퇴원 검토중" as Status } };
                         setUpdates(newUpdates);
-                        localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
-                        try {
-                          const raw = localStorage.getItem("admin_manual_alerts");
-                          const arr = raw ? JSON.parse(raw) : [];
-                          const item = {
-                            id: `manual-${id}-${Date.now()}`,
-                            name: consultModalFor!.name,
-                            campus: consultModalFor!.campus,
-                            className: consultModalFor!.className,
-                            status: "퇴원 검토중",
-                            signals: [],
-                            level: "경고",
-                            firstDetectedAt: date
-                          };
-                          const nextArr = Array.isArray(arr) ? [item, ...arr] : [item];
-                          localStorage.setItem("admin_manual_alerts", JSON.stringify(nextArr));
-                        } catch {}
-                        try {
-                          const inboxRaw = localStorage.getItem("admin_consult_inbox");
-                          const inboxMap = inboxRaw ? JSON.parse(inboxRaw) : {};
-                          const quitList = Array.isArray(inboxMap.quit) ? inboxMap.quit : [];
-                          const inboxItem = {
-                            id,
-                            name: consultModalFor!.name,
-                            campus: consultModalFor!.campus,
-                            className: consultModalFor!.className,
-                            consultDate,
-                            consultMethod,
-                            consultContent: consultContent.trim(),
-                            consultResult
-                          };
-                          inboxMap.quit = [inboxItem, ...quitList];
-                          localStorage.setItem("admin_consult_inbox", JSON.stringify(inboxMap));
-                          const moveLogsRaw = localStorage.getItem("admin_consult_move_logs");
-                          const moveLogs: string[] = moveLogsRaw ? JSON.parse(moveLogsRaw) : [];
-                          moveLogs.push(`${date} 상담기록 이동: ${consultModalFor!.name} → 퇴원 검토 Inbox 처리자: ${admin}`);
-                          localStorage.setItem("admin_consult_move_logs", JSON.stringify(moveLogs));
-                          alert("상태 변경 완료 • 이탈 시그널 페이지로 이동합니다.");
-                          router.push("/admin/alerts");
-                        } catch {}
+                        await supabase.from("students").update({ status: "퇴원 검토중" }).eq("id", id);
+                        await supabase.from("alert_signals").insert({
+                          student_id: id,
+                          name: consultModalFor!.name,
+                          campus: consultModalFor!.campus,
+                          class_name: consultModalFor!.className,
+                          status: "퇴원 검토중",
+                          signals: [],
+                          level: "경고",
+                          first_detected_at: date
+                        });
+                        await supabase.from("student_status_logs").insert({
+                          student_id: id,
+                          type: "consult",
+                          message: `${date} 상담 결과: 퇴원 검토중`,
+                          at: new Date().toISOString(),
+                        });
+                        alert("상태 변경 완료 • 이탈 시그널 페이지로 이동합니다.");
+                        router.push("/admin/alerts");
                         setConsultModalFor(null);
                       }
                     }}
@@ -1663,7 +1567,7 @@ export default function AdminStudentsPage() {
               </div>
               <div className="mt-4 flex justify-end">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     const ok =
                       !!leaveConfStart &&
                       !!leaveConfEnd &&
@@ -1673,7 +1577,8 @@ export default function AdminStudentsPage() {
                       (refundMemo || "").trim().length > 0;
                     if (!ok) return;
                     const id = leaveConfirmModalFor!.id;
-                    const admin = localStorage.getItem("admin_name") || "관리자";
+                    const { data } = await supabase.auth.getUser();
+                    const admin = String(data?.user?.email ?? "관리자");
                     const date = new Date().toISOString().split("T")[0];
                     const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "휴원" as Status } };
                     const newLogs = { ...studentLogs };
@@ -1682,20 +1587,13 @@ export default function AdminStudentsPage() {
                     newLogs[id] = list;
                     setUpdates(newUpdates);
                     setStudentLogs(newLogs);
-                    localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
-                    localStorage.setItem("admin_student_logs", JSON.stringify(newLogs));
-                    try {
-                      const raw = localStorage.getItem("admin_leave_effects");
-                      const map = raw ? JSON.parse(raw) : {};
-                      map[id] = {
-                        assignmentsDisabled: true,
-                        videosDisabled: true,
-                        attendanceExcluded: true,
-                        portalRestricted: true,
-                        period: { start: leaveConfStart, end: leaveConfEnd }
-                      };
-                      localStorage.setItem("admin_leave_effects", JSON.stringify(map));
-                    } catch {}
+                    await supabase.from("students").update({ status: "휴원" }).eq("id", id);
+                    await supabase.from("student_status_logs").insert({
+                      student_id: id,
+                      type: "leave_confirm",
+                      message: `${date} 휴원 확정 기간: ${leaveConfStart} ~ ${leaveConfEnd} 환불: ${refundOption} 메모: ${refundMemo} 처리자: ${admin}`,
+                      at: new Date().toISOString(),
+                    });
                     setLeaveConfirmModalFor(null);
                     setConsultModalFor(null);
                     setLeaveConfStart("");
@@ -2026,10 +1924,11 @@ export default function AdminStudentsPage() {
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setBusModalFor(null)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">취소</button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (!selectedBus) return;
                   const id = busModalFor.id;
-                  const admin = localStorage.getItem("admin_name") || "관리자";
+                  const { data } = await supabase.auth.getUser();
+                  const admin = String(data?.user?.email ?? "관리자");
                   const date = new Date().toISOString().split("T")[0];
                   const oldBus = (updates[id]?.bus || busModalFor.bus);
                   if (oldBus === selectedBus) return;
@@ -2041,8 +1940,13 @@ export default function AdminStudentsPage() {
                   newLogs[id] = list;
                   setUpdates(newUpdates);
                   setStudentLogs(newLogs);
-                  localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
-                  localStorage.setItem("admin_student_logs", JSON.stringify(newLogs));
+                  await supabase.from("students").update({ bus: selectedBus }).eq("id", id);
+                  await supabase.from("student_status_logs").insert({
+                    student_id: id,
+                    type: "bus_change",
+                    message: entry,
+                    at: new Date().toISOString(),
+                  });
                   setBusModalFor(null);
                   setSelectedBus("");
                 }}
@@ -2092,10 +1996,11 @@ export default function AdminStudentsPage() {
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setTimeModalFor(null)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">취소</button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (!selectedTime) return;
                   const id = timeModalFor.id;
-                  const admin = localStorage.getItem("admin_name") || "관리자";
+                  const { data } = await supabase.auth.getUser();
+                  const admin = String(data?.user?.email ?? "관리자");
                   const date = new Date().toISOString().split("T")[0];
                   const oldTime = (updates[id]?.departureTime || timeModalFor.departureTime);
                   if (oldTime === selectedTime) return;
@@ -2107,8 +2012,13 @@ export default function AdminStudentsPage() {
                   newLogs[id] = list;
                   setUpdates(newUpdates);
                   setStudentLogs(newLogs);
-                  localStorage.setItem("admin_student_updates", JSON.stringify(newUpdates));
-                  localStorage.setItem("admin_student_logs", JSON.stringify(newLogs));
+                  await supabase.from("students").update({ departure_time: selectedTime }).eq("id", id);
+                  await supabase.from("student_status_logs").insert({
+                    student_id: id,
+                    type: "time_change",
+                    message: entry,
+                    at: new Date().toISOString(),
+                  });
                   setTimeModalFor(null);
                   setSelectedTime("");
                 }}

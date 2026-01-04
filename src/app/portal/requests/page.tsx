@@ -25,32 +25,31 @@ export default function RequestsPage() {
         const { data: userData } = await supabase.auth.getUser();
         const user = userData?.user;
         const id = user?.id || "s8";
-        let childName = "자녀";
-        if (user) {
-          const { data: parentRows } = await supabase
-            .from("parents")
-            .select("*")
-            .eq("auth_user_id", id)
-            .limit(1);
-          const parent = Array.isArray(parentRows) && parentRows.length > 0 ? parentRows[0] : null;
-          if (parent?.name) {
-            childName = String(parent.name);
-          }
-        }
-        const arr = [{ id, name: childName }];
+        const arr = [{ id, name: "자녀" }];
         setChildren(arr);
         setSelectedChildId(arr[0].id);
       } catch {}
     })();
-    try {
-      const raw = localStorage.getItem("portal_requests");
-      const list = raw ? JSON.parse(raw) : [];
-      const recent = Array.isArray(list)
-        ? list.slice(0, 5).map((it: any) => ({ date: String(it.dateStart || it.createdAt || ""), type: String(it.type || "absence") as RequestType }))
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      if (!selectedChildId) return;
+      const { data } = await supabase
+        .from("portal_requests")
+        .select("*")
+        .eq("student_id", selectedChildId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      const recent = Array.isArray(data)
+        ? data.map((it: any) => ({
+            date: String(it?.payload?.dateStart || it?.created_at || ""),
+            type: (String(it?.type || "absence").replace("early_pickup", "pickup") as any) as RequestType,
+          }))
         : [];
       setRecentRequests(recent);
-    } catch {}
-  }, []);
+    })();
+  }, [selectedChildId]);
 
   const [absenceDate, setAbsenceDate] = useState(new Date().toISOString().split("T")[0]);
   const [absenceReason, setAbsenceReason] = useState("");
@@ -72,41 +71,34 @@ export default function RequestsPage() {
     return `${formatted} • ${typeLabel} • 제출됨`;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setSubmittedText("요청이 제출되었습니다. 학원에 전달되었습니다.");
-      const dateForRecent =
-        selectedType === "medication" ? medStart : selectedType === "bus_change" ? busDate : selectedType === "early_pickup" ? pickupDate : absenceDate;
-      setRecentRequests((prev) => {
-        const next = [{ date: dateForRecent, type: selectedType! }, ...prev];
-        return next.slice(0, 5);
-      });
-      try {
-        const id = `req_${Date.now()}`;
-        const item = {
-          id,
-          childId: selectedChildId,
-          childName: selectedChild.name,
-          type: selectedType,
-          dateStart:
-            selectedType === "medication" ? medStart : selectedType === "bus_change" ? busDate : selectedType === "early_pickup" ? pickupDate : absenceDate,
-          dateEnd: selectedType === "medication" ? medEnd : undefined,
-          time: selectedType === "early_pickup" ? pickupTime : undefined,
-          note:
-            selectedType === "absence" ? absenceReason : selectedType === "early_pickup" ? pickupNote : selectedType === "bus_change" ? busNote : medInstructions,
-          changeType: selectedType === "bus_change" ? busChangeType : undefined,
-          medName: selectedType === "medication" ? medName : undefined,
-          createdAt: new Date().toISOString(),
-        };
-        const raw = localStorage.getItem("portal_requests");
-        const list = raw ? JSON.parse(raw) : [];
-        const nextList = Array.isArray(list) ? [item, ...list] : [item];
-        localStorage.setItem("portal_requests", JSON.stringify(nextList));
-      } catch {}
-      setLoading(false);
-    }, 700);
+    const typeForDb = selectedType === "early_pickup" ? "pickup" : selectedType;
+    const payload =
+      selectedType === "medication"
+        ? { dateStart: medStart, dateEnd: medEnd, note: medInstructions, medName }
+        : selectedType === "bus_change"
+        ? { dateStart: busDate, note: busNote, changeType: busChangeType }
+        : selectedType === "early_pickup"
+        ? { dateStart: pickupDate, time: pickupTime, note: pickupNote }
+        : { dateStart: absenceDate, note: absenceReason };
+    await supabase.from("portal_requests").insert({
+      student_id: selectedChildId,
+      type: typeForDb,
+      payload,
+      campus: "main",
+      status: "pending",
+      created_at: new Date().toISOString(),
+    });
+    setSubmittedText("요청이 제출되었습니다. 학원에 전달되었습니다.");
+    const dateForRecent =
+      selectedType === "medication" ? medStart : selectedType === "bus_change" ? busDate : selectedType === "early_pickup" ? pickupDate : absenceDate;
+    setRecentRequests((prev) => {
+      const next = [{ date: dateForRecent, type: selectedType! }, ...prev];
+      return next.slice(0, 5);
+    });
+    setLoading(false);
   };
 
   const clearSubmission = () => setSubmittedText("");
