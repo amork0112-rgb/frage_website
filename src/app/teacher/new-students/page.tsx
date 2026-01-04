@@ -151,26 +151,16 @@ export default function TeacherNewStudentsPage() {
             }))
           : [];
         setStudents(mapped);
+        try {
+          const res = await fetch("/api/admin/new-students", { cache: "no-store" });
+          const all = await res.json();
+          const checks = all?.checklists || {};
+          const reservations = all?.reservations || {};
+          setChecklists(checks);
+          setStudentReservations(reservations);
+        } catch {}
       })();
 
-      // Load checklists
-      const rawChecklists = localStorage.getItem("teacher_new_student_checklists");
-      if (rawChecklists) {
-        setChecklists(JSON.parse(rawChecklists));
-      }
-
-      // Load Reservation Slots
-      const rawSlots = localStorage.getItem("admission_test_slots");
-      if (rawSlots) {
-        setReservationSlots(JSON.parse(rawSlots));
-      }
-
-      // Load Student Reservations
-      const rawRes = localStorage.getItem("student_reservations");
-      if (rawRes) {
-        setStudentReservations(JSON.parse(rawRes));
-      }
-      
       const guideDismissed = localStorage.getItem("teacher_new_students_guide_dismissed");
       if (guideDismissed === "1") {
         setShowGuide(false);
@@ -191,61 +181,74 @@ export default function TeacherNewStudentsPage() {
 
   useEffect(() => {
     if (!selectedDateGrid) return;
-    const baseTimes = ["10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00"];
-    const exist = new Set(reservationSlots.filter(s => s.date === selectedDateGrid).map(s => s.time));
-    let updated = [...reservationSlots];
-    let changed = false;
-    baseTimes.forEach(t => {
-      if (!exist.has(t)) {
-        updated.push({
-          id: `${selectedDateGrid}-${t}`,
-          date: selectedDateGrid,
-          time: t,
-          max: 1,
-          current: 0,
-          isOpen: true
-        });
-        changed = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(selectedDateGrid)}`, { cache: "no-store" });
+        const data = await res.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
+        setReservationSlots(items);
+      } catch {
+        setReservationSlots([]);
       }
-    });
-    if (changed) {
-      setReservationSlots(updated);
-      localStorage.setItem("admission_test_slots", JSON.stringify(updated));
-    }
+    })();
   }, [selectedDateGrid]);
 
   const handleToggleCell = (time: string) => {
     const existing = reservationSlots.find(s => s.date === selectedDateGrid && s.time === time);
-    let updated: typeof reservationSlots;
     if (existing) {
-      const toggled = { ...existing, isOpen: !existing.isOpen, max: 1 };
-      updated = reservationSlots.map(s => s.id === existing.id ? toggled : s);
+      fetch("/api/admin/schedules", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: existing.id, isOpen: !existing.isOpen })
+      })
+      .then(() => {
+        setReservationSlots(prev => prev.map(s => s.id === existing.id ? { ...s, isOpen: !existing.isOpen } : s));
+      })
+      .catch(() => {});
     } else {
-      const newSlot = {
-        id: Date.now().toString(),
-        date: selectedDateGrid,
-        time,
-        max: 1,
-        current: 0,
-        isOpen: true
-      };
-      updated = [...reservationSlots, newSlot];
+      fetch("/api/admin/schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: selectedDateGrid, time, max: 1, current: 0, isOpen: true })
+      })
+      .then(async () => {
+        const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(selectedDateGrid)}`, { cache: "no-store" });
+        const data = await res.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
+        setReservationSlots(items);
+      })
+      .catch(() => {});
     }
-    setReservationSlots(updated);
-    localStorage.setItem("admission_test_slots", JSON.stringify(updated));
   };
 
   const handleDeleteSlot = (id: string) => {
     if (!confirm("정말 삭제하시겠습니까?")) return;
-    const updated = reservationSlots.filter(s => s.id !== id);
-    setReservationSlots(updated);
-    localStorage.setItem("admission_test_slots", JSON.stringify(updated));
+    fetch("/api/admin/schedules", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id })
+    })
+    .then(async () => {
+      const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(selectedDateGrid)}`, { cache: "no-store" });
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setReservationSlots(items);
+    })
+    .catch(() => {});
   };
 
   const toggleSlotStatus = (id: string) => {
-    const updated = reservationSlots.map(s => s.id === id ? { ...s, isOpen: !s.isOpen } : s);
-    setReservationSlots(updated);
-    localStorage.setItem("admission_test_slots", JSON.stringify(updated));
+    const slot = reservationSlots.find(s => s.id === id);
+    const next = slot ? !slot.isOpen : true;
+    fetch("/api/admin/schedules", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, isOpen: next })
+    })
+    .then(() => {
+      setReservationSlots(prev => prev.map(s => s.id === id ? { ...s, isOpen: next } : s));
+    })
+    .catch(() => {});
   };
 
   const toggleCheck = async (studentId: string, stepKey: string, stepLabel: string) => {
@@ -270,7 +273,19 @@ export default function TeacherNewStudentsPage() {
     };
 
     setChecklists(nextChecklists);
-    localStorage.setItem("teacher_new_student_checklists", JSON.stringify(nextChecklists));
+    try {
+      await fetch("/api/admin/new-students", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId,
+          key: stepKey,
+          checked: nextItem.checked,
+          date: nextItem.date,
+          by: nextItem.by,
+        }),
+      });
+    } catch {}
 
     // Trigger Logic (Automations)
     if (nextItem.checked) {

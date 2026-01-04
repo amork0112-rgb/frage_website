@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Bell, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Eye, FilePlus2, Table, Info, ExternalLink, CheckCircle2, X } from "lucide-react";
-import { notices } from "@/data/notices";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminEditNoticePage() {
@@ -20,7 +19,6 @@ export default function AdminEditNoticePage() {
   const [files, setFiles] = useState<{ name: string; url: string; type: string }[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isStatic, setIsStatic] = useState(false);
   const [promotion, setPromotion] = useState<{ newsPostId?: number; featured?: boolean; pushEnabled?: boolean } | null>(null);
   const [role, setRole] = useState<"admin" | "teacher" | "unknown">("unknown");
   const [promote, setPromote] = useState(false);
@@ -29,49 +27,26 @@ export default function AdminEditNoticePage() {
   const [newsPushEnabled, setNewsPushEnabled] = useState(true);
 
   useEffect(() => {
-    const raw = localStorage.getItem("frage_notices");
-    const dyn = raw ? JSON.parse(raw) : [];
-    const foundDyn = Array.isArray(dyn) ? dyn.find((d: any) => d.id === id) : null;
-    if (foundDyn) {
-      setCampus(foundDyn.campus || "All");
-      setTitle(foundDyn.title || "");
-      setCategory(foundDyn.category || "Schedule");
-      const html = foundDyn.richHtml || "";
-      setRichHtml(html);
-      if (editorRef.current) editorRef.current.innerHTML = html;
-      setImages(foundDyn.images || []);
-      setFiles(foundDyn.files || []);
-      setIsStatic(false);
-      try {
-        const mapRaw = localStorage.getItem("frage_notice_promotions");
-        const map = mapRaw ? JSON.parse(mapRaw) : {};
-        if (map[id]) {
-          setPromotion(map[id]);
-          setPromote(true);
-          setNewsFeatured(map[id].featured || false);
-          setNewsPushEnabled(map[id].pushEnabled !== false);
-        }
-      } catch {}
-      return;
-    }
-    const foundStatic = notices.find(n => n.id === id);
-    if (foundStatic) {
-      setCampus(foundStatic.campus || "All");
-      setTitle(foundStatic.title || "");
-      setCategory(foundStatic.category || "Schedule");
-      const html = (foundStatic.content || []).map(p => `<p>${p}</p>`).join("");
-      setRichHtml(html);
-      if (editorRef.current) editorRef.current.innerHTML = html;
-      setImages([]);
-      setFiles([]);
-      setIsStatic(true);
-    }
-    try {
-      const r = String(localStorage.getItem("admin_role") || "").trim();
-      setRole(r === "teacher" ? "teacher" : "admin");
-    } catch {
-      setRole("admin");
-    }
+    (async () => {
+      const { data } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("id", Number(id))
+        .single();
+      const row: any = data || null;
+      if (row) {
+        setTitle(row.title || "");
+        setCategory("Schedule");
+        const html = (String(row.content || "") || "").split(/\n+/).map((p: string) => `<p>${p}</p>`).join("");
+        setRichHtml(html);
+        if (editorRef.current) editorRef.current.innerHTML = html;
+        setImages([]);
+        setFiles([]);
+      }
+      const auth = await supabase.auth.getUser();
+      const appRole = (auth.data?.user?.app_metadata as any)?.role ?? null;
+      setRole(appRole === "teacher" ? "teacher" : "admin");
+    })();
   }, [id]);
 
   const exec = (cmd: string, value?: string) => {
@@ -137,10 +112,6 @@ export default function AdminEditNoticePage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isStatic) {
-      alert("샘플 공지는 코드 데이터로 관리되어 직접 저장할 수 없습니다.\n새 공지 작성 페이지에서 등록해 주세요.");
-      return;
-    }
     if (!validate()) {
       alert("필수 항목을 입력해 주세요.");
       return;
@@ -148,45 +119,22 @@ export default function AdminEditNoticePage() {
     setLoading(true);
     const contentHtml = editorRef.current?.innerHTML || "";
     const summary = plainText(contentHtml).slice(0, 140);
-    const key = "frage_notices";
-    const existing = JSON.parse(localStorage.getItem(key) || "[]");
-    const updated = (Array.isArray(existing) ? existing : []).map((it: any) =>
-      it.id === id
-        ? {
-            ...it,
+    const updateSupabase = async () => {
+      try {
+        await supabase
+          .from("posts")
+          .update({
             title,
-            category,
-            campus,
-            richHtml: contentHtml,
-            summary,
-            images,
-            files,
-          }
-        : it
-    );
-    localStorage.setItem(key, JSON.stringify(updated));
+            content: plainText(contentHtml),
+            category: "notice",
+          })
+          .eq("id", Number(id));
+      } catch {}
+    };
+    updateSupabase();
 
     const doPromote = async () => {
-      // If promote is unchecked but it was promoted before -> Delete? 
-      // User request: "checkbox to decide whether to upload to homepage news".
-      // Usually unchecking means removing from news or just not updating.
-      // For MVP, if unchecking, we can try to delete from 'posts' if we have the ID.
-      
-      const mapRaw = localStorage.getItem("frage_notice_promotions");
-      const map = mapRaw ? JSON.parse(mapRaw) : {};
-      const currentPromo = map[id];
-
-      if (!promote) {
-        if (currentPromo && currentPromo.newsPostId) {
-          // Unchecked -> Remove from news
-          await supabase.from("posts").delete().eq("id", currentPromo.newsPostId);
-          delete map[id];
-          localStorage.setItem("frage_notice_promotions", JSON.stringify(map));
-        }
-        return;
-      }
-
-      // Promote is checked
+      if (!promote) return;
       const insert = {
         title: (newsTitle || title).trim(),
         content: plainText(contentHtml),
@@ -195,20 +143,7 @@ export default function AdminEditNoticePage() {
         is_pinned: newsFeatured,
         image_url: null as any,
       };
-
-      if (currentPromo && currentPromo.newsPostId) {
-        // Update existing
-        await supabase.from("posts").update(insert).eq("id", currentPromo.newsPostId);
-        map[id] = { ...currentPromo, featured: newsFeatured, pushEnabled: newsPushEnabled };
-        localStorage.setItem("frage_notice_promotions", JSON.stringify(map));
-      } else {
-        // Create new
-        const { data, error } = await supabase.from("posts").insert(insert).select("id").single();
-        if (!error && data?.id) {
-          map[id] = { newsPostId: data.id, at: new Date().toISOString(), featured: newsFeatured, pushEnabled: newsPushEnabled };
-          localStorage.setItem("frage_notice_promotions", JSON.stringify(map));
-        }
-      }
+      await supabase.from("posts").insert(insert);
     };
     
     doPromote();
@@ -219,7 +154,7 @@ export default function AdminEditNoticePage() {
     }, 500);
   };
 
-  const canEdit = useMemo(() => !isStatic, [isStatic]);
+  const canEdit = useMemo(() => true, []);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -228,42 +163,7 @@ export default function AdminEditNoticePage() {
         <h1 className="text-2xl font-black text-slate-900">공지 수정</h1>
       </div>
 
-      {promotion && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-          <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-bold text-slate-700">프라게 소식으로 게시됨</p>
-            <p className="text-xs text-slate-500 mt-1">이 공지는 프라게 소식으로도 게시되었습니다. 소식 내용을 수정하려면 소식 관리 페이지에서 수정하세요.</p>
-          </div>
-          {promotion.newsPostId ? (
-            <a
-              href={`/admin/${promotion.newsPostId}/edit`}
-              className="px-3 py-2 rounded-lg text-xs font-bold bg-frage-orange text-white hover:bg-frage-gold transition-colors inline-flex items-center gap-1.5"
-            >
-              <ExternalLink className="w-4 h-4" />
-              소식으로 이동
-            </a>
-          ) : (
-            <a
-              href="/admin"
-              className="px-3 py-2 rounded-lg text-xs font-bold bg-frage-orange text-white hover:bg-frage-gold transition-colors inline-flex items-center gap-1.5"
-            >
-              <ExternalLink className="w-4 h-4" />
-              소식으로 이동
-            </a>
-          )}
-        </div>
-      )}
-
-      {isStatic && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-          <Info className="w-5 h-5 text-slate-400 mt-0.5" />
-          <div>
-            <p className="text-sm font-bold text-slate-700">샘플 공지(코드 데이터)는 직접 저장할 수 없습니다</p>
-            <p className="text-xs text-slate-500 mt-1">새 공지 작성 페이지에서 동일 내용으로 등록해 주세요.</p>
-          </div>
-        </div>
-      )}
+      
 
       <form onSubmit={handleSave} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
         <div className="grid sm:grid-cols-2 gap-4">

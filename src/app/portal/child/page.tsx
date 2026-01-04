@@ -28,6 +28,7 @@ export default function ChildPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [userId, setUserId] = useState<string>("");
+  const [studentId, setStudentId] = useState<string>("");
 
   const handlePhotoClick = () => {
     fileInputRef.current?.click();
@@ -49,16 +50,16 @@ export default function ChildPage() {
       const url = URL.createObjectURL(file);
       setStudentProfile(prev => ({ ...prev, photoUrl: url }));
       setEditForm(prev => ({ ...prev, photoUrl: url }));
-      try {
-        const accountId = userId || "";
-        if (accountId) {
-          const key = `portal_parent_photos_${accountId}`;
-          const raw = localStorage.getItem(key);
-          const arr = raw ? JSON.parse(raw) : [];
-          const next = Array.isArray(arr) ? [url, ...arr].slice(0, 30) : [url];
-          localStorage.setItem(key, JSON.stringify(next));
-        }
-      } catch (e) {}
+      (async () => {
+        try {
+          if (studentId) {
+            await supabase
+              .from("students")
+              .update({ photo_url: url })
+              .eq("id", Number(studentId));
+          }
+        } catch (e) {}
+      })();
     }
   };
 
@@ -116,22 +117,39 @@ export default function ChildPage() {
           name: parentName,
           accountId: user.id,
         }));
+        const { data: studentRows } = await supabase
+          .from("students")
+          .select("*")
+          .eq("parent_auth_user_id", user.id)
+          .limit(1);
+        const s = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
+        if (s) {
+          setStudentId(String(s.id));
+          setStudentProfile({
+            name: { en: String(s.english_name || ""), ko: String(s.name || "") },
+            photoUrl: String(s.photo_url || ""),
+            class: String(s.class_name || ""),
+            campus: String(s.campus || ""),
+            teacher: String(s.teacher_name || ""),
+            birthDate: String(s.birth_date || ""),
+            gender: String(s.gender || ""),
+            address: String(s.address || ""),
+            studentPhone: String(s.phone || ""),
+          });
+          setEditForm({
+            name: { en: String(s.english_name || ""), ko: String(s.name || "") },
+            photoUrl: String(s.photo_url || ""),
+            class: String(s.class_name || ""),
+            campus: String(s.campus || ""),
+            teacher: String(s.teacher_name || ""),
+            birthDate: String(s.birth_date || ""),
+            gender: String(s.gender || ""),
+            address: String(s.address || ""),
+            studentPhone: String(s.phone || ""),
+          });
+        }
       } catch (e) {}
     })();
-    const savedTransport = localStorage.getItem("child_transport");
-    if (savedTransport) {
-      const t = JSON.parse(savedTransport);
-      setTransportForm(prev => ({
-        ...prev,
-        arrivalMethod: t.arrivalMethod || prev.arrivalMethod,
-        pickupPlace: t.pickupPlace || "",
-        pickupVerified: !!t.pickupVerified,
-        departureMethod: t.departureMethod || prev.departureMethod,
-        dropoffPlace: t.dropoffPlace || "",
-        dropoffVerified: !!t.dropoffVerified,
-        defaultDepartureTime: t.defaultDepartureTime || prev.defaultDepartureTime
-      }));
-    }
   }, []);
 
   const canSubmitTransport = !!transportForm.arrivalMethod && !!transportForm.departureMethod;
@@ -139,12 +157,21 @@ export default function ChildPage() {
   const handleTransportSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmitTransport) return;
-    try {
-      localStorage.setItem("child_transport", JSON.stringify(transportForm));
-      localStorage.setItem("needs_child_setup", "false");
-    } catch (e) {}
-    alert("자녀 등·하원/차량 정보가 저장되었습니다.");
-    router.push("/portal/home");
+    (async () => {
+      try {
+        await supabase.from("portal_requests").insert({
+          child_id: studentId || null,
+          child_name: studentProfile.name.ko || studentProfile.name.en || "학생",
+          campus: studentProfile.campus || null,
+          type: "bus_change",
+          change_type: null,
+          note: `등원:${transportForm.arrivalMethod}(${transportForm.pickupPlace || "-"}) / 하원:${transportForm.departureMethod}(${transportForm.dropoffPlace || "-"})`,
+          created_at: new Date().toISOString(),
+        });
+        alert("자녀 등·하원/차량 요청이 저장되었습니다.");
+        router.push("/portal/home");
+      } catch (e) {}
+    })();
   };
 
   return (

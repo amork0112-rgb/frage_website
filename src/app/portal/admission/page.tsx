@@ -33,8 +33,8 @@ export default function PortalAdmissionPage() {
   const [studentId, setStudentId] = useState<string>("");
 
   useEffect(() => {
-    try {
-      (async () => {
+    (async () => {
+      try {
         const { data: userData } = await supabase.auth.getUser();
         const user = userData?.user;
         if (!user) {
@@ -42,59 +42,67 @@ export default function PortalAdmissionPage() {
           return;
         }
         setStudentId(user.id);
-        // campus 정보는 아직 DB에 없으므로 공백 유지
-      })();
-
-      // 2. Check admission status from teacher checklist
-      const checklistsRaw = localStorage.getItem("teacher_new_student_checklists");
-      if (checklistsRaw) {
-        const checklists = JSON.parse(checklistsRaw);
-        const myChecklist: StudentChecklist = checklists[studentId || ""] || {};
-        
-        // Check if "admission_confirmed" is checked
-        if (myChecklist["admission_confirmed"]?.checked) {
-          setIsAdmissionConfirmed(true);
-        }
+        // Admission confirmed from teacher checklist
+        const { data: checklistRows } = await supabase
+          .from("new_student_checklists")
+          .select("*")
+          .eq("student_id", user.id);
+        const map: Record<string, ChecklistItem> = {};
+        (Array.isArray(checklistRows) ? checklistRows : []).forEach((row: any) => {
+          map[row.key] = { key: row.key, label: row.label || row.key, checked: !!row.checked, date: row.updated_at, by: row.updated_by || "" };
+        });
+        if (map["admission_confirmed"]?.checked) setIsAdmissionConfirmed(true);
+        // Submitted docs from portal_requests
+        const { data: requestRows } = await supabase
+          .from("portal_requests")
+          .select("*")
+          .eq("student_id", user.id)
+          .eq("request_type", "admission_doc_submitted");
+        const ids = (Array.isArray(requestRows) ? requestRows : [])
+          .map((r: any) => Number(r.payload_doc_id))
+          .filter((n: any) => typeof n === "number");
+        setSubmittedDocs(ids);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
-
-      // 3. Load submitted docs
-      const submittedRaw = localStorage.getItem(`portal_admission_docs_${studentId || ""}`);
-      if (submittedRaw) {
-        setSubmittedDocs(JSON.parse(submittedRaw));
-      }
-
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    })();
   }, []);
 
   const handleSubmitDoc = (docId: number) => {
     if (!confirm("이 서류를 작성 및 제출하시겠습니까? (MVP: 확인 시 자동 제출됨)")) return;
     
-    try {
-      const nextSubmitted = [...submittedDocs, docId];
-      setSubmittedDocs(nextSubmitted);
-      if (studentId) {
-        localStorage.setItem(`portal_admission_docs_${studentId}`, JSON.stringify(nextSubmitted));
-      }
-    } catch {}
+    (async () => {
+      try {
+        await supabase.from("portal_requests").insert({
+          student_id: studentId,
+          request_type: "admission_doc_submitted",
+          payload_doc_id: docId,
+          content: `Admission doc ${docId} submitted`,
+        });
+        setSubmittedDocs((prev) => Array.from(new Set([...prev, docId])));
+      } catch {}
+    })();
   };
 
   const handleSignAndSubmit = () => {
     if (!confirm("모든 서류의 내용을 확인하였으며, 전자서명으로 일괄 제출하시겠습니까?")) return;
 
-    try {
-      // Mark all as submitted
-      const allDocIds = ADMISSION_DOCS.map(d => d.id);
-      setSubmittedDocs(allDocIds);
-      if (studentId) {
-        localStorage.setItem(`portal_admission_docs_${studentId}`, JSON.stringify(allDocIds));
-      }
-      
-      alert("✅ 전자서명 및 제출이 완료되었습니다.");
-    } catch {}
+    (async () => {
+      try {
+        const allDocIds = ADMISSION_DOCS.map(d => d.id);
+        const inserts = allDocIds.map(id => ({
+          student_id: studentId,
+          request_type: "admission_doc_submitted",
+          payload_doc_id: id,
+          content: `Admission doc ${id} submitted`,
+        }));
+        await supabase.from("portal_requests").insert(inserts);
+        setSubmittedDocs(allDocIds);
+        alert("✅ 전자서명 및 제출이 완료되었습니다.");
+      } catch {}
+    })();
   };
 
   if (loading) return <div className="p-8 text-center">로딩중...</div>;

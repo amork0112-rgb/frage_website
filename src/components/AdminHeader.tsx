@@ -20,18 +20,8 @@ export default function AdminHeader() {
         const { data } = await supabase.auth.getUser();
         const appRole = (data?.user?.app_metadata as any)?.role ?? null;
         setRole(appRole);
-        try {
-          if (appRole) localStorage.setItem("admin_role", String(appRole));
-        } catch {}
       } catch {}
     })();
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "admin_role") {
-        setRole(e.newValue);
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const isTeacher = !!role && ["teacher", "교사"].some((k) => role!.toLowerCase().includes(k));
@@ -44,7 +34,6 @@ export default function AdminHeader() {
     { name: "요청 관리", href: "/admin/requests", icon: MessageSquare },
     { name: "이탈 시그널", href: "/admin/alerts", icon: AlertCircle },
     { name: "원생 관리", href: "/admin/students", icon: Users },
-    { name: "영상 과제", href: "/admin/video-assignments", icon: Video },
   ];
 
   const handleLogout = () => {

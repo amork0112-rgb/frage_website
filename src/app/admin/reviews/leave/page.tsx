@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 type InboxItem = {
   id: string;
@@ -18,44 +19,71 @@ export default function LeaveReviewPage() {
   const [items, setItems] = useState<InboxItem[]>([]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("admin_consult_inbox");
-      const map = raw ? JSON.parse(raw) : {};
-      const list: InboxItem[] = Array.isArray(map?.leave) ? map.leave : [];
-      setItems(list);
-    } catch {
-      setItems([]);
-    }
+    const load = async () => {
+      try {
+        const { data } = await supabase
+          .from("student_leave_effects")
+          .select("*")
+          .order("consult_date", { ascending: false });
+        const list: InboxItem[] = Array.isArray(data)
+          ? data.map((row: any) => ({
+              id: String(row.id),
+              name: String(row.student_name ?? ""),
+              campus: String(row.campus ?? "International"),
+              className: String(row.class_name ?? ""),
+              consultDate: String(row.consult_date ?? ""),
+              consultMethod: (String(row.consult_method ?? "전화") as InboxItem["consultMethod"]),
+              consultContent: String(row.consult_content ?? ""),
+              consultResult: String(row.consult_result ?? ""),
+            }))
+          : [];
+        setItems(list);
+      } catch {
+        setItems([]);
+      }
+    };
+    load();
   }, []);
 
   const removeItem = (id: string) => {
-    try {
-      const raw = localStorage.getItem("admin_consult_inbox");
-      const map = raw ? JSON.parse(raw) : {};
-      const list: InboxItem[] = Array.isArray(map?.leave) ? map.leave : [];
-      const next = list.filter((x) => x.id !== id);
-      map.leave = next;
-      localStorage.setItem("admin_consult_inbox", JSON.stringify(map));
-      setItems(next);
-      const admin = localStorage.getItem("admin_name") || "관리자";
-      const date = new Date().toISOString().split("T")[0];
-      const logsRaw = localStorage.getItem("admin_consult_move_logs");
-      const logs: string[] = logsRaw ? JSON.parse(logsRaw) : [];
-      logs.push(`${date} 상담기록 이동 처리: 휴원 검토 Inbox 제거 대상: ${id} 처리자: ${admin}`);
-      localStorage.setItem("admin_consult_move_logs", JSON.stringify(logs));
-      alert("처리됨: 휴원 검토 Inbox에서 제거되었습니다.");
-    } catch {}
+    (async () => {
+      try {
+        await supabase
+          .from("student_leave_effects")
+          .update({ handled: true })
+          .eq("id", Number(id));
+        await supabase.from("student_status_logs").insert({
+          student_id: Number(id),
+          action: "leave_review_handled",
+          memo: "휴원 검토 Inbox 제거",
+          created_at: new Date().toISOString(),
+        });
+        setItems(prev => prev.filter(x => x.id !== id));
+        alert("처리됨: 휴원 검토 Inbox에서 제거되었습니다.");
+      } catch {
+      }
+    })();
   };
 
   const restoreItem = (it: InboxItem) => {
-    try {
-      const updatesRaw = localStorage.getItem("admin_student_updates");
-      const updates = updatesRaw ? JSON.parse(updatesRaw) : {};
-      updates[it.id] = { ...(updates[it.id] || {}), status: "재원" };
-      localStorage.setItem("admin_student_updates", JSON.stringify(updates));
-      removeItem(it.id);
-      alert("복구됨: 상태가 재원으로 복귀되었습니다.");
-    } catch {}
+    (async () => {
+      try {
+        await supabase.from("student_status_logs").insert({
+          student_id: Number(it.id),
+          action: "restore_enrolled",
+          new_status: "재원",
+          memo: "휴원 검토에서 복구",
+          created_at: new Date().toISOString(),
+        });
+        await supabase
+          .from("student_leave_effects")
+          .update({ handled: true })
+          .eq("id", Number(it.id));
+        setItems(prev => prev.filter(x => x.id !== it.id));
+        alert("복구됨: 상태가 재원으로 복귀되었습니다.");
+      } catch {
+      }
+    })();
   };
 
   const sorted = useMemo(() => {
@@ -94,4 +122,3 @@ export default function LeaveReviewPage() {
     </main>
   );
 }
-

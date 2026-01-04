@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { Video, Plus, Trash2, PencilLine, Save, X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type Student = { id: string; name: string; englishName: string; className: string; campus: string };
 type Assignment = { id: string; title: string; module: string; dueDate: string; className: string; campus?: string };
@@ -16,7 +16,7 @@ const CAMPUS_LABELS: Record<string, string> = {
   Platz: "플라츠관"
 };
 
-export default function AdminVideoAssignmentsPage() {
+export default function TeacherVideoManagementPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [classCatalog, setClassCatalog] = useState<string[]>([]);
@@ -45,33 +45,26 @@ export default function AdminVideoAssignmentsPage() {
         setStudents([]);
       }
       try {
-        const raw = localStorage.getItem("video_assignments");
-        const list: Assignment[] = raw ? JSON.parse(raw) : [];
-        setAssignments(Array.isArray(list) ? list : []);
+        const { data } = await supabase
+          .from("video_assignments")
+          .select("*")
+          .order("due_date", { ascending: false });
+        const list: Assignment[] = Array.isArray(data)
+          ? data.map((row: any) => ({
+              id: String(row.id),
+              title: row.title,
+              module: row.module,
+              dueDate: row.due_date,
+              className: row.class_name,
+              campus: row.campus || "All",
+            }))
+          : [];
+        setAssignments(list);
       } catch {
         setAssignments([]);
       }
-      try {
-        const rawCatalog = localStorage.getItem("admin_class_catalog");
-        const list: string[] = rawCatalog ? JSON.parse(rawCatalog) : [];
-        setClassCatalog(Array.isArray(list) ? list : []);
-      } catch {
-        setClassCatalog([]);
-      }
-      try {
-        const rawMap = localStorage.getItem("admin_teacher_class_map");
-        const map = rawMap ? JSON.parse(rawMap) : {};
-        const normalized: Record<string, string[]> = {};
-        Object.keys(map || {}).forEach(k => {
-          const v = map[k];
-          if (Array.isArray(v)) normalized[k] = v.filter(Boolean);
-          else if (typeof v === "string" && v.trim()) normalized[k] = [v.trim()];
-          else normalized[k] = [];
-        });
-        setTeacherClassMap(normalized);
-      } catch {
-        setTeacherClassMap({});
-      }
+      setClassCatalog([]);
+      setTeacherClassMap({});
     };
     load();
   }, []);
@@ -91,28 +84,24 @@ export default function AdminVideoAssignmentsPage() {
       .filter(a => (query.trim() === "" ? true : a.title.toLowerCase().includes(query.toLowerCase()) || a.module.toLowerCase().includes(query.toLowerCase())));
   }, [assignments, filterClass, filterCampus, query]);
 
-  const saveAssignments = (next: Assignment[]) => {
-    setAssignments(next);
-    try {
-      localStorage.setItem("video_assignments", JSON.stringify(next));
-    } catch {}
+  const refreshAssignments = async () => {
+    const { data } = await supabase
+      .from("video_assignments")
+      .select("*")
+      .order("due_date", { ascending: false });
+    const list: Assignment[] = Array.isArray(data)
+      ? data.map((row: any) => ({
+          id: String(row.id),
+          title: row.title,
+          module: row.module,
+          dueDate: row.due_date,
+          className: row.class_name,
+          campus: row.campus || "All",
+        }))
+      : [];
+    setAssignments(list);
   };
   
-  const classesByCampus = useMemo(() => {
-    const map: Record<string, Set<string>> = {};
-    students.forEach(s => {
-      const c = s.campus || "All";
-      if (!map[c]) map[c] = new Set<string>();
-      if (s.className) map[c].add(s.className);
-    });
-    const out: Record<string, string[]> = {};
-    Object.keys(map).forEach(k => {
-      out[k] = Array.from(map[k]);
-    });
-    return out;
-  }, [students]);
-  const classesForCampus = (_campusValue: string) => classes;
-  // 드롭다운을 캠퍼스와 무관하게 전체 반 목록으로 표시
   useEffect(() => {
     setNewClass("All");
   }, [newCampus]);
@@ -122,16 +111,16 @@ export default function AdminVideoAssignmentsPage() {
 
   const createAssignment = () => {
     if (!newTitle.trim() || !newModule.trim() || !newDue || newClass === "All") return;
-    const item: Assignment = {
-      id: `va_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      title: newTitle.trim(),
-      module: newModule.trim(),
-      dueDate: newDue,
-      className: newClass,
-      campus: newCampus === "All" ? undefined : newCampus
-    };
-    const next = [item, ...assignments];
-    saveAssignments(next);
+    (async () => {
+      await supabase.from("video_assignments").insert({
+        title: newTitle.trim(),
+        module: newModule.trim(),
+        due_date: newDue,
+        class_name: newClass,
+        campus: newCampus === "All" ? null : newCampus,
+      });
+      await refreshAssignments();
+    })();
     setNewTitle("");
     setNewModule("");
     setNewDue("");
@@ -151,14 +140,27 @@ export default function AdminVideoAssignmentsPage() {
   const saveEdit = () => {
     if (!editId || !editItem) return;
     if (!editItem.title.trim() || !editItem.module.trim() || !editItem.dueDate || !editItem.className) return;
-    const next = assignments.map(a => (a.id === editId ? { ...editItem } : a));
-    saveAssignments(next);
+    (async () => {
+      await supabase
+        .from("video_assignments")
+        .update({
+          title: editItem.title.trim(),
+          module: editItem.module.trim(),
+          due_date: editItem.dueDate,
+          class_name: editItem.className,
+          campus: editItem.campus === "All" ? null : editItem.campus,
+        })
+        .eq("id", Number(editId));
+      await refreshAssignments();
+    })();
     setEditId(null);
     setEditItem(null);
   };
   const remove = (id: string) => {
-    const next = assignments.filter(a => a.id !== id);
-    saveAssignments(next);
+    (async () => {
+      await supabase.from("video_assignments").delete().eq("id", Number(id));
+      await refreshAssignments();
+    })();
   };
 
   return (
@@ -166,9 +168,8 @@ export default function AdminVideoAssignmentsPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Video className="w-6 h-6 text-slate-400" />
-          <h1 className="text-2xl font-black text-slate-900">영상 과제 관리</h1>
+          <h1 className="text-2xl font-black text-slate-900">Video Management</h1>
         </div>
-        <Link href="/admin/home" className="text-sm font-bold text-frage-blue">Admin Home</Link>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
@@ -234,7 +235,7 @@ export default function AdminVideoAssignmentsPage() {
                 <>
                   <input value={editItem?.title || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), title: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
                   <input value={editItem?.module || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), module: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-                  <input type="date" value={editItem?.dueDate || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), dueDate: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+                  <input type="date" value={editItem?.dueDate || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), dueDate: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg白" />
                   <select value={editItem?.className || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), className: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
                     {classes.filter(c => c !== "All").map(c => (<option key={c} value={c}>{c}</option>))}
                   </select>

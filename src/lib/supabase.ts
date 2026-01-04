@@ -13,30 +13,14 @@ export const supabaseReady =
   !/your-project\.supabase\.co|your_supabase_url/i.test(url);
 
 function createMockSupabase(): SupabaseClient {
-  const isBrowser = typeof window !== "undefined";
   const memoryStore: Record<string, any[]> = {};
   const getStore = (table: string) => {
     const key = `mock_supabase_${table}`;
-    if (isBrowser) {
-      try {
-        const raw = localStorage.getItem(key);
-        const arr = raw ? JSON.parse(raw) : [];
-        return Array.isArray(arr) ? arr : [];
-      } catch {
-        return [];
-      }
-    }
     const arr = memoryStore[key] ?? [];
     return Array.isArray(arr) ? arr : [];
   };
   const setStore = (table: string, rows: any[]) => {
     const key = `mock_supabase_${table}`;
-    if (isBrowser) {
-      try {
-        localStorage.setItem(key, JSON.stringify(rows));
-      } catch {}
-      return;
-    }
     memoryStore[key] = Array.isArray(rows) ? rows : [];
   };
   const makeSelect = (table: string) => {
@@ -128,6 +112,8 @@ function createMockSupabase(): SupabaseClient {
       signInWithPassword: async () => ({ data: { session: null, user: { id: "mock-user" } }, error: null }),
       getSession: async () => ({ data: { session: null }, error: null }),
       getUser: async () => ({ data: { user: { id: "mock-user" } }, error: null }),
+      // Minimal jwt accessor for role parsing in client code
+      getJwt: () => ({ app_metadata: { role: "admin" } }),
     },
   } as unknown as SupabaseClient;
   return mock;

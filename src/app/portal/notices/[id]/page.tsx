@@ -4,30 +4,48 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import PortalHeader from "@/components/PortalHeader";
-import { notices } from "@/data/notices";
 import { ChevronLeft, Calendar, Eye, CheckCircle2, Heart, Smile } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function NoticeDetailPage() {
   const params = useParams();
   const noticeId = params.id as string;
-  const [dynamicNotice, setDynamicNotice] = useState<any | null>(null);
+  const [serverNotice, setServerNotice] = useState<any | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("frage_notices");
-      const dyn = raw ? JSON.parse(raw) : [];
-      const found = Array.isArray(dyn) ? dyn.find((d: any) => d.id === noticeId) : null;
-      setDynamicNotice(found || null);
-    } catch {
-      setDynamicNotice(null);
-    }
+    (async () => {
+      const numId = Number(noticeId);
+      if (Number.isNaN(numId)) return;
+      const { data } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("id", numId)
+        .eq("category", "notice")
+        .single();
+      if (data) {
+        setServerNotice({
+          id: String(data.id),
+          title: data.title,
+          date: data.created_at,
+          category: "Academic",
+          campus: "All",
+          summary: data.content || "",
+          content: String(data.content || "").split(/\n+/),
+          isPinned: !!data.is_pinned,
+          isArchived: !!data.is_archived,
+          viewCount: 0,
+        });
+      } else {
+        setServerNotice(null);
+      }
+    })();
   }, [noticeId]);
 
-  const notice = notices.find((n) => n.id === noticeId);
+  const notice = serverNotice;
 
   // Local state for reactions to simulate interaction
   const [reactions, setReactions] = useState(
-    notice?.reactions || { check: 0, heart: 0, smile: 0 }
+    { check: 0, heart: 0, smile: 0 }
   );
   const [userReaction, setUserReaction] = useState<string | null>(null);
 
@@ -47,7 +65,7 @@ export default function NoticeDetailPage() {
     }
   };
 
-  if (!notice && !dynamicNotice) {
+  if (!notice) {
     return (
         <div className="min-h-screen bg-slate-50 font-sans">
             <PortalHeader />
@@ -84,14 +102,14 @@ export default function NoticeDetailPage() {
             <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/50">
                 <div className="flex flex-wrap gap-2 mb-4">
                     <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-wider ${
-                        (dynamicNotice?.category || notice?.category) === 'Schedule' ? 'bg-orange-50 text-frage-orange border-orange-100' :
-                        (dynamicNotice?.category || notice?.category) === 'Academic' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                        (dynamicNotice?.category || notice?.category) === 'Event' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                        (notice?.category) === 'Schedule' ? 'bg-orange-50 text-frage-orange border-orange-100' :
+                        (notice?.category) === 'Academic' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                        (notice?.category) === 'Event' ? 'bg-purple-50 text-purple-600 border-purple-100' :
                         'bg-slate-100 text-slate-500 border-slate-200'
                     }`}>
-                        {dynamicNotice?.category || notice?.category}
+                        {notice?.category}
                     </span>
-                    {notice?.isPinned && (
+                    {serverNotice?.isPinned && (
                         <span className="text-[11px] font-bold px-2.5 py-1 rounded-full border bg-red-50 text-red-600 border-red-100 uppercase tracking-wider">
                             중요
                         </span>
@@ -99,54 +117,30 @@ export default function NoticeDetailPage() {
                 </div>
                 
                 <h1 className="text-2xl md:text-3xl font-black text-slate-900 mb-4 leading-tight">
-                    {dynamicNotice?.title || notice?.title}
+                    {notice?.title}
                 </h1>
                 
                 <div className="flex items-center justify-between text-sm font-medium text-slate-500">
                     <div className="flex items-center">
                         <Calendar className="w-4 h-4 mr-2" />
-                        {formatDate(dynamicNotice?.date || notice?.date || '')}
+                        {formatDate(notice?.date || '')}
                     </div>
                     <div className="flex items-center gap-1">
                         <Eye className="w-4 h-4" />
-                        <span>{dynamicNotice?.viewCount || notice?.viewCount || 0}</span>
+                        <span>{notice?.viewCount || 0}</span>
                     </div>
                 </div>
             </div>
 
             {/* Content */}
             <div className="p-6 md:p-8">
-                {!dynamicNotice && notice && (
+                {notice && (
                   <div className="prose prose-slate max-w-none">
-                    {notice.content.map((paragraph, index) => (
+                    {(notice.content || []).map((paragraph: string, index: number) => (
                       <p key={index} className="mb-4 text-slate-700 leading-relaxed last:mb-0">
                         {paragraph}
                       </p>
                     ))}
-                  </div>
-                )}
-                {dynamicNotice && (
-                  <div className="prose prose-slate max-w-none">
-                    <div dangerouslySetInnerHTML={{ __html: dynamicNotice.richHtml }} />
-                    {Array.isArray(dynamicNotice.images) && dynamicNotice.images.length > 0 && (
-                      <div className="mt-6 grid grid-cols-3 gap-3">
-                        {dynamicNotice.images.map((img: any, i: number) => (
-                          <div key={`${img.name}-${i}`} className="aspect-square rounded-lg overflow-hidden border">
-                            <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {Array.isArray(dynamicNotice.files) && dynamicNotice.files.length > 0 && (
-                      <div className="mt-6 space-y-2">
-                        {dynamicNotice.files.map((f: any, i: number) => (
-                          <div key={`${f.name}-${i}`} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                            <span className="text-sm font-medium text-slate-700">{f.name}</span>
-                            <a href={f.url} target="_blank" rel="noreferrer" className="text-xs font-bold text-frage-blue">열기</a>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 )}
 

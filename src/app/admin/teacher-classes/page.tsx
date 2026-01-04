@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Users, Save, Search } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type Teacher = {
   id: string;
@@ -34,40 +35,49 @@ export default function AdminTeacherClassesPage() {
   const [addInput, setAddInput] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    try {
-      const r = localStorage.getItem("admin_role");
-      setRole(r === "teacher" ? "teacher" : "admin");
-    } catch {
-      setRole(null);
-    }
-    try {
-      const raw = localStorage.getItem("teacher_accounts");
-      const list: Teacher[] = raw ? JSON.parse(raw) : [];
-      setTeachers(Array.isArray(list) ? list : []);
-    } catch {
-      setTeachers([]);
-    }
-    try {
-      const mapRaw = localStorage.getItem("admin_teacher_class_map");
-      const map = mapRaw ? JSON.parse(mapRaw) : {};
-      const normalized: Record<string, string[]> = {};
-      Object.keys(map || {}).forEach(k => {
-        const v = map[k];
-        if (Array.isArray(v)) normalized[k] = v.filter(Boolean);
-        else if (typeof v === "string" && v.trim()) normalized[k] = [v.trim()];
-        else normalized[k] = [];
-      });
-      setAssign(normalized);
-    } catch {
-      setAssign({});
-    }
-    try {
-      const raw = localStorage.getItem("admin_class_catalog");
-      const list: string[] = raw ? JSON.parse(raw) : [];
-      setClassCatalog(Array.isArray(list) ? list : []);
-    } catch {
+    (async () => {
+      try {
+        const jwt = (supabase as any)?.auth?.getJwt?.() || { app_metadata: { role: null } };
+        const roleMeta = jwt?.app_metadata?.role;
+        setRole(roleMeta === "teacher" ? "teacher" : roleMeta === "admin" ? "admin" : null);
+      } catch {
+        setRole(null);
+      }
+      try {
+        const { data } = await supabase
+          .from("teachers")
+          .select("*")
+          .order("created_at", { ascending: false });
+        const list: Teacher[] = Array.isArray(data)
+          ? data.map((row: any) => ({
+              id: String(row.id),
+              name: String(row.name ?? ""),
+              email: String(row.email ?? ""),
+              campus: (String(row.campus ?? "International") as Teacher["campus"]),
+              role: (String(row.role ?? "teacher") as Teacher["role"]),
+              active: !!row.active,
+              createdAt: String(row.created_at ?? new Date().toISOString()),
+            }))
+          : [];
+        setTeachers(list);
+      } catch {
+        setTeachers([]);
+      }
+      try {
+        const { data } = await supabase.from("teacher_classes").select("*");
+        const map: Record<string, string[]> = {};
+        (Array.isArray(data) ? data : []).forEach((row: any) => {
+          const tid = String(row.teacher_id);
+          const cls = String(row.class_name ?? "");
+          if (!tid || !cls) return;
+          map[tid] = Array.from(new Set([...(map[tid] || []), cls]));
+        });
+        setAssign(map);
+      } catch {
+        setAssign({});
+      }
       setClassCatalog([]);
-    }
+    })();
   }, []);
 
   useEffect(() => {
@@ -99,14 +109,17 @@ export default function AdminTeacherClassesPage() {
     const uniq = Array.from(new Set(values.map(v => v.trim()).filter(Boolean))).slice(0, 5);
     const map = { ...assign, [id]: uniq };
     setAssign(map);
-    localStorage.setItem("admin_teacher_class_map", JSON.stringify(map));
-    try {
-      const raw = localStorage.getItem("admin_class_catalog");
-      const list: string[] = raw ? JSON.parse(raw) : [];
-      const next = Array.from(new Set([...(Array.isArray(list) ? list : []), ...uniq]));
-      localStorage.setItem("admin_class_catalog", JSON.stringify(next));
-      setClassCatalog(next);
-    } catch {}
+    (async () => {
+      try {
+        await supabase.from("teacher_classes").delete().eq("teacher_id", Number(id));
+        if (uniq.length > 0) {
+          await supabase.from("teacher_classes").insert(
+            uniq.map(c => ({ teacher_id: Number(id), class_name: c }))
+          );
+        }
+      } catch {
+      }
+    })();
   };
   const addClass = (id: string) => {
     const fromSelect = (addSelect[id] || "").trim();

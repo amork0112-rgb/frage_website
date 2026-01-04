@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { translations, Language, Translation } from "@/data/translations";
+import { useSearchParams } from "next/navigation";
 
 interface LanguageContextType {
   language: Language;
@@ -13,19 +14,16 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("en");
+  const [language, setLanguageState] = useState<Language>("ko");
+  const searchParams = useSearchParams();
 
-  // Load language from localStorage if available
   useEffect(() => {
-    const savedLang = localStorage.getItem("frage-lang") as Language;
-    if (savedLang && (savedLang === "en" || savedLang === "ko")) {
-      setLanguageState(savedLang);
-    }
+    const param = searchParams?.get("lang");
+    if (param === "en" || param === "ko") setLanguageState(param as Language);
   }, []);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem("frage-lang", lang);
   };
 
   const toggleLanguage = () => {

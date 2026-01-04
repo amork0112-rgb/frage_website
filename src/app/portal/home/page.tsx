@@ -67,11 +67,13 @@ export default function ParentPortalHome() {
         }
       });
       if (tasks.length) await Promise.all(tasks);
-      const allRes = await fetch("/api/admin/schedules");
-      const allData = await allRes.json();
-      const allItems = Array.isArray(allData?.items) ? allData.items : [];
-      setAllSlots(allItems);
-      localStorage.setItem("admission_test_slots", JSON.stringify(allItems));
+      const res2 = await fetch(`/api/admin/schedules?date=${encodeURIComponent(date)}`);
+      const data2 = await res2.json();
+      const updatedItems = Array.isArray(data2?.items) ? data2.items : [];
+      setAllSlots(prev => {
+        const others = prev.filter((s: any) => s.date !== date);
+        return [...others, ...updatedItems];
+      });
     } catch {}
   };
   const ensureDefaultWeekdaySlotsForMonth = useCallback(async (month: Date) => {
@@ -108,11 +110,10 @@ export default function ParentPortalHome() {
         });
       }
       if (tasks.length) await Promise.all(tasks);
-      const allRes = await fetch("/api/admin/schedules");
-      const allData = await allRes.json();
-      const allItems = Array.isArray(allData?.items) ? allData.items : [];
-      setAllSlots(allItems);
-      localStorage.setItem("admission_test_slots", JSON.stringify(allItems));
+      const res2 = await fetch(`/api/admin/schedules?rangeStart=${encodeURIComponent(startStr)}&rangeEnd=${encodeURIComponent(endStr)}`);
+      const data2 = await res2.json();
+      const items2 = Array.isArray(data2?.items) ? data2.items : [];
+      setAllSlots(items2);
     } catch {}
   }, [DEFAULT_TIMES]);
 
@@ -152,15 +153,13 @@ export default function ParentPortalHome() {
               const data = await res.json();
               const items = Array.isArray(data?.items) ? data.items : [];
               setAllSlots(items);
-              localStorage.setItem("admission_test_slots", JSON.stringify(items));
               setAvailableSlots(items.filter((s: any) => s.isOpen));
             } catch {}
           };
           loadAll();
-          const t = setInterval(loadAll, 5000);
           const m = new Date();
           ensureDefaultWeekdaySlotsForMonth(new Date(m.getFullYear(), m.getMonth(), 1));
-          return () => clearInterval(t);
+          return () => {};
         } else {
           setStudentStatus("enrolled");
         }
@@ -184,25 +183,14 @@ export default function ParentPortalHome() {
 
     setMyReservation(reservation);
 
-    // Save to local storage
-    const rawRes = localStorage.getItem("student_reservations");
-    const allRes = rawRes ? JSON.parse(rawRes) : {};
-    allRes[newStudentProfile.id] = reservation;
-    localStorage.setItem("student_reservations", JSON.stringify(allRes));
-
-    // Update slot count (Optimistic UI)
-    const rawSlots = localStorage.getItem("admission_test_slots");
-    if (rawSlots) {
-        const slots = JSON.parse(rawSlots);
-        const updatedSlots = slots.map((s: any) => {
-            if (s.id === slot.id) {
-                return { ...s, current: (s.current || 0) + 1 };
-            }
-            return s;
-        });
-        localStorage.setItem("admission_test_slots", JSON.stringify(updatedSlots));
-        setAvailableSlots(updatedSlots.filter((s: any) => s.isOpen));
-    }
+    fetch("/api/admin/schedules", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: slot.id, current: (slot.current || 0) + 1 })
+    }).then(() => {
+      setAllSlots(prev => prev.map((s: any) => s.id === slot.id ? { ...s, current: (s.current || 0) + 1 } : s));
+      setAvailableSlots(prev => prev.map((s: any) => s.id === slot.id ? { ...s, current: (s.current || 0) + 1 } : s).filter((s: any) => s.isOpen));
+    }).catch(() => {});
     
     alert("예약이 완료되었습니다.");
   };
@@ -210,26 +198,19 @@ export default function ParentPortalHome() {
   const handleCancelReservation = () => {
       if(!confirm("예약을 취소하시겠습니까?")) return;
       
-      // Update slot count
-      const rawSlots = localStorage.getItem("admission_test_slots");
-      if (rawSlots && myReservation) {
-          const slots = JSON.parse(rawSlots);
-          const updatedSlots = slots.map((s: any) => {
-              if (s.id === myReservation.slotId) {
-                  return { ...s, current: Math.max(0, (s.current || 0) - 1) };
-              }
-              return s;
-          });
-          localStorage.setItem("admission_test_slots", JSON.stringify(updatedSlots));
-          setAvailableSlots(updatedSlots.filter((s: any) => s.isOpen));
+      if (myReservation) {
+        const id = myReservation.slotId;
+        fetch("/api/admin/schedules", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, current: Math.max(0, (myReservation.current || 1) - 1) })
+        }).then(() => {
+          setAllSlots(prev => prev.map((s: any) => s.id === id ? { ...s, current: Math.max(0, (s.current || 1) - 1) } : s));
+          setAvailableSlots(prev => prev.map((s: any) => s.id === id ? { ...s, current: Math.max(0, (s.current || 1) - 1) } : s).filter((s: any) => s.isOpen));
+        }).catch(() => {});
       }
 
       setMyReservation(null);
-      
-      const rawRes = localStorage.getItem("student_reservations");
-      const allRes = rawRes ? JSON.parse(rawRes) : {};
-      delete allRes[newStudentProfile.id];
-      localStorage.setItem("student_reservations", JSON.stringify(allRes));
   };
 
   // Fetch data for Enrolled Students

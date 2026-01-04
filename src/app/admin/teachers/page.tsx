@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Settings, UserPlus, Users, Lock, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type Teacher = {
   id: string;
@@ -25,25 +26,25 @@ export default function AdminTeachersPage() {
   const [toast, setToast] = useState<string>("");
   const [policy, setPolicy] = useState<string>("frage");
 
+  const refreshItems = async () => {
+    const { data } = await supabase.from("teachers").select("*").order("created_at", { ascending: false });
+    const list: Teacher[] = Array.isArray(data)
+      ? data.map((row: any) => ({
+          id: String(row.id),
+          name: String(row.name ?? ""),
+          email: String(row.email ?? ""),
+          campus: (String(row.campus ?? "International") as Teacher["campus"]),
+          role: (String(row.role ?? "teacher") as Teacher["role"]),
+          active: !!row.active,
+          createdAt: String(row.created_at ?? new Date().toISOString()),
+        }))
+      : [];
+    setItems(list);
+  };
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("teacher_accounts");
-      const list: Teacher[] = raw ? JSON.parse(raw) : [];
-      setItems(Array.isArray(list) ? list : []);
-    } catch {
-      setItems([]);
-    }
-    try {
-      const p = localStorage.getItem("teacher_initial_password_policy");
-      if (p) {
-        setPolicy(p);
-        setPassword(p);
-      } else {
-        localStorage.setItem("teacher_initial_password_policy", "frage");
-        setPolicy("frage");
-        setPassword("frage");
-      }
-    } catch {}
+    refreshItems();
+    setPolicy("frage");
+    setPassword("frage");
   }, []);
 
   const filtered = useMemo(() => {
@@ -60,36 +61,46 @@ export default function AdminTeachersPage() {
     setRole("teacher");
   };
 
-  const saveAll = (next: Teacher[]) => {
-    setItems(next);
-    localStorage.setItem("teacher_accounts", JSON.stringify(next));
-  };
+  const saveAll = (_next: Teacher[]) => {};
 
   const resetAll = () => {
-    try {
-      localStorage.removeItem("teacher_accounts");
-      localStorage.removeItem("admin_teacher_class_map");
+    (async () => {
+      await supabase.from("teachers").delete();
+      await supabase.from("teacher_classes").delete();
       setItems([]);
       setToast("전체 계정을 삭제하고 반 지정 정보를 초기화했습니다");
       setTimeout(() => setToast(""), 2500);
-    } catch {}
+    })();
   };
 
   const createTeacher = () => {
     if (!name.trim() || !email.trim() || !password.trim()) return;
     const id = `t_${Date.now()}`;
     const createdAt = new Date().toISOString();
-    const item: Teacher = { id, name: name.trim(), email: email.trim(), campus, role, active: true, createdAt };
-    const next = [item, ...items];
-    saveAll(next);
-    setToast("계정을 생성했습니다");
-    resetForm();
-    setTimeout(() => setToast(""), 2000);
+    (async () => {
+      await supabase.from("teachers").insert({
+        id,
+        name: name.trim(),
+        email: email.trim(),
+        campus,
+        role,
+        active: true,
+        created_at: createdAt,
+      });
+      await refreshItems();
+      setToast("계정을 생성했습니다");
+      resetForm();
+      setTimeout(() => setToast(""), 2000);
+    })();
   };
 
   const toggleActive = (id: string) => {
-    const next = items.map((t) => (t.id === id ? { ...t, active: !t.active } : t));
-    saveAll(next);
+    const target = items.find(t => t.id === id);
+    const nextActive = target ? !target.active : true;
+    (async () => {
+      await supabase.from("teachers").update({ active: nextActive }).eq("id", id);
+      await refreshItems();
+    })();
   };
 
   const resetPassword = (id: string) => {
@@ -98,8 +109,11 @@ export default function AdminTeachersPage() {
   };
 
   const removeTeacher = (id: string) => {
-    const next = items.filter((t) => t.id !== id);
-    saveAll(next);
+    (async () => {
+      await supabase.from("teachers").delete().eq("id", id);
+      await supabase.from("teacher_classes").delete().eq("teacher_id", id);
+      await refreshItems();
+    })();
   };
 
   return (

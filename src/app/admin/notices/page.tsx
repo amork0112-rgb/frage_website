@@ -1,29 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { notices } from "@/data/notices";
 import { Plus, Edit2, Trash2, Pin, MapPin, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase, supabaseReady } from "@/lib/supabase";
 
 export default function AdminNoticesPage() {
-  const [dynamicNotices, setDynamicNotices] = useState<any[]>([]);
   const [serverNotices, setServerNotices] = useState<any[]>([]);
-  const [draft, setDraft] = useState<any | null>(null);
-  const [overrides, setOverrides] = useState<Record<string, { isPinned?: boolean; isArchived?: boolean }>>({});
-  const [statusLogs, setStatusLogs] = useState<Record<string, string[]>>({});
   const [animMap, setAnimMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    const key = "frage_notices";
-    const arr = JSON.parse(localStorage.getItem(key) || "[]");
-    setDynamicNotices(arr);
-    const d = localStorage.getItem("frage_notice_draft");
-    setDraft(d ? JSON.parse(d) : null);
-    const ov = JSON.parse(localStorage.getItem("frage_notice_overrides") || "{}");
-    setOverrides(ov);
-    const logs = JSON.parse(localStorage.getItem("frage_notice_status_logs") || "{}");
-    setStatusLogs(logs);
     (async () => {
       try {
         const { data, error } = await supabase
@@ -49,23 +35,6 @@ export default function AdminNoticesPage() {
           setServerNotices(mapped);
         }
       } catch {}
-      try {
-        const migratedRaw = localStorage.getItem("frage_notice_migrated_ids");
-        const migrated: Record<string, boolean> = migratedRaw ? JSON.parse(migratedRaw) : {};
-        const toSync = (arr || []).filter((n: any) => typeof n?.id === "string" && n.id.startsWith("dyn_") && !migrated[n.id]);
-        for (const it of toSync) {
-          await supabase.from("posts").insert({
-            title: it.title,
-            content: String(it.summary || ""),
-            category: "notice",
-            published: true,
-            is_pinned: false,
-            image_url: null as any,
-          });
-          migrated[it.id] = true;
-        }
-        localStorage.setItem("frage_notice_migrated_ids", JSON.stringify(migrated));
-      } catch {}
     })();
   }, []);
 
@@ -75,35 +44,17 @@ export default function AdminNoticesPage() {
   };
 
   const mergedNotices = useMemo(() => {
-    const base = [...serverNotices, ...dynamicNotices, ...notices];
-    return base
-      .map((n) => {
-        const o = overrides[n.id] || {};
-        return { ...n, isPinned: o.isPinned ?? n.isPinned, isArchived: o.isArchived ?? n.isArchived };
-      })
-      .sort((a: any, b: any) => {
-        const aw = a.isPinned ? 0 : a.isArchived ? 2 : 1;
-        const bw = b.isPinned ? 0 : b.isArchived ? 2 : 1;
-        if (aw !== bw) return aw - bw;
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-      });
-  }, [dynamicNotices, overrides]);
+    return [...serverNotices].sort((a: any, b: any) => {
+      const aw = a.isPinned ? 0 : a.isArchived ? 2 : 1;
+      const bw = b.isPinned ? 0 : b.isArchived ? 2 : 1;
+      if (aw !== bw) return aw - bw;
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+  }, [serverNotices]);
 
   const pinnedCount = useMemo(() => mergedNotices.filter((n: any) => n.isPinned && !n.isArchived).length, [mergedNotices]);
 
-  const appendLog = (id: string, text: string) => {
-    const map = { ...statusLogs };
-    const list = map[id] || [];
-    list.push(text);
-    map[id] = list;
-    setStatusLogs(map);
-    localStorage.setItem("frage_notice_status_logs", JSON.stringify(map));
-  };
-
-  const updateOverride = async (id: string, next: Partial<{ isPinned: boolean; isArchived: boolean }>, currentLabel: string) => {
-    const map = { ...overrides, [id]: { ...(overrides[id] || {}), ...next } };
-    setOverrides(map);
-    localStorage.setItem("frage_notice_overrides", JSON.stringify(map));
+  const updateOverride = async (id: string, next: Partial<{ isPinned: boolean; isArchived: boolean }>) => {
     try {
       const status = next.isPinned ? "pinned" : next.isArchived ? "archived" : "published";
       const res = await fetch("/api/admin/notices/status", {
@@ -112,7 +63,9 @@ export default function AdminNoticesPage() {
         body: JSON.stringify({ id, status })
       });
       if (!res.ok) throw new Error("sync_failed");
-      appendLog(id, `${new Date().toLocaleString("ko-KR")} 상태 변경: ${currentLabel} → ${status}`);
+      setServerNotices((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isPinned: status === "pinned", isArchived: status === "archived" } : n))
+      );
     } catch {
       alert("상태 동기화 중 오류가 발생했습니다.");
     }
@@ -122,7 +75,6 @@ export default function AdminNoticesPage() {
     const id = item.id;
     const currentPinned = !!item.isPinned;
     const currentArchived = !!item.isArchived;
-    const label = currentPinned ? "pinned" : currentArchived ? "archived" : "published";
     setAnimMap((m) => ({ ...m, [id]: true }));
     setTimeout(async () => {
       if (!currentPinned && !currentArchived) {
@@ -131,17 +83,17 @@ export default function AdminNoticesPage() {
           setAnimMap((m) => ({ ...m, [id]: false }));
           return;
         }
-        await updateOverride(id, { isPinned: true, isArchived: false }, label);
+        await updateOverride(id, { isPinned: true, isArchived: false });
         setAnimMap((m) => ({ ...m, [id]: false }));
         return;
       }
       if (currentPinned) {
-        await updateOverride(id, { isPinned: false, isArchived: true }, label);
+        await updateOverride(id, { isPinned: false, isArchived: true });
         setAnimMap((m) => ({ ...m, [id]: false }));
         return;
       }
       if (currentArchived) {
-        await updateOverride(id, { isPinned: false, isArchived: false }, label);
+        await updateOverride(id, { isPinned: false, isArchived: false });
         setAnimMap((m) => ({ ...m, [id]: false }));
         return;
       }
@@ -164,27 +116,6 @@ export default function AdminNoticesPage() {
             새 공지 작성
         </Link>
       </div>
-
-      {draft && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl p-4 mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Upload className="w-5 h-5" />
-            <div>
-              <p className="text-sm font-bold">임시 저장된 공지가 있습니다</p>
-              <p className="text-xs text-yellow-700 mt-0.5">제목: {draft.title || "(제목 없음)"} • 캠퍼스: {draft.campus || "All"} • 카테고리: {draft.category || "Schedule"}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/admin/notices/new" className="px-3 py-2 rounded-lg text-xs font-bold bg-yellow-100 hover:bg-yellow-200 transition-colors">불러오기</Link>
-            <button
-              onClick={() => { localStorage.removeItem("frage_notice_draft"); setDraft(null); }}
-              className="px-3 py-2 rounded-lg text-xs font-bold bg-white border border-yellow-200 hover:bg-yellow-100 transition-colors"
-            >
-              삭제
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">

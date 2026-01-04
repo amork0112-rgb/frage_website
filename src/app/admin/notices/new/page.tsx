@@ -23,37 +23,12 @@ export default function AdminNewNoticePage() {
   const [newsPushEnabled, setNewsPushEnabled] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem("frage_notice_draft");
-    if (saved) {
-      const d = JSON.parse(saved);
-      setCampus(d.campus || "All");
-      setTitle(d.title || "");
-      setCategory(d.category || "Schedule");
-      setRichHtml(d.richHtml || "");
-      setImages(d.images || []);
-      setFiles(d.files || []);
-      if (editorRef.current && d.richHtml) editorRef.current.innerHTML = d.richHtml;
-    }
-    try {
-      const r = String(localStorage.getItem("admin_role") || "").trim();
-      setRole(r === "teacher" ? "teacher" : "admin");
-    } catch {
-      setRole("admin");
-    }
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const appRole = (data?.user?.app_metadata as any)?.role ?? null;
+      setRole(appRole === "teacher" ? "teacher" : "admin");
+    })();
   }, []);
-
-  const saveDraft = () => {
-    const data = {
-      campus,
-      title,
-      category,
-      richHtml: editorRef.current?.innerHTML || richHtml,
-      images,
-      files,
-    };
-    localStorage.setItem("frage_notice_draft", JSON.stringify(data));
-    alert("임시 저장되었습니다.");
-  };
 
   const exec = (cmd: string, value?: string) => {
     document.execCommand(cmd, false, value);
@@ -125,25 +100,6 @@ export default function AdminNewNoticePage() {
     setLoading(true);
     const contentHtml = editorRef.current?.innerHTML || "";
     const summary = plainText(contentHtml).slice(0, 140);
-    const id = `dyn_${Date.now()}`;
-    const today = new Date();
-    const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const item = {
-      id,
-      title,
-      date,
-      category,
-      campus,
-      summary,
-      richHtml: contentHtml,
-      images,
-      files,
-      viewCount: 0,
-    };
-    const key = "frage_notices";
-    const existing = JSON.parse(localStorage.getItem(key) || "[]");
-    localStorage.setItem(key, JSON.stringify([item, ...existing]));
-    localStorage.removeItem("frage_notice_draft");
 
     const persistToSupabase = async () => {
       try {
@@ -170,13 +126,7 @@ export default function AdminNewNoticePage() {
           is_pinned: newsFeatured,
           image_url: null as any,
         };
-        const { data, error } = await supabase.from("posts").insert(insert).select("id").single();
-        if (!error && data?.id) {
-          const mapRaw = localStorage.getItem("frage_notice_promotions");
-          const map = mapRaw ? JSON.parse(mapRaw) : {};
-          map[id] = { newsPostId: data.id, at: new Date().toISOString(), featured: newsFeatured, pushEnabled: newsPushEnabled };
-          localStorage.setItem("frage_notice_promotions", JSON.stringify(map));
-        }
+        await supabase.from("posts").insert(insert);
       } catch {}
     };
     doPromote();
@@ -259,7 +209,6 @@ export default function AdminNewNoticePage() {
             </select>
             <input type="color" onChange={(e) => exec("foreColor", e.target.value)} className="w-10 h-10 rounded border" />
             <button type="button" onClick={() => setPreviewOpen(!previewOpen)} className="px-3 py-2 rounded-lg border text-sm"><Eye className="w-4 h-4" /></button>
-            <button type="button" onClick={saveDraft} className="px-3 py-2 rounded-lg border text-sm"><Upload className="w-4 h-4" /></button>
           </div>
           <div
             ref={editorRef}
@@ -331,13 +280,6 @@ export default function AdminNewNoticePage() {
         </div>
 
         <div className="grid sm:grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={saveDraft}
-            className="w-full bg-slate-100 text-slate-800 py-3 rounded-xl font-bold text-sm border border-slate-200"
-          >
-            임시 저장
-          </button>
           <button
             type="submit"
             disabled={loading}

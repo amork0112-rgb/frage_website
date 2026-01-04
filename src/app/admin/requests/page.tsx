@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { MessageSquare, Calendar, Clock, Bus, Pill, Users, Bell, AlertCircle, ArrowRight } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type RequestType = "absence" | "early_pickup" | "bus_change" | "medication";
 
@@ -10,6 +11,7 @@ type PortalRequest = {
   id: string;
   childId: string;
   childName: string;
+  campus: string;
   type: RequestType;
   dateStart: string;
   dateEnd?: string;
@@ -36,26 +38,41 @@ export default function AdminRequestsPage() {
   const [newCampus, setNewCampus] = useState<string>("International");
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("portal_requests");
-      const list = raw ? JSON.parse(raw) : [];
-      setRequests(Array.isArray(list) ? list : []);
-    } catch {
-      setRequests([]);
-    }
+    const load = async () => {
+      try {
+        const { data } = await supabase
+          .from("portal_requests")
+          .select("*")
+          .order("created_at", { ascending: false });
+        const list: PortalRequest[] = Array.isArray(data)
+          ? data.map((row: any) => ({
+              id: String(row.id),
+              childId: String(row.child_id ?? ""),
+              childName: String(row.child_name ?? ""),
+              campus: String(row.campus ?? "International"),
+              type: String(row.type ?? "absence") as RequestType,
+              dateStart: String(row.date_start ?? ""),
+              dateEnd: row.date_end ? String(row.date_end) : undefined,
+              time: row.time ? String(row.time) : undefined,
+              note: row.note ? String(row.note) : undefined,
+              changeType: row.change_type ? (String(row.change_type) as PortalRequest["changeType"]) : undefined,
+              medName: row.med_name ? String(row.med_name) : undefined,
+              createdAt: String(row.created_at ?? new Date().toISOString()),
+            }))
+          : [];
+        setRequests(list);
+      } catch {
+        setRequests([]);
+      }
+    };
+    load();
   }, []);
 
   const filtered = useMemo(
     () => {
-      const childCampusMap: Record<string, string> = {
-        c1: "International",
-        c2: "Andover",
-        c3: "Platz",
-        c4: "Atheneum",
-      };
       return requests
         .filter(r => r.type === activeTab)
-        .filter(r => campusFilter === "All" ? true : (childCampusMap[r.childId] === campusFilter));
+        .filter(r => (campusFilter === "All" ? true : r.campus === campusFilter));
     },
     [requests, activeTab, campusFilter]
   );
@@ -84,6 +101,7 @@ export default function AdminRequestsPage() {
       id,
       childId,
       childName: newChildName.trim(),
+      campus: newCampus,
       type: newType,
       dateStart: newDateStart,
       dateEnd: newType === "medication" && newDateEnd ? newDateEnd : undefined,
@@ -93,22 +111,56 @@ export default function AdminRequestsPage() {
       note: newNote.trim() || undefined,
       createdAt: new Date().toISOString(),
     };
-    try {
-      const raw = localStorage.getItem("portal_requests");
-      const list = raw ? JSON.parse(raw) : [];
-      const next = Array.isArray(list) ? [...list, payload] : [payload];
-      localStorage.setItem("portal_requests", JSON.stringify(next));
-      setRequests(next);
-      setActiveTab(newType);
-      setCreateOpen(false);
-      setNewChildName("");
-      setNewDateStart("");
-      setNewDateEnd("");
-      setNewTime("");
-      setNewChangeType("no_bus");
-      setNewMedName("");
-      setNewNote("");
-    } catch {}
+    const insert = async () => {
+      try {
+        await supabase.from("portal_requests").insert({
+          id: payload.id,
+          child_id: payload.childId,
+          child_name: payload.childName,
+          campus: payload.campus,
+          type: payload.type,
+          date_start: payload.dateStart,
+          date_end: payload.dateEnd ?? null,
+          time: payload.time ?? null,
+          change_type: payload.changeType ?? null,
+          med_name: payload.medName ?? null,
+          note: payload.note ?? null,
+          created_at: payload.createdAt,
+        });
+        const { data } = await supabase
+          .from("portal_requests")
+          .select("*")
+          .order("created_at", { ascending: false });
+        const list: PortalRequest[] = Array.isArray(data)
+          ? data.map((row: any) => ({
+              id: String(row.id),
+              childId: String(row.child_id ?? ""),
+              childName: String(row.child_name ?? ""),
+              campus: String(row.campus ?? "International"),
+              type: String(row.type ?? "absence") as RequestType,
+              dateStart: String(row.date_start ?? ""),
+              dateEnd: row.date_end ? String(row.date_end) : undefined,
+              time: row.time ? String(row.time) : undefined,
+              note: row.note ? String(row.note) : undefined,
+              changeType: row.change_type ? (String(row.change_type) as PortalRequest["changeType"]) : undefined,
+              medName: row.med_name ? String(row.med_name) : undefined,
+              createdAt: String(row.created_at ?? new Date().toISOString()),
+            }))
+          : [];
+        setRequests(list);
+        setActiveTab(newType);
+        setCreateOpen(false);
+        setNewChildName("");
+        setNewDateStart("");
+        setNewDateEnd("");
+        setNewTime("");
+        setNewChangeType("no_bus");
+        setNewMedName("");
+        setNewNote("");
+      } catch {
+      }
+    };
+    insert();
   };
 
   return (

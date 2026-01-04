@@ -1,26 +1,100 @@
-export const classGoals: Record<string, { Reading: string; Listening: string; Speaking: string; Writing: string }> = {
-  "A1b": {
-    Reading: "문장 끝의 문장부호를 인지하고 간단한 문장을 유창하게 읽기",
-    Listening: "짧은 지시를 이해하고 교실 루틴을 따라하기",
-    Speaking: "기본 인사와 쉬운 문장으로 생각 표현하기",
-    Writing: "알파벳과 기초 어휘로 간단한 문장 쓰기"
+export const classGoals: Record<
+  string,
+  { Reading: string; Listening: string; Speaking: string; Writing: string }
+> = {
+  // Age 7 – Advanced
+  Kepler: {
+    Reading:
+      "Identify main ideas, key details, characters, and plot in various texts. Summarize stories and understand genre and the author’s purpose.",
+    Listening:
+      "Follow three-step directions and understand lesson topics and classroom discussions.",
+    Speaking:
+      "Use 3000 or more English words. Speak in complete sentences with at least three supporting details. Tell time and give clear directions.",
+    Writing:
+      "Write one to two well-organized paragraphs with supporting details using correct grammar. Produce both topic-based and creative writing."
   },
-  "Kepler A": {
-    Reading: "핵심 생각과 뒷받침 세부를 구분하며 문단 이해하기",
-    Listening: "짧은 대화에서 핵심 정보 파악하기",
-    Speaking: "근거를 들어 의견 표현하고 어휘 다양화하기",
-    Writing: "주제문과 연결어를 사용한 단락 구성하기"
+
+  // Age 7 – Upper Intermediate
+  Platon: {
+    Reading:
+      "Identify main ideas, key details, characters, and plot. Summarize stories and recognize genre and author’s purpose.",
+    Listening:
+      "Follow three-step directions and understand familiar academic topics.",
+    Speaking:
+      "Use approximately 2500–3000 English words. Speak in complete sentences with two to three details. Tell time and give basic directions.",
+    Writing:
+      "Write organized paragraphs with details using mostly correct grammar. Write topic-based and creative texts."
   },
-  "Kepler B": {
-    Reading: "문장 묶음을 자연스럽게 구분하고 억양을 넣어 읽기",
-    Listening: "복합 지시를 단계적으로 이해하기",
-    Speaking: "발음과 속도를 조절하며 문장 길이 늘리기",
-    Writing: "기초 문법을 적용하여 문장 간 연결 강화하기"
+
+  // Age 7 – Intermediate
+  Euclid: {
+    Reading:
+      "Read stories on various topics and sound out unfamiliar words. Identify main ideas, details, and characters.",
+    Listening:
+      "Follow two- to three-step directions and understand familiar lesson topics.",
+    Speaking:
+      "Use 1500–2000 English words. Speak in complete sentences with two or more supporting details.",
+    Writing:
+      "Write short paragraphs and complete sentences using proper punctuation and basic grammar."
   },
-  "Pluto": {
-    Reading: "알파벳 소리-글자 매칭과 기초 단어 익히기",
-    Listening: "간단한 질문과 요청에 반응하기",
-    Speaking: "짧은 문구를 반복하며 자신감 키우기",
-    Writing: "선 긋기, 글자 쓰기, 띄어쓰기 연습하기"
+
+  // Age 6 – Intermediate
+  Darwin: {
+    Reading:
+      "Read decodable texts with short and long vowels. Recognize familiar words and match pictures to words.",
+    Listening:
+      "Follow two-step directions and understand familiar topics such as weather, feelings, and food.",
+    Speaking:
+      "Use 1000–1200 English words. Speak in complete sentences with one supporting detail.",
+    Writing:
+      "Write complete sentences using correct capitalization and punctuation."
+  },
+
+  // Age 6 – Beginner
+  Einstein: {
+    Reading:
+      "Read decodable texts with short and long vowels. Recognize familiar words and match pictures to words.",
+    Listening:
+      "Follow one-step directions and understand familiar topics such as feelings, food, and weather.",
+    Speaking:
+      "Use 800–1200 English words. Speak in complete sentences with one detail.",
+    Writing:
+      "Write short sentences using conventional spelling and punctuation."
+  },
+
+  // Age 6 – Beginner
+  Gauss: {
+    Reading:
+      "Read decodable texts with short and long vowels. Recognize familiar words and match pictures to words.",
+    Listening:
+      "Follow one-step directions and understand familiar topics such as feelings, food, and weather.",
+    Speaking:
+      "Use 800–1200 English words. Speak in complete sentences with one detail.",
+    Writing:
+      "Write short sentences using conventional spelling and punctuation."
+  },
+
+  // Age 5 – Early Beginner
+  Thales: {
+    Reading:
+      "Read decodable texts with short vowels. Recognize familiar words and match pictures to words.",
+    Listening:
+      "Follow one-step directions and understand familiar topics such as weather, feelings, and food.",
+    Speaking:
+      "Use 500–1000 English words. Speak in simple complete sentences with one detail.",
+    Writing:
+      "Write short words and simple sentences using conventional letter formation."
+  },
+
+  // Age 5 – Early Beginner
+  Edison: {
+    Reading:
+      "Read decodable texts with short vowels. Recognize familiar words and match pictures to words.",
+    Listening:
+      "Follow one-step directions and understand familiar topics such as weather, feelings, and food.",
+    Speaking:
+      "Use 500–1000 English words. Speak in simple complete sentences with one detail.",
+    Writing:
+      "Write short words and simple sentences using conventional letter formation."
   }
 };

@@ -14,32 +14,23 @@ export default function TeacherHeader() {
   const [teacherId, setTeacherId] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const r = localStorage.getItem("admin_role");
-      setRole(r || null);
-      const id = localStorage.getItem("current_teacher_id");
-      setTeacherId(id || null);
-    } catch {}
     (async () => {
       try {
         const { data } = await supabase.auth.getUser();
         const appRole = (data?.user?.app_metadata as any)?.role ?? null;
         setRole(appRole);
-        try {
-          if (appRole) localStorage.setItem("admin_role", String(appRole));
-        } catch {}
+        const authUserId = data?.user?.id;
+        if (authUserId) {
+          const { data: rows } = await supabase
+            .from("teachers")
+            .select("*")
+            .eq("auth_user_id", authUserId)
+            .limit(1);
+          const teacher = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+          setTeacherId(teacher?.id ? String(teacher.id) : null);
+        }
       } catch {}
     })();
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "admin_role") {
-        setRole(e.newValue);
-      }
-      if (e.key === "current_teacher_id") {
-        setTeacherId(e.newValue);
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const isTeacher = !!role && ["teacher", "교사"].some((k) => role!.toLowerCase().includes(k));
@@ -50,6 +41,7 @@ export default function TeacherHeader() {
     { name: "신규생관리", href: "/teacher/new-students", icon: UserPlus },
     { name: "Students", href: "/teacher/students", icon: Users },
     { name: "Video Homework", href: "/teacher/video", icon: Video },
+    { name: "Video Management", href: "/teacher/video-management", icon: Video },
     { name: "Reports", href: "/teacher/reports", icon: FileText },
   ];
 
