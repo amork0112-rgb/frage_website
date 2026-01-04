@@ -350,7 +350,7 @@ export default function AdminHome() {
                                 </div>
                                 <p className="text-sm text-slate-600 mb-2">학생: <span className="font-bold">{req.student}</span> (Class {req.class})</p>
                                 <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
-                                    "{req.content}"
+                                    {req.content}
                                 </p>
                             </div>
                             <button className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50 whitespace-nowrap">

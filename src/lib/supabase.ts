@@ -13,21 +13,31 @@ export const supabaseReady =
   !/your-project\.supabase\.co|your_supabase_url/i.test(url);
 
 function createMockSupabase(): SupabaseClient {
+  const isBrowser = typeof window !== "undefined";
+  const memoryStore: Record<string, any[]> = {};
   const getStore = (table: string) => {
     const key = `mock_supabase_${table}`;
-    try {
-      const raw = localStorage.getItem(key);
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
-    } catch {
-      return [];
+    if (isBrowser) {
+      try {
+        const raw = localStorage.getItem(key);
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch {
+        return [];
+      }
     }
+    const arr = memoryStore[key] ?? [];
+    return Array.isArray(arr) ? arr : [];
   };
   const setStore = (table: string, rows: any[]) => {
     const key = `mock_supabase_${table}`;
-    try {
-      localStorage.setItem(key, JSON.stringify(rows));
-    } catch {}
+    if (isBrowser) {
+      try {
+        localStorage.setItem(key, JSON.stringify(rows));
+      } catch {}
+      return;
+    }
+    memoryStore[key] = Array.isArray(rows) ? rows : [];
   };
   const makeSelect = (table: string) => {
     const state: { filters: { field: string; value: any }[]; order?: { field: string; asc: boolean }; limit?: number } = {

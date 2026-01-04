@@ -895,7 +895,7 @@ export default function AdminNewStudentsPage() {
                     월 기본 시간대 초기화
                   </button>
                   <button
-                    onClick={refreshAllSchedules}
+                    onClick={refreshMonthSchedules}
                     className="px-3 py-2 bg-slate-100 text-slate-800 rounded-lg text-sm font-bold border border-slate-200"
                   >
                     새로고침
