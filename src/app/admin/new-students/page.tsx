@@ -138,6 +138,8 @@ export default function AdminNewStudentsPage() {
   // Reservation Management State
   const [showReservationModal, setShowReservationModal] = useState(false);
   const [reservationSlots, setReservationSlots] = useState<{id: string, date: string, time: string, max: number, current: number, isOpen: boolean}[]>([]);
+  const [scheduleMap, setScheduleMap] = useState<Record<string, { isOpen: boolean; slots: { time: string; max: number; current: number }[] }>>({});
+  const [scheduleSummary, setScheduleSummary] = useState<{ totalDays: number; openDays: number; totalSlots: number; reservedSlots: number } | null>(null);
   const [studentReservations, setStudentReservations] = useState<Record<string, any>>({});
   const [newSlotTime, setNewSlotTime] = useState("");
   const [viewMode, setViewMode] = useState<"month" | "week">("month");
@@ -175,31 +177,38 @@ export default function AdminNewStudentsPage() {
     load();
   }, []);
   useEffect(() => {
-    const loadAll = async () => {
+    const loadMonth = async () => {
       try {
-        const res = await fetch("/api/admin/schedules");
+        const y = currentMonth.getFullYear();
+        const m = currentMonth.getMonth() + 1;
+        const res = await fetch(`/api/admin/schedules?year=${y}&month=${m}`, { cache: "no-store" });
         const data = await res.json();
-        const items = Array.isArray(data?.items) ? data.items : [];
-        setReservationSlots(items);
+        setScheduleMap(data?.days || {});
+        setScheduleSummary(data?.summary || null);
       } catch {}
     };
-    loadAll();
-    return () => {};
-  }, []);
+    loadMonth();
+  }, [currentMonth]);
 
-  const fetchDaySlots = async (date: string) => {
+  const fetchDaySlots = (date: string) => {
     setLoadingDaySlots(true);
     setErrorDaySlots(null);
-    try {
-      const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(date)}`);
-      const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
-      setDaySlots(items);
-    } catch {
-      setErrorDaySlots("일정 데이터를 불러오지 못했습니다.");
-    } finally {
+    const day = scheduleMap[date];
+    setTimeout(() => {
+      setDaySlots(
+        day
+          ? day.slots.map((s, idx) => ({
+              id: `${date}_${s.time}_${idx}`,
+              date,
+              time: s.time,
+              max: s.max,
+              current: s.current,
+              isOpen: day.isOpen,
+            }))
+          : []
+      );
       setLoadingDaySlots(false);
-    }
+    }, 0);
   };
 
   useEffect(() => {
@@ -209,9 +218,8 @@ export default function AdminNewStudentsPage() {
   useEffect(() => {
     if (showReservationModal) {
       fetchDaySlots(selectedDate);
-      return () => {};
     }
-  }, [showReservationModal, selectedDate]);
+  }, [showReservationModal, selectedDate, scheduleMap]);
 
   const addDaySlot = async () => {
     if (!selectedDate || !newSlotTime) return alert("시간을 입력해주세요.");
@@ -221,8 +229,15 @@ export default function AdminNewStudentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date: selectedDate, time: newSlotTime, max: 5, current: 0, isOpen: true })
       });
-      // 중복인 경우에도 기존 데이터를 200으로 반환합니다.
-      await fetchDaySlots(selectedDate);
+      const data = await res.json();
+      const item = data?.item;
+      setScheduleMap((prev) => {
+        const day = prev[selectedDate] || { isOpen: true, slots: [] };
+        const exists = day.slots.some((s) => s.time === newSlotTime);
+        const nextSlots = exists ? day.slots.map((s) => (s.time === newSlotTime ? { ...s, max: 5, current: 0 } : s)) : [...day.slots, { time: newSlotTime, max: 5, current: 0 }];
+        return { ...prev, [selectedDate]: { isOpen: true, slots: nextSlots } };
+      });
+      fetchDaySlots(selectedDate);
       setNewSlotTime("");
     } catch {}
   };
@@ -230,12 +245,24 @@ export default function AdminNewStudentsPage() {
   const deleteDaySlot = async (id: string) => {
     if (!confirm("정말 삭제하시겠습니까?")) return;
     try {
-      await fetch("/api/admin/schedules", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id })
-      });
-      await fetchDaySlots(selectedDate);
+      const time = id.split("_")[1];
+      const day = scheduleMap[selectedDate];
+      const found = Array.isArray(day?.slots) ? day.slots.find((s) => s.time === time) : null;
+      if (found) {
+        const delRes = await fetch("/api/admin/schedules", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id })
+        });
+        if (delRes.ok) {
+          setScheduleMap((prev) => {
+            const curr = prev[selectedDate] || { isOpen: false, slots: [] };
+            const next = { ...prev, [selectedDate]: { ...curr, slots: curr.slots.filter((s) => s.time !== time) } };
+            return next;
+          });
+          fetchDaySlots(selectedDate);
+        }
+      }
     } catch {}
   };
 
@@ -246,16 +273,22 @@ export default function AdminNewStudentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, isOpen: next })
       });
-      await fetchDaySlots(selectedDate);
+      setScheduleMap((prev) => {
+        const curr = prev[selectedDate] || { isOpen: false, slots: [] };
+        return { ...prev, [selectedDate]: { ...curr, isOpen: next } };
+      });
+      fetchDaySlots(selectedDate);
     } catch {}
   };
   
-  const refreshAllSchedules = async () => {
+  const refreshMonthSchedules = async () => {
     try {
-      const res = await fetch("/api/admin/schedules");
+      const y = currentMonth.getFullYear();
+      const m = currentMonth.getMonth() + 1;
+      const res = await fetch(`/api/admin/schedules?year=${y}&month=${m}`, { cache: "no-store" });
       const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
-      setReservationSlots(items);
+      setScheduleMap(data?.days || {});
+      setScheduleSummary(data?.summary || null);
     } catch {}
   };
   
@@ -271,8 +304,8 @@ export default function AdminNewStudentsPage() {
         body: JSON.stringify({ year: y, month: m, weekdaysOnly: true })
       });
       const data = await res.json();
-      await refreshAllSchedules();
-      if (showReservationModal) await fetchDaySlots(selectedDate);
+      await refreshMonthSchedules();
+      if (showReservationModal) fetchDaySlots(selectedDate);
       if (!data?.ok) {
         alert("월 초기화에 실패했습니다.");
       } else if (!data.initialized) {
@@ -287,44 +320,43 @@ export default function AdminNewStudentsPage() {
 
   const deleteAllDaySlots = async () => {
     try {
-      const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(selectedDate)}`);
-      const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
+      const day = scheduleMap[selectedDate];
+      const items = Array.isArray(day?.slots) ? day.slots : [];
       for (const slot of items) {
         await fetch("/api/admin/schedules", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: slot.id })
+          body: JSON.stringify({ id: `${selectedDate}_${slot.time}_0` })
         });
       }
-      await fetchDaySlots(selectedDate);
-      await refreshAllSchedules();
+      setScheduleMap((prev) => ({ ...prev, [selectedDate]: { isOpen: false, slots: [] } }));
+      fetchDaySlots(selectedDate);
     } catch {}
   };
 
   const deleteWeekdaySlotsForMonth = async (month: Date) => {
     try {
-      const start = new Date(month.getFullYear(), month.getMonth(), 1);
-      const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-      const startStr = fmtYMD(start);
-      const endStr = fmtYMD(end);
-      const res = await fetch(`/api/admin/schedules?rangeStart=${encodeURIComponent(startStr)}&rangeEnd=${encodeURIComponent(endStr)}`);
-      const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const targets = items.filter((s: any) => {
-        const [y, m, d] = s.date.split("-").map((v: string) => parseInt(v, 10));
-        const dt = new Date(y, m - 1, d);
-        const day = dt.getDay();
-        return day !== 0 && day !== 6;
-      });
-      for (const slot of targets) {
-        await fetch("/api/admin/schedules", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: slot.id })
-        });
+      const y = month.getFullYear();
+      const m = month.getMonth() + 1;
+      const map = { ...scheduleMap };
+      for (const [dateStr, day] of Object.entries(map)) {
+        const [yy, mm] = dateStr.split("-").map((v) => parseInt(v, 10));
+        if (yy === y && mm === m) {
+          const [_, __, dd] = dateStr.split("-").map((v) => parseInt(v, 10));
+          const dt = new Date(yy, mm - 1, dd);
+          const dayIdx = dt.getDay();
+          if (dayIdx === 0 || dayIdx === 6) continue;
+          for (const slot of day.slots) {
+            await fetch("/api/admin/schedules", {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: `${dateStr}_${slot.time}_0` })
+            });
+          }
+          map[dateStr] = { isOpen: false, slots: [] };
+        }
       }
-      await refreshAllSchedules();
+      setScheduleMap(map);
     } catch {}
   };
 
@@ -656,7 +688,7 @@ export default function AdminNewStudentsPage() {
                           {day}
                         </div>
                         <div className="mt-0.5 text-[10px] font-bold text-slate-400">
-                          {reservationSlots.filter(s => s.date === dateStr && s.isOpen).length}개 오픈
+                          {(scheduleMap[dateStr]?.isOpen ? (scheduleMap[dateStr]?.slots?.length || 0) : 0)}개 오픈
                         </div>
                       </button>
                     );
@@ -700,7 +732,7 @@ export default function AdminNewStudentsPage() {
                           {d.getDate()}
                         </div>
                         <div className="mt-0.5 text-[10px] font-bold text-slate-400">
-                          {reservationSlots.filter(s => s.date === dateStr && s.isOpen).length}개 오픈
+                          {(scheduleMap[dateStr]?.isOpen ? (scheduleMap[dateStr]?.slots?.length || 0) : 0)}개 오픈
                         </div>
                       </button>
                     );

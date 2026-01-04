@@ -9,11 +9,46 @@ const json = (data: any, status = 200) =>
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
+  const yearParam = searchParams.get("year");
+  const monthParam = searchParams.get("month");
   const date = searchParams.get("date");
   const start = searchParams.get("rangeStart");
   const end = searchParams.get("rangeEnd");
   try {
     let query = supabase.from("schedules").select("*");
+    if (yearParam && monthParam) {
+      const year = Number(yearParam);
+      const month = Number(monthParam);
+      if (!year || !month) return json({ error: "invalid_params" }, 400);
+      const first = `${year}-${String(month).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      const last = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      const { data } = await query
+        .gte("date", first)
+        .lte("date", last)
+        .order("date", { ascending: true })
+        .order("time", { ascending: true });
+      const rows: any[] = Array.isArray(data) ? data : [];
+      const days: Record<string, { isOpen: boolean; slots: { time: string; max: number; current: number }[] }> = {};
+      let totalSlots = 0;
+      let reservedSlots = 0;
+      rows.forEach((r: any) => {
+        const dateStr = String(r.date);
+        const slot = { time: String(r.time), max: Number(r.max ?? 5), current: Number(r.current ?? 0) };
+        (days[dateStr] ||= { isOpen: false, slots: [] }).slots.push(slot);
+        if (Boolean(r.is_open ?? true)) days[dateStr].isOpen = true;
+        totalSlots += 1;
+        reservedSlots += slot.current;
+      });
+      const openDays = Object.values(days).filter((d) => d.isOpen).length;
+      const totalDays = lastDay;
+      return json({
+        year,
+        month,
+        days,
+        summary: { totalDays, openDays, totalSlots, reservedSlots },
+      });
+    }
     if (date) {
       const { data } = await query.eq("date", date).order("time", { ascending: true });
       const items = Array.isArray(data) ? data.map((r: any) => ({
