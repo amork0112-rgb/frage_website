@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { redirectAfterAuth } from "@/lib/authRedirect";
 import type { FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -19,23 +20,22 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        const userId = userData?.user?.id;
-        const userEmail = userData?.user?.email || "";
-        if (!userId) {
-          router.push("/login");
-          return;
-        }
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      const userEmail = userData?.user?.email || "";
+      if (!userId) {
+        router.replace("/login");
+        return;
+      }
       const { data: parentsRows } = await supabase
         .from("parents")
         .select("*")
@@ -52,43 +52,11 @@ export default function LoginPage() {
             created_at: now,
           });
       }
-      try {
-        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
-        const masterAdminEmail = process.env.NEXT_PUBLIC_MASTER_ADMIN_EMAIL || "";
-        const masterTeacherEmail = process.env.NEXT_PUBLIC_MASTER_TEACHER_EMAIL || "";
-        if (userEmail && adminEmail && userEmail.toLowerCase() === adminEmail.toLowerCase()) {
-          router.push("/admin/home");
-          return;
-        }
-        if (userEmail && masterAdminEmail && userEmail.toLowerCase() === masterAdminEmail.toLowerCase()) {
-          router.push("/admin/home");
-          return;
-        }
-        if (userEmail && masterTeacherEmail && userEmail.toLowerCase() === masterTeacherEmail.toLowerCase()) {
-          router.push("/teacher/home");
-          return;
-        }
-      } catch {}
-      try {
-        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@frage.kr";
-        const masterAdminEmail = process.env.NEXT_PUBLIC_MASTER_ADMIN_EMAIL || "master_admin@frage.kr";
-        const masterTeacherEmail = process.env.NEXT_PUBLIC_MASTER_TEACHER_EMAIL || "master_teacher@frage.kr";
-        if (userEmail && adminEmail && userEmail.toLowerCase() === adminEmail.toLowerCase()) {
-          router.push("/admin/home");
-          return;
-        }
-        if (userEmail && masterAdminEmail && userEmail.toLowerCase() === masterAdminEmail.toLowerCase()) {
-          router.push("/admin/home");
-          return;
-        }
-        if (userEmail && masterTeacherEmail && userEmail.toLowerCase() === masterTeacherEmail.toLowerCase()) {
-          router.push("/teacher/home");
-          return;
-        }
-      } catch {}
-      router.push("/portal/home");
+      redirectAfterAuth(router, userEmail);
     } catch {
-      router.push("/portal/home");
+      router.replace("/portal/home");
+    } finally {
+      setLoading(false);
     }
   }
 
