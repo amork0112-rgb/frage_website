@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CAMPUS_CONFIG } from "@/config/campus";
+import { supabase } from "@/lib/supabase";
 
 type RevenueItem = { month: string; campus?: string; amount: number };
 type CostItem = { month: string; campus?: string; fixed: number; variable: number };
@@ -29,14 +30,19 @@ export default function MasterDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const role = localStorage.getItem("portal_role");
-      setAuthorized(role === "master_admin");
-    } catch {
-      setAuthorized(false);
-    } finally {
-      setLoading(false);
-    }
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const email = data?.user?.email || "";
+        const masterEmail = process.env.NEXT_PUBLIC_MASTER_ADMIN_EMAIL || "";
+        const ok = !!email && !!masterEmail && email.toLowerCase() === masterEmail.toLowerCase();
+        setAuthorized(ok);
+      } catch {
+        setAuthorized(false);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const [revenues, setRevenues] = useState<RevenueItem[]>([]);

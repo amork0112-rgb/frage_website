@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function MasterPortalIndex() {
   const router = useRouter();
@@ -10,19 +11,24 @@ export default function MasterPortalIndex() {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    try {
-      const role = localStorage.getItem("portal_role");
-      if (role === "master_admin") {
-        setAuthorized(true);
-        router.replace("/portal/master/dashboard");
-      } else {
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const email = data?.user?.email || "";
+        const masterEmail = process.env.NEXT_PUBLIC_MASTER_ADMIN_EMAIL || "";
+        const ok = !!email && !!masterEmail && email.toLowerCase() === masterEmail.toLowerCase();
+        if (ok) {
+          setAuthorized(true);
+          router.replace("/portal/master/dashboard");
+        } else {
+          setAuthorized(false);
+        }
+      } catch {
         setAuthorized(false);
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      setAuthorized(false);
-    } finally {
-      setLoading(false);
-    }
+    })();
   }, [router]);
 
   if (loading) {

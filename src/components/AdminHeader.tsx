@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, Bell, MessageSquare, Users, LogOut, Menu, X, Settings, AlertCircle, FileText, Plus, Calendar, GraduationCap, Bus, Video } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function AdminHeader() {
   const pathname = usePathname();
@@ -18,6 +19,21 @@ export default function AdminHeader() {
       const r = localStorage.getItem("admin_role");
       setRole(r || null);
     } catch {}
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const email = data?.user?.email || "";
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
+        const masterTeacherEmail = process.env.NEXT_PUBLIC_MASTER_TEACHER_EMAIL || "";
+        if (email && adminEmail && email.toLowerCase() === adminEmail.toLowerCase()) {
+          localStorage.setItem("admin_role", "admin");
+          setRole("admin");
+        } else if (email && masterTeacherEmail && email.toLowerCase() === masterTeacherEmail.toLowerCase()) {
+          localStorage.setItem("admin_role", "teacher");
+          setRole("teacher");
+        }
+      } catch {}
+    })();
     const onStorage = (e: StorageEvent) => {
       if (e.key === "admin_role") {
         setRole(e.newValue);

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, Video, FileText, LogOut, Menu, X, Users, UserPlus } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function TeacherHeader() {
   const pathname = usePathname();
@@ -19,6 +20,19 @@ export default function TeacherHeader() {
       const id = localStorage.getItem("current_teacher_id");
       setTeacherId(id || null);
     } catch {}
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const email = data?.user?.email || "";
+        const teacherEmail = process.env.NEXT_PUBLIC_MASTER_TEACHER_EMAIL || "";
+        if (email && teacherEmail && email.toLowerCase() === teacherEmail.toLowerCase()) {
+          localStorage.setItem("admin_role", "teacher");
+          localStorage.setItem("current_teacher_id", "master_teacher");
+          setRole("teacher");
+          setTeacherId("master_teacher");
+        }
+      } catch {}
+    })();
     const onStorage = (e: StorageEvent) => {
       if (e.key === "admin_role") {
         setRole(e.newValue);
