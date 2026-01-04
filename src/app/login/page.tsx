@@ -75,7 +75,7 @@ export default function LoginPage() {
           return;
         }
         if (userEmail && masterAdminEmail && userEmail.toLowerCase() === masterAdminEmail.toLowerCase()) {
-          router.push("/portal/master/dashboard");
+          router.push("/admin/home");
           return;
         }
         if (userEmail && masterTeacherEmail && userEmail.toLowerCase() === masterTeacherEmail.toLowerCase()) {
