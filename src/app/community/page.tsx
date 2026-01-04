@@ -24,7 +24,7 @@ export default async function CommunityPage() {
   } = await supabase.auth.getSession();
 
   if (!session) {
-    redirect("/login");
+    redirect("/portal");
   }
 
   // Fetch user profile to check role

@@ -134,7 +134,7 @@ export default function ParentPortalHome() {
         const user = userData?.user;
         if (!user) {
           setLoading(false);
-          window.location.href = "/login";
+          window.location.href = "/portal";
           return;
         }
         setStudentId(user.id);

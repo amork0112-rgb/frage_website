@@ -28,7 +28,7 @@ export default async function PostPage({
   } = await supabase.auth.getSession();
 
   if (!session) {
-    redirect("/login");
+    redirect("/portal");
   }
 
   // Fetch user profile to check role
