@@ -8,6 +8,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
+import { redirectAfterAuth } from "@/lib/authRedirect";
 
 export default function PortalPage() {
   const { t } = useLanguage();
@@ -61,26 +62,10 @@ export default function PortalPage() {
               created_at: now,
             });
         }
-        try {
-          const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@frage.kr";
-          const masterAdminEmail = process.env.NEXT_PUBLIC_MASTER_ADMIN_EMAIL || "master_admin@frage.kr";
-          const masterTeacherEmail = process.env.NEXT_PUBLIC_MASTER_TEACHER_EMAIL || "master_teacher@frage.kr";
-          if (userEmail && adminEmail && userEmail.toLowerCase() === adminEmail.toLowerCase()) {
-            router.push("/admin/home");
-            return;
-          }
-          if (userEmail && masterAdminEmail && userEmail.toLowerCase() === masterAdminEmail.toLowerCase()) {
-            router.push("/admin/home");
-            return;
-          }
-          if (userEmail && masterTeacherEmail && userEmail.toLowerCase() === masterTeacherEmail.toLowerCase()) {
-            router.push("/teacher/home");
-            return;
-          }
-        } catch {}
-        router.push("/portal/home");
+        redirectAfterAuth(router, userEmail);
       } catch {
         setError("로그인 중 문제가 발생했습니다.");
+      } finally {
         setLoading(false);
       }
     })();
