@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import PortalHeader from "@/components/PortalHeader";
-import { User, MapPin, School, Bus, Clock, Shield, Bell, Info, Camera, Calendar, Phone, Home, Smile, Edit2, Check, X, Lock } from "lucide-react";
+import { User, MapPin, School, Bus, Clock, Shield, Bell, Info, Camera, Calendar, Phone, Home, Smile, Edit2, Check, X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function ChildPage() {
   // Mock Data
@@ -26,6 +27,7 @@ export default function ChildPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const [userId, setUserId] = useState<string>("");
 
   const handlePhotoClick = () => {
     fileInputRef.current?.click();
@@ -48,9 +50,7 @@ export default function ChildPage() {
       setStudentProfile(prev => ({ ...prev, photoUrl: url }));
       setEditForm(prev => ({ ...prev, photoUrl: url }));
       try {
-        const rawAccount = localStorage.getItem("portal_account");
-        const acc = rawAccount ? JSON.parse(rawAccount) : {};
-        const accountId = acc?.id || guardianInfo.accountId || "";
+        const accountId = userId || "";
         if (accountId) {
           const key = `portal_parent_photos_${accountId}`;
           const raw = localStorage.getItem(key);
@@ -58,7 +58,7 @@ export default function ChildPage() {
           const next = Array.isArray(arr) ? [url, ...arr].slice(0, 30) : [url];
           localStorage.setItem(key, JSON.stringify(next));
         }
-      } catch {}
+      } catch (e) {}
     }
   };
 
@@ -92,71 +92,47 @@ export default function ChildPage() {
   const [guardianInfo, setGuardianInfo] = useState({
     name: "보호자",
     accountId: "",
-    accountPw: "",
     notifications: true
   });
 
   useEffect(() => {
-    try {
-      const rawParent = localStorage.getItem("portal_parent_profile");
-      if (rawParent) {
-        const p = JSON.parse(rawParent);
+    (async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const user = userData?.user;
+        if (!user) {
+          router.push("/login");
+          return;
+        }
+        setUserId(user.id);
+        const { data: rows } = await supabase
+          .from("parents")
+          .select("*")
+          .eq("auth_user_id", user.id)
+          .limit(1);
+        const parent = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+        const parentName = String(parent?.name || "보호자");
         setGuardianInfo(prev => ({
           ...prev,
-          name: p.parentName || prev.name,
-          accountId: prev.accountId,
-          accountPw: prev.accountPw
+          name: parentName,
+          accountId: user.id,
         }));
-      }
-      const rawAccount = localStorage.getItem("portal_account");
-      if (rawAccount) {
-        const acc = JSON.parse(rawAccount);
-        setGuardianInfo(prev => ({
-          ...prev,
-          accountId: acc.id || "",
-          accountPw: acc.password || ""
-        }));
-        try {
-          const profilesRaw = localStorage.getItem("signup_profiles");
-          const profiles = profilesRaw ? JSON.parse(profilesRaw) : [];
-          const match = Array.isArray(profiles) ? profiles.find((p: any) => String(p.id || "").trim().toLowerCase() === String(acc.id || "").trim().toLowerCase()) : null;
-          if (match) {
-            const en = String(match.passportEnglishName || match.englishFirstName || "").trim();
-            const ko = String(match.studentName || "").trim();
-            const bd = String(match.childBirthDate || "").trim();
-            const addr = [String(match.address || "").trim(), String(match.addressDetail || "").trim()].filter(Boolean).join(" ");
-            const phone = String(match.phone || "").trim();
-            const next = {
-              name: { en, ko },
-              photoUrl: "",
-              class: "",
-              campus: "",
-              teacher: "",
-              birthDate: bd,
-              gender: String(match.gender || ""),
-              address: addr,
-              studentPhone: phone
-            };
-            setStudentProfile(next);
-            setEditForm(next);
-          }
-        } catch {}
-      }
-      const savedTransport = localStorage.getItem("child_transport");
-      if (savedTransport) {
-        const t = JSON.parse(savedTransport);
-        setTransportForm(prev => ({
-          ...prev,
-          arrivalMethod: t.arrivalMethod || prev.arrivalMethod,
-          pickupPlace: t.pickupPlace || "",
-          pickupVerified: !!t.pickupVerified,
-          departureMethod: t.departureMethod || prev.departureMethod,
-          dropoffPlace: t.dropoffPlace || "",
-          dropoffVerified: !!t.dropoffVerified,
-          defaultDepartureTime: t.defaultDepartureTime || prev.defaultDepartureTime
-        }));
-      }
-    } catch {}
+      } catch (e) {}
+    })();
+    const savedTransport = localStorage.getItem("child_transport");
+    if (savedTransport) {
+      const t = JSON.parse(savedTransport);
+      setTransportForm(prev => ({
+        ...prev,
+        arrivalMethod: t.arrivalMethod || prev.arrivalMethod,
+        pickupPlace: t.pickupPlace || "",
+        pickupVerified: !!t.pickupVerified,
+        departureMethod: t.departureMethod || prev.departureMethod,
+        dropoffPlace: t.dropoffPlace || "",
+        dropoffVerified: !!t.dropoffVerified,
+        defaultDepartureTime: t.defaultDepartureTime || prev.defaultDepartureTime
+      }));
+    }
   }, []);
 
   const canSubmitTransport = !!transportForm.arrivalMethod && !!transportForm.departureMethod;
@@ -167,7 +143,7 @@ export default function ChildPage() {
     try {
       localStorage.setItem("child_transport", JSON.stringify(transportForm));
       localStorage.setItem("needs_child_setup", "false");
-    } catch {}
+    } catch (e) {}
     alert("자녀 등·하원/차량 정보가 저장되었습니다.");
     router.push("/portal/home");
   };
@@ -477,22 +453,17 @@ export default function ChildPage() {
                  </div>
               </div>
               
-              <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-                 <div className="flex items-center gap-2 text-slate-600">
-                    <User className="w-4 h-4" />
-                    <span className="text-sm font-bold">보호자 아이디</span>
-                    <span className="ml-auto text-sm font-bold text-slate-800">{guardianInfo.accountId || "미설정"}</span>
-                 </div>
-                 <div className="flex items-center gap-2 text-slate-600">
-                    <Lock className="w-4 h-4" />
-                    <span className="text-sm font-bold">보호자 비밀번호</span>
-                    <span className="ml-auto text-sm font-bold text-slate-800">{guardianInfo.accountPw || "미설정"}</span>
-                 </div>
-                 <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-2 text-slate-600">
-                      <Bell className="w-4 h-4" />
-                      <span className="text-sm font-bold">알림 수신 (Notifications)</span>
-                   </div>
+          <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+             <div className="flex items-center gap-2 text-slate-600">
+                <User className="w-4 h-4" />
+                <span className="text-sm font-bold">보호자 아이디</span>
+                <span className="ml-auto text-sm font-bold text-slate-800">{guardianInfo.accountId || "미설정"}</span>
+             </div>
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2 text-slate-600">
+                  <Bell className="w-4 h-4" />
+                  <span className="text-sm font-bold">알림 수신 (Notifications)</span>
+               </div>
                    <div className={`px-3 py-1 rounded-full text-xs font-bold ${guardianInfo.notifications ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-500"}`}>
                       {guardianInfo.notifications ? "ON" : "OFF"}
                    </div>

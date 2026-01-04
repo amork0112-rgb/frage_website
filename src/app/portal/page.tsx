@@ -62,20 +62,6 @@ export default function PortalPage() {
             });
         }
         try {
-          const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
-          const masterAdminEmail = process.env.NEXT_PUBLIC_MASTER_ADMIN_EMAIL || "";
-          const masterTeacherEmail = process.env.NEXT_PUBLIC_MASTER_TEACHER_EMAIL || "";
-          if (userEmail && masterAdminEmail && userEmail.toLowerCase() === masterAdminEmail.toLowerCase()) {
-            localStorage.setItem("portal_role", "master_admin");
-          }
-          if (userEmail && adminEmail && userEmail.toLowerCase() === adminEmail.toLowerCase()) {
-            localStorage.setItem("admin_role", "admin");
-          } else if (userEmail && masterTeacherEmail && userEmail.toLowerCase() === masterTeacherEmail.toLowerCase()) {
-            localStorage.setItem("admin_role", "teacher");
-            localStorage.setItem("current_teacher_id", "master_teacher");
-          }
-        } catch {}
-        try {
           const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@frage.kr";
           const masterAdminEmail = process.env.NEXT_PUBLIC_MASTER_ADMIN_EMAIL || "master_admin@frage.kr";
           const masterTeacherEmail = process.env.NEXT_PUBLIC_MASTER_TEACHER_EMAIL || "master_teacher@frage.kr";

@@ -199,6 +199,21 @@ export default function SignupPage() {
           setLoading(false);
           return;
         }
+        const now = new Date().toISOString();
+        const { error: dbError } = await supabase
+          .from("parents")
+          .insert({
+            auth_user_id: userId,
+            name: formData.parentName.trim(),
+            phone: formData.phone.trim(),
+            created_at: now,
+          });
+        if (dbError) {
+          setErrorMessage(`회원 정보 저장 오류: ${dbError.message}`);
+          alert("회원 정보 저장 중 오류가 발생했습니다.");
+          setLoading(false);
+          return;
+        }
         alert("회원가입이 완료되었습니다!");
         router.push("/portal/home");
       } catch (e: any) {

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import PortalHeader from "@/components/PortalHeader";
 import { Calendar, Clock, Bus, Pill, Send } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type RequestType = "absence" | "early_pickup" | "bus_change" | "medication";
 
@@ -19,23 +20,28 @@ export default function RequestsPage() {
   );
 
   useEffect(() => {
-    try {
-      const rawAcc = localStorage.getItem("portal_account");
-      const acc = rawAcc ? JSON.parse(rawAcc) : {};
-      const accId = acc?.id || localStorage.getItem("portal_student_id") || "s8";
-      let childName = "자녀";
+    (async () => {
       try {
-        const profilesRaw = localStorage.getItem("signup_profiles");
-        const profiles = profilesRaw ? JSON.parse(profilesRaw) : [];
-        const match = Array.isArray(profiles)
-          ? profiles.find((p: any) => String(p.id || "").trim().toLowerCase() === String(accId || "").trim().toLowerCase())
-          : null;
-        if (match) childName = String(match.studentName || childName);
+        const { data: userData } = await supabase.auth.getUser();
+        const user = userData?.user;
+        const id = user?.id || "s8";
+        let childName = "자녀";
+        if (user) {
+          const { data: parentRows } = await supabase
+            .from("parents")
+            .select("*")
+            .eq("auth_user_id", id)
+            .limit(1);
+          const parent = Array.isArray(parentRows) && parentRows.length > 0 ? parentRows[0] : null;
+          if (parent?.name) {
+            childName = String(parent.name);
+          }
+        }
+        const arr = [{ id, name: childName }];
+        setChildren(arr);
+        setSelectedChildId(arr[0].id);
       } catch {}
-      const arr = [{ id: accId, name: childName }];
-      setChildren(arr);
-      setSelectedChildId(arr[0].id);
-    } catch {}
+    })();
     try {
       const raw = localStorage.getItem("portal_requests");
       const list = raw ? JSON.parse(raw) : [];

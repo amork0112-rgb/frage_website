@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { FileText, CheckCircle, Lock, ChevronRight, AlertCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type ChecklistItem = {
   key: string;
@@ -29,24 +30,26 @@ export default function PortalAdmissionPage() {
   const [isAdmissionConfirmed, setIsAdmissionConfirmed] = useState(false);
   const [submittedDocs, setSubmittedDocs] = useState<number[]>([]);
   const [campus, setCampus] = useState<string>("");
+  const [studentId, setStudentId] = useState<string>("");
 
   useEffect(() => {
     try {
-      // 1. Get current user ID
-      const accountRaw = localStorage.getItem("portal_account");
-      if (!accountRaw) {
-        setLoading(false);
-        return;
-      }
-      const account = JSON.parse(accountRaw);
-      const studentId = account.id;
-      if (account.campus) setCampus(account.campus);
+      (async () => {
+        const { data: userData } = await supabase.auth.getUser();
+        const user = userData?.user;
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+        setStudentId(user.id);
+        // campus 정보는 아직 DB에 없으므로 공백 유지
+      })();
 
       // 2. Check admission status from teacher checklist
       const checklistsRaw = localStorage.getItem("teacher_new_student_checklists");
       if (checklistsRaw) {
         const checklists = JSON.parse(checklistsRaw);
-        const myChecklist: StudentChecklist = checklists[studentId] || {};
+        const myChecklist: StudentChecklist = checklists[studentId || ""] || {};
         
         // Check if "admission_confirmed" is checked
         if (myChecklist["admission_confirmed"]?.checked) {
@@ -55,7 +58,7 @@ export default function PortalAdmissionPage() {
       }
 
       // 3. Load submitted docs
-      const submittedRaw = localStorage.getItem(`portal_admission_docs_${studentId}`);
+      const submittedRaw = localStorage.getItem(`portal_admission_docs_${studentId || ""}`);
       if (submittedRaw) {
         setSubmittedDocs(JSON.parse(submittedRaw));
       }
@@ -71,14 +74,11 @@ export default function PortalAdmissionPage() {
     if (!confirm("이 서류를 작성 및 제출하시겠습니까? (MVP: 확인 시 자동 제출됨)")) return;
     
     try {
-      const accountRaw = localStorage.getItem("portal_account");
-      if (!accountRaw) return;
-      const account = JSON.parse(accountRaw);
-      const studentId = account.id;
-
       const nextSubmitted = [...submittedDocs, docId];
       setSubmittedDocs(nextSubmitted);
-      localStorage.setItem(`portal_admission_docs_${studentId}`, JSON.stringify(nextSubmitted));
+      if (studentId) {
+        localStorage.setItem(`portal_admission_docs_${studentId}`, JSON.stringify(nextSubmitted));
+      }
     } catch {}
   };
 
@@ -86,15 +86,12 @@ export default function PortalAdmissionPage() {
     if (!confirm("모든 서류의 내용을 확인하였으며, 전자서명으로 일괄 제출하시겠습니까?")) return;
 
     try {
-      const accountRaw = localStorage.getItem("portal_account");
-      if (!accountRaw) return;
-      const account = JSON.parse(accountRaw);
-      const studentId = account.id;
-
       // Mark all as submitted
       const allDocIds = ADMISSION_DOCS.map(d => d.id);
       setSubmittedDocs(allDocIds);
-      localStorage.setItem(`portal_admission_docs_${studentId}`, JSON.stringify(allDocIds));
+      if (studentId) {
+        localStorage.setItem(`portal_admission_docs_${studentId}`, JSON.stringify(allDocIds));
+      }
       
       alert("✅ 전자서명 및 제출이 완료되었습니다.");
     } catch {}
