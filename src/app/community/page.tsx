@@ -24,7 +24,13 @@ export default async function CommunityPage() {
   } = await supabase.auth.getSession();
 
   if (!session) {
-    redirect("/portal");
+    return (
+      <section className="mx-auto max-w-4xl py-10 px-6">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-10 text-center text-slate-500">
+          로그인 후 이용 가능합니다.
+        </div>
+      </section>
+    );
   }
 
   // Fetch user profile to check role

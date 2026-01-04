@@ -28,7 +28,13 @@ export default async function PostPage({
   } = await supabase.auth.getSession();
 
   if (!session) {
-    redirect("/portal");
+    return (
+      <section className="mx-auto max-w-4xl py-10 px-6">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-10 text-center text-slate-500">
+          로그인 후 이용 가능합니다.
+        </div>
+      </section>
+    );
   }
 
   // Fetch user profile to check role
@@ -47,7 +53,18 @@ export default async function PostPage({
     .single();
 
   if (error || !post) {
-    redirect("/community");
+    return (
+      <section className="mx-auto max-w-4xl py-10 px-6">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-10 text-center text-slate-500">
+          게시글을 찾을 수 없습니다.
+        </div>
+        <div className="mt-6">
+          <Link href="/community" className="text-frage-primary hover:underline">
+            목록으로 돌아가기
+          </Link>
+        </div>
+      </section>
+    );
   }
 
   const date = new Date(post.created_at);

@@ -101,7 +101,6 @@ export default function ChildPage() {
         const { data: userData } = await supabase.auth.getUser();
         const user = userData?.user;
         if (!user) {
-          router.push("/portal");
           return;
         }
         setUserId(user.id);

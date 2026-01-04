@@ -8,9 +8,6 @@ import { useRouter } from "next/navigation";
 
 export default function PortalSignupCompletePage() {
   const router = useRouter();
-  useEffect(() => {
-    router.replace("/portal");
-  }, [router]);
   return (
     <div className="flex flex-col min-h-screen font-sans bg-frage-cream">
       <Header />

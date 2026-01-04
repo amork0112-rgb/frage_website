@@ -15,23 +15,14 @@ export default function AdminHeader() {
   const [isStudentsMenuOpen, setIsStudentsMenuOpen] = useState(false);
 
   useEffect(() => {
-    try {
-      const r = localStorage.getItem("admin_role");
-      setRole(r || null);
-    } catch {}
     (async () => {
       try {
         const { data } = await supabase.auth.getUser();
-        const email = data?.user?.email || "";
-        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
-        const masterTeacherEmail = process.env.NEXT_PUBLIC_MASTER_TEACHER_EMAIL || "";
-        if (email && adminEmail && email.toLowerCase() === adminEmail.toLowerCase()) {
-          localStorage.setItem("admin_role", "admin");
-          setRole("admin");
-        } else if (email && masterTeacherEmail && email.toLowerCase() === masterTeacherEmail.toLowerCase()) {
-          localStorage.setItem("admin_role", "teacher");
-          setRole("teacher");
-        }
+        const appRole = (data?.user?.app_metadata as any)?.role ?? null;
+        setRole(appRole);
+        try {
+          if (appRole) localStorage.setItem("admin_role", String(appRole));
+        } catch {}
       } catch {}
     })();
     const onStorage = (e: StorageEvent) => {

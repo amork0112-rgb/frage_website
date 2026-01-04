@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { redirectAfterAuth } from "@/lib/authRedirect";
 
 export default function AuthRedirectPage() {
   const router = useRouter();
@@ -16,6 +15,7 @@ export default function AuthRedirectPage() {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
 
+      // Supabase 세션 로딩 대기
       if (!user) {
         if (retry < maxRetries) {
           retry += 1;
@@ -26,11 +26,16 @@ export default function AuthRedirectPage() {
         return;
       }
 
-      const normalizedEmail = String(user.email ?? "")
-        .trim()
-        .toLowerCase();
+      const role = (user.app_metadata as any)?.role;
 
-      redirectAfterAuth(router, normalizedEmail);
+      // ✅ role 기반 최종 분기 (email 비교 금지)
+      if (role === "admin") {
+        router.replace("/admin/home");
+      } else if (role === "teacher") {
+        router.replace("/teacher/home");
+      } else {
+        router.replace("/portal/home");
+      }
     };
 
     run();

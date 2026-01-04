@@ -21,7 +21,6 @@ export default function PortalHeader() {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id;
       if (!userId) {
-        router.push("/portal");
         return;
       }
       const { data: rows } = await supabase
@@ -31,7 +30,6 @@ export default function PortalHeader() {
         .limit(1);
       const parent = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
       if (!parent) {
-        router.push("/portal");
         return;
       }
       const name: string = parent.name || "학부모";
