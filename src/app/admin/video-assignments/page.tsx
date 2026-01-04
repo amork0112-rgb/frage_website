@@ -111,15 +111,8 @@ export default function AdminVideoAssignmentsPage() {
     });
     return out;
   }, [students]);
-  const classesForCampus = (campusValue: string) => {
-    if (campusValue === "All") return classes;
-    const fromStudents = classesByCampus[campusValue] || [];
-    const fromTeachers = Object.values(teacherClassMap).flat();
-    const merged = Array.from(new Set([...fromStudents, ...classCatalog, ...fromTeachers]));
-    return ["All", ...merged];
-  };
-  const classesForNewCampus = useMemo(() => classesForCampus(newCampus), [newCampus, classesByCampus, classCatalog, teacherClassMap, classes]);
-  const classesForFilterCampus = useMemo(() => classesForCampus(filterCampus), [filterCampus, classesByCampus, classCatalog, teacherClassMap, classes]);
+  const classesForCampus = (_campusValue: string) => classes;
+  // 드롭다운을 캠퍼스와 무관하게 전체 반 목록으로 표시
   useEffect(() => {
     setNewClass("All");
   }, [newCampus]);
@@ -183,7 +176,7 @@ export default function AdminVideoAssignmentsPage() {
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
             <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              {classesForNewCampus.map(c => (<option key={c} value={c}>{c}</option>))}
+              {classes.map(c => (<option key={c} value={c}>{c}</option>))}
             </select>
           </div>
           <div>
@@ -217,7 +210,7 @@ export default function AdminVideoAssignmentsPage() {
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">반 필터</label>
             <select value={filterClass} onChange={(e) => setFilterClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              {classesForFilterCampus.map(c => (<option key={c} value={c}>{c}</option>))}
+              {classes.map(c => (<option key={c} value={c}>{c}</option>))}
             </select>
           </div>
           <div>
@@ -243,7 +236,7 @@ export default function AdminVideoAssignmentsPage() {
                   <input value={editItem?.module || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), module: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
                   <input type="date" value={editItem?.dueDate || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), dueDate: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
                   <select value={editItem?.className || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), className: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                    {classesForCampus((editItem?.campus as string) || "All").filter(c => c !== "All").map(c => (<option key={c} value={c}>{c}</option>))}
+                    {classes.filter(c => c !== "All").map(c => (<option key={c} value={c}>{c}</option>))}
                   </select>
                   <select value={editItem?.campus || "All"} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), campus: e.target.value === "All" ? undefined : e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
                     {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}

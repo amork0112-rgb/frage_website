@@ -75,34 +75,7 @@ export default function TeacherStudentsPage() {
           }
         } catch {}
 
-        try {
-          const rawProfiles = localStorage.getItem("signup_profiles");
-          const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
-          const arr: any[] = Array.isArray(profiles) ? profiles : [];
-          if (arr.length > 0) {
-            const existingPhones = new Set(mergedItems.map(s => s.phone));
-            const mapped: Student[] = arr
-              .filter(p => (p?.phone || "").trim() !== "")
-              .map((p, idx) => ({
-                id: `signup_${(p.phone || String(idx)).replace(/[^0-9a-zA-Z]/g, "")}`,
-                childId: undefined,
-                name: String(p.studentName || "").trim(),
-                englishName: String(p.englishFirstName || p.passportEnglishName || "").trim(),
-                birthDate: String(p.childBirthDate || "").trim(),
-                phone: String(p.phone || "").trim(),
-                className: "미배정",
-                campus: "미지정",
-                status: "재원" as Status,
-                parentName: String(p.parentName || "").trim(),
-                parentAccountId: String(p.id || "").trim(),
-                address: [String(p.address || "").trim(), String(p.addressDetail || "").trim()].filter(Boolean).join(" "),
-                bus: "미배정",
-                departureTime: ""
-              }))
-              .filter(s => !existingPhones.has(s.phone));
-            mergedItems = [...mergedItems, ...mapped];
-          }
-        } catch {}
+        // 신규생(입학 전) 데이터는 교사 페이지에 포함하지 않음
 
         try {
           const updatesRaw = localStorage.getItem("admin_student_updates");
@@ -141,6 +114,7 @@ export default function TeacherStudentsPage() {
 
   const filtered = useMemo(() => {
     return merged
+      .filter(s => s.status === "재원")
       .filter(s => !teacherClass || s.className === teacherClass)
       .filter(s => query === "" || s.name.includes(query) || s.englishName.toLowerCase().includes(query.toLowerCase()));
   }, [merged, teacherClass, query]);

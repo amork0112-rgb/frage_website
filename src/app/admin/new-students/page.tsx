@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { Check, AlertCircle, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote, ChevronLeft, ChevronRight } from "lucide-react";
 import { CAMPUS_CONFIG } from "@/config/campus";
@@ -15,6 +15,11 @@ type StudentProfile = {
   createdAt: string;
   status?: string; // 'waiting', 'consultation', 'admitted', etc.
   memo?: string; // New memo field
+  englishFirstName?: string;
+  passportEnglishName?: string;
+  childBirthDate?: string;
+  address?: string;
+  addressDetail?: string;
 };
 
 type ChecklistItem = {
@@ -145,6 +150,8 @@ export default function AdminNewStudentsPage() {
   const [loadingDaySlots, setLoadingDaySlots] = useState(false);
   const [errorDaySlots, setErrorDaySlots] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
+  const inFlightDatesRef = useRef<Set<string>>(new Set());
+  const inFlightMonthRef = useRef<string | null>(null);
   const DEFAULT_TIMES = useMemo(() => {
     const times: string[] = [];
     for (let h = 10; h <= 20; h++) {
@@ -154,30 +161,19 @@ export default function AdminNewStudentsPage() {
   }, []);
 
   useEffect(() => {
-    // Load students
-    try {
-      const raw = localStorage.getItem("signup_profiles");
-      const data = raw ? JSON.parse(raw) : [];
-      // Sort by newest
-      data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setStudents(data);
-
-      // Load checklists
-      const rawChecklists = localStorage.getItem("teacher_new_student_checklists");
-      if (rawChecklists) {
-        setChecklists(JSON.parse(rawChecklists));
-      }
-
-      // Load Student Reservations
-      const rawRes = localStorage.getItem("student_reservations");
-      if (rawRes) {
-        setStudentReservations(JSON.parse(rawRes));
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    const load = async () => {
+      try {
+        const res = await fetch("/api/admin/new-students", { cache: "no-store" });
+        const data = await res.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
+        items.sort((a: any, b: any) => new Date(b.createdAt || b.created_at).getTime() - new Date(a.createdAt || a.created_at).getTime());
+        setStudents(items);
+        setChecklists(data?.checklists || {});
+        setStudentReservations(data?.reservations || {});
+      } catch (e) {}
+    };
+    load();
   }, []);
-
   useEffect(() => {
     const loadAll = async () => {
       try {
@@ -185,7 +181,6 @@ export default function AdminNewStudentsPage() {
         const data = await res.json();
         const items = Array.isArray(data?.items) ? data.items : [];
         setReservationSlots(items);
-        localStorage.setItem("admission_test_slots", JSON.stringify(items));
       } catch {}
     };
     loadAll();
@@ -213,9 +208,6 @@ export default function AdminNewStudentsPage() {
       ensureDefaultWeekdaySlotsForMonth(currentMonth);
     }
   }, [showCalendar, currentMonth]);
-  useEffect(() => {
-    ensureDefaultWeekdaySlotsForMonth(currentMonth);
-  }, [currentMonth]);
 
   useEffect(() => {
     if (showReservationModal) {
@@ -275,30 +267,36 @@ export default function AdminNewStudentsPage() {
   };
   
   const ensureDefaultDaySlots = async (date: string) => {
+    if (inFlightDatesRef.current.has(date)) return;
+    inFlightDatesRef.current.add(date);
     try {
       const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(date)}`);
       const data = await res.json();
       const items = Array.isArray(data?.items) ? data.items : [];
       const existing = new Set(items.map((s: any) => s.time));
-      const tasks: Promise<any>[] = [];
-  DEFAULT_TIMES.forEach((t: string) => {
-    if (!existing.has(t)) {
-      tasks.push(
-        fetch("/api/admin/schedules", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date, time: t, max: 5, current: 0, isOpen: true })
-        })
-      );
-    }
-  });
-      if (tasks.length) await Promise.all(tasks);
+      for (const t of DEFAULT_TIMES) {
+        if (!existing.has(t)) {
+          const r = await fetch("/api/admin/schedules", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ date, time: t, max: 5, current: 0, isOpen: true })
+          });
+          if (r.status === 409) {
+            continue;
+          }
+        }
+      }
       await refreshAllSchedules();
       await fetchDaySlots(date);
-    } catch {}
+    } catch {} finally {
+      inFlightDatesRef.current.delete(date);
+    }
   };
   
   const ensureDefaultWeekdaySlotsForMonth = async (month: Date) => {
+    const key = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
+    if (inFlightMonthRef.current === key) return;
+    inFlightMonthRef.current = key;
     try {
       const start = new Date(month.getFullYear(), month.getMonth(), 1);
       const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
@@ -312,31 +310,75 @@ export default function AdminNewStudentsPage() {
         if (!byDate[s.date]) byDate[s.date] = new Set();
         byDate[s.date].add(s.time);
       });
-      const tasks: Promise<any>[] = [];
       for (let d = 1; d <= end.getDate(); d++) {
         const curr = new Date(month.getFullYear(), month.getMonth(), d);
         const day = curr.getDay(); // 0=Sun..6=Sat
         if (day === 0 || day === 6) continue; // weekdays only
         const dateStr = fmtYMD(curr);
         const set = byDate[dateStr] || new Set<string>();
-        DEFAULT_TIMES.forEach((t: string) => {
+        for (const t of DEFAULT_TIMES) {
           if (!set.has(t)) {
-            tasks.push(
-              fetch("/api/admin/schedules", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ date: dateStr, time: t, max: 5, current: 0, isOpen: true })
-              })
-            );
+            const r = await fetch("/api/admin/schedules", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ date: dateStr, time: t, max: 5, current: 0, isOpen: true })
+            });
+            if (r.status === 409) {
+              continue;
+            }
           }
+        }
+      }
+      await refreshAllSchedules();
+    } catch {} finally {
+      inFlightMonthRef.current = null;
+    }
+  };
+
+  const deleteAllDaySlots = async () => {
+    try {
+      const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(selectedDate)}`);
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      for (const slot of items) {
+        await fetch("/api/admin/schedules", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: slot.id })
         });
       }
-      if (tasks.length) await Promise.all(tasks);
+      await fetchDaySlots(selectedDate);
       await refreshAllSchedules();
     } catch {}
   };
 
-  const toggleCheck = (studentId: string, stepKey: string, stepLabel: string) => {
+  const deleteWeekdaySlotsForMonth = async (month: Date) => {
+    try {
+      const start = new Date(month.getFullYear(), month.getMonth(), 1);
+      const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+      const startStr = fmtYMD(start);
+      const endStr = fmtYMD(end);
+      const res = await fetch(`/api/admin/schedules?rangeStart=${encodeURIComponent(startStr)}&rangeEnd=${encodeURIComponent(endStr)}`);
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const targets = items.filter((s: any) => {
+        const [y, m, d] = s.date.split("-").map((v: string) => parseInt(v, 10));
+        const dt = new Date(y, m - 1, d);
+        const day = dt.getDay();
+        return day !== 0 && day !== 6;
+      });
+      for (const slot of targets) {
+        await fetch("/api/admin/schedules", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: slot.id })
+        });
+      }
+      await refreshAllSchedules();
+    } catch {}
+  };
+
+  const toggleCheck = async (studentId: string, stepKey: string, stepLabel: string) => {
     const currentList = checklists[studentId] || {};
     const currentItem = currentList[stepKey] || { key: stepKey, label: stepLabel, checked: false };
     
@@ -358,7 +400,19 @@ export default function AdminNewStudentsPage() {
     };
 
     setChecklists(nextChecklists);
-    localStorage.setItem("teacher_new_student_checklists", JSON.stringify(nextChecklists));
+    try {
+      await fetch("/api/admin/new-students", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId,
+          key: stepKey,
+          checked: nextItem.checked,
+          date: nextItem.date,
+          by: nextItem.by,
+        }),
+      });
+    } catch {}
 
       // Trigger Logic (Automations)
     if (nextItem.checked) {
@@ -474,12 +528,12 @@ export default function AdminNewStudentsPage() {
       }
       if (stepKey === "docs_submitted") {
         try {
-          const raw = localStorage.getItem("signup_profiles");
-          const arr = raw ? JSON.parse(raw) : [];
-          const next = Array.isArray(arr) ? arr.map((p: any) => p.id === studentId ? { ...p, status: "enrolled" } : p) : [];
-          localStorage.setItem("signup_profiles", JSON.stringify(next));
-          setStudents(next);
-          const prof = Array.isArray(arr) ? arr.find((p: any) => p.id === studentId) : null;
+          await fetch("/api/admin/new-students", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "update_status", studentId, status: "enrolled" }),
+          });
+          const prof = students.find((p: any) => p.id === studentId) || null;
           if (prof) {
             const item = {
               id: `signup_${(prof.phone || "").replace(/[^0-9a-zA-Z]/g, "")}`,
@@ -602,6 +656,13 @@ export default function AdminNewStudentsPage() {
               >
                 <Calendar className="w-4 h-4" />
                 선택 날짜 일정 관리
+              </button>
+              <button
+                onClick={() => deleteWeekdaySlotsForMonth(currentMonth)}
+                className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-bold"
+                aria-label="월간 기본 시간대 삭제"
+              >
+                전체 주중 시간대 삭제
               </button>
             </div>
             {showCalendar && (
@@ -859,6 +920,12 @@ export default function AdminNewStudentsPage() {
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors"
                   >
                     추가
+                  </button>
+                  <button
+                    onClick={deleteAllDaySlots}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-colors"
+                  >
+                    선택 날짜 전체 삭제
                   </button>
                 </div>
               </div>
