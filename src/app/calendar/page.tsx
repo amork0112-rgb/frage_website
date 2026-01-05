@@ -106,7 +106,7 @@ export default function ParentCalendarPage() {
   };
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8">
+    <main className="max-w-5xl mx-auto px-4 pt-32 pb-16">
       <div className="mb-6">
         <h1 className="text-2xl font-black text-slate-900 text-center">calendar</h1>
       </div>
