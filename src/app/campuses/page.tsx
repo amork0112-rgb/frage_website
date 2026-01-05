@@ -1,4 +1,4 @@
-import Link from "next/link";
+ 
 
 export const metadata = {
   title: "관별 안내 | Frage English Academy",
@@ -7,13 +7,13 @@ export const metadata = {
 
 export default function CampusesPage() {
   return (
-    <div className="mx-auto max-w-5xl px-6 py-20">
-      <header className="mb-16">
-        <h1 className="text-4xl font-bold tracking-tight text-frage-primary">Campuses</h1>
-        <p className="mt-4 text-lg text-slate-600">
-          하나의 철학, 아이의 성향과 목표에 맞춘 네 개의 교육 공간.
-        </p>
-      </header>
+    <main className="max-w-5xl mx-auto px-6 pt-32 pb-20">
+      <div className="mb-4 text-center">
+        <h1 className="text-[40px] font-black text-slate-900">Campuses</h1>
+      </div>
+      <p className="mt-4 mb-12 text-lg text-slate-600 text-center">
+        하나의 철학, 아이의 성향과 목표에 맞춘 네 개의 교육 공간.
+      </p>
 
       <div className="grid gap-12 sm:grid-cols-2">
         {/* 국제관 */}
@@ -180,6 +180,6 @@ export default function CampusesPage() {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

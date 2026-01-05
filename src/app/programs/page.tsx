@@ -43,10 +43,10 @@ export default function ProgramsPage() {
 
   return (
     <main className="min-h-screen pb-24 bg-white">
-      <section className="pt-14">
+      <section className="pt-32">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center">
-            <h1 className="text-3xl md:text-4xl font-black text-slate-900">{isEn ? "Frage Programs" : "프라게 프로그램"}</h1>
+            <h1 className="text-[40px] font-black text-slate-900">{isEn ? "Frage Programs" : "프라게 프로그램"}</h1>
             <p className="mt-3 text-sm text-slate-600">
               {isEn ? "A staged roadmap tailored to your child's level and goals" : "아이의 현재와 목표에 맞춘 단계형 로드맵"}
             </p>
