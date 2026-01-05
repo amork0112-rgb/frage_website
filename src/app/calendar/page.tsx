@@ -29,11 +29,12 @@ export default function ParentCalendarPage() {
   const [month, setMonth] = useState(now.getMonth());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
+  const [campus, setCampus] = useState<string>("All");
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
+        const res = await fetch(`/api/calendar?year=${year}&month=${month + 1}&campus=${encodeURIComponent(campus)}`, { cache: "no-store" });
         const data = await res.json();
         const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
         setEvents(items);
@@ -41,7 +42,7 @@ export default function ParentCalendarPage() {
         setEvents([]);
       }
     })();
-  }, [year, month]);
+  }, [year, month, campus]);
 
   const monthDays = useMemo(() => {
     const first = new Date(year, month, 1);
@@ -107,8 +108,21 @@ export default function ParentCalendarPage() {
 
   return (
     <main className="max-w-5xl mx-auto px-4 pt-32 pb-16">
-      <div className="mb-6">
-        <h1 className="text-2xl font-black text-slate-900 text-center">calendar</h1>
+      <div className="mb-4">
+        <h1 className="text-[40px] font-black text-slate-900 text-center">calendar</h1>
+      </div>
+      <div className="mb-6 flex justify-center">
+        <select
+          value={campus}
+          onChange={(e) => setCampus(e.target.value)}
+          className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:border-blue-500"
+        >
+          <option value="All">전체 캠퍼스</option>
+          <option value="International">International</option>
+          <option value="Andover">Andover</option>
+          <option value="Platz">Platz</option>
+          <option value="Atheneum">Atheneum</option>
+        </select>
       </div>
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center justify-between p-4 border-b border-slate-100">

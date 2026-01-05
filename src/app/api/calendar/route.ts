@@ -14,6 +14,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const y = Number(searchParams.get("year"));
     const m = Number(searchParams.get("month"));
+    const campusParam = searchParams.get("campus");
     if (!y || !m) return json({ items: [] });
     const first = `${y}-${String(m).padStart(2, "0")}-01`;
     const lastDay = new Date(y, m, 0).getDate();
@@ -33,13 +34,16 @@ export async function GET(req: Request) {
         campusVal = prof?.campus ? String(prof.campus) : null;
       }
     } catch {}
+    if (campusParam && typeof campusParam === "string") {
+      campusVal = String(campusParam);
+    }
     let q = (supabase as any)
       .from("academic_calendar")
       .select("*")
       .eq("expose_to_parent", true)
       .lte("start_date", last)
       .gte("end_date", first);
-    if (campusVal) {
+    if (campusVal && campusVal !== "All") {
       q = q.or(`campus.eq.All,campus.eq.${campusVal}`);
     } else {
       q = q.eq("campus", "All");
