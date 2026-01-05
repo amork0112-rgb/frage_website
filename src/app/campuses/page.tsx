@@ -7,8 +7,8 @@ export const metadata = {
 
 export default function CampusesPage() {
   return (
-    <main className="max-w-5xl mx-auto px-6 pb-20">
-      <section className="bg-frage-navy pt-24 pb-16 text-white -mx-6">
+    <main className="min-h-screen bg-white pb-20">
+      <section className="bg-frage-navy pt-24 pb-16 text-white">
         <div className="container mx-auto px-6 text-center">
           <h1 className="text-3xl md:text-4xl font-bold">Campuses</h1>
           <p className="mt-4 text-frage-sand/80">
@@ -16,7 +16,7 @@ export default function CampusesPage() {
           </p>
         </div>
       </section>
-      <div className="mt-12">
+      <section className="container mx-auto max-w-5xl px-6 mt-12">
 
       <div className="grid gap-12 sm:grid-cols-2">
         {/* 국제관 */}
@@ -183,7 +183,7 @@ export default function CampusesPage() {
           </div>
         </div>
       </div>
-      </div>
+      </section>
     </main>
   );
 }

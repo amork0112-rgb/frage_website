@@ -111,6 +111,7 @@ export default function ParentCalendarPage() {
       <section className="bg-frage-navy pt-24 pb-16 text-white">
         <div className="container mx-auto px-6 text-center">
           <h1 className="text-3xl font-bold md:text-4xl">Calendar</h1>
+          <p className="mt-3 text-frage-sand/80">프라게의 모든 학사 일정과 교육 흐름을 한눈에 확인하세요.</p>
         </div>
       </section>
       <main className="max-w-5xl mx-auto px-4 pb-16">

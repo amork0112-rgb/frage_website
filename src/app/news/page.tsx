@@ -68,6 +68,7 @@ export default function NewsPage() {
       <section className="bg-frage-navy pt-24 pb-16 text-white">
         <div className="container mx-auto px-6 text-center">
           <h1 className="text-3xl font-bold md:text-4xl">News & Notice</h1>
+          <p className="mt-3 text-frage-sand/80">프라게의 주요 소식과 안내 사항을 빠르게 전해드립니다.</p>
         </div>
       </section>
 
