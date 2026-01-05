@@ -106,12 +106,9 @@ export default function ParentCalendarPage() {
   };
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-black text-slate-900">캘린더</h1>
-          <button onClick={goToToday} className="px-3 py-1 text-xs font-bold bg-frage-navy text-white rounded-full">오늘</button>
-        </div>
+    <main className="max-w-5xl mx-auto px-4 py-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-black text-slate-900 text-center">calendar</h1>
       </div>
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
