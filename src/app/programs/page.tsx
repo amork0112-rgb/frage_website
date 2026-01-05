@@ -43,14 +43,16 @@ export default function ProgramsPage() {
 
   return (
     <main className="min-h-screen pb-24 bg-white">
-      <section className="pt-32">
+      <section className="bg-frage-navy pt-24 pb-16 text-white">
+        <div className="container mx-auto px-6 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold">{isEn ? "Frage Programs" : "프라게 프로그램"}</h1>
+          <p className="mt-3 text-sm text-frage-sand/80">
+            {isEn ? "A staged roadmap tailored to your child's level and goals" : "아이의 현재와 목표에 맞춘 단계형 로드맵"}
+          </p>
+        </div>
+      </section>
+      <section className="pt-8">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center">
-            <h1 className="text-[40px] font-black text-slate-900">{isEn ? "Frage Programs" : "프라게 프로그램"}</h1>
-            <p className="mt-3 text-sm text-slate-600">
-              {isEn ? "A staged roadmap tailored to your child's level and goals" : "아이의 현재와 목표에 맞춘 단계형 로드맵"}
-            </p>
-          </div>
           <div className="mt-8 grid gap-6 md:grid-cols-2">
             <ProgramTrack
               title={isEn ? "Frage Core Track" : "프라게 Core 과정"}

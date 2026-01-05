@@ -65,9 +65,9 @@ export default function NewsPage() {
 
   return (
     <main className="min-h-screen bg-white pb-20">
-      <section className="pt-32">
-        <div className="max-w-5xl mx-auto px-6 text-center">
-          <h1 className="text-[40px] font-black text-slate-900">News & Notice</h1>
+      <section className="bg-frage-navy pt-24 pb-16 text-white">
+        <div className="container mx-auto px-6 text-center">
+          <h1 className="text-3xl font-bold md:text-4xl">News & Notice</h1>
         </div>
       </section>
 

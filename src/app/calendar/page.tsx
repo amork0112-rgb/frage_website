@@ -107,11 +107,14 @@ export default function ParentCalendarPage() {
   };
 
   return (
-    <main className="max-w-5xl mx-auto px-4 pt-32 pb-16">
-      <div className="mb-4">
-        <h1 className="text-[40px] font-black text-slate-900 text-center">calendar</h1>
-      </div>
-      <div className="mb-6 flex justify-center">
+    <>
+      <section className="bg-frage-navy pt-24 pb-16 text-white">
+        <div className="container mx-auto px-6 text-center">
+          <h1 className="text-3xl font-bold md:text-4xl">Calendar</h1>
+        </div>
+      </section>
+      <main className="max-w-5xl mx-auto px-4 pb-16">
+      <div className="mt-6 mb-6 flex justify-center">
         <select
           value={campus}
           onChange={(e) => setCampus(e.target.value)}
@@ -194,5 +197,6 @@ export default function ParentCalendarPage() {
         </div>
       )}
     </main>
+    </>
   );
 }

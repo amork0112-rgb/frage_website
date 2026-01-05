@@ -7,13 +7,16 @@ export const metadata = {
 
 export default function CampusesPage() {
   return (
-    <main className="max-w-5xl mx-auto px-6 pt-32 pb-20">
-      <div className="mb-4 text-center">
-        <h1 className="text-[40px] font-black text-slate-900">Campuses</h1>
-      </div>
-      <p className="mt-4 mb-12 text-lg text-slate-600 text-center">
-        하나의 철학, 아이의 성향과 목표에 맞춘 네 개의 교육 공간.
-      </p>
+    <main className="max-w-5xl mx-auto px-6 pb-20">
+      <section className="bg-frage-navy pt-24 pb-16 text-white -mx-6">
+        <div className="container mx-auto px-6 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold">Campuses</h1>
+          <p className="mt-4 text-frage-sand/80">
+            하나의 철학, 아이의 성향과 목표에 맞춘 네 개의 교육 공간.
+          </p>
+        </div>
+      </section>
+      <div className="mt-12">
 
       <div className="grid gap-12 sm:grid-cols-2">
         {/* 국제관 */}
@@ -179,6 +182,7 @@ export default function CampusesPage() {
             </a>
           </div>
         </div>
+      </div>
       </div>
     </main>
   );

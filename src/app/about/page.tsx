@@ -8,11 +8,10 @@ export default function AboutPage() {
 
   return (
     <main className="min-h-screen bg-frage-sand/30 pb-20">
-      <section className="pt-32">
-        <div className="max-w-5xl mx-auto px-6 text-center">
-          <h1 className="text-[40px] font-black text-slate-900">
-            {t.about_page.hero_title}
-          </h1>
+      <section className="bg-frage-navy pt-24 pb-16 text-white">
+        <div className="container mx-auto px-6 text-center">
+          <h1 className="text-3xl font-bold md:text-4xl">{t.about_page.hero_title}</h1>
+          <p className="mt-4 text-frage-sand/80">{t.about_page.hero_subtitle}</p>
         </div>
       </section>
 
