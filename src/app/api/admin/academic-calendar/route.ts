@@ -38,7 +38,8 @@ export async function GET(req: Request) {
       createdAt: String(r.created_at || ""),
     }));
     return json({ items });
-  } catch {
+  } catch (e) {
+    console.error(e);
     return json({ items: [] });
   }
 }
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
     const type = String(body.type || "");
     const start_date = String(body.start_date || "");
     const end_date = String(body.end_date || "");
-    const campus = body.campus ? String(body.campus) : null;
+    const campus = body.campus ? String(body.campus) : "All";
     const class_name = body.class_name ? String(body.class_name) : null;
     const place = body.place ? String(body.place) : null;
     const expose_to_parent = Boolean(body.expose_to_parent ?? true);
@@ -62,7 +63,6 @@ export async function POST(req: Request) {
         .from("academic_calendar")
         .select("*")
         .eq("type", "공휴일")
-        .eq("title", title)
         .eq("start_date", start_date)
         .limit(1);
       if (Array.isArray(dup) && dup.length > 0) {
@@ -123,7 +123,8 @@ export async function POST(req: Request) {
         }
       : null;
     return json({ item }, 201);
-  } catch {
+  } catch (e) {
+    console.error(e);
     return json({ error: "invalid" }, 400);
   }
 }
@@ -138,7 +139,7 @@ export async function PUT(req: Request) {
     if (body.type !== undefined) patch.type = String(body.type);
     if (body.start_date !== undefined) patch.start_date = String(body.start_date);
     if (body.end_date !== undefined) patch.end_date = String(body.end_date);
-    if (body.campus !== undefined) patch.campus = body.campus ? String(body.campus) : null;
+    if (body.campus !== undefined) patch.campus = body.campus ? String(body.campus) : "All";
     if (body.class_name !== undefined) patch.class_name = body.class_name ? String(body.class_name) : null;
     if (body.place !== undefined) patch.place = body.place ? String(body.place) : null;
     if (body.expose_to_parent !== undefined) patch.expose_to_parent = Boolean(body.expose_to_parent);
@@ -169,7 +170,8 @@ export async function PUT(req: Request) {
         }
       : null;
     return json({ item });
-  } catch {
+  } catch (e) {
+    console.error(e);
     return json({ error: "invalid" }, 400);
   }
 }
@@ -182,7 +184,8 @@ export async function DELETE(req: Request) {
     const { error } = await (supabase as any).from("academic_calendar").delete().eq("id", id);
     if (error) return json({ error: "delete_failed" }, 500);
     return json({ ok: true });
-  } catch {
+  } catch (e) {
+    console.error(e);
     return json({ error: "invalid" }, 400);
   }
 }

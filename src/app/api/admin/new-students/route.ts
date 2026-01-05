@@ -22,8 +22,21 @@ export async function GET() {
 
     const { data: reservations, error: e3 } = await (supabase as any)
       .from("student_reservations")
-      .select("*");
+      .select("student_id,slot_id");
     if (e3) return json({ error: "reservations_fetch_failed" }, 500);
+
+    const slotIds: string[] = Array.isArray(reservations)
+      ? reservations.map((r: any) => String(r.slot_id || "")).filter(Boolean)
+      : [];
+    const { data: slots, error: e4 } = await (supabase as any)
+      .from("consultation_slots")
+      .select("id,date,time")
+      .in("id", slotIds);
+    if (e4) return json({ error: "slots_fetch_failed" }, 500);
+    const slotMap: Record<string, { date: string | null; time: string | null }> = {};
+    (slots || []).forEach((s: any) => {
+      slotMap[String(s.id)] = { date: s?.date ?? null, time: s?.time ?? null };
+    });
 
     const checklists: Record<string, Record<string, any>> = {};
     (checkRows || []).forEach((row: any) => {
@@ -34,18 +47,20 @@ export async function GET() {
       checklists[sid][key] = {
         key,
         checked: !!row.checked,
-        date: row.date ?? null,
-        by: row.by ?? null,
+        date: row.checked_at ?? null,
+        by: row.checked_by ?? null,
       };
     });
 
     const reservationsMap: Record<string, any> = {};
     (reservations || []).forEach((r: any) => {
       const sid = String(r.student_id ?? r.studentId ?? "");
+      const slotId = String(r.slot_id ?? r.slotId ?? "");
       if (!sid) return;
       reservationsMap[sid] = {
-        date: r.date ?? null,
-        time: r.time ?? null,
+        slotId: slotId || null,
+        date: slotId && slotMap[slotId] ? slotMap[slotId].date : null,
+        time: slotId && slotMap[slotId] ? slotMap[slotId].time : null,
       };
     });
 
@@ -65,8 +80,8 @@ export async function PUT(req: Request) {
     const studentId = String(body.studentId || "");
     const key = String(body.key || "");
     const checked = Boolean(body.checked ?? false);
-    const date = body.date ?? (checked ? new Date().toISOString() : null);
-    const by = body.by ?? null;
+    const checked_at = body.checked_at ?? (checked ? new Date().toISOString() : null);
+    const checked_by = body.checked_by ?? null;
     if (!studentId || !key) return json({ error: "missing" }, 400);
 
     const { data: exists } = await (supabase as any)
@@ -78,13 +93,13 @@ export async function PUT(req: Request) {
     if (Array.isArray(exists) && exists.length > 0) {
       await (supabase as any)
         .from("new_student_checklists")
-        .update({ checked, date, by })
+        .update({ checked, checked_at, checked_by })
         .eq("student_id", studentId)
         .eq("key", key);
     } else {
       await (supabase as any)
         .from("new_student_checklists")
-        .insert([{ student_id: studentId, key, checked, date, by }]);
+        .insert([{ student_id: studentId, key, checked, checked_at, checked_by }]);
     }
 
     return json({ ok: true });

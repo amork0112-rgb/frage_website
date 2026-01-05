@@ -268,6 +268,25 @@ export default function AdminAcademicCalendarPage() {
           <button onClick={goToToday} className="px-3 py-1 text-xs font-bold bg-frage-navy text-white rounded-full hover:bg-slate-800 transition-colors">
             오늘
           </button>
+          <button
+            onClick={async () => {
+              try {
+                await fetch("/api/admin/academic-calendar/holidays/init", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ year }),
+                });
+                const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
+                const data = await res.json();
+                const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+                setEvents(items);
+                alert("공휴일 동기화가 완료되었습니다.");
+              } catch {}
+            }}
+            className="px-3 py-1 text-xs font-bold bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 transition-colors"
+          >
+            공휴일 동기화
+          </button>
         </div>
         <Link href="/admin/home" className="text-sm font-bold text-slate-700 underline underline-offset-4">대시보드</Link>
       </div>

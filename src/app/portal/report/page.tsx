@@ -150,7 +150,7 @@ export default function ReportPage() {
                     <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-100 text-frage-orange">
                         <CheckCircle className="w-6 h-6" />
                     </span>
-                    Skill Feedback
+                    Class Goal & Learning Focus
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="group bg-white p-5 rounded-2xl border border-orange-100 shadow-sm hover:shadow-md transition-all hover:border-orange-200">

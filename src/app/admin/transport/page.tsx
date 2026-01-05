@@ -56,7 +56,9 @@ export default function AdminTransportPage() {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [routesByBus, setRoutesByBus] = useState<Record<number, RouteBlock[]>>({});
-  const [routeIds, setRouteIds] = useState<Record<number, string>>({});
+  type RouteKey = `${number}_${number}_${string}`;
+  const makeRouteKey = (busId: number, w: number, ts: string | null): RouteKey => `${busId}_${w}_${ts ?? ""}`;
+  const [routeIds, setRouteIds] = useState<Record<RouteKey, string>>({});
 
   const getMyRole = async (): Promise<"admin" | "teacher" | "parent"> => {
     const { data, error } = await supabase.from("profiles").select("role").single();
@@ -143,6 +145,7 @@ export default function AdminTransportPage() {
 
   const fetchRouteDetail = async (opts: { semester: string; busId: number; routeType: "pickup" | "dropoff"; timeSlotId: string | null; weekday: number }) => {
     try {
+      setRoutesByBus((prev) => ({ ...prev, [opts.busId]: [] }));
       if (supabaseReady) {
         const { data, error } = await supabase
           .from("bus_routes")
@@ -174,8 +177,14 @@ export default function AdminTransportPage() {
           .eq("route_type", opts.routeType)
           .eq("time_slot_id", opts.timeSlotId)
           .eq("weekday", opts.weekday)
-          .single();
+          .maybeSingle();
         if (error) throw error;
+        if (!data) {
+          setRoutesByBus((prev) => ({ ...prev, [opts.busId]: [] }));
+          setRouteIds((prev) => ({ ...prev, [makeRouteKey(opts.busId, opts.weekday, opts.timeSlotId)]: "" }));
+          setDirty(false);
+          return;
+        }
         const blocks: RouteBlock[] = Array.isArray((data as any)?.route_blocks)
           ? (data as any).route_blocks.map((block: any) => ({
               id: String(block.id),
@@ -197,7 +206,7 @@ export default function AdminTransportPage() {
           : [];
         const rb = { ...routesByBus, [opts.busId]: blocks.sort((a, b) => a.order - b.order) };
         setRoutesByBus(rb);
-        setRouteIds((prev) => ({ ...prev, [opts.busId]: String((data as any)?.id || "") }));
+        setRouteIds((prev) => ({ ...prev, [makeRouteKey(opts.busId, opts.weekday, opts.timeSlotId)]: String((data as any)?.id || "") }));
         recalcBusStats(rb);
         setDirty(false);
         return;
@@ -221,18 +230,48 @@ export default function AdminTransportPage() {
   }, [semester, selectedBusId, mode, timeSlotId, weekday]);
 
   const recalcBusStats = (rb: Record<number, RouteBlock[]>) => {
-    const next = buses.map((b) => {
-      const blocks = rb[b.id] || [];
-      const count = blocks.reduce((sum, blk) => sum + blk.students.length, 0);
-      const extra = blocks.reduce((sum, blk) => sum + blk.estimatedExtraTime, 0);
-      const base = mode === "pickup" ? 30 : 35;
-      return { ...b, assignedCount: count, estimatedTime: base + extra };
-    });
-    setBuses(next);
+    setBuses((prev) =>
+      prev.map((b) => {
+        const blocks = rb[b.id] || [];
+        const count = blocks.reduce((sum, blk) => sum + blk.students.length, 0);
+        const extra = blocks.reduce((sum, blk) => sum + blk.estimatedExtraTime, 0);
+        const base = mode === "pickup" ? 30 : 35;
+        return { ...b, assignedCount: count, estimatedTime: base + extra };
+      })
+    );
+  };
+
+  const fetchEligibleStudents = async (): Promise<Student[]> => {
+    try {
+      if (!supabaseReady || campus === "All" || !timeSlotId) return [];
+      const { data } = await supabase
+        .from("students")
+        .select("id,name,class_name,campus,status,schedule")
+        .eq("status", "재원")
+        .eq("campus", campus);
+      const list = Array.isArray(data) ? data : [];
+      const filtered = list
+        .filter((s: any) => {
+          const sch = s?.schedule || {};
+          return sch?.weekday === weekday && sch?.time_slot_id === timeSlotId;
+        })
+        .map((s: any) => ({
+          id: String(s.id),
+          name: String(s.name || ""),
+          className: String(s.class_name || ""),
+          campus: String(s.campus || ""),
+        }));
+      return filtered;
+    } catch {
+      return [];
+    }
   };
 
   const runAutoAssign = async () => {
     try {
+      if (!timeSlotId) return;
+      const eligible = await fetchEligibleStudents();
+      if (eligible.length === 0) return;
       if (supabaseReady) {
         const { error } = await (supabase as any).rpc("auto_assign_bus_routes", {
           p_semester: semester,
@@ -242,19 +281,12 @@ export default function AdminTransportPage() {
           p_weekday: weekday,
         });
         if (error) throw error;
-        if (timeSlotId) {
-          await fetchRouteDetail({ semester, busId: selectedBusId, routeType: mode, timeSlotId, weekday });
-        }
+        await fetchRouteDetail({ semester, busId: selectedBusId, routeType: mode, timeSlotId, weekday });
         setDirty(true);
         return;
       }
-      const sampleStudents = Array.from({ length: 24 }, (_, i) => {
-        const c = ["International", "Andover", "Platz", "Atheneum"][i % 4];
-        const cls = ["K1", "K2", "J1", "J2", "S1"][i % 5];
-        return { id: `stu_${i + 1}`, name: `학생${i + 1}`, className: cls, campus: c } as Student;
-      });
       const byCampus: Record<string, Student[]> = {};
-      sampleStudents.forEach((s) => {
+      eligible.forEach((s) => {
         (byCampus[s.campus] ||= []).push(s);
       });
       const rb: Record<number, RouteBlock[]> = {};
@@ -302,7 +334,7 @@ export default function AdminTransportPage() {
 
   const moveBlockToBus = async (blockId: string, toBusId: number) => {
     if (!supabaseReady) return;
-    const toRouteId = routeIds[toBusId];
+    const toRouteId = routeIds[makeRouteKey(toBusId, weekday, timeSlotId)];
     if (!toRouteId) return;
     await supabase.from("route_blocks").update({ route_id: toRouteId }).eq("id", blockId);
   };
@@ -341,7 +373,10 @@ export default function AdminTransportPage() {
     if (supabaseReady) {
       await removeStudentFromBlock(fromBlockId, sid);
       await addStudentToBlock(toBlockId, sid);
-      const routeId = routeIds[fromBusId] || routeIds[toBusId] || "";
+      const routeId =
+        routeIds[makeRouteKey(fromBusId, weekday, timeSlotId)] ||
+        routeIds[makeRouteKey(toBusId, weekday, timeSlotId)] ||
+        "";
       await logRouteChange(routeId, "move_student", { studentId: sid, fromBlockId, toBlockId });
     }
     fromBlock.students = fromBlock.students.filter((s) => s.id !== sid);
@@ -374,7 +409,10 @@ export default function AdminTransportPage() {
     if (!moving) return;
     if (supabaseReady) {
       await moveBlockToBus(blockId, toBusId);
-      const routeId = routeIds[fromBusId] || routeIds[toBusId] || "";
+      const routeId =
+        routeIds[makeRouteKey(fromBusId, weekday, timeSlotId)] ||
+        routeIds[makeRouteKey(toBusId, weekday, timeSlotId)] ||
+        "";
       await logRouteChange(routeId, "move_block_bus", { blockId, fromBusId, toBusId });
     }
     rb[fromBusId] = from.filter((b) => b.id !== blockId);
@@ -405,7 +443,7 @@ export default function AdminTransportPage() {
     rb[toBusId] = next;
     if (supabaseReady) {
       await updateBlockOrder(blockId, insertIndex + 1);
-      const routeId = routeIds[toBusId] || "";
+      const routeId = routeIds[makeRouteKey(toBusId, weekday, timeSlotId)] || "";
       await logRouteChange(routeId, "reorder_block", { blockId, toBusId, order: insertIndex + 1 });
     }
     setRoutesByBus(rb);
@@ -431,7 +469,7 @@ export default function AdminTransportPage() {
     if (!dirty || anyCapacityExceeded) return;
     setSaving(true);
     try {
-      const routeId = routeIds[selectedBusId];
+      const routeId = routeIds[makeRouteKey(selectedBusId, weekday, timeSlotId)];
       if (routeId) await saveRouteConfirm(routeId);
     } catch {} finally {
       setSaving(false);
@@ -475,6 +513,7 @@ export default function AdminTransportPage() {
           </select>
           <button
             onClick={runAutoAssign}
+            disabled={!timeSlotId}
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-bold bg-white"
           >
             <Sparkles className="w-4 h-4 text-purple-600" />
