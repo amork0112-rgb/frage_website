@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell, AlertTriangle, ShieldAlert } from "lucide-react";
+import { supabase, supabaseReady } from "@/lib/supabase";
 
 type Status = "재원" | "휴원 검토중" | "휴원" | "퇴원 검토중" | "퇴원";
 type SignalType = "video_miss" | "portal_low" | "report_unread";
@@ -17,6 +18,8 @@ type AlertItem = {
   signals: { type: SignalType; value: string }[];
   level: "주의" | "경고" | "위험";
   firstDetectedAt: string;
+  unread?: boolean;
+  source?: "portal_requests" | "new_student_checklists" | "student_reservations";
 };
 
 export default function TeacherAlertsPage() {
@@ -24,86 +27,101 @@ export default function TeacherAlertsPage() {
   const [items, setItems] = useState<AlertItem[]>([]);
   const [selected, setSelected] = useState<AlertItem | null>(null);
   const [action, setAction] = useState<"확인함" | "상담 필요" | "경과 관찰" | "">("");
-  const [teacherClass, setTeacherClass] = useState<string | null>(null);
+  const [teacherId, setTeacherId] = useState<string | null>(null);
   const [statusTab, setStatusTab] = useState<"All" | "휴원 검토중" | "퇴원 검토중">("All");
   const [toast, setToast] = useState<string>("");
   const [selectedLogs, setSelectedLogs] = useState<string[]>([]);
 
   useEffect(() => {
-    try {
-      const classRaw = localStorage.getItem("teacher_class");
-      setTeacherClass(classRaw || null);
-    } catch {}
+    (async () => {
+      if (!supabaseReady) return;
+      const { data } = await supabase.auth.getUser();
+      const uid = data?.user?.id || null;
+      setTeacherId(uid);
+    })();
   }, []);
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const res = await fetch("/api/admin/alerts", { cache: "no-store" });
-        const data = await res.json();
-        const list: AlertItem[] = data.items || [];
-        let manual: AlertItem[] = [];
-        try {
-          const raw = localStorage.getItem("admin_manual_alerts");
-          const arr = raw ? JSON.parse(raw) : [];
-          if (Array.isArray(arr)) manual = arr;
-        } catch {}
-        const merged = [...list, ...manual];
-        const suppressedRaw = localStorage.getItem("admin_alert_suppress");
-        const suppressMap: Record<string, { level: "주의" | "경고" | "위험"; ts: number }> = suppressedRaw ? JSON.parse(suppressedRaw) : {};
-        const now = Date.now();
-        const filtered = merged.filter(it => {
-          const sup = suppressMap[it.id];
-          if (!sup) return true;
-          const within7 = now - sup.ts < 7 * 86400000;
-          if (!within7) return true;
-          if (it.level === "위험" && sup.level !== "위험") return true;
-          if (it.level === "경고" && sup.level === "주의") return true;
-          return false;
+      if (!supabaseReady) return;
+      const { data: reqs } = await
+        supabase
+          .from("portal_requests")
+          .select(`
+            id,
+            type,
+            created_at,
+            teacher_read,
+            teacher_id,
+            student_id,
+            students ( name, class_name, campus, status )
+          `)
+          .order("created_at", { ascending: false })
+      ;
+      const nowList: AlertItem[] = (reqs || []).map((r: any) => ({
+        id: String(r.id),
+        name: String(r?.students?.name || "-"),
+        campus: String(r?.students?.campus || "-"),
+        className: String(r?.students?.class_name || "-"),
+        status: (r?.students?.status as Status) || "재원",
+        signals: [{ type: "report_unread", value: String(r.type || "") }],
+        level: r.type === "early_pickup" || r.type === "medication" ? "주의" : "경고",
+        firstDetectedAt: String(r.created_at || ""),
+        unread: !r?.teacher_read,
+        source: "portal_requests",
+      }));
+      const { data: checks } = await
+        supabase
+          .from("new_student_checklists")
+          .select(`
+            id,
+            student_id,
+            created_at,
+            checked,
+            checked_at,
+            checked_by,
+            new_students ( name, campus )
+          `)
+          .eq("checked", false)
+          .order("created_at", { ascending: false });
+      const chkList: AlertItem[] = (checks || [])
+        .map((c: any) => ({
+          id: `chk_${c.id}`,
+          name: String(c?.new_students?.name || "-"),
+          campus: String(c?.new_students?.campus || "-"),
+          className: "-",
+          status: "재원",
+          signals: [{ type: "report_unread", value: "new_student_checklist_pending" }],
+          level: "주의",
+          firstDetectedAt: String(c.created_at || c.checked_at || ""),
+          unread: true,
+          source: "new_student_checklists",
+        }));
+      const merged = [...nowList, ...chkList]
+        .slice()
+        .sort((a, b) => {
+          const au = a.unread ? 0 : 1;
+          const bu = b.unread ? 0 : 1;
+          if (au !== bu) return au - bu;
+          return new Date(b.firstDetectedAt).getTime() - new Date(a.firstDetectedAt).getTime();
         });
-        setItems(filtered);
-      } catch {
-        let manual: AlertItem[] = [];
-        try {
-          const raw = localStorage.getItem("admin_manual_alerts");
-          const arr = raw ? JSON.parse(raw) : [];
-          if (Array.isArray(arr)) manual = arr;
-        } catch {}
-        const suppressedRaw = localStorage.getItem("admin_alert_suppress");
-        const suppressMap: Record<string, { level: "주의" | "경고" | "위험"; ts: number }> = suppressedRaw ? JSON.parse(suppressedRaw) : {};
-        const now = Date.now();
-        const filtered = manual.filter(it => {
-          const sup = suppressMap[it.id];
-          if (!sup) return true;
-          const within7 = now - sup.ts < 7 * 86400000;
-          if (!within7) return true;
-          if (it.level === "위험" && sup.level !== "위험") return true;
-          if (it.level === "경고" && sup.level === "주의") return true;
-          return false;
-        });
-        setItems(filtered);
-      }
+      setItems(merged);
     };
     load();
+    const t = setInterval(load, 12000);
+    return () => clearInterval(t);
   }, []);
 
   const filteredByClass = useMemo(() => {
-    return items.filter(it => !teacherClass || it.className === teacherClass);
-  }, [items, teacherClass]);
+    return items;
+  }, [items]);
 
   useEffect(() => {
     if (!selected) {
       setSelectedLogs([]);
       return;
     }
-    try {
-      const logsRaw = localStorage.getItem("admin_signal_logs");
-      const logs: Record<string, string[]> = logsRaw ? JSON.parse(logsRaw) : {};
-      const arr = logs[selected.id] || [];
-      setSelectedLogs(arr.slice().reverse());
-    } catch {
-      setSelectedLogs([]);
-    }
+    setSelectedLogs([]);
   }, [selected]);
 
   const byQuit = useMemo(() => filteredByClass.filter(it => it.status === "퇴원 검토중"), [filteredByClass]);
@@ -118,58 +136,32 @@ export default function TeacherAlertsPage() {
   const openDetail = (item: AlertItem) => {
     setSelected(item);
     setAction("");
-    try {
-      const supRaw = localStorage.getItem("admin_alert_suppress");
-      const map = supRaw ? JSON.parse(supRaw) : {};
-      map[item.id] = { level: item.level, ts: Date.now() };
-      localStorage.setItem("admin_alert_suppress", JSON.stringify(map));
-    } catch {}
+    if (supabaseReady && item.source === "portal_requests") {
+      supabase.from("portal_requests").update({ teacher_read: true }).eq("id", item.id);
+      setItems(prev => prev.map(p => (p.id === item.id ? { ...p, unread: false } : p)));
+    }
   };
 
   const commitAction = () => {
     if (!selected || !action) return;
-    try {
-      const admin = localStorage.getItem("admin_name") || "관리자";
-      const logsRaw = localStorage.getItem("admin_signal_logs");
-      const logs: Record<string, string[]> = logsRaw ? JSON.parse(logsRaw) : {};
-      const date = new Date().toISOString().split("T")[0];
-      const entry = `${date}\n이탈 시그널 감지 (${selected.level})\n처리: ${action}\n담당: ${admin}`;
-      const arr = logs[selected.id] || [];
-      arr.unshift(entry);
-      logs[selected.id] = arr;
-      localStorage.setItem("admin_signal_logs", JSON.stringify(logs));
-      setAction("");
-      setSelectedLogs(prev => [entry, ...prev]);
-    } catch {}
+    setAction("");
   };
 
   const appendLog = (id: string, message: string) => {
-    try {
-      const logsRaw = localStorage.getItem("admin_signal_logs");
-      const logs: Record<string, string[]> = logsRaw ? JSON.parse(logsRaw) : {};
-      const arr = logs[id] || [];
-      arr.unshift(message);
-      logs[id] = arr;
-      localStorage.setItem("admin_signal_logs", JSON.stringify(logs));
-      setSelectedLogs(prev => [message, ...prev]);
-    } catch {}
+    setSelectedLogs(prev => [message, ...prev]);
   };
 
   const handleConfirmAdmin = async () => {
     if (!selected) return;
-    const userId = localStorage.getItem("admin_account_id") || localStorage.getItem("admin_name") || "관리자";
+    const userId = teacherId || "교사";
     const signalId = selected.id;
     const ts = new Date().toLocaleString("ko-KR");
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 500);
       const res = await fetch("/api/alerts/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "confirm", userId, signalId }),
-        signal: controller.signal
       });
-      clearTimeout(timer);
       const ok = res.ok;
       const msg = `[${ts}] 관리자 확인 처리 완료 (사용자 ID: ${userId} , 시그널 ID: ${signalId}) 상태: ${ok ? "성공" : "실패"}`;
       appendLog(signalId, msg);
@@ -181,23 +173,17 @@ export default function TeacherAlertsPage() {
 
   const handleNeedConsult = async () => {
     if (!selected) return;
-    const userId = localStorage.getItem("admin_account_id") || localStorage.getItem("admin_name") || "관리자";
+    const userId = teacherId || "교사";
     const signalId = selected.id;
     const ts = new Date().toLocaleString("ko-KR");
     setToast("상담 요청이 접수되었습니다");
     setTimeout(() => setToast(""), 1200);
     try {
-      const state = { ts: Date.now(), statusTab, selectedId: selected.id };
-      localStorage.setItem("admin_alerts_return_state", JSON.stringify(state));
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 500);
       const res = await fetch("/api/alerts/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "need_consult", userId, signalId }),
-        signal: controller.signal
       });
-      clearTimeout(timer);
       const ok = res.ok;
       const msg = `[${ts}] 상담 요청 처리 (사용자 ID: ${userId} , 시그널 ID: ${signalId}) 상태: ${ok ? "성공" : "실패"}`;
       appendLog(signalId, msg);

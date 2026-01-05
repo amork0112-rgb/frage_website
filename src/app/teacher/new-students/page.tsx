@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Check, X, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseReady } from "@/lib/supabase";
 
 type StudentProfile = {
   id: string;
@@ -119,7 +119,8 @@ export default function TeacherNewStudentsPage() {
   const [filterCampus, setFilterCampus] = useState("All");
   const [memoEditingId, setMemoEditingId] = useState<string | null>(null);
   const [memoText, setMemoText] = useState("");
-  const [showGuide, setShowGuide] = useState(true);
+  const [showGuide, setShowGuide] = useState(false);
+  const [teacherId, setTeacherId] = useState<string | null>(null);
   
   // Reservation Management State
   const [showReservationModal, setShowReservationModal] = useState(false);
@@ -133,6 +134,10 @@ export default function TeacherNewStudentsPage() {
     // Load students
     try {
       (async () => {
+        if (supabaseReady) {
+          const { data } = await supabase.auth.getUser();
+          setTeacherId(data?.user?.id || null);
+        }
         const { data } = await supabase
           .from("signup_requests")
           .select("*")
@@ -160,11 +165,6 @@ export default function TeacherNewStudentsPage() {
           setStudentReservations(reservations);
         } catch {}
       })();
-
-      const guideDismissed = localStorage.getItem("teacher_new_students_guide_dismissed");
-      if (guideDismissed === "1") {
-        setShowGuide(false);
-      }
       
       let dt = new Date();
       while (dt.getDay() === 0 || dt.getDay() === 6) {
@@ -254,90 +254,44 @@ export default function TeacherNewStudentsPage() {
   const toggleCheck = async (studentId: string, stepKey: string, stepLabel: string) => {
     const currentList = checklists[studentId] || {};
     const currentItem = currentList[stepKey] || { key: stepKey, label: stepLabel, checked: false };
-    
-    const nextItem = {
-      ...currentItem,
-      checked: !currentItem.checked,
-      date: !currentItem.checked ? new Date().toISOString() : undefined,
-      by: !currentItem.checked ? "Teacher" : undefined // In real app, use actual user role
-    };
-
-    const nextList = {
-      ...currentList,
-      [stepKey]: nextItem
-    };
-
-    const nextChecklists = {
-      ...checklists,
-      [studentId]: nextList
-    };
-
-    setChecklists(nextChecklists);
+    const nextChecked = !currentItem.checked;
+    const nextCheckedAt = nextChecked ? new Date().toISOString() : undefined;
     try {
-      await fetch("/api/admin/new-students", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentId,
+      if (supabaseReady) {
+        const { data } = await supabase.auth.getUser();
+        const uid = data?.user?.id || null;
+        await supabase.from("new_student_checklists").upsert({
+          student_id: studentId,
           key: stepKey,
-          checked: nextItem.checked,
-          date: nextItem.date,
-          by: nextItem.by,
-        }),
-      });
+          checked: nextChecked,
+          checked_at: nextCheckedAt,
+          checked_by: uid,
+        });
+        const { data: rows } = await supabase
+          .from("new_student_checklists")
+          .select("*")
+          .eq("student_id", studentId);
+        const map: StudentChecklist = {};
+        (rows || []).forEach((row: any) => {
+          map[row.key] = {
+            key: row.key,
+            label: stepLabel,
+            checked: !!row.checked,
+            date: row.checked_at || undefined,
+            by: row.checked_by || undefined,
+          };
+        });
+        setChecklists(prev => ({ ...prev, [studentId]: map }));
+      }
     } catch {}
 
     // Trigger Logic (Automations)
-    if (nextItem.checked) {
+    if (nextChecked) {
       if (stepKey === "consultation_confirmed") {
-        // Find reservation
-        const reservation = studentReservations[studentId];
-        let eventDate = new Date().toISOString().split('T')[0];
-        let eventTime = "";
-        let hasReservation = false;
-
-        if (reservation && reservation.date && reservation.date.includes("-")) {
-             eventDate = reservation.date;
-             eventTime = reservation.time;
-             hasReservation = true;
-        }
-
-        // Google Calendar Logic
-        const student = students.find(s => s.id === studentId);
-        const title = `[신규상담] ${student?.studentName || '학생'} (${student?.parentName || '학부모'})`;
-        const details = `연락처: ${student?.phone || '없음'}`;
-        
-        let dates = "";
-        if (hasReservation) {
-            // Local Time Formatting Helper
-            const fmt = (dt: Date) => {
-              const y = dt.getFullYear();
-              const m = String(dt.getMonth() + 1).padStart(2, '0');
-              const d = String(dt.getDate()).padStart(2, '0');
-              const h = String(dt.getHours()).padStart(2, '0');
-              const min = String(dt.getMinutes()).padStart(2, '0');
-              const s = String(dt.getSeconds()).padStart(2, '0');
-              return `${y}${m}${d}T${h}${min}${s}`;
-            };
-
-            const startDt = new Date(`${eventDate}T${eventTime}:00`);
-            const endDt = new Date(startDt.getTime() + 60 * 60 * 1000); // 1 hour duration
-            dates = `${fmt(startDt)}/${fmt(endDt)}`;
-        } else {
-            // All day event for today
-            const d = new Date().toISOString().split('T')[0].replace(/-/g, "");
-            dates = `${d}/${d}`;
-        }
-
-        const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&dates=${dates}`;
-        
-        // Open in new tab
-        window.open(googleCalendarUrl, '_blank');
-
-        alert(`✅ [구글 캘린더] 상담 일정 등록 팝업을 띄웠습니다.\n저장 버튼을 눌러 일정을 등록해주세요.`);
+        // handled by server
       }
       if (stepKey === "admission_confirmed") {
-        alert("✅ [자동화] 입학 확정 -> 학부모용 '입학 서류 패키지'가 오픈되었습니다.");
+        // handled by server
       }
       if (stepKey === "consultation_msg") {
         try {
@@ -350,12 +304,9 @@ export default function TeacherNewStudentsPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ studentId, message: text })
           }).then(() => {
-            alert("✅ 학부모 포털 공지(앱푸시)로 상담 안내가 발송되었습니다.");
           }).catch(() => {
-            alert("상담 안내 앱푸시 발송 중 오류가 발생했습니다.");
           });
         } catch {
-          alert("상담 안내 앱푸시 발송 중 오류가 발생했습니다.");
         }
       }
       if (stepKey === "docs_submitted") {
@@ -375,14 +326,12 @@ export default function TeacherNewStudentsPage() {
               departureTime: ""
             };
             await supabase.from("students").insert(item);
-            alert("✅ 입학 서류 완료 처리 • 원생 관리에 등록되었습니다.");
           }
         } catch {}
       }
       if (stepKey === "band_invite") {
          const today = new Date();
          // Just a mock check
-         alert("✅ 밴드 초대 링크가 발송되었습니다. (입학 전날 원칙 준수 요망)");
       }
     }
   };
@@ -393,7 +342,6 @@ export default function TeacherNewStudentsPage() {
 
   const dismissGuide = () => {
     setShowGuide(false);
-    localStorage.setItem("teacher_new_students_guide_dismissed", "1");
   };
 
   return (

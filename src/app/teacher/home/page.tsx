@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Video, FileText, CheckCircle2, Clock, ArrowRight, Calendar, Brain, ExternalLink } from "lucide-react";
+import { supabase, supabaseReady } from "@/lib/supabase";
 
 type Student = { id: string; name: string; englishName: string; className: string; campus: string };
 
@@ -44,33 +45,25 @@ export default function TeacherHome() {
   const [rememberItems, setRememberItems] = useState<string[]>([]);
   const [teacherClass, setTeacherClass] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
+  const [todayReservations, setTodayReservations] = useState<number>(0);
+  const [pendingChecklists, setPendingChecklists] = useState<number>(0);
+  const [unreadParentRequests, setUnreadParentRequests] = useState<number>(0);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("admin_calendar_events");
-      const list = raw ? JSON.parse(raw) : [];
-      setEvents(Array.isArray(list) ? list : []);
-    } catch {
-      setEvents([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      const id = localStorage.getItem("current_teacher_id");
-      setTeacherId(id || null);
-      let assigned = localStorage.getItem("teacher_class") || null;
-      try {
-        const mapRaw = localStorage.getItem("admin_teacher_class_map");
-        if (id && mapRaw) {
-          const map = JSON.parse(mapRaw) || {};
-          if (map && typeof map === "object" && map[id]) {
-            assigned = map[id];
-          }
-        }
-      } catch {}
-      setTeacherClass(assigned);
-    } catch {}
+    (async () => {
+      if (!supabaseReady) return;
+      const { data } = await supabase.auth.getUser();
+      const uid = data?.user?.id || null;
+      setTeacherId(uid);
+      if (!uid) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("class_name")
+        .eq("id", uid)
+        .single();
+      const cls = (profile as any)?.class_name || null;
+      setTeacherClass(cls);
+    })();
   }, []);
 
   const now = new Date();
@@ -79,68 +72,81 @@ export default function TeacherHome() {
   const ym = `${y}-${String(m + 1).padStart(2, "0")}`;
 
   useEffect(() => {
-    try {
-      const key = `teacher_remember_${ym}`;
-      const raw = localStorage.getItem(key);
-      const arr: string[] = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(arr) && arr.length > 0) {
-        setRememberItems(arr);
-      } else {
-        setRememberItems([
-          `Please submit ${String(m + 1).padStart(2, "0")} reports by ${String(m + 1).padStart(2, "0")}-30`,
-          `No classes on ${String(m + 1).padStart(2, "0")}-10 (Holiday)`
-        ]);
-      }
-    } catch {
-      setRememberItems([]);
-    }
-  }, [ym, m]);
+    setRememberItems([]);
+  }, [ym]);
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const res = await fetch("/api/admin/students");
-        const data = await res.json();
-        const items = Array.isArray(data) ? data : data.items || [];
-        let mergedItems: Student[] = items;
-
-        try {
-          const bulkRaw = localStorage.getItem("admin_bulk_students");
-          const bulkArr: Student[] = bulkRaw ? JSON.parse(bulkRaw) : [];
-          if (Array.isArray(bulkArr) && bulkArr.length > 0) {
-            mergedItems = [...mergedItems, ...bulkArr];
-          }
-        } catch {}
-
-        try {
-          const rawProfiles = localStorage.getItem("signup_profiles");
-          const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
-          const arr: any[] = Array.isArray(profiles) ? profiles : [];
-          if (arr.length > 0) {
-            const existingPhones = new Set(mergedItems.map((s: any) => s.phone));
-            const mapped: Student[] = arr
-              .filter(p => (p?.phone || "").trim() !== "")
-              .map((p, idx) => ({
-                id: `signup_${(p.phone || String(idx)).replace(/[^0-9a-zA-Z]/g, "")}`,
-                name: String(p.studentName || "").trim(),
-                englishName: String(p.englishFirstName || p.passportEnglishName || "").trim(),
-                className: "미배정",
-                campus: "미지정",
-              } as Student))
-              .filter((s: any) => !existingPhones.has(s.phone));
-            mergedItems = [...mergedItems, ...mapped];
-          }
-        } catch {}
-
-        // admin_student_updates 제거: Supabase를 단일 데이터 소스로 사용
-
-        setStudents(mergedItems);
-      } catch {
-        setStudents([]);
+      if (!supabaseReady) return;
+      const { data: evs } = await supabase
+        .from("events")
+        .select("id,title,type,start,end,campus,className,place,created_at,exposeToParent,notify,notifyDays,noticeLink")
+        .order("start", { ascending: true });
+      const mappedEvents: CalendarEvent[] = Array.isArray(evs)
+        ? evs.map((r: any) => ({
+            id: String(r.id),
+            title: String(r.title || ""),
+            type: r.type as ScheduleType,
+            start: String(r.start || ""),
+            end: String(r.end || r.start || ""),
+            campus: r.campus || undefined,
+            className: r.className || undefined,
+            place: r.place || undefined,
+            exposeToParent: !!r.exposeToParent,
+            notify: !!r.notify,
+            notifyDays: Array.isArray(r.notifyDays) ? r.notifyDays : undefined,
+            noticeLink: r.noticeLink || undefined,
+            createdAt: String(r.created_at || ""),
+          }))
+        : [];
+      setEvents(mappedEvents);
+      const today = new Date();
+      const y = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      const todayStr = `${y}-${mm}-${dd}`;
+      const { data: slotsToday } = await supabase
+        .from("consultation_slots")
+        .select("id,date")
+        .eq("date", todayStr);
+      const slotIds = (slotsToday || []).map((s: any) => s.id);
+      if (slotIds.length > 0) {
+        const { data: rToday } = await supabase
+          .from("student_reservations")
+          .select("id,slot_id")
+          .in("slot_id", slotIds);
+        setTodayReservations((rToday || []).length);
+      } else {
+        setTodayReservations(0);
       }
+      const { data: checks } = await supabase
+        .from("new_student_checklists")
+        .select("id,student_id,checked")
+        .eq("checked", false);
+      setPendingChecklists((checks || []).length);
+      const { data: reqs } = await supabase
+        .from("portal_requests")
+        .select("id,teacher_id,teacher_read")
+        .eq("teacher_read", false)
+        .eq("teacher_id", teacherId || "");
+      setUnreadParentRequests((reqs || []).length);
+      const { data: studs } = await supabase
+        .from("students")
+        .select("id,name,english_name,class_name,campus")
+        .eq("teacher_id", teacherId);
+      const mappedStudents: Student[] = Array.isArray(studs)
+        ? studs.map((s: any) => ({
+            id: String(s.id),
+            name: String(s.name || ""),
+            englishName: String(s.english_name || ""),
+            className: String(s.class_name || ""),
+            campus: String(s.campus || ""),
+          }))
+        : [];
+      setStudents(mappedStudents);
     };
     load();
-  }, []);
+  }, [teacherId]);
 
   const myStudents = useMemo(() => {
     if (!teacherClass) return [];
@@ -211,11 +217,7 @@ export default function TeacherHome() {
                 placeholder="Enter one item per line"
               />
               <button
-                onClick={() => {
-                  const key = `teacher_remember_${ym}`;
-                  localStorage.setItem(key, JSON.stringify(rememberItems));
-                  alert("이번달 Remember가 저장되었습니다. 모든 선생님 화면에 반영됩니다.");
-                }}
+                disabled
                 className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
               >
                 Save Remember
@@ -306,6 +308,20 @@ export default function TeacherHome() {
             Quick Actions
           </h2>
           <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-2">
+                <div className="text-slate-400 font-bold">오늘 예약</div>
+                <div className="text-lg font-black text-slate-900">{todayReservations}</div>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-2">
+                <div className="text-slate-400 font-bold">신규생 체크</div>
+                <div className="text-lg font-black text-slate-900">{pendingChecklists}</div>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-2">
+                <div className="text-slate-400 font-bold">학부모 요청</div>
+                <div className="text-lg font-black text-slate-900">{unreadParentRequests}</div>
+              </div>
+            </div>
             {(() => {
               const today = new Date();
               const ymStr = `${y}-${String(m + 1).padStart(2, "0")}`;

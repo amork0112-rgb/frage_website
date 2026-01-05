@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bell, MessageSquare, Users, AlertCircle, ArrowRight, CheckCircle2, ChevronDown, MapPin } from "lucide-react";
-import { CampusType, notices } from "@/data/notices";
+import { CampusType } from "@/data/notices";
 import { supabase } from "@/lib/supabase";
 
 type PortalRequest = {
@@ -23,21 +23,14 @@ type PortalRequest = {
 export default function AdminHome() {
   const [selectedCampus, setSelectedCampus] = useState<CampusType>('All');
   const [posts, setPosts] = useState<{ id: number; title: string; created_at: string; is_pinned: boolean; pinned_order?: number }[]>([]);
-  const [dashboardNotices, setDashboardNotices] = useState<any[]>([]);
-  const [noticeOverrides, setNoticeOverrides] = useState<Record<string, { isPinned?: boolean; isArchived?: boolean }>>({});
   const [recentRequests, setRecentRequests] = useState<
     { id: string; type: "Absence" | "Transport"; campus: CampusType | "Atheneum"; student: string; class: string; time: string; content: string }[]
   >([]);
   const [students, setStudents] = useState<any[]>([]);
-  const [studentUpdates, setStudentUpdates] = useState<Record<string, any>>({});
   const [signups, setSignups] = useState<any[]>([]);
+  const [absenceRequests, setAbsenceRequests] = useState<any[]>([]);
 
   useEffect(() => {
-    const childCampusMap: Record<string, CampusType | "Atheneum"> = {
-      c1: "International",
-      c2: "Andover",
-      c3: "Platz",
-    };
     const relTime = (iso: string) => {
       const now = Date.now();
       const t = new Date(iso).getTime();
@@ -49,43 +42,56 @@ export default function AdminHome() {
       const diffDay = Math.round(diffHr / 24);
       return `${diffDay}일 전`;
     };
-    const load = () => {
-      try {
-        const raw = localStorage.getItem("portal_requests");
-        const list: PortalRequest[] = raw ? JSON.parse(raw) : [];
-        const arr = Array.isArray(list) ? list.slice().reverse() : [];
-        const mapped = arr.map((r) => ({
+    const fetchRequests = async () => {
+      const { data } = await supabase
+        .from("portal_requests")
+        .select(`
+          id,
+          type,
+          created_at,
+          payload,
+          student_id,
+          students (
+            id,
+            name,
+            class_name,
+            campus
+          )
+        `)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      const list = (data || []) as any[];
+      const mapped = list.map((r: any) => {
+        const payload = r?.payload || {};
+        const campus = (r?.students?.campus as CampusType | "Atheneum") || "International";
+        const studentName: string = r?.students?.name || "-";
+        const className: string = r?.students?.class_name || "-";
+        const content =
+          r?.type === "absence"
+            ? `${payload?.dateStart || ""}${payload?.dateEnd ? `~${payload?.dateEnd}` : ""} 결석 신청${payload?.note ? ` / ${payload?.note}` : ""}`
+            : r?.type === "medication"
+            ? `복약: ${payload?.medName || ""}${payload?.note ? ` / ${payload?.note}` : ""}`
+            : r?.type === "early_pickup"
+            ? `조기하원: ${payload?.time || ""}${payload?.note ? ` / ${payload?.note}` : ""}`
+            : r?.type === "bus_change"
+            ? `차량 변경: ${payload?.changeType || ""}${payload?.note ? ` / ${payload?.note}` : ""}`
+            : payload?.note || "";
+        return {
           id: r.id,
-          type: r.type === "absence" ? ("Absence" as const) : ("Transport" as const),
-          campus: childCampusMap[r.childId] || "International",
-          student: r.childName,
-          class: "-",
-          time: relTime(r.createdAt),
-          content:
-            r.type === "absence"
-              ? `${r.dateStart}${r.dateEnd ? `~${r.dateEnd}` : ""} 결석 신청${r.note ? ` / ${r.note}` : ""}`
-              : r.type === "medication"
-              ? `복약: ${r.medName || ""}${r.note ? ` / ${r.note}` : ""}`
-              : r.type === "early_pickup"
-              ? `조기하원: ${r.time || ""}${r.note ? ` / ${r.note}` : ""}`
-              : r.type === "bus_change"
-              ? `차량 변경: ${r.changeType || ""}${r.note ? ` / ${r.note}` : ""}`
-              : r.note || ""
-        }));
-        setRecentRequests(mapped);
-      } catch {
-        setRecentRequests([]);
-      }
+          type: r?.type === "absence" ? ("Absence" as const) : ("Transport" as const),
+          campus,
+          student: studentName,
+          class: className,
+          time: relTime(r.created_at),
+          content: String(content),
+        };
+      });
+      setRecentRequests(mapped);
     };
-    load();
-    const timer = setInterval(load, 5000);
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "portal_requests") load();
-    };
-    window.addEventListener("storage", onStorage);
+    fetchRequests();
+    const timer = setInterval(fetchRequests, 12000);
     return () => {
       clearInterval(timer);
-      window.removeEventListener("storage", onStorage);
     };
   }, []);
 
@@ -95,38 +101,41 @@ export default function AdminHome() {
     : recentRequests.filter(req => req.campus === selectedCampus);
 
   useEffect(() => {
-    const loadStudents = async () => {
-      try {
-        const res = await fetch("/api/admin/students?pageSize=1000");
-        const data = await res.json();
-        const items = Array.isArray(data?.items) ? data.items : [];
-        setStudents(items);
-      } catch {}
-      try {
-        const updRaw = localStorage.getItem("admin_student_updates");
-        const map = updRaw ? JSON.parse(updRaw) : {};
-        setStudentUpdates(map || {});
-      } catch {}
-      try {
-        const rawProfiles = localStorage.getItem("signup_profiles");
-        const profiles = rawProfiles ? JSON.parse(rawProfiles) : [];
-        setSignups(Array.isArray(profiles) ? profiles : []);
-      } catch {}
+    const load = async () => {
+      const { data: studentData } = await supabase
+        .from("students")
+        .select("id,name,campus,status");
+      setStudents(studentData || []);
+      const { data: signupData } = await supabase
+        .from("signups")
+        .select("id,campus,status");
+      setSignups(signupData || []);
+      const { data: absenceData } = await supabase
+        .from("portal_requests")
+        .select(`
+          id,
+          type,
+          payload,
+          student_id,
+          students (
+            campus
+          )
+        `)
+        .eq("type", "absence")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      setAbsenceRequests(absenceData || []);
     };
-    loadStudents();
-    const timer = setInterval(loadStudents, 5000);
+    load();
+    const timer = setInterval(load, 12000);
     return () => clearInterval(timer);
   }, []);
 
-  const mergedStudents = useMemo(() => {
-    return students.map((s) => ({ ...s, ...(studentUpdates[s.id] || {}) }));
-  }, [students, studentUpdates]);
-
   const totalStudents = useMemo(() => {
-    const list = mergedStudents.filter((s) => (s.status || "재원") === "재원");
+    const list = students.filter((s) => (s.status || "재원") === "재원");
     if (selectedCampus === "All") return list.length;
     return list.filter((s) => s.campus === selectedCampus).length;
-  }, [mergedStudents, selectedCampus]);
+  }, [students, selectedCampus]);
   const newInquiryCount = useMemo(() => {
     const list = signups.filter((p) => (p.status || "waiting") !== "enrolled");
     if (selectedCampus === "All") return list.length;
@@ -134,29 +143,25 @@ export default function AdminHome() {
   }, [signups, selectedCampus]);
 
   const todaysAbsences = useMemo(() => {
-    try {
-      const raw = localStorage.getItem("portal_requests");
-      const list: PortalRequest[] = raw ? JSON.parse(raw) : [];
-      const today = new Date();
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, "0");
-      const d = String(today.getDate()).padStart(2, "0");
-      const todayStr = `${y}-${m}-${d}`;
-      const inRange = (start: string, end?: string) => {
-        if (!start) return false;
-        if (end && end >= start) {
-          return todayStr >= start && todayStr <= end;
-        }
-        return todayStr === start;
-      };
-      const childCampusMap: Record<string, CampusType | "Atheneum"> = { c1: "International", c2: "Andover", c3: "Platz" };
-      const arr = list.filter((r) => r.type === "absence" && inRange(r.dateStart, r.dateEnd));
-      if (selectedCampus === "All") return arr.length;
-      return arr.filter((r) => childCampusMap[r.childId] === selectedCampus).length;
-    } catch {
-      return 0;
-    }
-  }, [selectedCampus, recentRequests]);
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    const todayStr = `${y}-${m}-${d}`;
+    const inRange = (start?: string, end?: string) => {
+      if (!start) return false;
+      if (end && end >= start) {
+        return todayStr >= start && todayStr <= end;
+      }
+      return todayStr === start;
+    };
+    const arr = absenceRequests.filter((r: any) => {
+      const payload = r?.payload || {};
+      return r?.type === "absence" && inRange(payload?.dateStart, payload?.dateEnd);
+    });
+    if (selectedCampus === "All") return arr.length;
+    return arr.filter((r: any) => (r?.students?.campus as CampusType | "Atheneum") === selectedCampus).length;
+  }, [selectedCampus, absenceRequests]);
 
   const attendanceRate = useMemo(() => {
     if (!totalStudents) return "—";
@@ -167,12 +172,7 @@ export default function AdminHome() {
 
   const stats = {
     newRequests: filteredRequests.length,
-    activeNotices: (
-      (selectedCampus === 'All'
-        ? dashboardNotices
-        : dashboardNotices.filter(n => n.campus === selectedCampus)
-      ).filter(n => !n.isArchived).length
-    ),
+    activeNotices: posts.filter(p => p.is_pinned).length,
     totalStudents,
     newInquiries: newInquiryCount,
     attendance: attendanceRate,
@@ -196,43 +196,9 @@ export default function AdminHome() {
       setPosts(sorted);
     };
     load();
+    const timer = setInterval(load, 12000);
+    return () => clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("frage_notices");
-      const dyn = raw ? JSON.parse(raw) : [];
-      const mapped = Array.isArray(dyn)
-        ? dyn.map((d: any) => ({
-            id: d.id,
-            title: d.title,
-            date: d.date,
-            category: d.category,
-            campus: d.campus,
-            summary: d.summary,
-            content: [],
-            isPinned: false,
-            isArchived: false,
-            viewCount: d.viewCount || 0
-          }))
-        : [];
-      const ov = JSON.parse(localStorage.getItem("frage_notice_overrides") || "{}");
-      setNoticeOverrides(ov);
-      const base = [...mapped, ...notices].map(n => ({
-        ...n,
-        isPinned: ov[n.id]?.isPinned ?? n.isPinned,
-        isArchived: ov[n.id]?.isArchived ?? n.isArchived
-      }));
-      setDashboardNotices(base);
-    } catch {
-      setDashboardNotices(notices as any[]);
-    }
-  }, []);
-
-  const pinnedDashboardNotices = useMemo(
-    () => dashboardNotices.filter(n => n.isPinned && !n.isArchived).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [dashboardNotices]
-  );
 
   const pinnedCount = posts.filter(p => p.is_pinned).length;
   const updatePin = async (id: number, nextPinned: boolean, nextOrder?: number) => {
