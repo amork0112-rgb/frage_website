@@ -19,6 +19,7 @@ export default function PortalPage() {
   const [showPw, setShowPw] = useState(false);
   const [pwTimer, setPwTimer] = useState<NodeJS.Timeout | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [resetInfo, setResetInfo] = useState<string | null>(null);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +44,25 @@ export default function PortalPage() {
         setLoading(false);
       }
     })();
+  };
+
+  const handleForgotPassword = async () => {
+    try {
+      const email = id.trim() || (typeof window !== "undefined" ? window.prompt("이메일을 입력해 주세요") || "" : "");
+      if (!email) return;
+      const redirect =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/reset-password`
+          : "https://www.frage.co.kr/auth/reset-password";
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirect });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      setResetInfo("비밀번호 재설정 메일을 발송했습니다. 이메일을 확인해 주세요.");
+    } catch {
+      setError("재설정 요청 중 문제가 발생했습니다.");
+    }
   };
 
   useEffect(() => {
@@ -153,15 +173,24 @@ export default function PortalPage() {
                       {error}
                     </div>
                   )}
+                  {resetInfo && (
+                    <div className="text-sm bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl px-4 py-3">
+                      {resetInfo}
+                    </div>
+                  )}
                   
                   <div className="flex items-center justify-between text-sm">
                     <label className="flex items-center gap-2 cursor-pointer text-frage-gray hover:text-frage-navy transition-colors">
                       <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-frage-blue focus:ring-frage-blue" />
                       {t.portal.auto_login}
                     </label>
-                    <a href="#" className="text-frage-gray hover:text-frage-blue transition-colors font-medium">
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      className="text-frage-gray hover:text-frage-blue transition-colors font-medium"
+                    >
                       {t.portal.forgot}
-                    </a>
+                    </button>
                   </div>
 
                   <button 

@@ -206,7 +206,7 @@ export const translations = {
       login_placeholder_pw: "비밀번호",
       login_btn: "로그인",
       auto_login: "자동 로그인",
-      forgot: "아이디/비밀번호 찾기",
+      forgot: "비밀번호 찾기",
       signup_desc: "계정이 없으신가요?",
       signup: "회원가입",
       cta_primary: "포털 바로가기",
