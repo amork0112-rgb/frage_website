@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase/server";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -21,11 +22,13 @@ export async function GET(req: Request) {
       const { data } = await supabase.auth.getUser();
       const uid = data?.user?.id || null;
       if (uid) {
-        const { data: prof } = await (supabase as any)
+        const { data: prof } = await (supabaseServer as any)
           .from("profiles")
-          .select("campus")
+          .select("role,campus")
           .eq("id", uid)
           .maybeSingle();
+        const role = prof?.role ? String(prof.role) : "";
+        if (role !== "parent") return json({ error: "forbidden" }, 403);
         campusVal = prof?.campus ? String(prof.campus) : null;
       }
     } catch {}

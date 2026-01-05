@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase/server";
 
 export async function GET(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return NextResponse.json({ items: [] }, { status: 401 });
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "parent") return NextResponse.json({ items: [] }, { status: 403 });
     const { searchParams } = new URL(req.url);
     const studentId = String(searchParams.get("studentId") || "");
     if (!studentId) return NextResponse.json({ items: [] }, { status: 200 });
 
-    const { data: studentRows } = await supabase
+    const { data: studentRows } = await supabaseServer
       .from("students")
       .select("*")
       .eq("id", studentId)
@@ -18,19 +24,19 @@ export async function GET(req: Request) {
     const cls = String(student.class_name ?? student.className ?? "");
     const camp = String(student.campus ?? "");
 
-    const { data: assignments } = await supabase
+    const { data: assignments } = await supabaseServer
       .from("video_assignments")
       .select("*")
       .eq("class_name", cls)
       .eq("campus", camp)
       .order("due_date", { ascending: true });
 
-    const { data: submissions } = await supabase
+    const { data: submissions } = await supabaseServer
       .from("portal_video_submissions")
       .select("*")
       .eq("student_id", studentId);
 
-    const { data: feedbacks } = await supabase
+    const { data: feedbacks } = await supabaseServer
       .from("portal_video_feedback")
       .select("*")
       .eq("student_id", studentId);
@@ -58,7 +64,7 @@ export async function GET(req: Request) {
       let signedUrl: string | null = null;
       const vp = sub?.video_path || null;
       if (vp) {
-        const res = (supabase as any).storage.from("student-videos").createSignedUrl(vp, 60);
+        const res = (supabaseServer as any).storage.from("student-videos").createSignedUrl(vp, 60);
         signedUrl = res?.data?.signedUrl || null;
       }
       return {

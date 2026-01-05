@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Video, Bell, MessageCircle, User, LogOut, FileText } from "lucide-react";
+import { Home, Video, Bell, MessageCircle, User, LogOut, FileText, Calendar } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 
@@ -50,6 +50,7 @@ export default function PortalHeader() {
     { name: "홈", href: "/portal/home", icon: Home },
     { name: "영상 과제", href: "/portal/video", icon: Video },
     { name: "월간 리포트", href: "/portal/report", icon: FileText },
+    { name: "학사일정", href: "/calendar", icon: Calendar },
     { name: "공지사항", href: "/portal/notices", icon: Bell },
     { name: "요청 전달", href: "/portal/requests", icon: MessageCircle },
     { name: "내 자녀", href: "/portal/child", icon: User },

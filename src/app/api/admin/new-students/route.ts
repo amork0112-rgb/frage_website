@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase/server";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -9,18 +10,23 @@ const json = (data: any, status = 200) =>
 
 export async function GET() {
   try {
-    const { data: students, error: e1 } = await (supabase as any)
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return json({ error: "unauthorized" }, 401);
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
+    const { data: students, error: e1 } = await (supabaseServer as any)
       .from("new_students")
       .select("*")
       .order("created_at", { ascending: false });
     if (e1) return json({ error: "students_fetch_failed" }, 500);
 
-    const { data: checkRows, error: e2 } = await (supabase as any)
+    const { data: checkRows, error: e2 } = await (supabaseServer as any)
       .from("new_student_checklists")
       .select("*");
     if (e2) return json({ error: "checklists_fetch_failed" }, 500);
 
-    const { data: reservations, error: e3 } = await (supabase as any)
+    const { data: reservations, error: e3 } = await (supabaseServer as any)
       .from("student_reservations")
       .select("student_id,slot_id");
     if (e3) return json({ error: "reservations_fetch_failed" }, 500);
@@ -28,7 +34,7 @@ export async function GET() {
     const slotIds: string[] = Array.isArray(reservations)
       ? reservations.map((r: any) => String(r.slot_id || "")).filter(Boolean)
       : [];
-    const { data: slots, error: e4 } = await (supabase as any)
+    const { data: slots, error: e4 } = await (supabaseServer as any)
       .from("consultation_slots")
       .select("id,date,time")
       .in("id", slotIds);
@@ -76,6 +82,11 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return json({ error: "unauthorized" }, 401);
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const studentId = String(body.studentId || "");
     const key = String(body.key || "");
@@ -84,20 +95,20 @@ export async function PUT(req: Request) {
     const checked_by = body.checked_by ?? null;
     if (!studentId || !key) return json({ error: "missing" }, 400);
 
-    const { data: exists } = await (supabase as any)
+    const { data: exists } = await (supabaseServer as any)
       .from("new_student_checklists")
       .select("*")
       .eq("student_id", studentId)
       .eq("key", key);
 
     if (Array.isArray(exists) && exists.length > 0) {
-      await (supabase as any)
+      await (supabaseServer as any)
         .from("new_student_checklists")
         .update({ checked, checked_at, checked_by })
         .eq("student_id", studentId)
         .eq("key", key);
     } else {
-      await (supabase as any)
+      await (supabaseServer as any)
         .from("new_student_checklists")
         .insert([{ student_id: studentId, key, checked, checked_at, checked_by }]);
     }
@@ -110,13 +121,18 @@ export async function PUT(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return json({ error: "unauthorized" }, 401);
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const action = String(body.action || "");
     if (action === "update_status") {
       const studentId = String(body.studentId || "");
       const status = String(body.status || "");
       if (!studentId || !status) return json({ error: "missing" }, 400);
-      await (supabase as any)
+      await (supabaseServer as any)
         .from("new_students")
         .update({ status })
         .eq("id", studentId);

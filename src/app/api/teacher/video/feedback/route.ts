@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase/server";
 
 type FeedbackPayload = {
   overall_message: string;
@@ -19,13 +20,18 @@ type AttachMeta = { name: string; size: number; type: string }[];
 
 export async function GET(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return NextResponse.json({ ok: false }, { status: 401 });
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId") || "";
     const assignmentId = searchParams.get("assignmentId") || "";
     if (!studentId || !assignmentId) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
-    const { data } = await supabase
+    const { data } = await supabaseServer
       .from("portal_video_feedback")
       .select("*")
       .eq("student_id", studentId)
@@ -55,6 +61,11 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return NextResponse.json({ ok: false }, { status: 401 });
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const body = await req.json();
     const { studentId, assignmentId, teacherId, feedback, attachments } = body || {};
     if (
@@ -83,7 +94,7 @@ export async function POST(req: Request) {
       updated_at: feedback.updatedAt,
       attachments: Array.isArray(attachments) ? attachments : ([] as AttachMeta),
     };
-    const { error } = await supabase.from("portal_video_feedback").insert(row);
+    const { error } = await (supabaseServer as any).from("portal_video_feedback").insert(row);
     if (error) return NextResponse.json({ ok: false, error: "db_error" }, { status: 500 });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch {

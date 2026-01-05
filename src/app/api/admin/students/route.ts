@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase/server";
 
 type Status = "재원" | "휴원" | "퇴원";
 
@@ -25,7 +26,12 @@ export async function GET(request: Request) {
   const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
   const pageSize = Math.max(parseInt(url.searchParams.get("pageSize") || "200", 10), 1);
   try {
-    const { data, error } = await supabase
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 401 });
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 403 });
+    const { data, error } = await supabaseServer
       .from("students")
       .select("*")
       .order("name", { ascending: true });
@@ -60,6 +66,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return NextResponse.json({ ok: false, inserted: 0 }, { status: 401 });
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return NextResponse.json({ ok: false, inserted: 0 }, { status: 403 });
     const body = await request.json();
     const items: Student[] = Array.isArray(body?.items) ? body.items : [];
     if (!items.length) {
@@ -67,7 +78,7 @@ export async function POST(request: Request) {
     }
     let inserted = 0;
     for (const s of items) {
-      await supabase.from("students").insert({
+      await supabaseServer.from("students").insert({
         id: s.id,
         child_id: s.childId ?? null,
         name: s.name,

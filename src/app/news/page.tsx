@@ -65,10 +65,10 @@ export default function NewsPage() {
 
   return (
     <main className="min-h-screen bg-white pb-20">
-      <section className="bg-white py-16 border-b border-slate-100">
-        <div className="container mx-auto px-6">
+      <section className="bg-slate-50 py-16 border-b border-slate-100">
+        <div className="container mx-auto px-6 text-center">
           <h1 className="text-3xl font-bold text-frage-navy md:text-4xl">News & Notice</h1>
-          <p className="mt-2 text-slate-500">
+          <p className="mt-3 text-slate-600">
             프라게 에듀의 새로운 소식을 전해드립니다.
           </p>
         </div>

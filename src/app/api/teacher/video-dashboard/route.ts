@@ -1,22 +1,28 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase/server";
 
 export async function GET() {
   try {
-    const { data: assignments } = await supabase
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return NextResponse.json({ assignments: [] }, { status: 401 });
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "teacher") return NextResponse.json({ assignments: [] }, { status: 403 });
+    const { data: assignments } = await supabaseServer
       .from("video_assignments")
       .select("*")
       .order("due_date", { ascending: true });
 
-    const { data: submissions } = await supabase
+    const { data: submissions } = await supabaseServer
       .from("portal_video_submissions")
       .select("*");
 
-    const { data: feedbacks } = await supabase
+    const { data: feedbacks } = await supabaseServer
       .from("portal_video_feedback")
       .select("*");
 
-    const { data: students } = await supabase
+    const { data: students } = await supabaseServer
       .from("students")
       .select("*");
 

@@ -61,9 +61,11 @@ export default function AdminTransportPage() {
   const [routeIds, setRouteIds] = useState<Record<RouteKey, string>>({});
 
   const getMyRole = async (): Promise<"admin" | "teacher" | "parent"> => {
-    const { data, error } = await supabase.from("profiles").select("role").single();
-    if (error) throw error;
-    return (data as any).role as "admin" | "teacher" | "parent";
+    const { data } = await supabase.auth.getUser();
+    const uid = data?.user?.id || "";
+    if (!uid) throw new Error("unauthenticated");
+    const { data: prof } = await supabase.from("profiles").select("role").eq("id", uid).maybeSingle();
+    return (prof as any)?.role as "admin" | "teacher" | "parent";
   };
 
   useEffect(() => {

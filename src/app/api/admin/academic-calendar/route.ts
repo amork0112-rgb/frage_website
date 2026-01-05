@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase/server";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -9,6 +10,11 @@ const json = (data: any, status = 200) =>
 
 export async function GET(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return json({ error: "unauthorized" }, 401);
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const { searchParams } = new URL(req.url);
     const y = Number(searchParams.get("year"));
     const m = Number(searchParams.get("month"));
@@ -16,7 +22,7 @@ export async function GET(req: Request) {
     const first = `${y}-${String(m).padStart(2, "0")}-01`;
     const lastDay = new Date(y, m, 0).getDate();
     const last = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-    const { data } = await (supabase as any)
+    const { data } = await (supabaseServer as any)
       .from("academic_calendar")
       .select("*")
       .lte("start_date", last)
@@ -46,6 +52,11 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return json({ error: "unauthorized" }, 401);
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const title = String(body.title || "");
     const type = String(body.type || "");
@@ -59,7 +70,7 @@ export async function POST(req: Request) {
     const notice_link = body.notice_link ? String(body.notice_link) : null;
     if (!title || !type || !start_date || !end_date) return json({ error: "missing" }, 400);
     if (type === "공휴일") {
-      const { data: dup } = await (supabase as any)
+      const { data: dup } = await (supabaseServer as any)
         .from("academic_calendar")
         .select("*")
         .eq("type", "공휴일")
@@ -86,7 +97,7 @@ export async function POST(req: Request) {
       }
     }
     const now = new Date().toISOString();
-    const { data, error } = await (supabase as any)
+    const { data, error } = await (supabaseServer as any)
       .from("academic_calendar")
       .insert({
         title,
@@ -131,6 +142,11 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return json({ error: "unauthorized" }, 401);
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const id = String(body.id || "");
     if (!id) return json({ error: "missing id" }, 400);
@@ -145,7 +161,7 @@ export async function PUT(req: Request) {
     if (body.expose_to_parent !== undefined) patch.expose_to_parent = Boolean(body.expose_to_parent);
     if (body.notify !== undefined) patch.notify = Boolean(body.notify);
     if (body.notice_link !== undefined) patch.notice_link = body.notice_link ? String(body.notice_link) : null;
-    const { data, error } = await (supabase as any)
+    const { data, error } = await (supabaseServer as any)
       .from("academic_calendar")
       .update(patch)
       .eq("id", id)
@@ -178,10 +194,15 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return json({ error: "unauthorized" }, 401);
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const id = String(body.id || "");
     if (!id) return json({ error: "missing id" }, 400);
-    const { error } = await (supabase as any).from("academic_calendar").delete().eq("id", id);
+    const { error } = await (supabaseServer as any).from("academic_calendar").delete().eq("id", id);
     if (error) return json({ error: "delete_failed" }, 500);
     return json({ ok: true });
   } catch (e) {

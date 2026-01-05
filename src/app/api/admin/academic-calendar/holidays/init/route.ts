@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase/server";
 import { getKoreanHolidays } from "@/lib/holidays";
 
 const json = (data: any, status = 200) =>
@@ -10,13 +11,18 @@ const json = (data: any, status = 200) =>
 
 export async function POST(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return json({ error: "unauthorized" }, 401);
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const year = Number(body.year || 0);
     if (!year) return json({ error: "missing_year" }, 400);
     const events = getKoreanHolidays(year);
     let inserted = 0;
     for (const ev of events) {
-      const { data: dup } = await (supabase as any)
+      const { data: dup } = await (supabaseServer as any)
         .from("academic_calendar")
         .select("id")
         .eq("type", "공휴일")
@@ -25,7 +31,7 @@ export async function POST(req: Request) {
       const exists = Array.isArray(dup) && dup.length > 0;
       if (exists) continue;
       const now = new Date().toISOString();
-      const { error } = await (supabase as any)
+      const { error } = await (supabaseServer as any)
         .from("academic_calendar")
         .insert({
           title: ev.title,

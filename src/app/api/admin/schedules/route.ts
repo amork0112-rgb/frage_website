@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase/server";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -15,7 +16,12 @@ export async function GET(req: Request) {
   const start = searchParams.get("rangeStart");
   const end = searchParams.get("rangeEnd");
   try {
-    let query = supabase.from("schedules").select("*");
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return json({ error: "unauthorized" }, 401);
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
+    let query = (supabaseServer as any).from("schedules").select("*");
     if (yearParam && monthParam) {
       const year = Number(yearParam);
       const month = Number(monthParam);
@@ -93,6 +99,11 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return json({ error: "unauthorized" }, 401);
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const date = String(body.date || "");
     const time = String(body.time || "");
@@ -100,7 +111,7 @@ export async function POST(req: Request) {
     const current = Number(body.current ?? 0);
     const isOpen = Boolean(body.isOpen ?? true);
     if (!date || !time) return json({ error: "missing" }, 400);
-    const { data: dupRows } = await supabase
+    const { data: dupRows } = await (supabaseServer as any)
       .from("schedules")
       .select("*")
       .eq("date", date)
@@ -121,7 +132,7 @@ export async function POST(req: Request) {
       }, 200);
     }
     const now = new Date().toISOString();
-    const { data, error } = await supabase
+    const { data, error } = await (supabaseServer as any)
       .from("schedules")
       .insert({
         date,
@@ -155,6 +166,11 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return json({ error: "unauthorized" }, 401);
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const id = String(body.id || "");
     if (!id) return json({ error: "missing id" }, 400);
@@ -171,7 +187,7 @@ export async function PUT(req: Request) {
       const dateVal = patch.date ?? undefined;
       const timeVal = patch.time ?? undefined;
       if (dateVal && timeVal) {
-        const { data: dupRows } = await supabase
+        const { data: dupRows } = await (supabaseServer as any)
           .from("schedules")
           .select("*")
           .eq("date", dateVal)
@@ -194,7 +210,7 @@ export async function PUT(req: Request) {
         }
       }
     }
-    const { data, error } = await supabase
+    const { data, error } = await (supabaseServer as any)
       .from("schedules")
       .update(patch)
       .eq("id", id)
@@ -219,10 +235,15 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id || "";
+    if (!uid) return json({ error: "unauthorized" }, 401);
+    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const id = String(body.id || "");
     if (!id) return json({ error: "missing id" }, 400);
-    const { error } = await supabase.from("schedules").delete().eq("id", id);
+    const { error } = await (supabaseServer as any).from("schedules").delete().eq("id", id);
     if (error) return json({ error: "delete_failed" }, 500);
     return json({ ok: true });
   } catch {
