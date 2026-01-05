@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseServer, supabaseServerReady } from "@/lib/supabase/server";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -14,7 +14,13 @@ export async function GET() {
     const uid = auth?.user?.id || "";
     if (!uid) return json({ error: "unauthorized" }, 401);
     const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
+    const role = String(prof?.role || "");
+    if (supabaseServerReady) {
+      if (!prof || (role !== "admin" && role !== "teacher")) return json({ error: "forbidden" }, 403);
+    }
+    if (!supabaseServerReady) {
+      return json({ items: [], checklists: {}, reservations: {} });
+    }
     const { data: students, error: e1 } = await (supabaseServer as any)
       .from("new_students")
       .select("*")
@@ -70,8 +76,14 @@ export async function GET() {
       };
     });
 
+    const list = Array.isArray(students) ? students : [];
+    const filtered =
+      role === "teacher"
+        ? list.filter((s: any) => s.status === "waiting" || s.status === "enrolled")
+        : list.filter((s: any) => s.status !== "draft");
+
     return json({
-      items: Array.isArray(students) ? students : [],
+      items: filtered,
       checklists,
       reservations: reservationsMap,
     });
@@ -128,15 +140,14 @@ export async function POST(req: Request) {
     if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const action = String(body.action || "");
-    if (action === "update_status") {
-      const studentId = String(body.studentId || "");
-      const status = String(body.status || "");
-      if (!studentId || !status) return json({ error: "missing" }, 400);
-      await (supabaseServer as any)
-        .from("new_students")
-        .update({ status })
-        .eq("id", studentId);
-      return json({ ok: true });
+    if (action === "approve") {
+      const newStudentId = String(body.studentId || "");
+      if (!newStudentId) return json({ error: "missing" }, 400);
+      const { error: rpcErr } = await (supabaseServer as any).rpc("approve_enrollment", {
+        new_student_id: newStudentId,
+      });
+      if (rpcErr) return json({ error: "approve_failed", details: rpcErr?.message }, 500);
+      return json({ ok: true, approved: true });
     }
     return json({ error: "unsupported" }, 400);
   } catch {

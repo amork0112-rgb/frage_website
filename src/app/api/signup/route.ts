@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseServer } from "@/lib/supabase/server";
 
-// ✅ 서버 전용 Supabase (service role)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = supabaseServer;
 
 export async function POST(request: Request) {
   try {
@@ -113,24 +109,29 @@ export async function POST(request: Request) {
     }
 
     /* -------------------------
-       4️⃣ new_students 생성
+       4️⃣ 기존 draft → waiting 전환 (RPC)
     -------------------------- */
-    const { error: studentError } = await supabase
+    const { data: draftRow } = await supabase
       .from("new_students")
-      .insert({
-        student_name: studentName,
-        gender,
-        parent_name: parentName,
-        phone,
-        campus,
-        parent_id: parentId, // ⭐ 핵심 연결
-        status: "waiting",
-        created_by: authUserId,
-      });
-
-    if (studentError) {
+      .select("id,status")
+      .eq("parent_id", parentId)
+      .eq("status", "draft")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const draft = Array.isArray(draftRow) && draftRow.length > 0 ? draftRow[0] : null;
+    if (!draft?.id) {
       return NextResponse.json(
-        { ok: false, error: "new_students 생성 실패" },
+        { ok: false, error: "no_draft_found" },
+        { status: 400 }
+      );
+    }
+    const { error: rpcErr } = await supabase.rpc("draft_to_waiting", {
+      new_student_id: draft.id,
+      student_name: studentName,
+    });
+    if (rpcErr) {
+      return NextResponse.json(
+        { ok: false, error: "rpc_failed", details: rpcErr.message },
         { status: 500 }
       );
     }

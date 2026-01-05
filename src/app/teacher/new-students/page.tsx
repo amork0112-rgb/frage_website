@@ -138,23 +138,20 @@ export default function TeacherNewStudentsPage() {
           const { data } = await supabase.auth.getUser();
           setTeacherId(data?.user?.id || null);
         }
-        const { data } = await supabase
-          .from("signup_requests")
-          .select("*")
-          .order("created_at", { ascending: false });
-        const mapped: StudentProfile[] = Array.isArray(data)
-          ? data.map((r: any) => ({
-              id: String(r.id),
-              studentName: String(r.studentName || r.childName || ""),
-              gender: String(r.gender || ""),
-              parentName: String(r.parentName || ""),
-              phone: String(r.phone || ""),
-              campus: String(r.campus || ""),
-              createdAt: String(r.created_at || ""),
-              status: String(r.status || "waiting"),
-              memo: String(r.memo || ""),
-            }))
-          : [];
+        const res = await fetch("/api/admin/new-students", { cache: "no-store" });
+        const all = await res.json();
+        const items = Array.isArray(all?.items) ? all.items : [];
+        const mapped: StudentProfile[] = items.map((r: any) => ({
+          id: String(r.id),
+          studentName: String(r.studentName ?? r.student_name ?? r.name ?? ""),
+          gender: String(r.gender ?? ""),
+          parentName: String(r.parentName ?? r.parent_name ?? ""),
+          phone: String(r.phone ?? ""),
+          campus: String(r.campus ?? ""),
+          createdAt: String(r.createdAt ?? r.created_at ?? ""),
+          status: String(r.status ?? "waiting"),
+          memo: String(r.memo ?? ""),
+        }));
         setStudents(mapped);
         try {
           const res = await fetch("/api/admin/new-students", { cache: "no-store" });
@@ -310,24 +307,7 @@ export default function TeacherNewStudentsPage() {
         }
       }
       if (stepKey === "docs_submitted") {
-        try {
-          const prof = students.find((s) => s.id === studentId) || null;
-          await supabase.from("signup_requests").update({ status: "enrolled" }).eq("id", studentId);
-          if (prof) {
-            const item = {
-              id: `signup_${(prof.phone || "").replace(/[^0-9a-zA-Z]/g, "")}`,
-              name: String(prof.studentName || ""),
-              phone: String(prof.phone || ""),
-              className: "미배정",
-              campus: String(prof.campus || "미지정"),
-              status: "재원",
-              parentName: String(prof.parentName || ""),
-              bus: "미배정",
-              departureTime: ""
-            };
-            await supabase.from("students").insert(item);
-          }
-        } catch {}
+        alert("입학 서류 제출 확인되었습니다. 승인은 관리자 페이지에서 처리됩니다.");
       }
       if (stepKey === "band_invite") {
          const today = new Date();
@@ -433,10 +413,41 @@ export default function TeacherNewStudentsPage() {
                           <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                             {student.campus || "미지정"}
                           </span>
-                          {student.id.startsWith("manual_") && (
-                            <span className="text-[10px] font-bold text-white bg-slate-400 px-1.5 py-0.5 rounded">
-                              대기
-                            </span>
+                          {(() => {
+                            const st = student.status || "waiting";
+                            const enrolled = st === "enrolled" || st === "재원";
+                            return (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${enrolled ? "text-white bg-green-600" : "text-white bg-slate-400"}`}>
+                                {st}
+                              </span>
+                            );
+                          })()}
+                          {student.status === "waiting" && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  const res = await fetch("/api/admin/new-students", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ action: "approve", studentId: student.id })
+                                  });
+                                  if (res.ok) {
+                                    setStudents(prev => prev.map(s => s.id === student.id ? { ...s, status: "enrolled" } : s));
+                                    alert("✅ 등록 승인이 완료되었습니다.");
+                                  } else if (res.status === 403) {
+                                    alert("권한이 없습니다. 관리자에게 요청해 주세요.");
+                                  } else {
+                                    alert("등록 승인 중 오류가 발생했습니다.");
+                                  }
+                                } catch {
+                                  alert("등록 승인 중 오류가 발생했습니다.");
+                                }
+                              }}
+                              className="text-[11px] font-bold px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+                            >
+                              등록 승인
+                            </button>
                           )}
                         </div>
                         <div className="text-sm text-slate-500 font-medium mt-0.5">

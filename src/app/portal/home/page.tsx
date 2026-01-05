@@ -138,13 +138,14 @@ export default function ParentPortalHome() {
           return;
         }
         setStudentId(user.id);
-        const { data: rows } = await supabase
-          .from("parents")
-          .select("*")
-          .eq("auth_user_id", user.id)
-          .limit(1);
-        const parent = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-        if (!parent) {
+        const { data: studentRows } = await supabase
+          .from("students")
+          .select("id")
+          .eq("parent_auth_user_id", user.id);
+        const hasStudents = Array.isArray(studentRows) && studentRows.length > 0;
+        if (hasStudents) {
+          setStudentStatus("enrolled");
+        } else {
           setStudentStatus("new");
           setNewStudentProfile({ id: user.id, studentName: "", englishFirstName: "" });
           const loadAll = async () => {
@@ -159,9 +160,6 @@ export default function ParentPortalHome() {
           loadAll();
           const m = new Date();
           ensureDefaultWeekdaySlotsForMonth(new Date(m.getFullYear(), m.getMonth(), 1));
-          return () => {};
-        } else {
-          setStudentStatus("enrolled");
         }
       } catch (e) {
         console.error(e);

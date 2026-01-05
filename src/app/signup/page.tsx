@@ -200,19 +200,33 @@ export default function SignupPage() {
           return;
         }
         const now = new Date().toISOString();
-        const { error: dbError } = await supabase
+        const { data: parentRow, error: dbError } = await supabase
           .from("parents")
           .insert({
             auth_user_id: userId,
             name: formData.parentName.trim(),
             phone: formData.phone.trim(),
+            campus: formData.campus,
             created_at: now,
-          });
-        if (dbError) {
-          setErrorMessage(`회원 정보 저장 오류: ${dbError.message}`);
+          })
+          .select("id")
+          .single();
+        if (dbError || !parentRow?.id) {
+          setErrorMessage(`회원 정보 저장 오류: ${dbError?.message || "보호자 정보 생성 실패"}`);
           alert("회원 정보 저장 중 오류가 발생했습니다.");
           setLoading(false);
           return;
+        }
+
+        const { error: draftErr } = await supabase.rpc("create_draft_student", {
+          parent_id: parentRow.id,
+          parent_name: formData.parentName.trim(),
+          phone: formData.phone.trim(),
+          campus: formData.campus,
+        });
+        if (draftErr) {
+          console.error(draftErr);
+          alert("신규 학생 임시 등록(draft) 생성 중 오류가 발생했습니다. 관리자에게 문의해 주세요.");
         }
         alert("회원가입이 완료되었습니다!");
         router.push("/portal/home");

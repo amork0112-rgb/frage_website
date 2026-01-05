@@ -514,38 +514,7 @@ export default function AdminNewStudentsPage() {
         alert("✅ 밴드 초대 링크가 발송되었습니다. (입학 전날 원칙 준수 요망)");
       }
       if (stepKey === "docs_submitted") {
-        try {
-          await fetch("/api/admin/new-students", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "update_status", studentId, status: "enrolled" }),
-          });
-          const prof = students.find((p: any) => p.id === studentId) || null;
-          if (prof) {
-            const item = {
-              id: `signup_${(prof.phone || "").replace(/[^0-9a-zA-Z]/g, "")}`,
-              childId: undefined,
-              name: String(prof.studentName || ""),
-              englishName: String(prof.englishFirstName || prof.passportEnglishName || ""),
-              birthDate: String(prof.childBirthDate || ""),
-              phone: String(prof.phone || ""),
-              className: "미배정",
-              campus: String(prof.campus || "미지정"),
-              status: "재원",
-              parentName: String(prof.parentName || ""),
-              parentAccountId: String(prof.id || ""),
-              address: [String(prof.address || ""), String(prof.addressDetail || "")].filter(Boolean).join(" "),
-              bus: "미배정",
-              departureTime: ""
-            };
-            fetch("/api/admin/students", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ items: [item] })
-            }).catch(() => {});
-            alert("✅ 입학 서류 완료 처리 • 원생 관리에 등록되었습니다.");
-          }
-        } catch {}
+        alert("입학 서류 제출 확인되었습니다. 승인은 '등록 승인' 버튼으로 처리하세요.");
       }
     }
   };
@@ -786,9 +755,36 @@ export default function AdminNewStudentsPage() {
                         const st = student.status || (student.id.startsWith("manual_") ? "대기" : "대기");
                         const enrolled = st === "enrolled" || st === "재원";
                         return (
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${enrolled ? "text-white bg-green-600" : "text-white bg-slate-400"}`}>
-                            {st}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${enrolled ? "text-white bg-green-600" : "text-white bg-slate-400"}`}>
+                              {st}
+                            </span>
+                            {!enrolled && st === "waiting" && (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    const res = await fetch("/api/admin/new-students", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ action: "approve", studentId: student.id })
+                                    });
+                                    if (res.ok) {
+                                      setStudents(prev => prev.map(s => s.id === student.id ? { ...s, status: "enrolled" } : s));
+                                      alert("✅ 등록 승인이 완료되었습니다.");
+                                    } else {
+                                      alert("등록 승인 중 오류가 발생했습니다.");
+                                    }
+                                  } catch {
+                                    alert("등록 승인 중 오류가 발생했습니다.");
+                                  }
+                                }}
+                                className="text-[11px] font-bold px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+                              >
+                                등록 승인
+                              </button>
+                            )}
+                          </div>
                         );
                       })()}
                       {reservedText && (

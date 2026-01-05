@@ -25,6 +25,7 @@ export default function Header() {
     { name: t.nav.programs, href: "/programs" },
     { name: t.nav.campuses, href: "/campuses" },
     { name: t.nav.admissions, href: "/admissions" },
+    { name: "학사일정", href: "/calendar" },
     { name: t.nav.news, href: "/news" },
   ];
 

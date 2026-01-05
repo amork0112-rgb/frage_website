@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseServer, supabaseServerReady } from "@/lib/supabase/server";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -28,7 +29,7 @@ export async function GET(req: Request) {
           .eq("id", uid)
           .maybeSingle();
         const role = prof?.role ? String(prof.role) : "";
-        if (role !== "parent") return json({ error: "forbidden" }, 403);
+        if (supabaseServerReady && role !== "parent") return json({ error: "forbidden" }, 403);
         campusVal = prof?.campus ? String(prof.campus) : null;
       }
     } catch {}
