@@ -37,9 +37,8 @@ export default function AdminHeader() {
     { name: "공지사항", href: "/admin/notices", icon: Bell },
     { name: "학사일정", href: "/admin/academic-calendar", icon: Calendar },
     { name: "요청 관리", href: "/admin/requests", icon: MessageSquare },
-    { name: "이탈 시그널", href: "/admin/alerts", icon: AlertCircle },
     { name: "원생 관리", href: "/admin/students", icon: Users },
-    { name: "반 관리", href: "/admin/classes", icon: GraduationCap },
+    { name: "차량 관리", href: "/admin/transport", icon: Bus },
   ];
 
   const handleLogout = () => {
@@ -117,6 +116,17 @@ export default function AdminHeader() {
                       >
                         <GraduationCap className="w-4 h-4" />
                         반 시간 관리
+                      </Link>
+                      <Link
+                        role="menuitem"
+                        href="/admin/alerts"
+                        className={`flex items-center gap-2 px-3 py-2 text-sm font-bold ${
+                          pathname.startsWith("/admin/alerts") ? "text-frage-orange bg-slate-800" : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                        }`}
+                        onClick={() => setIsStudentsMenuOpen(false)}
+                      >
+                        <AlertCircle className="w-4 h-4" />
+                        이탈 시그널
                       </Link>
                       <Link
                         role="menuitem"

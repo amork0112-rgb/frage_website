@@ -1,0 +1,135 @@
+import { NextResponse } from "next/server";
+import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+
+type ClassRow = {
+  id: string;
+  name: string;
+  campus: string;
+  default_pickup_slot?: string | null;
+  default_dropoff_slot?: string | null;
+  has_transport?: boolean;
+};
+
+type ClassScheduleRow = {
+  id: string;
+  class_id: string;
+  start_time: string;
+  end_time: string;
+  dajim_end_time?: string | null;
+  created_at?: string;
+};
+
+function json(data: any, status = 200) {
+  return new NextResponse(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+async function requireAdmin(supabaseAuth: any) {
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { error: json({ error: "unauthorized" }, 401) };
+  const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", user.id).maybeSingle();
+  if (!prof || String(prof.role) !== "admin") return { error: json({ error: "forbidden" }, 403) };
+  return { user };
+}
+
+export async function GET(req: Request) {
+  try {
+    const supabaseAuth = createSupabaseServer();
+    const guard = await requireAdmin(supabaseAuth);
+    if (guard.error) return guard.error;
+
+    const { data: classesData, error: classesErr } = await supabaseServer
+      .from("classes")
+      .select("*")
+      .order("name", { ascending: true });
+    if (classesErr) return json({ items: [] }, 500);
+    const classes = Array.isArray(classesData) ? classesData : [];
+
+    const { data: schedData, error: schedErr } = await supabaseServer
+      .from("class_schedules")
+      .select("*");
+    if (schedErr) return json({ items: [] }, 500);
+    const schedules = Array.isArray(schedData) ? schedData : [];
+
+    const items = classes.map((c: any) => {
+      const sched = schedules.filter((s: any) => String(s.class_id) === String(c.id));
+      return {
+        id: String(c.id),
+        name: String(c.name ?? ""),
+        campus: String(c.campus ?? "All"),
+        default_pickup_slot: c.default_pickup_slot ?? null,
+        default_dropoff_slot: c.default_dropoff_slot ?? null,
+        has_transport: Boolean(c.has_transport ?? false),
+        schedules: sched.map((s: any) => ({
+          id: String(s.id),
+          class_id: String(s.class_id),
+          start_time: String(s.start_time ?? ""),
+          end_time: String(s.end_time ?? ""),
+          dajim_end_time: s.dajim_end_time ?? null,
+          created_at: s.created_at ? String(s.created_at) : undefined,
+        })),
+      };
+    });
+
+    return json({ items }, 200);
+  } catch (e) {
+    console.error(e);
+    return json({ items: [] }, 500);
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const supabaseAuth = createSupabaseServer();
+    const guard = await requireAdmin(supabaseAuth);
+    if (guard.error) return guard.error;
+
+    const body = await req.json();
+    const name = String(body?.name || "");
+    const campus = String(body?.campus || "All");
+    const default_pickup_slot = body?.default_pickup_slot ?? null;
+    const default_dropoff_slot = body?.default_dropoff_slot ?? null;
+    const has_transport = Boolean(body?.has_transport ?? false);
+    const schedule = body?.schedule || null;
+
+    if (!name) return json({ error: "missing_name" }, 400);
+
+    const { data: insertedClass, error: insertErr } = await supabaseServer
+      .from("classes")
+      .insert({
+        name,
+        campus,
+        default_pickup_slot,
+        default_dropoff_slot,
+        has_transport,
+      })
+      .select()
+      .maybeSingle();
+    if (insertErr || !insertedClass) return json({ error: "class_insert_failed" }, 500);
+
+    let createdSchedule: any = null;
+    if (schedule && schedule.start_time && schedule.end_time) {
+      const now = new Date().toISOString();
+      const { data: schedRow, error: schedInsertErr } = await supabaseServer
+        .from("class_schedules")
+        .insert({
+          class_id: insertedClass.id,
+          start_time: String(schedule.start_time),
+          end_time: String(schedule.end_time),
+          dajim_end_time: schedule.dajim_end_time ?? null,
+          created_at: now,
+        })
+        .select()
+        .maybeSingle();
+      if (schedInsertErr) return json({ error: "schedule_insert_failed", class: insertedClass }, 500);
+      createdSchedule = schedRow;
+    }
+
+    return json({ ok: true, class: insertedClass, schedule: createdSchedule }, 200);
+  } catch (e) {
+    console.error(e);
+    return json({ error: "server_error" }, 500);
+  }
+}

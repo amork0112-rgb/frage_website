@@ -26,6 +26,7 @@ export default async function AdminMasterIndex() {
   );
   const { data: { user } } = await supabaseAuth.auth.getUser();
   const uid = user?.id || "";
+  console.log("UID:", uid);
   if (!uid) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -38,6 +39,7 @@ export default async function AdminMasterIndex() {
     );
   }
   const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+  console.log("PROFILE:", prof);
   if (!prof || String(prof.role) !== "master_admin") {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
