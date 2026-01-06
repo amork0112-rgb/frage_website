@@ -37,9 +37,10 @@ export default function AdminTeacherClassesPage() {
   useEffect(() => {
     (async () => {
       try {
-        const jwt = (supabase as any)?.auth?.getJwt?.() || { app_metadata: { role: null } };
-        const roleMeta = jwt?.app_metadata?.role;
-        setRole(roleMeta === "teacher" ? "teacher" : roleMeta === "admin" ? "admin" : null);
+        const { data } = await supabase.auth.getUser();
+        const appRole = (data?.user?.app_metadata as any)?.role ?? null;
+        const mapped = appRole === "admin" ? "admin" : appRole === "teacher" ? "teacher" : null;
+        setRole(mapped);
       } catch {
         setRole(null);
       }
@@ -111,10 +112,13 @@ export default function AdminTeacherClassesPage() {
     setAssign(map);
     (async () => {
       try {
-        await supabase.from("teacher_classes").delete().eq("teacher_id", Number(id));
+        await supabase
+        .from("teacher_classes")
+        .delete()
+        .eq("teacher_id", id);
         if (uniq.length > 0) {
           await supabase.from("teacher_classes").insert(
-            uniq.map(c => ({ teacher_id: Number(id), class_name: c }))
+            uniq.map(c => ({ teacher_id: id, class_name: c }))
           );
         }
       } catch {
@@ -139,6 +143,7 @@ export default function AdminTeacherClassesPage() {
   };
 
   const isAllowed = role === "admin";
+  const canEdit = role === "admin";
   if (!isAllowed) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-20">
@@ -212,6 +217,7 @@ export default function AdminTeacherClassesPage() {
                           value={addSelect[t.id] || ""}
                           onChange={(e) => setAddSelect(prev => ({ ...prev, [t.id]: e.target.value }))}
                           className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                          disabled={!canEdit}
                         >
                           <option value="">선택</option>
                           {classes.map(c => (
@@ -223,10 +229,12 @@ export default function AdminTeacherClassesPage() {
                           onChange={(e) => setAddInput(prev => ({ ...prev, [t.id]: e.target.value }))}
                           placeholder="직접 입력"
                           className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                          disabled={!canEdit}
                         />
                         <button
                           onClick={() => addClass(t.id)}
-                          className="px-3 py-2 rounded-lg bg-frage-navy text-white text-sm font-bold"
+                          className={`px-3 py-2 rounded-lg text-sm font-bold ${canEdit ? "bg-frage-navy text-white" : "bg-slate-200 text-slate-500 cursor-not-allowed"}`}
+                          disabled={!canEdit}
                         >
                           추가
                         </button>
@@ -237,7 +245,8 @@ export default function AdminTeacherClassesPage() {
                             {c}
                             <button
                               onClick={() => removeClass(t.id, c)}
-                              className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center"
+                              className={`w-5 h-5 rounded-full flex items-center justify-center ${canEdit ? "bg-slate-200 text-slate-600" : "bg-slate-100 text-slate-300 cursor-not-allowed"}`}
+                              disabled={!canEdit}
                               aria-label="remove"
                             >
                               ×
@@ -256,7 +265,8 @@ export default function AdminTeacherClassesPage() {
                   <td className="p-4 text-center">
                     <button
                       onClick={() => saveOne(t.id, assign[t.id] || [])}
-                      className="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-frage-navy text-white"
+                      className={`inline-flex items-center justify-center px-3 py-2 rounded-lg ${canEdit ? "bg-frage-navy text-white" : "bg-slate-200 text-slate-500 cursor-not-allowed"}`}
+                      disabled={!canEdit}
                       aria-label="저장"
                     >
                       <Save className="w-4 h-4" />

@@ -29,15 +29,14 @@ export async function GET(req: Request) {
           .select("role,campus")
           .eq("id", uid)
           .maybeSingle();
-        const role = prof?.role ? String(prof.role) : "";
-        if (supabaseServerReady && role !== "parent") return json({ error: "forbidden" }, 403);
         campusVal = prof?.campus ? String(prof.campus) : null;
       }
     } catch {}
     if (campusParam && typeof campusParam === "string") {
       campusVal = String(campusParam);
     }
-    let q = (supabase as any)
+    const db = supabaseServerReady ? (supabaseServer as any) : (supabase as any);
+    let q = db
       .from("academic_calendar")
       .select("*")
       .eq("expose_to_parent", true)
