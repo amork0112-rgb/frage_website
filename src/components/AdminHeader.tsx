@@ -18,14 +18,19 @@ export default function AdminHeader() {
     (async () => {
       try {
         const { data } = await supabase.auth.getUser();
-        const appRole = (data?.user?.app_metadata as any)?.role ?? null;
-        setRole(appRole);
+        const uid = data?.user?.id || "";
+        if (!uid) {
+          setRole(null);
+          return;
+        }
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", uid).single();
+        setRole(profile?.role ? String(profile.role) : null);
       } catch {}
     })();
   }, []);
 
-  const isTeacher = !!role && ["teacher", "교사"].some((k) => role!.toLowerCase().includes(k));
-  if (isTeacher) return null;
+  const isTeacherOnly = role === "teacher" || role === "master_teacher";
+  if (isTeacherOnly) return null;
 
   const menuItems = [
     { name: "대시보드", href: "/admin/home", icon: Home },
@@ -157,10 +162,24 @@ export default function AdminHeader() {
                      aria-label="관리 메뉴"
                      className="absolute right-0 mt-2 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-lg z-[1200]"
                    >
+                     {role === "master_admin" && (
+                       <>
+                         <Link
+                           role="menuitem"
+                           href="/admin/master"
+                           className={`flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-t-xl ${pathname.startsWith("/admin/master") ? "text-frage-orange bg-slate-800" : "text-slate-300 hover:bg-slate-800 hover:text-white"}`}
+                           onClick={() => setIsSettingsOpen(false)}
+                         >
+                           <Settings className="w-4 h-4" />
+                           Master Admin
+                         </Link>
+                         <div className="h-px bg-slate-800" />
+                       </>
+                     )}
                      <Link
                        role="menuitem"
                        href="/admin/teachers"
-                       className={`flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-t-xl ${pathname.startsWith("/admin/teachers") ? "text-frage-orange bg-slate-800" : "text-slate-300 hover:bg-slate-800 hover:text-white"}`}
+                       className={`flex items-center gap-2 px-3 py-2 text-sm font-bold ${pathname.startsWith("/admin/teachers") ? "text-frage-orange bg-slate-800" : "text-slate-300 hover:bg-slate-800 hover:text-white"}`}
                        onClick={() => setIsSettingsOpen(false)}
                      >
                        <Users className="w-4 h-4" />
@@ -200,6 +219,17 @@ export default function AdminHeader() {
           <div className="fixed inset-0 z-[1050]" onClick={() => setIsMenuOpen(false)} />
           <div className="md:hidden border-t border-slate-800 bg-slate-900 absolute top-full left-0 right-0 shadow-lg z-[1100]">
             <div className="p-2 space-y-1">
+              {role === "master_admin" && (
+                <Link
+                  href="/admin/master"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold ${pathname.startsWith("/admin/master") ? "bg-slate-800 text-frage-orange" : "text-slate-400"}`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Settings className="w-5 h-5" />
+                  Master Admin
+                </Link>
+              )}
+              {role === "master_admin" && <div className="h-px bg-slate-800 my-2"></div>}
               {menuItems.map((item) => (
                 <Link
                   key={item.href}
