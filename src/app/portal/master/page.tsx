@@ -19,7 +19,7 @@ export default function MasterPortalIndex() {
         const ok = !!email && !!masterEmail && email.toLowerCase() === masterEmail.toLowerCase();
         if (ok) {
           setAuthorized(true);
-          router.replace("/portal/master/dashboard");
+          router.replace("/admin/master/dashboard");
         } else {
           setAuthorized(false);
         }
@@ -41,7 +41,7 @@ export default function MasterPortalIndex() {
         <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center max-w-sm">
           <h1 className="text-xl font-black text-slate-900 mb-2">접근 권한 없음</h1>
           <p className="text-slate-500 text-sm mb-6">Master Admin 전용 페이지입니다.</p>
-          <Link href="/portal" className="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-bold">
+          <Link href="/admin" className="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-bold">
             포털 홈으로 이동
           </Link>
         </div>
