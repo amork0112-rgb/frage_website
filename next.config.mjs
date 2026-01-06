@@ -9,6 +9,7 @@ const nextConfig = {
     serverComponentsExternalPackages: ["@supabase/supabase-js", "@supabase/ssr"],
   },
   images: {
+    formats: ["image/webp"],
     remotePatterns: [
       {
         protocol: "https",

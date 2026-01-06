@@ -66,10 +66,13 @@ export default function HomePage() {
       <section className="relative h-screen w-full overflow-hidden bg-frage-purple">
         {/* Background Image/Video Overlay */}
         <div className="absolute inset-0 z-0">
-          <img 
-            src={(pinnedNews[0]?.image_url) || "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2000&auto=format&fit=crop"} 
-            alt="Students Studying Hard" 
-            className="w-full h-full object-cover transform scale-105 animate-slow-zoom opacity-30 mix-blend-overlay"
+          <Image
+            src={(pinnedNews[0]?.image_url) || "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2000&auto=format&fit=crop"}
+            alt="Students Studying Hard"
+            fill
+            className="object-cover transform scale-105 animate-slow-zoom opacity-30 mix-blend-overlay"
+            priority
+            sizes="100vw"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-frage-purple via-transparent to-transparent opacity-80" />
         </div>
@@ -134,10 +137,13 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-12 gap-16 items-center">
             <div className="md:col-span-5 relative">
               <div className="relative z-10 overflow-hidden rounded-[2rem] shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-500">
-                <img 
-                  src="/images/home-classroom.jpg" 
-                  alt="Students Studying in Classroom" 
+                <Image
+                  src="/images/home-classroom.jpg"
+                  alt="Students Studying in Classroom"
+                  width={1200}
+                  height={800}
                   className="w-full h-auto object-cover"
+                  loading="lazy"
                 />
               </div>
               <div className="absolute top-10 -left-10 w-full h-full border-4 border-frage-yellow rounded-[2rem] -z-0 -rotate-2"></div>
@@ -203,7 +209,7 @@ export default function HomePage() {
                   const content = (
                     <div className="flex gap-6 items-center group p-4 rounded-2xl hover:bg-frage-cream transition-colors border border-transparent hover:border-frage-yellow/20">
                       <div className="w-20 h-20 rounded-xl overflow-hidden shadow-md flex-shrink-0">
-                        <img src={award.image} alt={award.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                        <Image src={award.image} alt={award.title} width={80} height={80} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
