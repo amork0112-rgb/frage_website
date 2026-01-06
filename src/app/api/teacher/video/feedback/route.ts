@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
 
 type FeedbackPayload = {
   overall_message: string;
@@ -20,8 +19,9 @@ type AttachMeta = { name: string; size: number; type: string }[];
 
 export async function GET(req: Request) {
   try {
-    const { data: auth } = await supabase.auth.getUser();
-    const uid = auth?.user?.id || "";
+    const supabaseAuth = createSupabaseServer();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const uid = user?.id || "";
     if (!uid) return NextResponse.json({ ok: false }, { status: 401 });
     const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
     if (!prof || String(prof.role) !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
@@ -61,8 +61,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { data: auth } = await supabase.auth.getUser();
-    const uid = auth?.user?.id || "";
+    const supabaseAuth = createSupabaseServer();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const uid = user?.id || "";
     if (!uid) return NextResponse.json({ ok: false }, { status: 401 });
     const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
     if (!prof || String(prof.role) !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });

@@ -38,6 +38,8 @@ type Student = {
   pickupLng?: number;
   dropoffLat?: number;
   dropoffLng?: number;
+  pickupType?: "bus" | "self";
+  dropoffType?: "bus" | "self";
 };
 
 type AttendanceRecord = {
@@ -83,6 +85,8 @@ export default function AdminStudentsPage() {
   const [statusModalFor, setStatusModalFor] = useState<Student | null>(null);
   const [statusStep, setStatusStep] = useState<1 | 2>(1);
   const [nextStatus, setNextStatus] = useState<Status | null>(null);
+  const [pickupTypeLocal, setPickupTypeLocal] = useState<"bus" | "self">("self");
+  const [dropoffTypeLocal, setDropoffTypeLocal] = useState<"bus" | "self">("self");
   const [leaveStart, setLeaveStart] = useState<string>("");
   const [leaveEnd, setLeaveEnd] = useState<string>("");
   const [leaveReason, setLeaveReason] = useState<string>("");
@@ -936,6 +940,8 @@ export default function AdminStudentsPage() {
                             setQuitDate("");
                             setQuitReason("");
                             setConfirmChecked(false);
+                            setPickupTypeLocal((s.pickupType ?? "self") as any);
+                            setDropoffTypeLocal((s.dropoffType ?? "self") as any);
                           }}
                         >
                           상태 변경
@@ -1255,60 +1261,96 @@ export default function AdminStudentsPage() {
                 )}
                 {statusStep === 2 && nextStatus === "재원" && (
                   <div className="space-y-3">
-                    <div className="text-sm font-bold text-slate-900">차량 위치 정보 확인</div>
-                    <div className="text-xs text-slate-600">재원 처리 시 픽업/드롭오프 좌표가 반드시 설정되어야 합니다.</div>
+                    <div className="text-sm font-bold text-slate-900">차량/자가 방식 선택 및 좌표 확인</div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-700">픽업 위도</span>
-                        <input
-                          value={pickupLat}
-                          onChange={(e) => setPickupLat(e.target.value)}
+                        <span className="text-xs font-bold text-slate-700">등원 방식</span>
+                        <select
+                          value={pickupTypeLocal}
+                          onChange={(e) => setPickupTypeLocal(e.target.value as any)}
                           className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                        />
+                        >
+                          <option value="bus">차량</option>
+                          <option value="self">자가</option>
+                        </select>
                       </div>
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-700">픽업 경도</span>
-                        <input
-                          value={pickupLng}
-                          onChange={(e) => setPickupLng(e.target.value)}
+                        <span className="text-xs font-bold text-slate-700">하원 방식</span>
+                        <select
+                          value={dropoffTypeLocal}
+                          onChange={(e) => setDropoffTypeLocal(e.target.value as any)}
                           className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                        />
+                        >
+                          <option value="bus">차량</option>
+                          <option value="self">자가</option>
+                        </select>
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-700">드롭오프 위도</span>
-                        <input
-                          value={dropoffLat}
-                          onChange={(e) => setDropoffLat(e.target.value)}
-                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-700">드롭오프 경도</span>
-                        <input
-                          value={dropoffLng}
-                          onChange={(e) => setDropoffLng(e.target.value)}
-                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                        />
-                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {pickupTypeLocal === "bus" && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-bold text-slate-700">픽업 위도</span>
+                          <input
+                            value={pickupLat}
+                            onChange={(e) => setPickupLat(e.target.value)}
+                            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                          />
+                        </div>
+                      )}
+                      {pickupTypeLocal === "bus" && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-bold text-slate-700">픽업 경도</span>
+                          <input
+                            value={pickupLng}
+                            onChange={(e) => setPickupLng(e.target.value)}
+                            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                          />
+                        </div>
+                      )}
+                      {dropoffTypeLocal === "bus" && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-bold text-slate-700">드롭오프 위도</span>
+                          <input
+                            value={dropoffLat}
+                            onChange={(e) => setDropoffLat(e.target.value)}
+                            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                          />
+                        </div>
+                      )}
+                      {dropoffTypeLocal === "bus" && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-bold text-slate-700">드롭오프 경도</span>
+                          <input
+                            value={dropoffLng}
+                            onChange={(e) => setDropoffLng(e.target.value)}
+                            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="mt-4 flex justify-between">
                       <button onClick={() => setStatusStep(1)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">이전</button>
                       <button
                         onClick={async () => {
-                          const a = parseFloat(pickupLat);
-                          const b = parseFloat(pickupLng);
-                          const c = parseFloat(dropoffLat);
-                          const d = parseFloat(dropoffLng);
-                          if ([a, b, c, d].some((x) => Number.isNaN(x))) return;
+                          const needPickup = pickupTypeLocal === "bus";
+                          const needDropoff = dropoffTypeLocal === "bus";
+                          const a = needPickup ? parseFloat(pickupLat) : null;
+                          const b = needPickup ? parseFloat(pickupLng) : null;
+                          const c = needDropoff ? parseFloat(dropoffLat) : null;
+                          const d = needDropoff ? parseFloat(dropoffLng) : null;
+                          if (needPickup && ([a!, b!].some((x) => Number.isNaN(x)))) return;
+                          if (needDropoff && ([c!, d!].some((x) => Number.isNaN(x)))) return;
                           const id = statusModalFor!.id;
                           await supabase
                             .from("students")
                             .update({
                               status: "재원",
-                              pickup_lat: a,
-                              pickup_lng: b,
-                              dropoff_lat: c,
-                              dropoff_lng: d,
+                              pickup_type: pickupTypeLocal,
+                              dropoff_type: dropoffTypeLocal,
+                              pickup_lat: needPickup ? a : null,
+                              pickup_lng: needPickup ? b : null,
+                              dropoff_lat: needDropoff ? c : null,
+                              dropoff_lng: needDropoff ? d : null,
                               updated_at: new Date().toISOString(),
                             })
                             .eq("id", id);
@@ -1316,9 +1358,16 @@ export default function AdminStudentsPage() {
                         }}
                         className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
                         disabled={
-                          [pickupLat, pickupLng, dropoffLat, dropoffLng].some((v) => !v.trim())
+                          (pickupTypeLocal === "bus" && [pickupLat, pickupLng].some((v) => !v.trim())) ||
+                          (dropoffTypeLocal === "bus" && [dropoffLat, dropoffLng].some((v) => !v.trim()))
                         }
-                        title="[위도/경도]를 모두 입력하세요"
+                        title={
+                          pickupTypeLocal === "bus" && [pickupLat, pickupLng].some((v) => !v.trim())
+                            ? "등원 차량 사용 시 픽업 좌표를 모두 입력하세요"
+                            : dropoffTypeLocal === "bus" && [dropoffLat, dropoffLng].some((v) => !v.trim())
+                            ? "하원 차량 사용 시 드롭오프 좌표를 모두 입력하세요"
+                            : ""
+                        }
                       >
                         재원 전환 및 위치 저장
                       </button>
@@ -1400,7 +1449,7 @@ export default function AdminStudentsPage() {
                       </div>
                       <label className="col-span-2 inline-flex items-center gap-2 text-xs text-slate-700">
                         <input type="checkbox" checked={confirmChecked} onChange={(e) => setConfirmChecked(e.target.checked)} className="rounded border-slate-300" />
-                        안내 사항을 확인했습니다.
+                 t       안내 사항을 확인했습니다.
                       </label>
                     </div>
                     <div className="mt-4 flex justify-between">

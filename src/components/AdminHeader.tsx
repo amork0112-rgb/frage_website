@@ -39,6 +39,7 @@ export default function AdminHeader() {
     { name: "요청 관리", href: "/admin/requests", icon: MessageSquare },
     { name: "이탈 시그널", href: "/admin/alerts", icon: AlertCircle },
     { name: "원생 관리", href: "/admin/students", icon: Users },
+    { name: "반 관리", href: "/admin/classes", icon: GraduationCap },
   ];
 
   const handleLogout = () => {

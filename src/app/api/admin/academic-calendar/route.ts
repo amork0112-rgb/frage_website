@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
+import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
 
 /* -------------------------------------------------------
   공통 JSON 응답
@@ -14,15 +13,14 @@ const json = (data: any, status = 200) =>
 /* -------------------------------------------------------
   Admin 인증 (쿠키 기반 auth + role 체크)
 ------------------------------------------------------- */
-async function requireAdmin() {
-  const supabaseAuth = createSupabaseServer();
+async function requireAdmin(supabaseAuth: any) {
   const { data: { user }, error } = await supabaseAuth.auth.getUser();
 
   if (error || !user) {
     return { error: json({ error: "unauthorized" }, 401) };
   }
 
-  const { data: profile } = await (supabaseService as any)
+  const { data: profile } = await (supabaseServer as any)
     .from("profiles")
     .select("role")
     .eq("id", user.id)
@@ -38,7 +36,8 @@ async function requireAdmin() {
   GET : 월별 학사일정 조회
 ------------------------------------------------------- */
 export async function GET(req: Request) {
-  const guard = await requireAdmin();
+  const supabaseAuth = createSupabaseServer();
+  const guard = await requireAdmin(supabaseAuth);
   if (guard.error) return guard.error;
 
   try {
@@ -52,7 +51,7 @@ export async function GET(req: Request) {
     const lastDay = new Date(year, month, 0).getDate();
     const last = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
-    const { data, error } = await supabaseService
+    const { data, error } = await supabaseServer
       .from("academic_calendar")
       .select("*")
       .lte("start_date", last)
@@ -90,7 +89,8 @@ export async function GET(req: Request) {
   POST : 학사일정 추가
 ------------------------------------------------------- */
 export async function POST(req: Request) {
-  const guard = await requireAdmin();
+  const supabaseAuth = createSupabaseServer();
+  const guard = await requireAdmin(supabaseAuth);
   if (guard.error) return guard.error;
 
   try {
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
 
     // 공휴일 중복 방지
     if (type === "공휴일") {
-      const { data: dup } = await supabaseService
+      const { data: dup } = await supabaseServer
         .from("academic_calendar")
         .select("id")
         .eq("type", "공휴일")
@@ -121,7 +121,7 @@ export async function POST(req: Request) {
 
     const now = new Date().toISOString();
 
-    const { data, error } = await supabaseService
+    const { data, error } = await supabaseServer
       .from("academic_calendar")
       .insert({
         title,
@@ -156,7 +156,8 @@ export async function POST(req: Request) {
   PUT : 학사일정 수정
 ------------------------------------------------------- */
 export async function PUT(req: Request) {
-  const guard = await requireAdmin();
+  const supabaseAuth = createSupabaseServer();
+  const guard = await requireAdmin(supabaseAuth);
   if (guard.error) return guard.error;
 
   try {
@@ -167,7 +168,7 @@ export async function PUT(req: Request) {
     const patch = { ...body, updated_at: new Date().toISOString() };
     delete patch.id;
 
-    const { data, error } = await supabaseService
+    const { data, error } = await supabaseServer
       .from("academic_calendar")
       .update(patch)
       .eq("id", id)
@@ -190,14 +191,15 @@ export async function PUT(req: Request) {
   DELETE : 학사일정 삭제
 ------------------------------------------------------- */
 export async function DELETE(req: Request) {
-  const guard = await requireAdmin();
+  const supabaseAuth = createSupabaseServer();
+  const guard = await requireAdmin(supabaseAuth);
   if (guard.error) return guard.error;
 
   try {
     const { id } = await req.json();
     if (!id) return json({ error: "missing id" }, 400);
 
-    const { error } = await supabaseService
+    const { error } = await supabaseServer
       .from("academic_calendar")
       .delete()
       .eq("id", id);

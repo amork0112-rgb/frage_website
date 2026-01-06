@@ -1,6 +1,6 @@
-// lib/supabase/server.ts
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { supabaseService } from "./service";
 
 export function createSupabaseServer() {
   const cookieStore = cookies();
@@ -24,4 +24,4 @@ export function createSupabaseServer() {
   );
 }
 
-export const supabaseServer = createSupabaseServer();
+export const supabaseServer = supabaseService;

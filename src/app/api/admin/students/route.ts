@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
 
 type Status = "재원" | "휴원" | "퇴원";
 
@@ -24,6 +22,8 @@ type Student = {
   pickupLng?: number;
   dropoffLat?: number;
   dropoffLng?: number;
+  pickupType?: "bus" | "self";
+  dropoffType?: "bus" | "self";
 };
 
 export async function GET(request: Request) {
@@ -31,24 +31,7 @@ export async function GET(request: Request) {
   const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
   const pageSize = Math.max(parseInt(url.searchParams.get("pageSize") || "200", 10), 1);
   try {
-    const cookieStore = cookies();
-    const supabaseAuth = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options });
-          },
-          remove(name: string, options: any) {
-            cookieStore.set({ name, value: "", ...options });
-          },
-        },
-      }
-    );
+    const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     const uid = user?.id || "";
     if (!uid) return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 401 });
@@ -82,6 +65,8 @@ export async function GET(request: Request) {
     pickupLng: typeof r.pickup_lng === "number" ? r.pickup_lng : undefined,
     dropoffLat: typeof r.dropoff_lat === "number" ? r.dropoff_lat : undefined,
     dropoffLng: typeof r.dropoff_lng === "number" ? r.dropoff_lng : undefined,
+    pickupType: (r.pickup_type as any) ?? "self",
+    dropoffType: (r.dropoff_type as any) ?? "self",
   }));
     const total = base.length;
     const start = (page - 1) * pageSize;
@@ -95,24 +80,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = cookies();
-    const supabaseAuth = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options });
-          },
-          remove(name: string, options: any) {
-            cookieStore.set({ name, value: "", ...options });
-          },
-        },
-      }
-    );
+    const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     const uid = user?.id || "";
     if (!uid) return NextResponse.json({ ok: false, inserted: 0 }, { status: 401 });
@@ -144,6 +112,8 @@ export async function POST(request: Request) {
         pickup_lng: typeof s.pickupLng === "number" ? s.pickupLng : null,
         dropoff_lat: typeof s.dropoffLat === "number" ? s.dropoffLat : null,
         dropoff_lng: typeof s.dropoffLng === "number" ? s.dropoffLng : null,
+        pickup_type: s.pickupType ?? "self",
+        dropoff_type: s.dropoffType ?? "self",
       });
       if (error) {
         console.error(error);

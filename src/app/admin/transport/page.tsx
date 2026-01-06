@@ -259,14 +259,17 @@ export default function AdminTransportPage() {
         if (campus === "All" || !timeSlotId) return [];
         const { data } = await supabase
           .from("students")
-          .select("id,name,class_name,campus,status,schedule")
+          .select("id,name,class_name,campus,status,schedule,pickup_type,dropoff_type")
           .eq("status", "재원")
           .eq("campus", campus);
         const list = Array.isArray(data) ? data : [];
         const filtered = list
           .filter((s: any) => {
             const sch = s?.schedule || {};
-            return sch?.weekday === weekday && sch?.time_slot_id === timeSlotId;
+            if (!(sch?.weekday === weekday && sch?.time_slot_id === timeSlotId)) return false;
+            const isBusPickup = String(s?.pickup_type || "self") === "bus";
+            const isBusDropoff = String(s?.dropoff_type || "self") === "bus";
+            return mode === "pickup" ? isBusPickup : isBusDropoff;
           })
           .map((s: any) => ({
             id: String(s.id),
