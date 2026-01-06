@@ -13,8 +13,12 @@ export default async function CommunityPage() {
     {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
-        set: () => {},
-        remove: () => {}
+        set: (name: string, value: string, options: any) => {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove: (name: string, options: any) => {
+          cookieStore.set({ name, value: "", ...options });
+        }
       }
     }
   );

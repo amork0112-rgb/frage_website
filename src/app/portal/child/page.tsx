@@ -89,6 +89,8 @@ export default function ChildPage() {
     dropoffVerified: false,
     defaultDepartureTime: "16:30"
   });
+  const [pickupCoord, setPickupCoord] = useState<{ lat: string; lng: string }>({ lat: "", lng: "" });
+  const [dropoffCoord, setDropoffCoord] = useState<{ lat: string; lng: string }>({ lat: "", lng: "" });
 
   const [guardianInfo, setGuardianInfo] = useState({
     name: "보호자",
@@ -147,6 +149,14 @@ export default function ChildPage() {
             address: String(s.address || ""),
             studentPhone: String(s.phone || ""),
           });
+          setPickupCoord({
+            lat: s.pickup_lat ? String(s.pickup_lat) : "",
+            lng: s.pickup_lng ? String(s.pickup_lng) : "",
+          });
+          setDropoffCoord({
+            lat: s.dropoff_lat ? String(s.dropoff_lat) : "",
+            lng: s.dropoff_lng ? String(s.dropoff_lng) : "",
+          });
         }
       } catch (e) {}
     })();
@@ -172,6 +182,57 @@ export default function ChildPage() {
         router.push("/portal/home");
       } catch (e) {}
     })();
+  };
+
+  const setPickupCurrentLocation = () => {
+    if (!("geolocation" in navigator)) {
+      alert("브라우저에서 위치 기능을 지원하지 않습니다.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setPickupCoord({ lat: String(latitude), lng: String(longitude) });
+      },
+      () => alert("현재 위치를 가져오지 못했습니다. 위치 권한을 확인하세요.")
+    );
+  };
+
+  const setDropoffCurrentLocation = () => {
+    if (!("geolocation" in navigator)) {
+      alert("브라우저에서 위치 기능을 지원하지 않습니다.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setDropoffCoord({ lat: String(latitude), lng: String(longitude) });
+      },
+      () => alert("현재 위치를 가져오지 못했습니다. 위치 권한을 확인하세요.")
+    );
+  };
+
+  const savePickupDropoff = async () => {
+    if (!studentId) return;
+    const latP = parseFloat(pickupCoord.lat);
+    const lngP = parseFloat(pickupCoord.lng);
+    const latD = parseFloat(dropoffCoord.lat);
+    const lngD = parseFloat(dropoffCoord.lng);
+    if (Number.isNaN(latP) || Number.isNaN(lngP) || Number.isNaN(latD) || Number.isNaN(lngD)) {
+      alert("좌표를 올바르게 입력해 주세요.");
+      return;
+    }
+    await supabase
+      .from("students")
+      .update({
+        pickup_lat: latP,
+        pickup_lng: lngP,
+        dropoff_lat: latD,
+        dropoff_lng: lngD,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", Number(studentId));
+    alert("위치 정보가 저장되었습니다.");
   };
 
   return (
@@ -461,6 +522,64 @@ export default function ChildPage() {
                정보 저장 및 다음 단계로 이동
              </button>
            </form>
+           <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-5">
+             <h3 className="text-sm font-bold text-slate-700">픽업/드롭오프 좌표 설정</h3>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="space-y-2">
+                 <div className="text-xs font-bold text-slate-500">픽업 좌표</div>
+                 <div className="flex gap-2">
+                   <input
+                     placeholder="위도"
+                     value={pickupCoord.lat}
+                     onChange={(e) => setPickupCoord({ ...pickupCoord, lat: e.target.value })}
+                     className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                   />
+                   <input
+                     placeholder="경도"
+                     value={pickupCoord.lng}
+                     onChange={(e) => setPickupCoord({ ...pickupCoord, lng: e.target.value })}
+                     className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                   />
+                 </div>
+                 <button onClick={setPickupCurrentLocation} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold bg-white">현재 위치로 설정</button>
+                 {pickupCoord.lat && pickupCoord.lng && (
+                   <iframe
+                     title="pickup-map"
+                     className="w-full h-40 rounded-lg border border-slate-200"
+                     src={`https://www.openstreetmap.org/export/embed.html?layer=mapnik&marker=${pickupCoord.lat},${pickupCoord.lng}`}
+                   />
+                 )}
+               </div>
+               <div className="space-y-2">
+                 <div className="text-xs font-bold text-slate-500">드롭오프 좌표</div>
+                 <div className="flex gap-2">
+                   <input
+                     placeholder="위도"
+                     value={dropoffCoord.lat}
+                     onChange={(e) => setDropoffCoord({ ...dropoffCoord, lat: e.target.value })}
+                     className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                   />
+                   <input
+                     placeholder="경도"
+                     value={dropoffCoord.lng}
+                     onChange={(e) => setDropoffCoord({ ...dropoffCoord, lng: e.target.value })}
+                     className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                   />
+                 </div>
+                 <button onClick={setDropoffCurrentLocation} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold bg-white">현재 위치로 설정</button>
+                 {dropoffCoord.lat && dropoffCoord.lng && (
+                   <iframe
+                     title="dropoff-map"
+                     className="w-full h-40 rounded-lg border border-slate-200"
+                     src={`https://www.openstreetmap.org/export/embed.html?layer=mapnik&marker=${dropoffCoord.lat},${dropoffCoord.lng}`}
+                   />
+                 )}
+               </div>
+             </div>
+             <div className="flex justify-end">
+               <button onClick={savePickupDropoff} className="px-4 py-2 bg-frage-navy text-white rounded-xl font-bold">좌표 저장</button>
+             </div>
+           </div>
         </section>
 
         {/* 3. Guardian Info */}

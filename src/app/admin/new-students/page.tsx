@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import { Check, AlertCircle, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote, ChevronLeft, ChevronRight } from "lucide-react";
 import { CAMPUS_CONFIG } from "@/config/campus";
@@ -195,7 +195,7 @@ export default function AdminNewStudentsPage() {
     loadMonth();
   }, [currentMonth]);
 
-  const fetchDaySlots = (date: string) => {
+  const fetchDaySlots = useCallback((date: string) => {
     setLoadingDaySlots(true);
     setErrorDaySlots(null);
     const day = scheduleMap[date];
@@ -214,7 +214,7 @@ export default function AdminNewStudentsPage() {
       );
       setLoadingDaySlots(false);
     }, 0);
-  };
+  }, [scheduleMap]);
 
   useEffect(() => {
     // 캘린더 렌더링은 조회만 수행합니다. 월 초기화는 명시적인 버튼 액션으로만 처리합니다.
@@ -224,7 +224,7 @@ export default function AdminNewStudentsPage() {
     if (showReservationModal) {
       fetchDaySlots(selectedDate);
     }
-  }, [showReservationModal, selectedDate, scheduleMap]);
+  }, [showReservationModal, selectedDate, fetchDaySlots]);
 
   const addDaySlot = async () => {
     if (!selectedDate || !newSlotTime) return alert("시간을 입력해주세요.");

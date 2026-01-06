@@ -20,6 +20,10 @@ type Student = {
   address: string;
   bus: string;
   departureTime: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  dropoffLat?: number;
+  dropoffLng?: number;
 };
 
 export async function GET(request: Request) {
@@ -27,10 +31,23 @@ export async function GET(request: Request) {
   const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
   const pageSize = Math.max(parseInt(url.searchParams.get("pageSize") || "200", 10), 1);
   try {
+    const cookieStore = cookies();
     const supabaseAuth = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { get: (k) => cookies().get(k)?.value } }
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options });
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: "", ...options });
+          },
+        },
+      }
     );
     const { data: { user } } = await supabaseAuth.auth.getUser();
     const uid = user?.id || "";
@@ -46,22 +63,26 @@ export async function GET(request: Request) {
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
     }
     const rows = Array.isArray(data) ? data : [];
-    const base: Student[] = rows.map((r: any) => ({
-      id: String(r.id ?? ""),
-      childId: r.child_id ?? undefined,
-      name: String(r.name ?? ""),
-      englishName: String(r.english_name ?? ""),
-      birthDate: String(r.birth_date ?? ""),
-      phone: String(r.phone ?? ""),
-      className: String(r.class_name ?? "미배정"),
-      campus: String(r.campus ?? "미지정"),
-      status: (String(r.status ?? "재원") as Status),
-      parentName: String(r.parent_name ?? ""),
-      parentAccountId: String(r.parent_account_id ?? ""),
-      address: String(r.address ?? ""),
-      bus: String(r.bus ?? ""),
-      departureTime: String(r.departure_time ?? "")
-    }));
+  const base: Student[] = rows.map((r: any) => ({
+    id: String(r.id ?? ""),
+    childId: r.child_id ?? undefined,
+    name: String(r.name ?? ""),
+    englishName: String(r.english_name ?? ""),
+    birthDate: String(r.birth_date ?? ""),
+    phone: String(r.phone ?? ""),
+    className: String(r.class_name ?? "미배정"),
+    campus: String(r.campus ?? "미지정"),
+    status: (String(r.status ?? "재원") as Status),
+    parentName: String(r.parent_name ?? ""),
+    parentAccountId: String(r.parent_account_id ?? ""),
+    address: String(r.address ?? ""),
+    bus: String(r.bus ?? ""),
+    departureTime: String(r.departure_time ?? ""),
+    pickupLat: typeof r.pickup_lat === "number" ? r.pickup_lat : undefined,
+    pickupLng: typeof r.pickup_lng === "number" ? r.pickup_lng : undefined,
+    dropoffLat: typeof r.dropoff_lat === "number" ? r.dropoff_lat : undefined,
+    dropoffLng: typeof r.dropoff_lng === "number" ? r.dropoff_lng : undefined,
+  }));
     const total = base.length;
     const start = (page - 1) * pageSize;
     const items = base.slice(start, start + pageSize);
@@ -74,10 +95,23 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const cookieStore = cookies();
     const supabaseAuth = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { get: (k) => cookies().get(k)?.value } }
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options });
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: "", ...options });
+          },
+        },
+      }
     );
     const { data: { user } } = await supabaseAuth.auth.getUser();
     const uid = user?.id || "";
@@ -106,6 +140,10 @@ export async function POST(request: Request) {
         address: s.address,
         bus: s.bus,
         departure_time: s.departureTime,
+        pickup_lat: typeof s.pickupLat === "number" ? s.pickupLat : null,
+        pickup_lng: typeof s.pickupLng === "number" ? s.pickupLng : null,
+        dropoff_lat: typeof s.dropoffLat === "number" ? s.dropoffLat : null,
+        dropoff_lng: typeof s.dropoffLng === "number" ? s.dropoffLng : null,
       });
       if (error) {
         console.error(error);

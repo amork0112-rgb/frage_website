@@ -34,6 +34,10 @@ type Student = {
   arrivalPlace?: string;
   departureMethod?: string;
   departurePlace?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  dropoffLat?: number;
+  dropoffLng?: number;
 };
 
 type AttendanceRecord = {
@@ -102,6 +106,11 @@ export default function AdminStudentsPage() {
   const [selectedBus, setSelectedBus] = useState<string>("");
   const [timeModalFor, setTimeModalFor] = useState<Student | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>("");
+  const [vehicleModalFor, setVehicleModalFor] = useState<Student | null>(null);
+  const [pickupLat, setPickupLat] = useState<string>("");
+  const [pickupLng, setPickupLng] = useState<string>("");
+  const [dropoffLat, setDropoffLat] = useState<string>("");
+  const [dropoffLng, setDropoffLng] = useState<string>("");
 
   useEffect(() => {
     const init = async () => {
@@ -604,6 +613,44 @@ export default function AdminStudentsPage() {
     reader.readAsText(file);
   };
 
+  const openVehicleModal = (s: Student) => {
+    setVehicleModalFor(s);
+    setPickupLat(String(s.pickupLat ?? ""));
+    setPickupLng(String(s.pickupLng ?? ""));
+    setDropoffLat(String(s.dropoffLat ?? ""));
+    setDropoffLng(String(s.dropoffLng ?? ""));
+  };
+
+  const saveVehicleInfo = async () => {
+    if (!vehicleModalFor) return;
+    const a = parseFloat(pickupLat);
+    const b = parseFloat(pickupLng);
+    const c = parseFloat(dropoffLat);
+    const d = parseFloat(dropoffLng);
+    if ([a, b, c, d].some((x) => Number.isNaN(x))) {
+      alert("좌표를 올바르게 입력하세요.");
+      return;
+    }
+    await supabase
+      .from("students")
+      .update({
+        pickup_lat: a,
+        pickup_lng: b,
+        dropoff_lat: c,
+        dropoff_lng: d,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", vehicleModalFor.id);
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.id === vehicleModalFor.id
+          ? { ...s, pickupLat: a, pickupLng: b, dropoffLat: c, dropoffLng: d }
+          : s
+      )
+    );
+    setVehicleModalFor(null);
+  };
+
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -912,6 +959,12 @@ export default function AdminStudentsPage() {
                         </button>
                         <button
                           className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+                          onClick={() => openVehicleModal(s)}
+                        >
+                          위치 설정
+                        </button>
+                        <button
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
                           onClick={() => setBusModalFor(s)}
                         >
                           호차 변경
@@ -1200,6 +1253,78 @@ export default function AdminStudentsPage() {
                     </div>
                   </div>
                 )}
+                {statusStep === 2 && nextStatus === "재원" && (
+                  <div className="space-y-3">
+                    <div className="text-sm font-bold text-slate-900">차량 위치 정보 확인</div>
+                    <div className="text-xs text-slate-600">재원 처리 시 픽업/드롭오프 좌표가 반드시 설정되어야 합니다.</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-slate-700">픽업 위도</span>
+                        <input
+                          value={pickupLat}
+                          onChange={(e) => setPickupLat(e.target.value)}
+                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-slate-700">픽업 경도</span>
+                        <input
+                          value={pickupLng}
+                          onChange={(e) => setPickupLng(e.target.value)}
+                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-slate-700">드롭오프 위도</span>
+                        <input
+                          value={dropoffLat}
+                          onChange={(e) => setDropoffLat(e.target.value)}
+                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-slate-700">드롭오프 경도</span>
+                        <input
+                          value={dropoffLng}
+                          onChange={(e) => setDropoffLng(e.target.value)}
+                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex justify-between">
+                      <button onClick={() => setStatusStep(1)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">이전</button>
+                      <button
+                        onClick={async () => {
+                          const a = parseFloat(pickupLat);
+                          const b = parseFloat(pickupLng);
+                          const c = parseFloat(dropoffLat);
+                          const d = parseFloat(dropoffLng);
+                          if ([a, b, c, d].some((x) => Number.isNaN(x))) return;
+                          const id = statusModalFor!.id;
+                          await supabase
+                            .from("students")
+                            .update({
+                              status: "재원",
+                              pickup_lat: a,
+                              pickup_lng: b,
+                              dropoff_lat: c,
+                              dropoff_lng: d,
+                              updated_at: new Date().toISOString(),
+                            })
+                            .eq("id", id);
+                          setStatusModalFor(null);
+                        }}
+                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
+                        disabled={
+                          [pickupLat, pickupLng, dropoffLat, dropoffLng].some((v) => !v.trim())
+                        }
+                        title="[위도/경도]를 모두 입력하세요"
+                      >
+                        재원 전환 및 위치 저장
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {statusStep === 2 && nextStatus === "퇴원 검토중" && (
                   <div className="space-y-3">
                     <div className="text-sm font-bold text-slate-900">퇴원 검토 상태로 전환</div>
@@ -1239,42 +1364,6 @@ export default function AdminStudentsPage() {
                           });
                           alert("상태 변경 완료 • 이탈 시그널 페이지로 이동합니다.");
                           router.push("/admin/alerts");
-                          setStatusModalFor(null);
-                        }}
-                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-                        title=""
-                      >
-                        변경사항 저장
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {statusStep === 2 && nextStatus === "재원" && (
-                  <div className="space-y-3">
-                    <div className="text-sm font-bold text-slate-900">재원으로 복귀</div>
-                    <div className="mt-4 flex justify-between">
-                      <button onClick={() => setStatusStep(1)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">이전</button>
-                      <button
-                        onClick={async () => {
-                          const id = statusModalFor!.id;
-                          const { data } = await supabase.auth.getUser();
-                          const admin = String(data?.user?.email ?? "관리자");
-                          const date = new Date().toISOString().split("T")[0];
-                          const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "재원" as Status } };
-                          const entry = `${date} 재원상태 변경: 퇴원 검토중 → 재원 처리자: ${admin}`;
-                          const newLogs = { ...studentLogs };
-                          const list = newLogs[id] || [];
-                          list.push(entry);
-                          newLogs[id] = list;
-                          setUpdates(newUpdates);
-                          setStudentLogs(newLogs);
-                          await supabase.from("students").update({ status: "재원" }).eq("id", id);
-                          await supabase.from("student_status_logs").insert({
-                            student_id: id,
-                            type: "status_change",
-                            message: entry,
-                            at: new Date().toISOString(),
-                          });
                           setStatusModalFor(null);
                         }}
                         className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
@@ -1364,6 +1453,38 @@ export default function AdminStudentsPage() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {vehicleModalFor && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setVehicleModalFor(null)} />
+          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-[560px] max-w-[94vw] p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-black text-slate-900">픽업/드롭오프 좌표 설정</h3>
+              <button onClick={() => setVehicleModalFor(null)} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">닫기</button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold text-slate-700">픽업 위도</span>
+                <input value={pickupLat} onChange={(e) => setPickupLat(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold text-slate-700">픽업 경도</span>
+                <input value={pickupLng} onChange={(e) => setPickupLng(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold text-slate-700">드롭오프 위도</span>
+                <input value={dropoffLat} onChange={(e) => setDropoffLat(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold text-slate-700">드롭오프 경도</span>
+                <input value={dropoffLng} onChange={(e) => setDropoffLng(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button onClick={saveVehicleInfo} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">좌표 저장</button>
             </div>
           </div>
         </div>

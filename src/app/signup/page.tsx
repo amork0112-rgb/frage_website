@@ -30,10 +30,6 @@ export default function SignupPage() {
     password: "",
     address: "",
     addressDetail: "",
-    arrivalMethod: "",
-    arrivalPlace: "",
-    departureMethod: "",
-    departurePlace: "",
     privacyAgreed: false,
     campus: ""
   });
@@ -506,64 +502,7 @@ export default function SignupPage() {
                   className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="arrivalMethod" className="block text-sm font-bold text-frage-navy mb-2">
-                    등원 방법
-                  </label>
-                  <input
-                    type="text"
-                    id="arrivalMethod"
-                    name="arrivalMethod"
-                    placeholder="예: 도보, 자가, 통학버스"
-                    value={formData.arrivalMethod}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="arrivalPlace" className="block text-sm font-bold text-frage-navy mb-2">
-                    등원 위치
-                  </label>
-                  <input
-                    type="text"
-                    id="arrivalPlace"
-                    name="arrivalPlace"
-                    placeholder="예: 정문, 북문, 버스정류장"
-                    value={formData.arrivalPlace}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="departureMethod" className="block text-sm font-bold text-frage-navy mb-2">
-                    하원 방법
-                  </label>
-                  <input
-                    type="text"
-                    id="departureMethod"
-                    name="departureMethod"
-                    placeholder="예: 도보, 자가, 통학버스"
-                    value={formData.departureMethod}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="departurePlace" className="block text-sm font-bold text-frage-navy mb-2">
-                    하원 위치
-                  </label>
-                  <input
-                    type="text"
-                    id="departurePlace"
-                    name="departurePlace"
-                    placeholder="예: 정문, 북문, 버스정류장"
-                    value={formData.departurePlace}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
-                  />
-                </div>
-              </div>
+              
 
               {/* Privacy Policy */}
               <div className="pt-4 border-t border-gray-100">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Bus, Clock, AlertTriangle, Save, Sparkles } from "lucide-react";
 import { supabase, supabaseReady } from "@/lib/supabase";
@@ -29,6 +29,7 @@ type Student = {
     timeSensitive?: boolean;
     warning?: boolean;
   };
+  eventTime?: string;
 };
 
 type RouteBlock = {
@@ -48,6 +49,8 @@ export default function AdminTransportPage() {
   });
   const [campus, setCampus] = useState<string>("All");
   const [mode, setMode] = useState<"pickup" | "dropoff">("pickup");
+  const [opType, setOpType] = useState<"regular" | "special" | "vacation">("regular");
+  const [specialDate, setSpecialDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
   const [dirty, setDirty] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const [selectedBusId, setSelectedBusId] = useState<number>(2);
@@ -57,7 +60,7 @@ export default function AdminTransportPage() {
   const [buses, setBuses] = useState<Bus[]>([]);
   const [routesByBus, setRoutesByBus] = useState<Record<number, RouteBlock[]>>({});
   type RouteKey = `${number}_${number}_${string}`;
-  const makeRouteKey = (busId: number, w: number, ts: string | null): RouteKey => `${busId}_${w}_${ts ?? ""}`;
+  const makeRouteKey = useCallback((busId: number, w: number, ts: string | null): RouteKey => `${busId}_${w}_${ts ?? ""}`, []);
   const [routeIds, setRouteIds] = useState<Record<RouteKey, string>>({});
 
   const getMyRole = async (): Promise<"admin" | "teacher" | "parent"> => {
@@ -77,10 +80,15 @@ export default function AdminTransportPage() {
         }
       } catch {}
     })();
-  }, []);
+  }, [router]);
 
-  const fetchTimeSlots = async () => {
+  const fetchTimeSlots = useCallback(async () => {
     try {
+      if (opType !== "regular") {
+        setTimeSlots([]);
+        setTimeSlotId(null);
+        return;
+      }
       if (!supabaseReady || campus === "All") {
         setTimeSlots([]);
         setTimeSlotId(null);
@@ -104,7 +112,7 @@ export default function AdminTransportPage() {
       setTimeSlots([]);
       setTimeSlotId(null);
     }
-  };
+  }, [opType, campus, mode]);
 
   const fetchBuses = async (campusVal: string) => {
     try {
@@ -145,7 +153,19 @@ export default function AdminTransportPage() {
     }
   };
 
-  const fetchRouteDetail = async (opts: { semester: string; busId: number; routeType: "pickup" | "dropoff"; timeSlotId: string | null; weekday: number }) => {
+  const recalcBusStats = useCallback((rb: Record<number, RouteBlock[]>) => {
+    setBuses((prev) =>
+      prev.map((b) => {
+        const blocks = rb[b.id] || [];
+        const count = blocks.reduce((sum, blk) => sum + blk.students.length, 0);
+        const extra = blocks.reduce((sum, blk) => sum + blk.estimatedExtraTime, 0);
+        const base = mode === "pickup" ? 30 : 35;
+        return { ...b, assignedCount: count, estimatedTime: base + extra };
+      })
+    );
+  }, [mode]);
+
+  const fetchRouteDetail = useCallback(async (opts: { semester: string; busId: number; routeType: "pickup" | "dropoff"; timeSlotId: string | null; weekday: number }) => {
     try {
       setRoutesByBus((prev) => ({ ...prev, [opts.busId]: [] }));
       if (supabaseReady) {
@@ -218,52 +238,81 @@ export default function AdminTransportPage() {
     } catch {
       setRoutesByBus((prev) => ({ ...prev, [opts.busId]: [] }));
     }
-  };
+  }, [makeRouteKey, routesByBus, recalcBusStats]);
 
   useEffect(() => {
     fetchBuses(campus);
     fetchTimeSlots();
-  }, [campus, mode]);
+  }, [campus, mode, opType, fetchTimeSlots]);
 
   useEffect(() => {
     if (!selectedBusId) return;
     if (!timeSlotId) return;
     fetchRouteDetail({ semester, busId: selectedBusId, routeType: mode, timeSlotId, weekday });
-  }, [semester, selectedBusId, mode, timeSlotId, weekday]);
+  }, [semester, selectedBusId, mode, timeSlotId, weekday, fetchRouteDetail]);
 
-  const recalcBusStats = (rb: Record<number, RouteBlock[]>) => {
-    setBuses((prev) =>
-      prev.map((b) => {
-        const blocks = rb[b.id] || [];
-        const count = blocks.reduce((sum, blk) => sum + blk.students.length, 0);
-        const extra = blocks.reduce((sum, blk) => sum + blk.estimatedExtraTime, 0);
-        const base = mode === "pickup" ? 30 : 35;
-        return { ...b, assignedCount: count, estimatedTime: base + extra };
-      })
-    );
-  };
 
   const fetchEligibleStudents = async (): Promise<Student[]> => {
     try {
-      if (!supabaseReady || campus === "All" || !timeSlotId) return [];
-      const { data } = await supabase
-        .from("students")
-        .select("id,name,class_name,campus,status,schedule")
-        .eq("status", "재원")
-        .eq("campus", campus);
-      const list = Array.isArray(data) ? data : [];
-      const filtered = list
-        .filter((s: any) => {
-          const sch = s?.schedule || {};
-          return sch?.weekday === weekday && sch?.time_slot_id === timeSlotId;
-        })
-        .map((s: any) => ({
-          id: String(s.id),
-          name: String(s.name || ""),
-          className: String(s.class_name || ""),
-          campus: String(s.campus || ""),
-        }));
-      return filtered;
+      if (!supabaseReady) return [];
+      if (opType === "regular") {
+        if (campus === "All" || !timeSlotId) return [];
+        const { data } = await supabase
+          .from("students")
+          .select("id,name,class_name,campus,status,schedule")
+          .eq("status", "재원")
+          .eq("campus", campus);
+        const list = Array.isArray(data) ? data : [];
+        const filtered = list
+          .filter((s: any) => {
+            const sch = s?.schedule || {};
+            return sch?.weekday === weekday && sch?.time_slot_id === timeSlotId;
+          })
+          .map((s: any) => ({
+            id: String(s.id),
+            name: String(s.name || ""),
+            className: String(s.class_name || ""),
+            campus: String(s.campus || ""),
+          }));
+        return filtered;
+      } else {
+        const { data: evs } = await supabase
+          .from("student_transport_events")
+          .select("student_id,date,event_time,route_type,is_active")
+          .eq("date", specialDate)
+          .eq("route_type", mode)
+          .eq("is_active", true);
+        const events = Array.isArray(evs) ? evs : [];
+        if (events.length === 0) return [];
+        const ids = events.map((e: any) => e.student_id).filter(Boolean);
+        if (ids.length === 0) return [];
+        let stuQuery = supabase
+          .from("students")
+          .select("id,name,class_name,campus")
+          .in("id", ids);
+        if (campus !== "All") {
+          stuQuery = stuQuery.eq("campus", campus);
+        }
+        const { data: studs } = await stuQuery;
+        const stuMap = new Map<string, any>();
+        (Array.isArray(studs) ? studs : []).forEach((s: any) => {
+          stuMap.set(String(s.id), s);
+        });
+        const merged: Student[] = events
+          .map((e: any) => {
+            const s = stuMap.get(String(e.student_id));
+            if (!s) return null;
+            return {
+              id: String(s.id),
+              name: String(s.name || ""),
+              className: String(s.class_name || ""),
+              campus: String(s.campus || ""),
+              eventTime: String(e.event_time || ""),
+            } as Student;
+          })
+          .filter(Boolean) as Student[];
+        return merged;
+      }
     } catch {
       return [];
     }
@@ -271,35 +320,42 @@ export default function AdminTransportPage() {
 
   const runAutoAssign = async () => {
     try {
-      if (!timeSlotId) return;
       const eligible = await fetchEligibleStudents();
       if (eligible.length === 0) return;
-      if (supabaseReady) {
-        const { error } = await (supabase as any).rpc("auto_assign_bus_routes", {
-          p_semester: semester,
-          p_campus: campus === "All" ? null : campus,
-          p_route_type: mode,
-          p_time_slot_id: timeSlotId,
-          p_weekday: weekday,
-        });
-        if (error) throw error;
-        await fetchRouteDetail({ semester, busId: selectedBusId, routeType: mode, timeSlotId, weekday });
-        setDirty(true);
-        return;
+      if (opType === "regular") {
+        if (!timeSlotId) return;
+        if (supabaseReady) {
+          const { error } = await (supabase as any).rpc("auto_assign_bus_routes", {
+            p_semester: semester,
+            p_campus: campus === "All" ? null : campus,
+            p_route_type: mode,
+            p_time_slot_id: timeSlotId,
+            p_weekday: weekday,
+          });
+          if (error) throw error;
+          await fetchRouteDetail({ semester, busId: selectedBusId, routeType: mode, timeSlotId, weekday });
+          setDirty(true);
+          return;
+        }
       }
-      const byCampus: Record<string, Student[]> = {};
+      const byKey: Record<string, Student[]> = {};
       eligible.forEach((s) => {
-        (byCampus[s.campus] ||= []).push(s);
+        const key = opType === "regular" ? s.campus : `${s.campus}|${s.eventTime || ""}`;
+        (byKey[key] ||= []).push(s);
       });
       const rb: Record<number, RouteBlock[]> = {};
       let seq = 1;
       const busIds = buses.map((b) => b.id);
-      Object.keys(byCampus).forEach((camp) => {
-        const group = byCampus[camp];
+      Object.keys(byKey).forEach((key) => {
+        const [camp, time] = key.split("|");
+        const group = byKey[key];
         const blocks: RouteBlock[] = [];
         for (let i = 0; i < group.length; i += 5) {
           const chunk = group.slice(i, i + 5);
-          const label = `${camp} 블록 ${Math.floor(i / 5) + 1}`;
+          const label =
+            opType === "regular"
+              ? `${camp} 블록 ${Math.floor(i / 5) + 1}`
+              : `[${time}] ${camp} ${opType === "special" ? "특강" : "방학"} ${mode === "pickup" ? "등원" : "하원"}`;
           const est = Math.max(2, Math.round(chunk.length * 2));
           blocks.push({ id: `blk_${seq++}`, label, order: seq, estimatedExtraTime: est, students: chunk });
         }
@@ -505,6 +561,19 @@ export default function AdminTransportPage() {
               </button>
             ))}
           </div>
+          <select value={opType} onChange={(e) => setOpType(e.target.value as any)} className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white">
+            <option value="regular">정규 운행</option>
+            <option value="special">특강 운행</option>
+            <option value="vacation">방학 운행</option>
+          </select>
+          {opType !== "regular" && (
+            <input
+              type="date"
+              value={specialDate}
+              onChange={(e) => setSpecialDate(e.target.value)}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white"
+            />
+          )}
           <select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))} className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm bg-white">
             {[1,2,3,4,5].map(w => (<option key={w} value={w}>{["월","화","수","목","금"][w-1]}</option>))}
           </select>
@@ -515,7 +584,7 @@ export default function AdminTransportPage() {
           </select>
           <button
             onClick={runAutoAssign}
-            disabled={!timeSlotId}
+            disabled={opType === "regular" && !timeSlotId}
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-bold bg-white"
           >
             <Sparkles className="w-4 h-4 text-purple-600" />
@@ -586,7 +655,7 @@ export default function AdminTransportPage() {
                   >
                     <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
                       <div className="text-sm font-bold text-slate-900">
-                        [{selectedTimeSlot?.base_time || ""}] {blk.label}
+                        {opType === "regular" ? `[${selectedTimeSlot?.base_time || ""}] ` : ""}{blk.label}
                       </div>
                       <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
                         <div className="flex items-center gap-1">

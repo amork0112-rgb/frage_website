@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { CAMPUS_CONFIG } from "@/config/campus";
 import { supabase } from "@/lib/supabase";
@@ -82,7 +82,7 @@ export default function MasterDashboard() {
   }, []);
 
   const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
-  const filterCampus = <T extends { campus?: string }>(arr: T[]) => (campus === "All" ? arr : arr.filter((a) => a.campus === campus));
+  const filterCampus = useCallback(<T extends { campus?: string }>(arr: T[]) => (campus === "All" ? arr : arr.filter((a) => a.campus === campus)), [campus]);
 
   const profitMargin = useMemo(() => {
     const rv = filterCampus(revenues).filter((r) => r.month === month).map((r) => r.amount);
@@ -98,7 +98,7 @@ export default function MasterDashboard() {
     const prevVal = prevRevenue ? ((prevRevenue - prevTotalCost) / prevRevenue) * 100 : 0;
     const status: Status = value >= 20 ? "ok" : value >= 10 ? "warn" : "risk";
     return { value, delta: value - prevVal, status };
-  }, [revenues, costs, month, prev, campus]);
+  }, [revenues, costs, month, prev, filterCampus]);
 
   const retentionRate = useMemo((): { value: number; delta: number; status: Status } => {
     const ss = filterCampus(snapshots).find((s) => s.month === month);
@@ -108,7 +108,7 @@ export default function MasterDashboard() {
     const min = typeof thresholds.retention_min === "number" ? thresholds.retention_min : 93;
     const status: Status = value >= min ? "ok" : value >= min - 2 ? "warn" : "risk";
     return { value, delta: value - prevVal, status };
-  }, [snapshots, thresholds, month, prev, campus]);
+  }, [snapshots, thresholds, month, prev, filterCampus]);
 
   const conversionRate = useMemo((): { value: number; delta: number; status: Status } => {
     const ct = filterCampus(consultations).find((c) => c.month === month);
@@ -118,7 +118,7 @@ export default function MasterDashboard() {
     const target = typeof thresholds.conversion_target === "number" ? thresholds.conversion_target : 60;
     const status: Status = value >= target ? "ok" : value >= target - 5 ? "warn" : "risk";
     return { value, delta: value - prevVal, status };
-  }, [consultations, thresholds, month, prev, campus]);
+  }, [consultations, thresholds, month, prev, filterCampus]);
 
   const npsScore = useMemo((): { value: number; delta: number; status: Status; breakdown: { p: number; n: number; d: number } } => {
     const list = filterCampus(surveys).filter((s) => s.month === month).map((s) => s.score);
@@ -136,7 +136,7 @@ export default function MasterDashboard() {
     const prevCur = calc(pvList);
     const status: Status = cur.score >= 40 ? "ok" : cur.score >= 20 ? "warn" : "risk";
     return { value: cur.score, delta: cur.score - prevCur.score, status, breakdown: { p: cur.p, n: cur.n, d: cur.d } };
-  }, [surveys, month, prev, campus]);
+  }, [surveys, month, prev, filterCampus]);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50">Loading...</div>;

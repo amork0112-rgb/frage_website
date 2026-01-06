@@ -1,24 +1,27 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+// lib/supabase/server.ts
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 
-declare global {
-  var __supabase_server__: SupabaseClient | undefined;
+export function createSupabaseServer() {
+  const cookieStore = cookies();
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: "", ...options });
+        },
+      },
+    }
+  );
 }
 
-const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const service = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-export const supabaseServerReady =
-  !!url && !!service && !/your-project\.supabase\.co|your_supabase_url/i.test(url);
-
-const makeThrowProxy = () =>
-  new Proxy({} as SupabaseClient, {
-    get() {
-      throw new Error("Supabase env missing");
-    },
-  });
-
-export const supabaseServer: SupabaseClient =
-  globalThis.__supabase_server__ ?? (supabaseServerReady ? createClient(url, service) : makeThrowProxy());
-
-if (!globalThis.__supabase_server__) {
-  globalThis.__supabase_server__ = supabaseServer;
-}
+export const supabaseServer = createSupabaseServer();

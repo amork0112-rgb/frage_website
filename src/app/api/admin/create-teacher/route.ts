@@ -6,12 +6,21 @@ import { supabaseServer } from "@/lib/supabase/server";
 export async function POST(req: Request) {
   try {
     // 1️⃣ 로그인 유저 확인 (anon + cookie)
+    const cookieStore = cookies();
     const supabaseAuth = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get: (key) => cookies().get(key)?.value,
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options });
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: "", ...options });
+          },
         },
       }
     );
