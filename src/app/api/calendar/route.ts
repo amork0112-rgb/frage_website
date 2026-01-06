@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
-import { supabaseServer, supabaseServerReady } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
+import { supabaseServer } from "@/lib/supabase/server";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -21,8 +22,13 @@ export async function GET(req: Request) {
     const last = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
     let campusVal: string | null = null;
     try {
-      const { data } = await supabase.auth.getUser();
-      const uid = data?.user?.id || null;
+      const supabaseAuth = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { cookies: { get: (k) => cookies().get(k)?.value } }
+      );
+      const { data: { user } } = await supabaseAuth.auth.getUser();
+      const uid = user?.id || null;
       if (uid) {
         const { data: prof } = await (supabaseServer as any)
           .from("profiles")
@@ -35,8 +41,7 @@ export async function GET(req: Request) {
     if (campusParam && typeof campusParam === "string") {
       campusVal = String(campusParam);
     }
-    const db = supabaseServerReady ? (supabaseServer as any) : (supabase as any);
-    let q = db
+    let q = (supabaseServer as any)
       .from("academic_calendar")
       .select("*")
       .eq("expose_to_parent", true)

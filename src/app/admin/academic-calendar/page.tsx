@@ -50,7 +50,7 @@ export default function AdminAcademicCalendarPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
+        const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store", credentials: "include", });
         const data = await res.json();
         const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
         setEvents(items);
@@ -73,6 +73,7 @@ export default function AdminAcademicCalendarPage() {
               fetch("/api/admin/academic-calendar", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "include",
                 body: JSON.stringify({
                   title: h.title,
                   type: "공휴일",
@@ -161,6 +162,7 @@ export default function AdminAcademicCalendarPage() {
     fetch("/api/admin/academic-calendar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         title: t,
         type,
@@ -198,6 +200,7 @@ export default function AdminAcademicCalendarPage() {
     fetch("/api/admin/academic-calendar", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         id: editingEvent.id,
         title: editingEvent.title,
@@ -229,6 +232,7 @@ export default function AdminAcademicCalendarPage() {
     fetch("/api/admin/academic-calendar", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ id: editingEvent.id }),
     })
       .then(async () => {
@@ -274,6 +278,7 @@ export default function AdminAcademicCalendarPage() {
                 await fetch("/api/admin/academic-calendar/holidays/init", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
+                  credentials: "include",
                   body: JSON.stringify({ year }),
                 });
                 const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });

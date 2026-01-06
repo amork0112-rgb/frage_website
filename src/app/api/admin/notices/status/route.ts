@@ -1,13 +1,23 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
   try {
-    const { data: auth } = await supabase.auth.getUser();
-    const uid = auth?.user?.id || "";
+    const supabaseAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get: (k) => cookies().get(k)?.value } }
+    );
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const uid = user?.id || "";
     if (!uid) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    const { data: prof } = await (supabaseServer as any)
+      .from("profiles")
+      .select("role")
+      .eq("id", uid)
+      .maybeSingle();
     if (!prof || String(prof.role) !== "admin") return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
     const body = await req.json();
     const id = String(body?.id || "");

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { supabaseServer, supabaseServerReady } from "@/lib/supabase/server";
+import { supabaseServer } from "@/lib/supabase/server";
 
 /* -------------------------------------------------------
   공통 JSON 응답
@@ -16,8 +16,6 @@ const json = (data: any, status = 200) =>
   Admin 인증 (쿠키 기반 auth + role 체크)
 ------------------------------------------------------- */
 async function requireAdmin() {
-  console.log("🔥 supabaseServerReady:", supabaseServerReady);
-
   const supabaseAuth = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -37,7 +35,12 @@ async function requireAdmin() {
     return { error: json({ error: "unauthorized" }, 401) };
   }
 
-  if (user.app_metadata?.role !== "admin") {
+  const { data: profile } = await (supabaseServer as any)
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (!profile || String(profile.role) !== "admin") {
     return { error: json({ error: "forbidden" }, 403) };
   }
 

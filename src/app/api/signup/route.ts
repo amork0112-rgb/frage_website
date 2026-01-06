@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 import { supabaseServer } from "@/lib/supabase/server";
-
-const supabase = supabaseServer;
 
 export async function POST(request: Request) {
   try {
@@ -54,15 +54,12 @@ export async function POST(request: Request) {
       );
     }
 
-    /* -------------------------
-       2️⃣ 현재 로그인 사용자 확인
-    -------------------------- */
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser(
-      request.headers.get("Authorization")?.replace("Bearer ", "")
+    const supabaseAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get: (k) => cookies().get(k)?.value } }
     );
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
 
     if (userError || !user) {
       return NextResponse.json(
@@ -78,7 +75,7 @@ export async function POST(request: Request) {
     -------------------------- */
     let parentId: string;
 
-    const { data: existingParent } = await supabase
+    const { data: existingParent } = await supabaseServer
       .from("parents")
       .select("id")
       .eq("auth_user_id", authUserId)
@@ -87,7 +84,7 @@ export async function POST(request: Request) {
     if (existingParent) {
       parentId = existingParent.id;
     } else {
-      const { data: newParent, error: parentError } = await supabase
+      const { data: newParent, error: parentError } = await supabaseServer
         .from("parents")
         .insert({
           auth_user_id: authUserId,
@@ -111,7 +108,7 @@ export async function POST(request: Request) {
     /* -------------------------
        4️⃣ 기존 draft → waiting 전환 (RPC)
     -------------------------- */
-    const { data: draftRow } = await supabase
+    const { data: draftRow } = await supabaseServer
       .from("new_students")
       .select("id,status")
       .eq("parent_id", parentId)
@@ -125,7 +122,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const { error: rpcErr } = await supabase.rpc("draft_to_waiting", {
+    const { error: rpcErr } = await supabaseServer.rpc("draft_to_waiting", {
       new_student_id: draft.id,
       student_name: studentName,
     });

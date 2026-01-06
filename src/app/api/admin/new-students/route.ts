@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
-import { supabaseServer, supabaseServerReady } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
+import { supabaseServer } from "@/lib/supabase/server";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -10,17 +11,21 @@ const json = (data: any, status = 200) =>
 
 export async function GET() {
   try {
-    const { data: auth } = await supabase.auth.getUser();
-    const uid = auth?.user?.id || "";
+    const supabaseAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get: (k) => cookies().get(k)?.value } }
+    );
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const uid = user?.id || "";
     if (!uid) return json({ error: "unauthorized" }, 401);
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    const { data: prof } = await (supabaseServer as any)
+      .from("profiles")
+      .select("role")
+      .eq("id", uid)
+      .maybeSingle();
     const role = String(prof?.role || "");
-    if (supabaseServerReady) {
-      if (!prof || (role !== "admin" && role !== "teacher")) return json({ error: "forbidden" }, 403);
-    }
-    if (!supabaseServerReady) {
-      return json({ items: [], checklists: {}, reservations: {} });
-    }
+    if (!prof || (role !== "admin" && role !== "teacher")) return json({ error: "forbidden" }, 403);
     const { data: students, error: e1 } = await (supabaseServer as any)
       .from("new_students")
       .select("*")
@@ -94,10 +99,19 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const { data: auth } = await supabase.auth.getUser();
-    const uid = auth?.user?.id || "";
+    const supabaseAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get: (k) => cookies().get(k)?.value } }
+    );
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const uid = user?.id || "";
     if (!uid) return json({ error: "unauthorized" }, 401);
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    const { data: prof } = await (supabaseServer as any)
+      .from("profiles")
+      .select("role")
+      .eq("id", uid)
+      .maybeSingle();
     if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const studentId = String(body.studentId || "");
@@ -133,10 +147,19 @@ export async function PUT(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { data: auth } = await supabase.auth.getUser();
-    const uid = auth?.user?.id || "";
+    const supabaseAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get: (k) => cookies().get(k)?.value } }
+    );
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const uid = user?.id || "";
     if (!uid) return json({ error: "unauthorized" }, 401);
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    const { data: prof } = await (supabaseServer as any)
+      .from("profiles")
+      .select("role")
+      .eq("id", uid)
+      .maybeSingle();
     if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const action = String(body.action || "");

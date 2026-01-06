@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 import { supabaseServer } from "@/lib/supabase/server";
 
 type Status = "재원" | "휴원" | "퇴원";
@@ -26,8 +27,13 @@ export async function GET(request: Request) {
   const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
   const pageSize = Math.max(parseInt(url.searchParams.get("pageSize") || "200", 10), 1);
   try {
-    const { data: auth } = await supabase.auth.getUser();
-    const uid = auth?.user?.id || "";
+    const supabaseAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get: (k) => cookies().get(k)?.value } }
+    );
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const uid = user?.id || "";
     if (!uid) return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 401 });
     const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
     if (!prof || String(prof.role) !== "admin") return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 403 });
@@ -66,8 +72,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { data: auth } = await supabase.auth.getUser();
-    const uid = auth?.user?.id || "";
+    const supabaseAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get: (k) => cookies().get(k)?.value } }
+    );
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const uid = user?.id || "";
     if (!uid) return NextResponse.json({ ok: false, inserted: 0 }, { status: 401 });
     const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
     if (!prof || String(prof.role) !== "admin") return NextResponse.json({ ok: false, inserted: 0 }, { status: 403 });
