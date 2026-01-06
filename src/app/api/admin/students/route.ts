@@ -42,7 +42,8 @@ export async function GET(request: Request) {
       .select("*")
       .order("name", { ascending: true });
     if (error) {
-      return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 200 });
+      console.error(error);
+      return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
     }
     const rows = Array.isArray(data) ? data : [];
     const base: Student[] = rows.map((r: any) => ({
@@ -65,8 +66,9 @@ export async function GET(request: Request) {
     const start = (page - 1) * pageSize;
     const items = base.slice(start, start + pageSize);
     return NextResponse.json({ items, total, page, pageSize }, { status: 200 });
-  } catch {
-    return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 200 });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
   }
 }
 
@@ -89,7 +91,7 @@ export async function POST(request: Request) {
     }
     let inserted = 0;
     for (const s of items) {
-      await supabaseServer.from("students").insert({
+      const { error } = await supabaseServer.from("students").insert({
         id: s.id,
         child_id: s.childId ?? null,
         name: s.name,
@@ -105,10 +107,15 @@ export async function POST(request: Request) {
         bus: s.bus,
         departure_time: s.departureTime,
       });
+      if (error) {
+        console.error(error);
+        return NextResponse.json({ ok: false, inserted }, { status: 500 });
+      }
       inserted++;
     }
     return NextResponse.json({ ok: true, inserted }, { status: 200 });
-  } catch {
-    return NextResponse.json({ ok: false, inserted: 0 }, { status: 400 });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ ok: false, inserted: 0 }, { status: 500 });
   }
 }

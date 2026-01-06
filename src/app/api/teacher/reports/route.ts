@@ -28,7 +28,8 @@ export async function GET(req: Request) {
       .eq("month", month)
       .limit(1);
     if (error) {
-      return NextResponse.json({ ok: true, item: null }, { status: 200 });
+      console.error(error);
+      return NextResponse.json({ ok: false }, { status: 500 });
     }
     const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
     const item = row
@@ -46,7 +47,8 @@ export async function GET(req: Request) {
         }
       : null;
     return NextResponse.json({ ok: true, item }, { status: 200 });
-  } catch {
+  } catch (e) {
+    console.error(e);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
@@ -94,10 +96,12 @@ export async function POST(req: Request) {
       .from("teacher_reports")
       .upsert(payload, { onConflict: "student_id,month" });
     if (error) {
+      console.error(error);
       return NextResponse.json({ ok: false }, { status: 500 });
     }
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch {
+  } catch (e) {
+    console.error(e);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
@@ -126,6 +130,7 @@ export async function PUT(req: Request) {
       .eq("student_id", studentId)
       .eq("month", month);
     if (error) {
+      console.error(error);
       return NextResponse.json({ ok: false }, { status: 500 });
     }
     if (status === "발송요청") {
@@ -136,7 +141,8 @@ export async function PUT(req: Request) {
         .eq("month", month);
     }
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch {
+  } catch (e) {
+    console.error(e);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
