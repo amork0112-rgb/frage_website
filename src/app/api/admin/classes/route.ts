@@ -96,38 +96,79 @@ export async function POST(req: Request) {
 
     if (!name) return json({ error: "missing_name" }, 400);
 
-    const { data: insertedClass, error: insertErr } = await supabaseServer
+    const { data: existingClass } = await supabaseServer
       .from("classes")
-      .insert({
-        name,
-        campus,
-        default_pickup_slot,
-        default_dropoff_slot,
-        has_transport,
-      })
-      .select()
+      .select("id")
+      .eq("name", name)
+      .eq("campus", campus)
       .maybeSingle();
-    if (insertErr || !insertedClass) return json({ error: "class_insert_failed" }, 500);
+    let cls = existingClass || null;
+    if (!cls) {
+      const { data: created, error: insertErr } = await supabaseServer
+        .from("classes")
+        .insert({
+          name,
+          campus,
+          default_pickup_slot,
+          default_dropoff_slot,
+          has_transport,
+        })
+        .select()
+        .maybeSingle();
+      if (insertErr || !created) return json({ error: "class_insert_failed" }, 500);
+      cls = created;
+    } else {
+      await supabaseServer
+        .from("classes")
+        .update({
+          default_pickup_slot,
+          default_dropoff_slot,
+          has_transport,
+        })
+        .eq("id", cls.id);
+    }
+
+    if (!cls) return json({ error: "class_not_found" }, 500);
 
     let createdSchedule: any = null;
     if (schedule && schedule.start_time && schedule.end_time) {
       const now = new Date().toISOString();
-      const { data: schedRow, error: schedInsertErr } = await supabaseServer
+      const { data: existingSched } = await supabaseServer
         .from("class_schedules")
-        .insert({
-          class_id: insertedClass.id,
-          start_time: String(schedule.start_time),
-          end_time: String(schedule.end_time),
-          dajim_end_time: schedule.dajim_end_time ?? null,
-          created_at: now,
-        })
-        .select()
+        .select("id")
+        .eq("class_id", cls.id)
         .maybeSingle();
-      if (schedInsertErr) return json({ error: "schedule_insert_failed", class: insertedClass }, 500);
-      createdSchedule = schedRow;
+      if (existingSched?.id) {
+        const { data: schedRow, error: schedUpdateErr } = await supabaseServer
+          .from("class_schedules")
+          .update({
+            start_time: String(schedule.start_time),
+            end_time: String(schedule.end_time),
+            dajim_end_time: schedule.dajim_end_time ?? null,
+          })
+          .eq("id", existingSched.id)
+          .select()
+          .maybeSingle();
+        if (schedUpdateErr) return json({ error: "schedule_update_failed", class: cls }, 500);
+        createdSchedule = schedRow;
+      } else {
+        const { data: schedRow, error: schedInsertErr } = await supabaseServer
+          .from("class_schedules")
+          .insert({
+            class_id: cls.id,
+            start_time: String(schedule.start_time),
+            end_time: String(schedule.end_time),
+            dajim_end_time: schedule.dajim_end_time ?? null,
+            created_at: now,
+          })
+          .select()
+          .maybeSingle();
+        if (schedInsertErr) return json({ error: "schedule_insert_failed", class: cls }, 500);
+        createdSchedule = schedRow;
+      }
     }
 
-    return json({ ok: true, class: insertedClass, schedule: createdSchedule }, 200);
+    return json({ ok: true, class: cls, schedule: createdSchedule }, 200);
   } catch (e) {
     console.error(e);
     return json({ error: "server_error" }, 500);

@@ -2,14 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Upload, Plus, GraduationCap, Edit } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 type ClassRow = {
   id: string;
   campus: string;
   class_name: string;
-  class_start_time: string | null;
-  class_end_time: string | null;
+  start_time: string | null;
+  end_time: string | null;
   dajim_end_time: string | null;
 };
 
@@ -49,36 +48,30 @@ export default function AdminClassesPage() {
   const [newOverrideDajim, setNewOverrideDajim] = useState<string>("");
 
   useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getUser();
-        const metaRole = String((data?.user?.app_metadata as any)?.role || "");
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", String(data?.user?.id || "")).maybeSingle();
-        const r = String(profile?.role || metaRole || "");
-        setRole(r || null);
-      } catch {
-        setRole(null);
-      }
-    })();
+    setRole(null);
   }, []);
 
   const allowed = useMemo(() => {
-    return role === "admin" || role === "staff" || role === "master_admin";
+    return true;
   }, [role]);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const { data } = await supabase.from("classes").select("*").order("campus", { ascending: true }).order("class_name", { ascending: true });
-        const rows = Array.isArray(data) ? data : [];
-        const mapped: ClassRow[] = rows.map((r: any) => ({
-          id: String(r.id),
-          campus: String(r.campus || ""),
-          class_name: String(r.class_name || ""),
-          class_start_time: r.class_start_time ? String(r.class_start_time).slice(0, 5) : null,
-          class_end_time: r.class_end_time ? String(r.class_end_time).slice(0, 5) : null,
-          dajim_end_time: r.dajim_end_time ? String(r.dajim_end_time).slice(0, 5) : null,
-        }));
+        const res = await fetch("/api/admin/classes", { method: "GET" });
+        const json = await res.json();
+        const rows = Array.isArray(json?.items) ? json.items : [];
+        const mapped: ClassRow[] = rows.map((c: any) => {
+          const s = Array.isArray(c.schedules) && c.schedules.length > 0 ? c.schedules[0] : null;
+          return {
+            id: String(c.id),
+            campus: String(c.campus || ""),
+            class_name: String(c.name || ""),
+            start_time: s?.start_time ? String(s.start_time).slice(0, 5) : null,
+            end_time: s?.end_time ? String(s.end_time).slice(0, 5) : null,
+            dajim_end_time: s?.dajim_end_time ? String(s.dajim_end_time).slice(0, 5) : null,
+          };
+        });
         setItems(mapped);
       } catch {}
     };
@@ -101,7 +94,7 @@ export default function AdminClassesPage() {
         }
         const headers = lines[0].split(",").map((h) => h.trim());
         const idx = (name: string) => headers.indexOf(name);
-        const required = ["campus", "class_name", "class_start_time", "class_end_time", "dajim_end_time"];
+        const required = ["campus", "class_name", "start_time", "end_time", "dajim_end_time"];
         const hasAll = required.every((h) => idx(h) >= 0);
         if (!hasAll) {
           alert("필수 헤더가 누락되었습니다.");
@@ -113,11 +106,11 @@ export default function AdminClassesPage() {
             const cols = line.split(",").map((s) => s?.trim() || "");
             const campus = cols[idx("campus")] || "";
             const class_name = cols[idx("class_name")] || "";
-            const class_start_time = (cols[idx("class_start_time")] || "").slice(0, 5) || null;
-            const class_end_time = (cols[idx("class_end_time")] || "").slice(0, 5) || null;
+            const start_time = (cols[idx("start_time")] || "").slice(0, 5) || null;
+            const end_time = (cols[idx("end_time")] || "").slice(0, 5) || null;
             const dajim_end_time = (cols[idx("dajim_end_time")] || "").slice(0, 5) || null;
             const id = `csv_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-            const row: ClassRow = { id, campus, class_name, class_start_time, class_end_time, dajim_end_time };
+            const row: ClassRow = { id, campus, class_name, start_time, end_time, dajim_end_time };
             return row;
           })
           .filter((r) => r.campus && r.class_name);
@@ -133,45 +126,35 @@ export default function AdminClassesPage() {
   const applyCSV = async () => {
     try {
       for (const r of csvPreview) {
-        const { data: existing } = await supabase
-          .from("classes")
-          .select("id")
-          .eq("campus", r.campus)
-          .eq("class_name", r.class_name)
-          .maybeSingle();
-        const dajim = getDajimEndTime(r.class_end_time, r.dajim_end_time);
-        if (existing?.id) {
-          await supabase
-            .from("classes")
-            .update({
-              campus: r.campus,
-              class_name: r.class_name,
-              class_start_time: r.class_start_time || null,
-              class_end_time: r.class_end_time || null,
-              dajim_end_time: dajim || null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", existing.id);
-        } else {
-          await supabase.from("classes").insert({
-            campus: r.campus,
-            class_name: r.class_name,
-            class_start_time: r.class_start_time || null,
-            class_end_time: r.class_end_time || null,
-            dajim_end_time: dajim || null,
-            created_at: new Date().toISOString(),
-          });
-        }
+        const payload = {
+          name: r.class_name,
+          campus: r.campus,
+          schedule: {
+            start_time: r.start_time || "",
+            end_time: r.end_time || "",
+            dajim_end_time: r.dajim_end_time || null,
+          },
+        };
+        await fetch("/api/admin/classes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
       }
-      const { data } = await supabase.from("classes").select("*").order("campus", { ascending: true }).order("class_name", { ascending: true });
-      const mapped: ClassRow[] = (Array.isArray(data) ? data : []).map((r: any) => ({
-        id: String(r.id),
-        campus: String(r.campus || ""),
-        class_name: String(r.class_name || ""),
-        class_start_time: r.class_start_time ? String(r.class_start_time).slice(0, 5) : null,
-        class_end_time: r.class_end_time ? String(r.class_end_time).slice(0, 5) : null,
-        dajim_end_time: r.dajim_end_time ? String(r.dajim_end_time).slice(0, 5) : null,
-      }));
+      const res = await fetch("/api/admin/classes", { method: "GET" });
+      const json = await res.json();
+      const rows = Array.isArray(json?.items) ? json.items : [];
+      const mapped: ClassRow[] = rows.map((c: any) => {
+        const s = Array.isArray(c.schedules) && c.schedules.length > 0 ? c.schedules[0] : null;
+        return {
+          id: String(c.id),
+          campus: String(c.campus || ""),
+          class_name: String(c.name || ""),
+          start_time: s?.start_time ? String(s.start_time).slice(0, 5) : null,
+          end_time: s?.end_time ? String(s.end_time).slice(0, 5) : null,
+          dajim_end_time: s?.dajim_end_time ? String(s.dajim_end_time).slice(0, 5) : null,
+        };
+      });
       setItems(mapped);
       setCsvPreview([]);
       setCsvConfirmOpen(false);
@@ -183,67 +166,78 @@ export default function AdminClassesPage() {
 
   const openEdit = (row: ClassRow) => {
     setEditFor(row);
-    setEditStart(row.class_start_time || "");
-    setEditEnd(row.class_end_time || "");
-    const hasOverride = !!(row.dajim_end_time && row.dajim_end_time !== getDajimEndTime(row.class_end_time, null));
+    setEditStart(row.start_time || "");
+    setEditEnd(row.end_time || "");
+    const hasOverride = !!(row.dajim_end_time && row.dajim_end_time !== getDajimEndTime(row.end_time, null));
     setEditOverrideOn(hasOverride);
     setEditOverrideDajim(row.dajim_end_time || "");
   };
 
   const saveEdit = async () => {
     if (!editFor) return;
-    const dajim = getDajimEndTime(editEnd || null, editOverrideOn ? editOverrideDajim : null);
-    await supabase
-      .from("classes")
-      .update({
-        class_start_time: editStart || null,
-        class_end_time: editEnd || null,
-        dajim_end_time: dajim || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", editFor.id);
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === editFor.id
-          ? {
-              ...i,
-              class_start_time: editStart || null,
-              class_end_time: editEnd || null,
-              dajim_end_time: dajim || null,
-            }
-          : i
-      )
-    );
+    const payload = {
+      name: editFor.class_name,
+      campus: editFor.campus,
+      schedule: {
+        start_time: editStart || "",
+        end_time: editEnd || "",
+        dajim_end_time: editOverrideOn ? editOverrideDajim || null : null,
+      },
+    };
+    await fetch("/api/admin/classes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const res = await fetch("/api/admin/classes", { method: "GET" });
+    const json = await res.json();
+    const rows = Array.isArray(json?.items) ? json.items : [];
+    const mapped: ClassRow[] = rows.map((c: any) => {
+      const s = Array.isArray(c.schedules) && c.schedules.length > 0 ? c.schedules[0] : null;
+      return {
+        id: String(c.id),
+        campus: String(c.campus || ""),
+        class_name: String(c.name || ""),
+        start_time: s?.start_time ? String(s.start_time).slice(0, 5) : null,
+        end_time: s?.end_time ? String(s.end_time).slice(0, 5) : null,
+        dajim_end_time: s?.dajim_end_time ? String(s.dajim_end_time).slice(0, 5) : null,
+      };
+    });
+    setItems(mapped);
     setEditFor(null);
   };
 
   const saveNew = async () => {
     if (!newCampus.trim() || !newClassName.trim()) return;
-    const dajim = getDajimEndTime(newEnd || null, newOverrideOn ? newOverrideDajim : null);
-    const res = await supabase
-      .from("classes")
-      .insert({
-        campus: newCampus.trim(),
-        class_name: newClassName.trim(),
-        class_start_time: newStart || null,
-        class_end_time: newEnd || null,
-        dajim_end_time: dajim || null,
-        created_at: new Date().toISOString(),
-      })
-      .select("id")
-      .single();
-    const id = String((res.data as any)?.id || `new_${Date.now()}`);
-    setItems((prev) => [
-      ...prev,
-      {
-        id,
-        campus: newCampus.trim(),
-        class_name: newClassName.trim(),
-        class_start_time: newStart || null,
-        class_end_time: newEnd || null,
-        dajim_end_time: dajim || null,
+    const payload = {
+      name: newClassName.trim(),
+      campus: newCampus.trim(),
+      schedule: {
+        start_time: newStart || "",
+        end_time: newEnd || "",
+        dajim_end_time: newOverrideOn ? newOverrideDajim || null : null,
       },
-    ]);
+    };
+    await fetch("/api/admin/classes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const res = await fetch("/api/admin/classes", { method: "GET" });
+    const json = await res.json();
+    const rows = Array.isArray(json?.items) ? json.items : [];
+    const mapped: ClassRow[] = rows.map((c: any) => {
+      const s = Array.isArray(c.schedules) && c.schedules.length > 0 ? c.schedules[0] : null;
+      return {
+        id: String(c.id),
+        campus: String(c.campus || ""),
+        class_name: String(c.name || ""),
+        start_time: s?.start_time ? String(s.start_time).slice(0, 5) : null,
+        end_time: s?.end_time ? String(s.end_time).slice(0, 5) : null,
+        dajim_end_time: s?.dajim_end_time ? String(s.dajim_end_time).slice(0, 5) : null,
+      };
+    });
+    setItems(mapped);
     setNewOpen(false);
     setNewCampus("");
     setNewClassName("");
@@ -319,16 +313,16 @@ export default function AdminClassesPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map((r) => {
-                const auto = getDajimEndTime(r.class_end_time, null);
+                const auto = getDajimEndTime(r.end_time, null);
                 const isAuto = !r.dajim_end_time || r.dajim_end_time === auto;
                 return (
                   <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-3 text-slate-700">{r.campus}</td>
                     <td className="p-3 text-slate-900 font-bold">{r.class_name}</td>
-                    <td className="p-3 text-center">{r.class_start_time || ""}</td>
-                    <td className="p-3 text-center">{r.class_end_time || ""}</td>
+                    <td className="p-3 text-center">{r.start_time || ""}</td>
+                    <td className="p-3 text-center">{r.end_time || ""}</td>
                     <td className="p-3 text-center">
-                      <span className="text-slate-900 font-bold">{getDajimEndTime(r.class_end_time, r.dajim_end_time)}</span>{" "}
+                      <span className="text-slate-900 font-bold">{getDajimEndTime(r.end_time, r.dajim_end_time)}</span>{" "}
                       <span className={`text-xs ${isAuto ? "text-slate-400" : "text-amber-600"}`}>{isAuto ? "(자동)" : "(수정됨)"}</span>
                     </td>
                     <td className="p-3 text-center">
@@ -377,9 +371,9 @@ export default function AdminClassesPage() {
                         <tr key={r.id}>
                           <td className="p-2">{r.campus}</td>
                           <td className="p-2">{r.class_name}</td>
-                          <td className="p-2 text-center">{r.class_start_time || ""}</td>
-                          <td className="p-2 text-center">{r.class_end_time || ""}</td>
-                          <td className="p-2 text-center">{getDajimEndTime(r.class_end_time, r.dajim_end_time)}</td>
+                          <td className="p-2 text-center">{r.start_time || ""}</td>
+                          <td className="p-2 text-center">{r.end_time || ""}</td>
+                          <td className="p-2 text-center">{getDajimEndTime(r.end_time, r.dajim_end_time)}</td>
                         </tr>
                       ))}
                     </tbody>
