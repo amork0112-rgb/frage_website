@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bell, MessageSquare, Users, AlertCircle, ArrowRight, CheckCircle2, ChevronDown, MapPin } from "lucide-react";
+import { Bell, MessageSquare, Users, AlertCircle, ArrowRight, CheckCircle2, ChevronDown, MapPin, Settings } from "lucide-react";
 import { CampusType } from "@/data/notices";
 import { supabase } from "@/lib/supabase";
 
@@ -29,6 +29,7 @@ export default function AdminHome() {
   const [students, setStudents] = useState<any[]>([]);
   const [signups, setSignups] = useState<any[]>([]);
   const [absenceRequests, setAbsenceRequests] = useState<any[]>([]);
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     const relTime = (iso: string) => {
@@ -93,6 +94,21 @@ export default function AdminHome() {
     return () => {
       clearInterval(timer);
     };
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const uid = data?.user?.id || "";
+        if (!uid) {
+          setRole(null);
+          return;
+        }
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", uid).single();
+        setRole(profile?.role ? String(profile.role) : null);
+      } catch {}
+    })();
   }, []);
 
   // Filter Logic
@@ -371,6 +387,23 @@ export default function AdminHome() {
                         <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
                     </div>
                 </Link>
+
+                {role === "master_admin" && (
+                  <Link href="/admin/master" className="group block bg-white p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-slate-800 group-hover:text-white transition-colors">
+                          <Settings className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900">마스터 관리</h3>
+                          <p className="text-xs text-slate-500">운영 핵심 설정 페이지</p>
+                        </div>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-slate-800 group-hover:translate-x-1 transition-all" />
+                    </div>
+                  </Link>
+                )}
             </div>
         </section>
 
