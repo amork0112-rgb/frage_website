@@ -75,22 +75,28 @@ export default function AdminTeachersPage() {
 
   const createTeacher = () => {
     if (!name.trim() || !email.trim() || !password.trim()) return;
-    const id = `t_${Date.now()}`;
-    const createdAt = new Date().toISOString();
     (async () => {
-      await supabase.from("teachers").insert({
-        id,
-        name: name.trim(),
-        email: email.trim(),
-        campus,
-        role,
-        active: true,
-        created_at: createdAt,
+      const res = await fetch("/api/admin/create-teacher", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          password: password.trim(),
+          campus,
+          role,
+        }),
       });
-      await refreshItems();
-      setToast("계정을 생성했습니다");
-      resetForm();
-      setTimeout(() => setToast(""), 2000);
+      const json = await res.json();
+      if (json?.ok) {
+        await refreshItems();
+        setToast("계정을 생성했습니다");
+        resetForm();
+        setTimeout(() => setToast(""), 2000);
+      } else {
+        setToast("계정 생성 실패");
+        setTimeout(() => setToast(""), 2000);
+      }
     })();
   };
 
