@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -6,6 +7,13 @@ export const dynamic = "force-dynamic";
 export default async function AdminMasterIndex() {
   const supabaseAuth = createSupabaseServer();
   const { data: { user } } = await supabaseAuth.auth.getUser();
+  const cookieStore = cookies();
+  const access = cookieStore.get("sb-access-token")?.value || "";
+  const refresh = cookieStore.get("sb-refresh-token")?.value || "";
+  console.log("SUPABASE USER", user);
+  console.log("APP META", (user as any)?.app_metadata);
+  console.log("USER META", (user as any)?.user_metadata);
+  console.log("TOKENS", { hasAccess: !!access, accessLen: access.length, hasRefresh: !!refresh, refreshLen: refresh.length });
   if (!user) {
     redirect("/portal");
   }
