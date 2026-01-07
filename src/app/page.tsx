@@ -138,6 +138,15 @@ export default function HomePage() {
       {/* 3. Outcomes: Use SectionOutcomes (Awards carousel + Admission outcomes) */}
       <section className="py-24 bg-white">
         <div className="container mx-auto px-6 max-w-[1400px]">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+            <div>
+              <span className="text-frage-blue font-bold tracking-widest uppercase mb-4 block">{t.awards_news.label}</span>
+              <h2 className="font-serif text-4xl md:text-5xl text-frage-navy font-bold whitespace-pre-line">{t.awards_news.title}</h2>
+            </div>
+            <Link href="/news" className="flex items-center text-sm font-bold tracking-widest uppercase hover:text-frage-blue transition-colors text-frage-gray">
+              {t.awards_news.view_all} <ArrowRight className="ml-2 w-4 h-4" />
+            </Link>
+          </div>
           <SectionOutcomes showHighlights={false} />
         </div>
       </section>
