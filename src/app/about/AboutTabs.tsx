@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/context/LanguageContext";
+
 type TabKey = "philosophy" | "mission" | "growth" | "outcomes";
 
 export default function AboutTabs({
@@ -13,11 +15,13 @@ export default function AboutTabs({
   showFullOutcomes: boolean;
   onToggleFullOutcomes: () => void;
 }) {
+  const { language } = useLanguage();
+  const isEn = language === "en";
   const tabs: { key: TabKey; label: string; href?: string }[] = [
-    { key: "philosophy", label: "교육 철학" },
-    { key: "mission", label: "교육 미션" },
-    { key: "growth", label: "성장 설계" },
-    { key: "outcomes", label: "성과" },
+    { key: "philosophy", label: isEn ? "How We Teach" : "교육 철학" },
+    { key: "mission", label: isEn ? "Why We Teach" : "교육 미션" },
+    { key: "growth", label: isEn ? "How Children Grow" : "성장 설계" },
+    { key: "outcomes", label: isEn ? "What Children Achieve" : "성과" },
   ];
   return (
     <div className="sticky top-0 z-30 bg-white border-b border-slate-200">
