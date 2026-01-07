@@ -178,7 +178,7 @@ export const translations = {
     },
     about_page: {
       hero_title: "We are FRAGE",
-      hero_subtitle: "An English class that starts with questions and culminates in presentations.",
+      hero_subtitle: "An inquiry-based English program designed for thinking and presentation.",
       section1_title: "From Sound to Thought",
       section1_desc1: "In an EFL (English as a Foreign Language) environment, English education shouldn't start with just reading letters. Precise exposure to and understanding of <strong>Sound</strong> is the most solid foundation for language acquisition.",
       section1_desc2: "Frage Edu follows a logical sequence: starting with embodying the unique sounds of English, moving to <strong>Reading</strong> text, <strong>Thinking</strong> about its meaning, and finally <strong>Expressing</strong> it through Speaking & Writing.",
