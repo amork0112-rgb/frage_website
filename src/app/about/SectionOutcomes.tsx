@@ -109,17 +109,49 @@ export default function SectionOutcomes({ expanded = false }: { expanded?: boole
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-10">
-        <h3 className="font-serif text-2xl text-frage-navy font-bold mb-6">{isEn ? "Admission Outcomes" : "진학 성과"}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-3">
-            <a href="https://blog.naver.com/frage_2030/223017626733" target="_blank" rel="noreferrer" className="block p-4 bg-white rounded-xl border border-gray-200 hover:border-frage-blue/30 transition-colors">2023 | Daegu International School 프라게 초등 국제반 합격</a>
-            <a href="https://blog.naver.com/frage_2030/222844192256" target="_blank" rel="noreferrer" className="block p-4 bg-white rounded-xl border border-gray-200 hover:border-frage-blue/30 transition-colors">2022 | Branksome Hall Asia (제주 국제학교) 합격</a>
-            <a href="https://blog.naver.com/frage_2030/223743723260" target="_blank" rel="noreferrer" className="block p-4 bg-white rounded-xl border border-gray-200 hover:border-frage-blue/30 transition-colors">2025 | 대구국제고등학교 최종 합격</a>
+        <h3 className="font-serif text-2xl text-frage-navy font-bold mb-6">
+          {isEn ? "Admission Outcomes" : "진학 성과"}
+        </h3>
+        <div className="space-y-8">
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-6 items-center">
+            {[
+              { src: "/images/about/branksome.png", name: "Branksome Hall Asia" },
+              { src: "/images/about/purdue.png", name: "Purdue University" },
+              { src: "/images/about/columbia.png", name: "Columbia University" },
+              { src: "/images/about/ucla.png", name: "University of California Los Angeles" },
+              { src: "/images/about/michigan.png", name: "University of Michigan" },
+              { src: "/images/about/bu.png", name: "Boston University" },
+              { src: "/images/about/hawaii.png", name: "University of Hawaii Manoa" },
+              { src: "/images/about/dis.svg", name: "Daegu International School" },
+              { src: "/images/about/kis.png", name: "KIS" },
+              { src: "/images/about/대구국제고.png", name: "Daegu International High School" },
+              { src: "/images/about/대구외고.png", name: "Daegu Foreign Language High School" },
+              { src: "/images/about/용인외고.png", name: "Yongin Foreign Language High School" },
+            ].map((logo, i) => (
+              <div key={i} className="flex items-center justify-center">
+                <img
+                  src={logo.src}
+                  alt={logo.name}
+                  className="h-14 w-auto object-contain grayscale hover:grayscale-0 transition duration-300"
+                />
+              </div>
+            ))}
           </div>
-          <div className="space-y-3">
-            <a href="https://blog.naver.com/frage_2030/224078411287" target="_blank" rel="noreferrer" className="block p-4 bg-white rounded-xl border border-gray-200 hover:border-frage-blue/30 transition-colors">2024 | Purdue University 합격</a>
-            <div className="p-4 bg-white rounded-xl border border-gray-200">2025 | Columbia University 합격</div>
-            <div className="p-4 bg-white rounded-xl border border-gray-200">2020 | University of Michigan 합격</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { year: 2025, ko: "Columbia University 합격", en: "Columbia University admitted" },
+              { year: 2024, ko: "Purdue University 합격", en: "Purdue University admitted" },
+              { year: 2023, ko: "University of California Los Angeles 합격", en: "University of California Los Angeles admitted" },
+              { year: 2023, ko: "Daegu International School 합격", en: "Daegu International School admitted" },
+              { year: 2022, ko: "Branksome Hall Asia 합격", en: "Branksome Hall Asia admitted" },
+              { year: 2021, ko: "Daegu International School 합격", en: "Daegu International School admitted" },
+              { year: 2018, ko: "University of Hawaii Manoa 합격", en: "University of Hawaii Manoa admitted" },
+              { year: 2020, ko: "University of Michigan 합격", en: "University of Michigan admitted" },
+            ].map((item, i) => (
+              <div key={i} className="text-sm text-slate-700">
+                {item.year} | {isEn ? item.en : item.ko}
+              </div>
+            ))}
           </div>
         </div>
       </div>
