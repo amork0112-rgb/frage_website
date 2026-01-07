@@ -14,7 +14,7 @@ export default function HomePage() {
     <div className="flex flex-col min-h-screen font-sans bg-frage-cream selection:bg-frage-gold selection:text-frage-navy">
       
       {/* 1. Hero Section: Fullscreen Friendly */}
-      <section className="relative min-h-[100svh] w-full overflow-visible bg-frage-purple">
+      <section className="relative min-h-[100svh] w-full overflow-visible bg-frage-purple pt-24 md:pt-32 pb-16">
         {/* Background Image/Video Overlay */}
         <div className="absolute inset-0 z-0">
           <Image
@@ -29,7 +29,7 @@ export default function HomePage() {
         </div>
 
         {/* Hero Content */}
-        <div className="relative z-10 flex flex-col justify-center h-full container mx-auto px-6 max-w-[1400px] pt-20 md:pt-0">
+        <div className="relative z-10 flex flex-col justify-center h-full container mx-auto px-6 max-w-[1400px] py-8 md:py-12">
           <span className="text-frage-yellow font-bold tracking-widest uppercase mb-6 animate-fade-in inline-block bg-white/10 backdrop-blur-sm px-4 py-1 rounded-full w-fit">
             {t.hero.location}
           </span>
