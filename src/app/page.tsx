@@ -14,7 +14,7 @@ export default function HomePage() {
     <div className="flex flex-col min-h-screen font-sans bg-frage-cream selection:bg-frage-gold selection:text-frage-navy">
       
       {/* 1. Hero Section: Fullscreen Friendly */}
-      <section className="relative h-screen w-full overflow-hidden bg-frage-purple">
+      <section className="relative min-h-[100svh] w-full overflow-visible bg-frage-purple">
         {/* Background Image/Video Overlay */}
         <div className="absolute inset-0 z-0">
           <Image
@@ -33,11 +33,11 @@ export default function HomePage() {
           <span className="text-frage-yellow font-bold tracking-widest uppercase mb-6 animate-fade-in inline-block bg-white/10 backdrop-blur-sm px-4 py-1 rounded-full w-fit">
             {t.hero.location}
           </span>
-          <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl text-white font-medium leading-tight mb-8 max-w-5xl animate-fade-in-up delay-100 drop-shadow-lg">
+          <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl text-white font-medium leading-snug md:leading-tight mb-8 max-w-5xl animate-fade-in-up delay-100 drop-shadow-lg">
             {t.hero.title_1}<br />
             <span className="text-frage-yellow font-bold">{t.hero.title_2}</span>
           </h1>
-          <p className="text-white text-lg md:text-2xl font-medium tracking-wide max-w-3xl leading-relaxed mb-12 animate-fade-in-up delay-200 whitespace-pre-line drop-shadow-md">
+          <p className="text-white text-base md:text-2xl font-medium tracking-wide max-w-3xl leading-relaxed mb-12 animate-fade-in-up delay-200 whitespace-pre-line drop-shadow-md">
             {t.hero.subtitle}
           </p>
           

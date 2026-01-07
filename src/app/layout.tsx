@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   description: "Building strong readers, clear thinkers, and confident communicators.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/logo.png",
   },
 };
 

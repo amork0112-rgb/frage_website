@@ -10,13 +10,27 @@
 }
 
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  * {
+    box-sizing: border-box;
+  }
   body {
     color: rgb(var(--foreground-rgb));
     background: rgb(var(--background-end-rgb));
-    /* Default premium settings */
+    line-height: 1.6;
+    text-rendering: optimizeLegibility;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  h1, h2, h3 {
+    line-height: 1.35;
+  }
+  p, h1, h2 {
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
 }
 
