@@ -53,7 +53,7 @@ export default function Header() {
             <Link
               href="/about"
               prefetch={false}
-              className={`text-sm font-medium tracking-[0.15em] uppercase transition-all duration-300 hover:text-frage-gold ${
+              className={`text-sm font-medium tracking-[0.06em] uppercase transition-all duration-300 hover:text-frage-gold ${
                 isScrolled ? "text-frage-navy" : "text-white/90 hover:text-white"
               }`}
             >
@@ -64,7 +64,7 @@ export default function Header() {
                 key={link.href}
                 href={link.href}
                 prefetch={false}
-                className={`text-sm font-medium tracking-[0.15em] uppercase transition-all duration-300 hover:text-frage-gold ${
+                className={`text-sm font-medium tracking-[0.06em] uppercase transition-all duration-300 hover:text-frage-gold ${
                   isScrolled ? "text-frage-navy" : "text-white/90 hover:text-white"
                 }`}
               >
