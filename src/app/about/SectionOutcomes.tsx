@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
+import React, { useEffect, useRef, useState } from "react";
 
 export default function SectionOutcomes({ expanded = false }: { expanded?: boolean }) {
   const { language } = useLanguage();
@@ -19,24 +20,65 @@ export default function SectionOutcomes({ expanded = false }: { expanded?: boole
     { title: "영어 말하기 대회 출전 기록", link: "https://blog.naver.com/frage_2030/222490002924" },
     { title: "에세이 공모전 전원 수상 상세", link: "https://blog.naver.com/frage_2030/223161007823" },
   ];
-  const awardGallery = [
+  const awardSlides: {
+    title: string;
+    desc?: string;
+    link?: string;
+    images: string[];
+  }[] = [
     {
-      image: "/images/outcomes/awards/outcome-award-speaking-2024-01.jpg",
       title: "전국 영어 말하기 대회",
       desc: "프라게 학생 누적 750명 이상 출전",
       link: "https://blog.naver.com/frage_2030/222490002924",
+      images: [
+        "/images/outcome-award-speech-2019-1.jpg",
+        "/images/outcome-award-speech-2019-2.jpg",
+        "/images/outcome-award-speech-2025-1.jpg",
+      ],
     },
     {
-      image: "/images/outcomes/awards/outcome-award-essay-2023-01.jpg",
-      title: "국제통번역자원봉사단 청소년 에세이 공모전",
-      desc: "참가 학생 전원 수상",
-      link: "https://blog.naver.com/frage_2030/223161007823",
-    },
-    {
-      image: "/images/outcomes/awards/outcome-award-university-2020-01.jpg",
-      title: "숭실대 영어 말하기·노래 대회",
-      desc: "참가 학생 전원 수상",
+      title: "숭실대영어말하기및영어노래대회",
+      desc: "숭실대학교 총장님 상 수상",
       link: "https://blog.naver.com/frage_2030/223714898433",
+      images: ["/images/soongsil_1.jpg", "/images/soongsil_2.jpg", "/images/soongsil_3.jpg"],
+    },
+    {
+      title: "유엔NGO FLML 미국 국제교류 청소년 사절단",
+      desc: "친선 국제 스피치 대회",
+      images: ["images/usa_1.jpg", "images/usa_2.jpg", "images/usa_3.jpg"],
+    },
+    {
+      title: "제54회 코리아헤럴드영어스피치대회",
+      images: ["/images/heraldspeech_1.jpg", "/images/heraldspeech_2.jpg", "/images/heraldspeech_3.jpg"],
+    },
+    {
+      title: "KIECC UN SDGs 영어말하기대회",
+      desc: "본선 진출",
+      images: ["/images/sdg_1.jpg", "/images/sdg_2.jpg", "/images/sdg_3.jpg"],
+    },
+    {
+      title: "진주 K-기업가정신 국제포럼",
+      desc: "전국 청소년 영어 스피치 특별무대",
+      link: "https://n.news.naver.com/article/422/0000797218",
+      images: ["/images/jinu_1.jpg", "/images/jinu_2.jpg", "/images/jinu_3.jpg"],
+    },
+    {
+      title: "세계창의력올림피아드국가대표 선발",
+      desc: "초등부팀 금상/은상 수상, 고등부팀 금상 수상",
+      link: "https://blog.naver.com/frage_2030/221224864028",
+      images: ["/images/odysessy_1.jpg", "/images/odysessy_2.jpg", "/images/odysessy_3.jpg"],
+    },
+    {
+      title: "비영리국제기구 WAC 공인 한국학생 융합과학대회",
+      desc: "전원수상",
+      link: "https://blog.naver.com/frage_2030/223103066382",
+      images: ["/images/deca_1.jpg", "/images/deca_2.jpg", "/images/deca_3.jpg"],
+    },
+    {
+      title: "2023 세계학생 창의력 올림피아드",
+      desc: "골드버그 1등상 및 개인창의력부분 1등상",
+      link: "https://blog.naver.com/frage_2030/223205323400",
+      images: ["/images/credeca-1.jpg", "/images/credeca-2.jpg", "/images/credeca-3.jpg"],
     },
   ];
   return (
@@ -91,30 +133,7 @@ export default function SectionOutcomes({ expanded = false }: { expanded?: boole
             {isEn ? "Frage students’ achievements in real competitions" : "실제 대회·공모전에서 증명된 성과"}
           </span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-          {awardGallery.map((item, idx) => (
-            <a
-              key={idx}
-              href={item.link}
-              target="_blank"
-              rel="noreferrer"
-              className="group rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm hover:shadow-lg transition-all"
-            >
-              <div className="aspect-square overflow-hidden">
-                <img
-                  src={item.image}
-                  alt={item.title}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-              </div>
-              <div className="p-4">
-                <div className="font-bold text-frage-navy text-sm">{item.title}</div>
-                <div className="text-xs text-slate-600 mt-1">{item.desc}</div>
-                <div className="mt-2 text-[11px] text-slate-500">{isEn ? "Open blog in new tab" : "블로그 새 탭 이동"}</div>
-              </div>
-            </a>
-          ))}
-        </div>
+        <AwardsCarousel slides={awardSlides} isEn={isEn} />
       </div>
 
       {expanded && (
@@ -153,6 +172,107 @@ export default function SectionOutcomes({ expanded = false }: { expanded?: boole
           </Link>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AwardsCarousel({
+  slides,
+  isEn,
+}: {
+  slides: { title: string; desc?: string; link?: string; images: string[] }[];
+  isEn: boolean;
+}) {
+  const [index, setIndex] = useState(0);
+  const [hovering, setHovering] = useState(false);
+  const startXRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (hovering) return;
+    const id = setInterval(() => {
+      setIndex((i) => (i + 1) % slides.length);
+    }, 7000);
+    return () => clearInterval(id);
+  }, [hovering, slides.length]);
+
+  const prev = () => setIndex((i) => (i - 1 + slides.length) % slides.length);
+  const next = () => setIndex((i) => (i + 1) % slides.length);
+
+  return (
+    <div
+      className="relative group overflow-hidden rounded-2xl border border-slate-200"
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      onTouchStart={(e) => {
+        startXRef.current = e.touches[0]?.clientX ?? null;
+      }}
+      onTouchEnd={(e) => {
+        const endX = e.changedTouches[0]?.clientX ?? null;
+        if (startXRef.current !== null && endX !== null) {
+          const delta = endX - startXRef.current;
+          if (Math.abs(delta) > 50) {
+            if (delta < 0) next();
+            else prev();
+          }
+        }
+        startXRef.current = null;
+      }}
+    >
+      <div className="relative h-full min-h-[420px]">
+        {slides.map((s, i) => (
+          <div
+            key={i}
+            className={`absolute inset-0 transition-opacity duration-700 ease-out ${
+              i === index ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+          >
+            <div className="p-6">
+              <div className="grid grid-cols-3 gap-4">
+                {s.images.slice(0, 3).map((src, k) => (
+                  <div key={k} className="rounded-xl overflow-hidden border border-slate-200 bg-white">
+                    <div className="aspect-square overflow-hidden">
+                      <img
+                        src={src}
+                        alt={`${s.title} ${k + 1}`}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 px-1">
+                <div className="font-serif text-lg font-bold text-frage-navy">{s.title}</div>
+                {s.desc && <div className="text-sm text-slate-600 mt-1">{s.desc}</div>}
+                {s.link && (
+                  <a
+                    href={s.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-slate-500 mt-2 inline-block"
+                  >
+                    {isEn ? "Open blog in new tab" : "블로그 새 탭 이동"}
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        aria-label="Previous"
+        onClick={prev}
+        className="absolute left-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/70 backdrop-blur p-2 shadow-sm text-frage-navy opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        ‹
+      </button>
+      <button
+        aria-label="Next"
+        onClick={next}
+        className="absolute right-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/70 backdrop-blur p-2 shadow-sm text-frage-navy opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        ›
+      </button>
     </div>
   );
 }
