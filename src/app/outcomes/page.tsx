@@ -138,6 +138,14 @@ export default async function OutcomesPage() {
           <p className="text-white/80 text-lg mt-6">
             국제 공인 지표 · 실제 학생 데이터 · 장기 성장 기록
           </p>
+          <div className="flex gap-6 mt-10">
+            <Link href="/about" className="text-white/60 hover:text-white transition-colors">
+              교육 철학
+            </Link>
+            <Link href="/outcomes" className="text-white font-semibold border-b-2 border-frage-gold pb-1">
+              프라게 성과
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -341,32 +349,7 @@ export default async function OutcomesPage() {
         </div>
       </section>
 
-      <section className="bg-frage-navy py-24 text-white">
-        <div className="container mx-auto px-6 max-w-[1200px]">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Link
-              href="/portal/admission"
-              className="block text-center p-6 rounded-2xl bg-white text-frage-navy font-bold hover:bg-frage-gold hover:text-frage-navy transition-colors"
-            >
-              우리 아이 Lexile 진단 받아보기
-            </Link>
-            <Link
-              href="/programs"
-              className="block text-center p-6 rounded-2xl bg-white text-frage-navy font-bold hover:bg-frage-gold hover:text-frage-navy transition-colors"
-            >
-              프라게 유치부·초등 성장 로드맵 보기
-            </Link>
-            <a
-              href="http://pf.kakao.com/_QGQvxj/chat"
-              target="_blank"
-              rel="noreferrer"
-              className="block text-center p-6 rounded-2xl bg-white text-frage-navy font-bold hover:bg-frage-gold hover:text-frage-navy transition-colors"
-            >
-              상담 예약하기
-            </a>
-          </div>
-        </div>
-      </section>
+      
     </div>
   );
 }
