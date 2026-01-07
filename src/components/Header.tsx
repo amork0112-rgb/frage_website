@@ -19,9 +19,7 @@ export default function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-
   const navLinks = [
-    { name: t.nav.about, href: "/about" },
     { name: t.nav.programs, href: "/programs" },
     { name: t.nav.campuses, href: "/campuses" },
     { name: t.nav.admissions, href: "/admissions" },
@@ -52,6 +50,28 @@ export default function Header() {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-12">
+            <div className="relative group">
+              <Link
+                href="/about"
+                prefetch={false}
+                className={`text-sm font-medium tracking-[0.15em] uppercase transition-all duration-300 hover:text-frage-gold ${
+                  isScrolled ? "text-frage-navy" : "text-white/90 hover:text-white"
+                }`}
+              >
+                {t.nav.about}
+              </Link>
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3 hidden group-hover:block">
+                <div className="bg-white border border-slate-100 shadow-xl rounded-xl py-2 min-w-[220px]">
+                  <Link
+                    href="/outcomes"
+                    prefetch={false}
+                    className="block px-4 py-2 text-sm font-medium text-frage-navy hover:bg-frage-cream rounded-md"
+                  >
+                    프라게 성과
+                  </Link>
+                </div>
+              </div>
+            </div>
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -110,41 +130,49 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Mobile Menu Dropdown */}
-      {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-white border-b border-slate-100 shadow-lg p-4 flex flex-col gap-4 animate-in slide-in-from-top-2">
-          <Link
-            href="/portal"
-            prefetch={false}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-frage-navy text-white min-h-[48px]"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            <LogIn className="w-5 h-5" />
-            <span className="text-sm font-bold tracking-wider">{t.nav.portal}</span>
-          </Link>
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              prefetch={false}
-              className="text-lg font-medium text-slate-700 py-2 border-b border-slate-50 last:border-0"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {link.name}
-            </Link>
-          ))}
-          <div className="flex items-center justify-between py-2 border-t border-slate-100 mt-2 pt-4">
-             <span className="text-sm font-bold text-slate-500">Language</span>
-             <button
-              onClick={toggleLanguage}
-              className="flex items-center gap-2 text-sm font-bold text-frage-navy px-4 py-2 bg-slate-100 rounded-full"
-            >
-              <Globe className="w-4 h-4" />
-              <span>{language === "en" ? "한국어" : "English"}</span>
-            </button>
-          </div>
-        </div>
-      )}
-    </header>
-  );
-}
+          {/* Mobile Menu Dropdown */}
+          {mobileMenuOpen && (
+            <div className="md:hidden absolute top-full left-0 right-0 bg-white border-b border-slate-100 shadow-lg p-4 flex flex-col gap-4 animate-in slide-in-from-top-2">
+              <Link
+                href="/portal"
+                prefetch={false}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl bg-frage-navy text-white min-h-[48px]"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <LogIn className="w-5 h-5" />
+                <span className="text-sm font-bold tracking-wider">{t.nav.portal}</span>
+              </Link>
+              <Link
+                href="/outcomes"
+                prefetch={false}
+                className="text-lg font-medium text-slate-700 py-2 border-b border-slate-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                프라게 성과
+              </Link>
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  prefetch={false}
+                  className="text-lg font-medium text-slate-700 py-2 border-b border-slate-50 last:border-0"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {link.name}
+                </Link>
+              ))}
+              <div className="flex items-center justify-between py-2 border-t border-slate-100 mt-2 pt-4">
+                 <span className="text-sm font-bold text-slate-500">Language</span>
+                 <button
+                  onClick={toggleLanguage}
+                  className="flex items-center gap-2 text-sm font-bold text-frage-navy px-4 py-2 bg-slate-100 rounded-full"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>{language === "en" ? "한국어" : "English"}</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </header>
+      );
+    }
