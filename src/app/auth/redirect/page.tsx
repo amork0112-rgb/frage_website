@@ -7,16 +7,12 @@ export default async function AuthRedirectPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   console.log("AUTH REDIRECT USER", user);
-  console.log("AUTH REDIRECT APP META", (user as any)?.app_metadata);
-  console.log("AUTH REDIRECT USER META", (user as any)?.user_metadata);
 
   if (!user) {
-    console.log("AUTH REDIRECT: no user, go /portal");
     redirect("/portal");
   }
 
-  const role = resolveRole({ authUser: user, profile: null });
-  console.log("AUTH REDIRECT ROLE", role);
+  const role = resolveRole(user, null);
 
   if (role === "master_admin") {
     redirect("/admin/master/dashboard");

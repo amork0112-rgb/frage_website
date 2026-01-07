@@ -157,7 +157,7 @@ export default function SectionOutcomes({ showHighlights = true }: { showHighlig
             {isEn ? "Awards & Competitions" : "수상·대회 성과"}
           </h3>
           <span className="text-sm text-slate-500">
-            {isEn ? "Frage students’ achievements in real competitions" : "실제 대회·공모전에서 증명된 성과"}
+            {isEn ? "Frage students’ achievements in competitions" : "대회·공모전에서 증명된 성과"}
           </span>
         </div>
         <AwardsCarousel slides={awardSlides} isEn={isEn} />
