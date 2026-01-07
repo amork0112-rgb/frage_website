@@ -52,13 +52,13 @@ export default function SectionOutcomes({ showHighlights = true }: { showHighlig
       title: "진주 K-기업가정신 국제포럼",
       desc: "전국 청소년 영어 스피치 특별무대",
       link: "https://n.news.naver.com/article/422/0000797218",
-      images: ["/images/jinu_1.jpg", "/images/jinu_2.jpg", "/images/jinu_3.jpg"],
+      images: ["/images/jinju_1.jpg", "/images/jinju_2.jpg", "/images/jinju_3.jpg"],
     },
     {
       title: "세계창의력올림피아드국가대표 선발",
       desc: "초등부팀 금상/은상 수상, 고등부팀 금상 수상",
       link: "https://blog.naver.com/frage_2030/221224864028",
-      images: ["/images/odysessy_1.jpg", "/images/odysessy_2.jpg", "/images/odysessy_3.jpg"],
+      images: ["/images/odyssey_1.jpg", "/images/odyssey_2.jpg", "/images/odyssey_3.jpg"],
     },
     {
       title: "비영리국제기구 WAC 공인 한국학생 융합과학대회",
@@ -109,18 +109,18 @@ export default function SectionOutcomes({ showHighlights = true }: { showHighlig
         <div className="space-y-8">
           <div className="grid grid-cols-3 md:grid-cols-5 gap-6 items-center">
             {[
-              { src: "/public/images/about/branksome.png", name: "Branksome Hall Asia" },
-              { src: "/public/images/about/purdue.png", name: "Purdue University" },
-              { src: "public/images/about/columbia.png", name: "Columbia University" },
-              { src: "/public/images/about/ucla.png", name: "University of California Los Angeles" },
-              { src: "/public/images/about/michigan.png", name: "University of Michigan" },
-              { src: "/public/images/about/bu.png", name: "Boston University" },
-              { src: "/public/images/about/hawaii.png", name: "University of Hawaii Manoa" },
-              { src: "/public/images/about/dis.svg", name: "Daegu International School" },
-              { src: "/public/images/about/kis.png", name: "Korea International School" },
-              { src: "/public/images/about/%EB%8C%80%EA%B5%AC%EA%B5%AD%EC%A0%9C%EA%B3%A0.png", name: "Daegu International High School" },
-              { src: "/public/images/about/%EB%8C%80%EA%B5%AC%EC%99%B8%EA%B3%A0.png", name: "Daegu Foreign Language High School" },
-              { src: "/public/images/about/%EC%9A%A9%EC%9D%B8%EC%99%B8%EA%B3%A0.png", name: "Yongin Foreign Language High School" },
+              { src: "/images/about/branksome.png", name: "Branksome Hall Asia" },
+              { src: "/images/about/purdue.png", name: "Purdue University" },
+              { src: "/images/about/columbia.png", name: "Columbia University" },
+              { src: "/images/about/ucla.png", name: "University of California Los Angeles" },
+              { src: "/images/about/michigan.png", name: "University of Michigan" },
+              { src: "/images/about/bu.png", name: "Boston University" },
+              { src: "/images/about/hawaii.png", name: "University of Hawaii Manoa" },
+              { src: "/images/about/dis.svg", name: "Daegu International School" },
+              { src: "/images/about/kis.png", name: "Korea International School" },
+              { src: "/images/about/%EB%8C%80%EA%B5%AC%EA%B5%AD%EC%A0%9C%EA%B3%A0.png", name: "Daegu International High School" },
+              { src: "/images/about/%EB%8C%80%EA%B5%AC%EC%99%B8%EA%B3%A0.png", name: "Daegu Foreign Language High School" },
+              { src: "/images/about/%EC%9A%A9%EC%9D%B8%EC%99%B8%EA%B3%A0.png", name: "Yongin Foreign Language High School" },
             ].map((logo, i) => (
               <div key={i} className="flex items-center justify-center">
                 <img

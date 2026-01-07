@@ -1,49 +1,30 @@
-"use client";
+import { redirect } from "next/navigation";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { resolveRole } from "@/lib/auth/resolveRole";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+export default async function AuthRedirectPage() {
+  const supabase = createSupabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
 
-export default function AuthRedirectPage() {
-  const router = useRouter();
+  console.log("AUTH REDIRECT USER", user);
+  console.log("AUTH REDIRECT APP META", (user as any)?.app_metadata);
+  console.log("AUTH REDIRECT USER META", (user as any)?.user_metadata);
 
-  useEffect(() => {
-    let retry = 0;
-    const maxRetries = 8;
+  if (!user) {
+    console.log("AUTH REDIRECT: no user, go /portal");
+    redirect("/portal");
+  }
 
-    const run = async () => {
-      const { data } = await supabase.auth.getUser();
-      const user = data?.user;
+  const role = resolveRole({ authUser: user, profile: null });
+  console.log("AUTH REDIRECT ROLE", role);
 
-      // Supabase 세션 로딩 대기
-      if (!user) {
-        if (retry < maxRetries) {
-          retry += 1;
-          setTimeout(run, 150);
-        } else {
-          router.replace("/portal");
-        }
-        return;
-      }
+  if (role === "master_admin") {
+    redirect("/admin/master/dashboard");
+  }
 
-      const role = (user.app_metadata as any)?.role;
+  if (role === "admin" || role === "teacher") {
+    redirect("/admin/home");
+  }
 
-      // ✅ role 기반 최종 분기 (email 비교 금지)
-      if (role === "admin") {
-        router.replace("/admin/home");
-      } else if (role === "teacher") {
-        router.replace("/teacher/home");
-      } else {
-        router.replace("/portal/home");
-      }
-    };
-
-    run();
-  }, [router]);
-
-  return (
-    <div className="flex items-center justify-center h-screen">
-      <div className="text-sm text-slate-600">리디렉션 중…</div>
-    </div>
-  );
+  redirect("/portal/home");
 }

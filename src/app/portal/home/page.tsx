@@ -1,13 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Bell, FileText, HelpCircle, CheckCircle, FileCheck, Calendar, Truck, AlertTriangle } from "lucide-react";
 import PortalHeader from "@/components/PortalHeader";
 import { supabase } from "@/lib/supabase";
+import { resolveRole } from "@/lib/auth/resolveRole";
 
 export default function ParentPortalHome() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
   const [studentStatus, setStudentStatus] = useState<string>("enrolled"); // 'enrolled' or 'new'
   const [newStudentProfile, setNewStudentProfile] = useState<any>(null);
   
@@ -118,6 +122,34 @@ export default function ParentPortalHome() {
   }, [DEFAULT_TIMES]);
 
   useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const user = data?.user;
+        if (!user) {
+          setAuthorized(false);
+          router.replace("/auth/redirect");
+          return;
+        }
+        let profile: any = null;
+        try {
+          const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+          profile = p || null;
+        } catch {}
+        const role = resolveRole({ authUser: user, profile });
+        console.log("PORTAL HOME AUTH USER", user);
+        console.log("PORTAL HOME ROLE", role);
+        console.log("PORTAL HOME APP META", (user as any)?.app_metadata);
+        console.log("PORTAL HOME USER META", (user as any)?.user_metadata);
+        console.log("PORTAL HOME PROFILE ROLE", profile?.role);
+        if (role !== "parent") {
+          setAuthorized(false);
+          router.replace("/auth/redirect");
+          return;
+        }
+        setAuthorized(true);
+      } catch {}
+    })();
     const today = new Date();
     while (today.getDay() === 0 || today.getDay() === 6) {
       today.setDate(today.getDate() + 1);
@@ -137,6 +169,7 @@ export default function ParentPortalHome() {
           setLoading(false);
           return;
         }
+        setAuthorized(true);
         setStudentId(user.id);
         const { data: studentRows } = await supabase
           .from("students")
@@ -250,6 +283,10 @@ export default function ParentPortalHome() {
       clearInterval(timer);
     };
   }, [studentId, studentStatus]);
+
+  if (!authorized) {
+    return null;
+  }
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50">Loading...</div>;
