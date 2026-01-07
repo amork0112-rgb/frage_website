@@ -47,8 +47,9 @@ export default function AdminHeader() {
     { name: "차량 관리", href: "/admin/transport", icon: Bus },
   ];
 
-  const handleLogout = () => {
-    router.push("/");
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/portal");
   };
 
   return (

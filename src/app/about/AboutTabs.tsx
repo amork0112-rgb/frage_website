@@ -7,13 +7,9 @@ type TabKey = "philosophy" | "mission" | "growth" | "outcomes";
 export default function AboutTabs({
   active,
   onChange,
-  showFullOutcomes,
-  onToggleFullOutcomes,
 }: {
   active: TabKey;
   onChange: (key: TabKey) => void;
-  showFullOutcomes: boolean;
-  onToggleFullOutcomes: () => void;
 }) {
   const { language } = useLanguage();
   const isEn = language === "en";
@@ -45,16 +41,6 @@ export default function AboutTabs({
               );
             })}
           </div>
-          {active === "outcomes" && (
-            <div className="absolute right-0 top-1/2 -translate-y-1/2">
-              <button
-                onClick={onToggleFullOutcomes}
-                className="text-xs text-slate-400 hover:text-frage-navy"
-              >
-                {showFullOutcomes ? "접기" : "성과 전체 보기"}
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>

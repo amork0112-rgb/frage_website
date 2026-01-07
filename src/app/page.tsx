@@ -2,63 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { useLanguage } from "@/context/LanguageContext";
-import { supabase } from "@/lib/supabase";
-
-type Post = {
-  id: number;
-  title: string;
-  category: string;
-  created_at: string;
-  image_url?: string;
-  content: string; // using content as summary
-};
+import SectionOutcomes from "@/app/about/SectionOutcomes";
 
 export default function HomePage() {
   const { t } = useLanguage();
-  const [pinnedNews, setPinnedNews] = useState<Post[]>([]);
-  const [awardsImages, setAwardsImages] = useState<string[]>([]);
-
-  useEffect(() => {
-    async function fetchPinnedNews() {
-      const { data } = await supabase
-        .from("posts")
-        .select("*")
-        .eq("published", true)
-        .eq("is_pinned", true)
-        .order("created_at", { ascending: false })
-        .limit(3);
-      
-      if (data && data.length > 0) {
-        setPinnedNews(data);
-        return;
-      }
-      const { data: fallback } = await supabase
-        .from("posts")
-        .select("*")
-        .eq("published", true)
-        .order("created_at", { ascending: false })
-        .limit(3);
-      setPinnedNews(fallback || []);
-    }
-    fetchPinnedNews();
-  }, []);
-
-  useEffect(() => {
-    try {
-      const arr = JSON.parse(localStorage.getItem("frage_awards_images") || "[]");
-      setAwardsImages(Array.isArray(arr) ? arr : []);
-    } catch {
-      setAwardsImages([]);
-    }
-  }, []);
-
-  const displayAwards = (t.awards_news.awards as any[]).map((a, i) => ({
-    ...a,
-    image: awardsImages[i] || a.image
-  }));
+  
   return (
     <div className="flex flex-col min-h-screen font-sans bg-frage-cream selection:bg-frage-gold selection:text-frage-navy">
       
@@ -67,7 +18,7 @@ export default function HomePage() {
         {/* Background Image/Video Overlay */}
         <div className="absolute inset-0 z-0">
           <Image
-            src={(pinnedNews[0]?.image_url) || "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2000&auto=format&fit=crop"}
+            src={"https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2000&auto=format&fit=crop"}
             alt="Students Studying Hard"
             fill
             className="object-cover transform scale-105 animate-slow-zoom opacity-30 mix-blend-overlay"
@@ -184,133 +135,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 3. Awards & News: Professional & Dynamic */}
+      {/* 3. Outcomes: Use SectionOutcomes (Awards carousel + Admission outcomes) */}
       <section className="py-24 bg-white">
         <div className="container mx-auto px-6 max-w-[1400px]">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
-            <div>
-              <span className="text-frage-blue font-bold tracking-widest uppercase mb-4 block">{t.awards_news.label}</span>
-              <h2 className="font-serif text-4xl md:text-5xl text-frage-navy font-bold">{t.awards_news.title}</h2>
-            </div>
-            <Link href="/news" className="flex items-center text-sm font-bold tracking-widest uppercase hover:text-frage-blue transition-colors text-frage-gray">
-              {t.awards_news.view_all} <ArrowRight className="ml-2 w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-            {/* Left: Awards History */}
-            <div className="lg:col-span-5">
-              <h3 className="font-serif text-2xl text-frage-navy mb-8 font-bold flex items-center gap-3">
-                <span className="w-2 h-8 bg-frage-yellow rounded-full"></span>
-                {t.awards_news.awards_title}
-              </h3>
-              <div className="space-y-6">
-                {displayAwards.map((award: any, index: number) => {
-                  const content = (
-                    <div className="flex gap-6 items-center group p-4 rounded-2xl hover:bg-frage-cream transition-colors border border-transparent hover:border-frage-yellow/20">
-                      <div className="w-20 h-20 rounded-xl overflow-hidden shadow-md flex-shrink-0">
-                        <Image src={award.image} alt={award.title} width={80} height={80} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-frage-blue font-bold text-sm">{award.year}</span>
-                          <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                          <span className="text-gray-500 text-xs">{award.date}</span>
-                        </div>
-                        <h4 className="font-bold text-frage-navy text-lg leading-tight mb-1">{award.title}</h4>
-                        <p className="text-sm text-frage-gray font-medium">
-                          <span className="text-frage-navy font-bold">{award.grade}</span> • {award.issuer}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                  return award.link ? (
-                    <a href={award.link} target="_blank" rel="noreferrer" key={index} className="block">
-                      {content}
-                    </a>
-                  ) : (
-                    <div key={index}>{content}</div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Right: Latest News */}
-            <div className="lg:col-span-7">
-              <h3 className="font-serif text-2xl text-frage-navy mb-8 font-bold flex items-center gap-3">
-                 <span className="w-2 h-8 bg-frage-blue rounded-full"></span>
-                 {t.awards_news.news_title}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Pinned News Logic */}
-                {pinnedNews.length > 0 ? (
-                    <>
-                        {/* Featured News (First Pinned Item) */}
-                        <Link href={`/news/${pinnedNews[0].id}`} className="md:col-span-2 relative rounded-3xl overflow-hidden group shadow-lg h-[300px] block">
-                            <Image
-                                src={pinnedNews[0].image_url || t.awards_news.news[0].image}
-                                alt={pinnedNews[0].title}
-                                fill
-                                className="object-cover transition-transform duration-700 group-hover:scale-105"
-                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 1200px"
-                                priority
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-frage-navy/90 via-frage-navy/40 to-transparent"></div>
-                            <div className="absolute bottom-0 left-0 p-8 w-full">
-                                <span className="inline-block px-3 py-1 rounded-full bg-frage-yellow text-frage-navy text-xs font-bold mb-3">
-                                    {pinnedNews[0].category.toUpperCase()}
-                                </span>
-                                <h4 className="text-white text-2xl font-bold mb-2 leading-tight">{pinnedNews[0].title}</h4>
-                                <p className="text-white/80 text-sm line-clamp-2 mb-4">{pinnedNews[0].content}</p>
-                                <span className="text-white/60 text-xs font-bold">
-                                    {new Date(pinnedNews[0].created_at).toLocaleDateString()}
-                                </span>
-                            </div>
-                        </Link>
-
-                        {/* Other Pinned News Items */}
-                        {pinnedNews.slice(1).map((news, index) => (
-                            <Link href={`/news/${news.id}`} key={index} className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 group block">
-                                <div className="h-40 overflow-hidden">
-                                    {news.image_url ? (
-                                        <Image
-                                            src={news.image_url}
-                                            alt={news.title}
-                                            width={600}
-                                            height={160}
-                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full bg-frage-blue/10 flex items-center justify-center text-frage-blue">
-                                            <span className="font-bold text-xl">NEWS</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-6">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <span className="text-xs font-bold text-frage-blue bg-frage-blue/10 px-2 py-1 rounded-md">
-                                            {news.category.toUpperCase()}
-                                        </span>
-                                        <span className="text-xs text-gray-400 font-medium">{new Date(news.created_at).toLocaleDateString()}</span>
-                                    </div>
-                                    <h4 className="font-bold text-frage-navy text-lg mb-2 line-clamp-1 group-hover:text-frage-blue transition-colors">
-                                        {news.title}
-                                    </h4>
-                                    <p className="text-sm text-frage-gray line-clamp-2 leading-relaxed">
-                                        {news.content}
-                                    </p>
-                                </div>
-                            </Link>
-                        ))}
-                    </>
-                ) : (
-                  <div className="md:col-span-2 rounded-3xl border border-gray-200 bg-white p-10 text-center">
-                    <p className="text-sm font-bold text-frage-gray">최신 소식이 곧 추가됩니다.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <SectionOutcomes showHighlights={false} />
         </div>
       </section>
 

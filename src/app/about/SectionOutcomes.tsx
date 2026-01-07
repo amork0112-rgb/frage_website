@@ -4,21 +4,13 @@ import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import React, { useEffect, useRef, useState } from "react";
 
-export default function SectionOutcomes({ expanded = false }: { expanded?: boolean }) {
+export default function SectionOutcomes({ showHighlights = true }: { showHighlights?: boolean }) {
   const { language } = useLanguage();
   const isEn = language === "en";
   const highlights = [
     { title: "유치부 Lexile 865 전국 최연소 · 최고점 기록", link: "https://blog.naver.com/frage_2030" },
     { title: "국제통번역자원봉사단 청소년 에세이 공모전 참가 학생 전원 수상", link: "https://blog.naver.com/frage_2030/223161007823" },
     { title: "전국 영어 말하기 대회 누적 750명 이상 출전", link: "https://blog.naver.com/frage_2030/222490002924" },
-  ];
-  const archives = [
-    { title: "Daegu International School 합격 사례", link: "https://blog.naver.com/frage_2030/223017626733" },
-    { title: "Branksome Hall Asia 합격 사례", link: "https://blog.naver.com/frage_2030/222844192256" },
-    { title: "대구국제고 최종 합격 사례", link: "https://blog.naver.com/frage_2030/223743723260" },
-    { title: "Purdue University 합격 사례", link: "https://blog.naver.com/frage_2030/224078411287" },
-    { title: "영어 말하기 대회 출전 기록", link: "https://blog.naver.com/frage_2030/222490002924" },
-    { title: "에세이 공모전 전원 수상 상세", link: "https://blog.naver.com/frage_2030/223161007823" },
   ];
   const awardSlides: {
     title: string;
@@ -83,30 +75,32 @@ export default function SectionOutcomes({ expanded = false }: { expanded?: boole
   ];
   return (
     <div className="container mx-auto max-w-5xl px-6 mt-12 space-y-12">
-      <div className="rounded-2xl border border-slate-200 bg-white p-10">
-        <div className="flex items-end justify-between mb-8">
-          <div>
-            <span className="text-frage-blue font-bold tracking-widest uppercase text-xs">
-              {isEn ? "Highlights" : "Highlights"}
-            </span>
-            <h2 className="font-serif text-2xl md:text-3xl text-frage-navy font-bold mt-3">
-              {isEn ? "Verified outcomes created by Frage’s education system" : "프라게 교육 시스템이 만들어낸 검증된 결과"}
-            </h2>
+      {showHighlights && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-10">
+          <div className="flex items-end justify-between mb-8">
+            <div>
+              <span className="text-frage-blue font-bold tracking-widest uppercase text-xs">
+                {isEn ? "Highlights" : "Highlights"}
+              </span>
+              <h2 className="font-serif text-2xl md:text-3xl text-frage-navy font-bold mt-3">
+                {isEn ? "Verified outcomes created by Frage’s education system" : "프라게 교육 시스템이 만들어낸 검증된 결과"}
+              </h2>
+            </div>
+            <span className="text-sm font-bold text-slate-500">{isEn ? "Preview" : "성과 미리보기"}</span>
           </div>
-          <span className="text-sm font-bold text-slate-500">{isEn ? "Preview" : "성과 미리보기"}</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {highlights.map((h, i) => (
+              <a key={i} href={h.link} target="_blank" rel="noreferrer" className="group rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm hover:shadow-md transition-all">
+                <div className="h-32 bg-frage-blue/10"></div>
+                <div className="p-4">
+                  <h3 className="font-bold text-frage-navy text-sm leading-tight">{h.title}</h3>
+                  <p className="text-xs text-slate-500 mt-2">{isEn ? "Open blog in new tab" : "블로그 새 탭 이동"}</p>
+                </div>
+              </a>
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {highlights.map((h, i) => (
-            <a key={i} href={h.link} target="_blank" rel="noreferrer" className="group rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm hover:shadow-md transition-all">
-              <div className="h-32 bg-frage-blue/10"></div>
-              <div className="p-4">
-                <h3 className="font-bold text-frage-navy text-sm leading-tight">{h.title}</h3>
-                <p className="text-xs text-slate-500 mt-2">{isEn ? "Open blog in new tab" : "블로그 새 탭 이동"}</p>
-              </div>
-            </a>
-          ))}
-        </div>
-      </div>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-10">
         <h3 className="font-serif text-2xl text-frage-navy font-bold mb-6">
@@ -115,24 +109,24 @@ export default function SectionOutcomes({ expanded = false }: { expanded?: boole
         <div className="space-y-8">
           <div className="grid grid-cols-3 md:grid-cols-5 gap-6 items-center">
             {[
-              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/branksome.png", name: "Branksome Hall Asia" },
-              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/purdue.png", name: "Purdue University" },
-              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/columbia.png", name: "Columbia University" },
-              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/ucla.png", name: "University of California Los Angeles" },
-              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/michigan.png", name: "University of Michigan" },
-              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/bu.png", name: "Boston University" },
-              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/hawaii.png", name: "University of Hawaii Manoa" },
-              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/dis.svg", name: "Daegu International School" },
-              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/kis.png", name: "Korea International School" },
-              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/%EB%8C%80%EA%B5%AC%EA%B5%AD%EC%A0%9C%EA%B3%A0.png", name: "Daegu International High School" },
-              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/%EB%8C%80%EA%B5%AC%EC%99%B8%EA%B3%A0.png", name: "Daegu Foreign Language High School" },
-              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/%EC%9A%A9%EC%9D%B8%EC%99%B8%EA%B3%A0.png", name: "Yongin Foreign Language High School" },
+              { src: "/public/images/about/branksome.png", name: "Branksome Hall Asia" },
+              { src: "/public/images/about/purdue.png", name: "Purdue University" },
+              { src: "public/images/about/columbia.png", name: "Columbia University" },
+              { src: "/public/images/about/ucla.png", name: "University of California Los Angeles" },
+              { src: "/public/images/about/michigan.png", name: "University of Michigan" },
+              { src: "/public/images/about/bu.png", name: "Boston University" },
+              { src: "/public/images/about/hawaii.png", name: "University of Hawaii Manoa" },
+              { src: "/public/images/about/dis.svg", name: "Daegu International School" },
+              { src: "/public/images/about/kis.png", name: "Korea International School" },
+              { src: "/public/images/about/%EB%8C%80%EA%B5%AC%EA%B5%AD%EC%A0%9C%EA%B3%A0.png", name: "Daegu International High School" },
+              { src: "/public/images/about/%EB%8C%80%EA%B5%AC%EC%99%B8%EA%B3%A0.png", name: "Daegu Foreign Language High School" },
+              { src: "/public/images/about/%EC%9A%A9%EC%9D%B8%EC%99%B8%EA%B3%A0.png", name: "Yongin Foreign Language High School" },
             ].map((logo, i) => (
               <div key={i} className="flex items-center justify-center">
                 <img
                   src={logo.src}
                   alt={logo.name}
-                  className="h-14 w-auto object-contain grayscale hover:grayscale-0 transition duration-300"
+                  className="h-14 w-auto object-contain"
                 />
               </div>
             ))}
@@ -169,31 +163,7 @@ export default function SectionOutcomes({ expanded = false }: { expanded?: boole
         <AwardsCarousel slides={awardSlides} isEn={isEn} />
       </div>
 
-      {expanded && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-10">
-          <div className="flex items-end justify-between mb-8">
-            <div>
-              <span className="text-frage-blue font-bold tracking-widest uppercase text-xs">
-                {isEn ? "Outcomes Archive" : "성과 아카이브"}
-              </span>
-              <h2 className="font-serif text-2xl md:text-3xl text-frage-navy font-bold mt-3">
-                {isEn ? "View more real records" : "실제 기록 더 보기"}
-              </h2>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {archives.map((a, i) => (
-              <a key={i} href={a.link} target="_blank" rel="noreferrer" className="group rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm hover:shadow-md transition-all">
-                <div className="h-24 bg-frage-gold/10"></div>
-                <div className="p-4">
-                  <h3 className="font-bold text-frage-navy text-sm leading-tight">{a.title}</h3>
-                  <p className="text-xs text-slate-500 mt-2">{isEn ? "Open blog in new tab · Latest" : "블로그 새 탭 이동 · 최신순"}</p>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
+      
 
       <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
         <div className="flex flex-wrap items-center justify-center gap-3">
