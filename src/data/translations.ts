@@ -178,7 +178,7 @@ export const translations = {
     },
     about_page: {
       hero_title: "We are FRAGE",
-      hero_subtitle: "We nurture children who think in English, not just speak.",
+      hero_subtitle: "An English class that starts with questions and culminates in presentations.",
       section1_title: "From Sound to Thought",
       section1_desc1: "In an EFL (English as a Foreign Language) environment, English education shouldn't start with just reading letters. Precise exposure to and understanding of <strong>Sound</strong> is the most solid foundation for language acquisition.",
       section1_desc2: "Frage Edu follows a logical sequence: starting with embodying the unique sounds of English, moving to <strong>Reading</strong> text, <strong>Thinking</strong> about its meaning, and finally <strong>Expressing</strong> it through Speaking & Writing.",
@@ -369,7 +369,7 @@ export const translations = {
     },
     about_page: {
       hero_title: "We are FRAGE",
-      hero_subtitle: "영어로 말하는 아이가 아니라, 영어로 생각하는 아이를 키웁니다.",
+      hero_subtitle: "질문으로 시작하고 발표로 완성하는 영어수업",
       section1_title: "소리에서 시작하여 사고로 확장합니다",
       section1_desc1: "EFL(English as a Foreign Language) 환경인 한국에서, 영어 교육의 시작은 단순히 문자를 읽는 것이 아닙니다. <strong>소리(Sound)</strong>에 대한 정확한 이해와 노출이 언어 습득의 가장 견고한 기초가 됩니다.",
       section1_desc2: "프라게 에듀는 아이들이 영어의 고유한 소리를 체화하는 것에서 시작하여, 텍스트를 읽고(Reading), 그 안에 담긴 의미를 사고(Thinking)하며, 자신의 언어로 표현(Speaking & Writing)하는 논리적 순서를 따릅니다.",
