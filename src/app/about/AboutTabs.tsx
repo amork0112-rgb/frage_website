@@ -1,15 +1,17 @@
 "use client";
 
-import Link from "next/link";
-
 type TabKey = "philosophy" | "mission" | "growth" | "outcomes";
 
 export default function AboutTabs({
   active,
   onChange,
+  showFullOutcomes,
+  onToggleFullOutcomes,
 }: {
   active: TabKey;
   onChange: (key: TabKey) => void;
+  showFullOutcomes: boolean;
+  onToggleFullOutcomes: () => void;
 }) {
   const tabs: { key: TabKey; label: string; href?: string }[] = [
     { key: "philosophy", label: "교육 철학" },
@@ -38,12 +40,14 @@ export default function AboutTabs({
             );
           })}
           <div className="ml-auto flex items-center gap-4">
-            <Link
-              href="/outcomes"
-              className="text-xs text-slate-400 hover:text-frage-navy"
-            >
-              성과 전체 보기
-            </Link>
+            {active === "outcomes" && (
+              <button
+                onClick={onToggleFullOutcomes}
+                className="text-xs text-slate-400 hover:text-frage-navy"
+              >
+                {showFullOutcomes ? "접기" : "성과 전체 보기"}
+              </button>
+            )}
           </div>
         </div>
       </div>

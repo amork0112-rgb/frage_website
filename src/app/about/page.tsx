@@ -11,6 +11,7 @@ import SectionOutcomes from "./SectionOutcomes";
 export default function AboutPage() {
   const { t } = useLanguage();
   const [active, setActive] = useState<"philosophy" | "mission" | "growth" | "outcomes">("philosophy");
+  const [showFullOutcomes, setShowFullOutcomes] = useState(false);
 
   return (
     <main className="min-h-screen bg-frage-sand/30 pb-20">
@@ -21,11 +22,16 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <AboutTabs active={active} onChange={setActive} />
+      <AboutTabs
+        active={active}
+        onChange={setActive}
+        showFullOutcomes={showFullOutcomes}
+        onToggleFullOutcomes={() => setShowFullOutcomes((v) => !v)}
+      />
       {active === "philosophy" && <SectionPhilosophy />}
       {active === "mission" && <SectionMission />}
       {active === "growth" && <SectionGrowth />}
-      {active === "outcomes" && <SectionOutcomes />}
+      {active === "outcomes" && <SectionOutcomes expanded={showFullOutcomes} />}
     </main>
   );
 }

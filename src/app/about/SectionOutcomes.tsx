@@ -2,11 +2,19 @@
 
 import Link from "next/link";
 
-export default function SectionOutcomes() {
+export default function SectionOutcomes({ expanded = false }: { expanded?: boolean }) {
   const highlights = [
     { title: "유치부 Lexile 865 전국 최연소 · 최고점 기록", link: "https://blog.naver.com/frage_2030" },
     { title: "국제통번역자원봉사단 청소년 에세이 공모전 참가 학생 전원 수상", link: "https://blog.naver.com/frage_2030/223161007823" },
     { title: "전국 영어 말하기 대회 누적 750명 이상 출전", link: "https://blog.naver.com/frage_2030/222490002924" },
+  ];
+  const archives = [
+    { title: "Daegu International School 합격 사례", link: "https://blog.naver.com/frage_2030/223017626733" },
+    { title: "Branksome Hall Asia 합격 사례", link: "https://blog.naver.com/frage_2030/222844192256" },
+    { title: "대구국제고 최종 합격 사례", link: "https://blog.naver.com/frage_2030/223743723260" },
+    { title: "Purdue University 합격 사례", link: "https://blog.naver.com/frage_2030/224078411287" },
+    { title: "영어 말하기 대회 출전 기록", link: "https://blog.naver.com/frage_2030/222490002924" },
+    { title: "에세이 공모전 전원 수상 상세", link: "https://blog.naver.com/frage_2030/223161007823" },
   ];
   return (
     <div className="container mx-auto max-w-5xl px-6 mt-12 space-y-12">
@@ -16,7 +24,7 @@ export default function SectionOutcomes() {
             <span className="text-frage-blue font-bold tracking-widest uppercase text-xs">Highlights</span>
             <h2 className="font-serif text-2xl md:text-3xl text-frage-navy font-bold mt-3">프라게 교육 시스템이 만들어낸 검증된 결과</h2>
           </div>
-          <Link href="/outcomes" className="text-sm font-bold text-slate-500 hover:text-frage-blue">성과 전체 보기</Link>
+          <span className="text-sm font-bold text-slate-500">성과 미리보기</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {highlights.map((h, i) => (
@@ -56,6 +64,28 @@ export default function SectionOutcomes() {
           <a href="https://blog.naver.com/frage_2030/222042337775" target="_blank" rel="noreferrer" className="p-6 rounded-2xl border border-slate-200 bg-white hover:border-frage-blue/30 transition-colors">2020 | 제2회 코드페어 알고리즘 히어로즈 전원 합격</a>
         </div>
       </div>
+
+      {expanded && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-10">
+          <div className="flex items-end justify-between mb-8">
+            <div>
+              <span className="text-frage-blue font-bold tracking-widest uppercase text-xs">성과 아카이브</span>
+              <h2 className="font-serif text-2xl md:text-3xl text-frage-navy font-bold mt-3">실제 기록 더 보기</h2>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {archives.map((a, i) => (
+              <a key={i} href={a.link} target="_blank" rel="noreferrer" className="group rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm hover:shadow-md transition-all">
+                <div className="h-24 bg-frage-gold/10"></div>
+                <div className="p-4">
+                  <h3 className="font-bold text-frage-navy text-sm leading-tight">{a.title}</h3>
+                  <p className="text-xs text-slate-500 mt-2">블로그 새 탭 이동 · 최신순</p>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
         <div className="flex flex-wrap items-center justify-center gap-3">

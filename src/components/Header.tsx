@@ -50,28 +50,15 @@ export default function Header() {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-12">
-            <div className="relative group">
-              <Link
-                href="/about"
-                prefetch={false}
-                className={`text-sm font-medium tracking-[0.15em] uppercase transition-all duration-300 hover:text-frage-gold ${
-                  isScrolled ? "text-frage-navy" : "text-white/90 hover:text-white"
-                }`}
-              >
-                {t.nav.about}
-              </Link>
-              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3 hidden group-hover:block">
-                <div className="bg-white border border-slate-100 shadow-xl rounded-xl py-2 min-w-[220px]">
-                  <Link
-                    href="/outcomes"
-                    prefetch={false}
-                    className="block px-4 py-2 text-sm font-medium text-frage-navy hover:bg-frage-cream rounded-md"
-                  >
-                    프라게 성과
-                  </Link>
-                </div>
-              </div>
-            </div>
+            <Link
+              href="/about"
+              prefetch={false}
+              className={`text-sm font-medium tracking-[0.15em] uppercase transition-all duration-300 hover:text-frage-gold ${
+                isScrolled ? "text-frage-navy" : "text-white/90 hover:text-white"
+              }`}
+            >
+              {t.nav.about}
+            </Link>
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -143,12 +130,12 @@ export default function Header() {
                 <span className="text-sm font-bold tracking-wider">{t.nav.portal}</span>
               </Link>
               <Link
-                href="/outcomes"
+                href="/about"
                 prefetch={false}
                 className="text-lg font-medium text-slate-700 py-2 border-b border-slate-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                프라게 성과
+                학원 소개
               </Link>
               {navLinks.map((link) => (
                 <Link
