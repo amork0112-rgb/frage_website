@@ -115,18 +115,18 @@ export default function SectionOutcomes({ expanded = false }: { expanded?: boole
         <div className="space-y-8">
           <div className="grid grid-cols-3 md:grid-cols-5 gap-6 items-center">
             {[
-              { src: "/images/about/branksome.png", name: "Branksome Hall Asia" },
-              { src: "/images/about/purdue.png", name: "Purdue University" },
-              { src: "/images/about/columbia.png", name: "Columbia University" },
-              { src: "/images/about/ucla.png", name: "University of California Los Angeles" },
-              { src: "/images/about/michigan.png", name: "University of Michigan" },
-              { src: "/images/about/bu.png", name: "Boston University" },
-              { src: "/images/about/hawaii.png", name: "University of Hawaii Manoa" },
-              { src: "/images/about/dis.svg", name: "Daegu International School" },
-              { src: "/images/about/kis.png", name: "KIS" },
-              { src: "/images/about/대구국제고.png", name: "Daegu International High School" },
-              { src: "/images/about/대구외고.png", name: "Daegu Foreign Language High School" },
-              { src: "/images/about/용인외고.png", name: "Yongin Foreign Language High School" },
+              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/branksome.png", name: "Branksome Hall Asia" },
+              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/purdue.png", name: "Purdue University" },
+              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/columbia.png", name: "Columbia University" },
+              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/ucla.png", name: "University of California Los Angeles" },
+              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/michigan.png", name: "University of Michigan" },
+              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/bu.png", name: "Boston University" },
+              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/hawaii.png", name: "University of Hawaii Manoa" },
+              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/dis.svg", name: "Daegu International School" },
+              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/kis.png", name: "Korea International School" },
+              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/%EB%8C%80%EA%B5%AC%EA%B5%AD%EC%A0%9C%EA%B3%A0.png", name: "Daegu International High School" },
+              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/%EB%8C%80%EA%B5%AC%EC%99%B8%EA%B3%A0.png", name: "Daegu Foreign Language High School" },
+              { src: "https://raw.githubusercontent.com/amork0112-rgb/frage_website/main/public/images/about/%EC%9A%A9%EC%9D%B8%EC%99%B8%EA%B3%A0.png", name: "Yongin Foreign Language High School" },
             ].map((logo, i) => (
               <div key={i} className="flex items-center justify-center">
                 <img
@@ -144,6 +144,7 @@ export default function SectionOutcomes({ expanded = false }: { expanded?: boole
               { year: 2023, ko: "University of California Los Angeles 합격", en: "University of California Los Angeles admitted" },
               { year: 2023, ko: "Daegu International School 합격", en: "Daegu International School admitted" },
               { year: 2022, ko: "Branksome Hall Asia 합격", en: "Branksome Hall Asia admitted" },
+              { year: 2022, ko: "Boston University 합격", en: "Boston University admitted" },
               { year: 2021, ko: "Daegu International School 합격", en: "Daegu International School admitted" },
               { year: 2018, ko: "University of Hawaii Manoa 합격", en: "University of Hawaii Manoa admitted" },
               { year: 2020, ko: "University of Michigan 합격", en: "University of Michigan admitted" },
