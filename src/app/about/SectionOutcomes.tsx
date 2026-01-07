@@ -19,6 +19,26 @@ export default function SectionOutcomes({ expanded = false }: { expanded?: boole
     { title: "영어 말하기 대회 출전 기록", link: "https://blog.naver.com/frage_2030/222490002924" },
     { title: "에세이 공모전 전원 수상 상세", link: "https://blog.naver.com/frage_2030/223161007823" },
   ];
+  const awardGallery = [
+    {
+      image: "/images/outcomes/awards/outcome-award-speaking-2024-01.jpg",
+      title: "전국 영어 말하기 대회",
+      desc: "프라게 학생 누적 750명 이상 출전",
+      link: "https://blog.naver.com/frage_2030/222490002924",
+    },
+    {
+      image: "/images/outcomes/awards/outcome-award-essay-2023-01.jpg",
+      title: "국제통번역자원봉사단 청소년 에세이 공모전",
+      desc: "참가 학생 전원 수상",
+      link: "https://blog.naver.com/frage_2030/223161007823",
+    },
+    {
+      image: "/images/outcomes/awards/outcome-award-university-2020-01.jpg",
+      title: "숭실대 영어 말하기·노래 대회",
+      desc: "참가 학생 전원 수상",
+      link: "https://blog.naver.com/frage_2030/223714898433",
+    },
+  ];
   return (
     <div className="container mx-auto max-w-5xl px-6 mt-12 space-y-12">
       <div className="rounded-2xl border border-slate-200 bg-white p-10">
@@ -63,12 +83,37 @@ export default function SectionOutcomes({ expanded = false }: { expanded?: boole
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-10">
-        <h3 className="font-serif text-2xl text-frage-navy font-bold mb-6">{isEn ? "Awards & Competitions" : "수상·대회 성과"}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="p-6 rounded-2xl border border-slate-200 bg-frage-cream">전국 영어 말하기 대회 누적 750명+ 출전</div>
-          <div className="p-6 rounded-2xl border border-slate-200 bg-frage-cream">숭실대 영어 말하기·영어 노래 대회 전원 수상</div>
-          <div className="p-6 rounded-2xl border border-slate-200 bg-frage-cream">국제통번역자원봉사단 청소년 에세이 공모전 전원 수상</div>
-          <a href="https://blog.naver.com/frage_2030/222042337775" target="_blank" rel="noreferrer" className="p-6 rounded-2xl border border-slate-200 bg-white hover:border-frage-blue/30 transition-colors">2020 | 제2회 코드페어 알고리즘 히어로즈 전원 합격</a>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-serif text-2xl text-frage-navy font-bold">
+            {isEn ? "Awards & Competitions" : "수상·대회 성과"}
+          </h3>
+          <span className="text-sm text-slate-500">
+            {isEn ? "Frage students’ achievements in real competitions" : "실제 대회·공모전에서 증명된 성과"}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          {awardGallery.map((item, idx) => (
+            <a
+              key={idx}
+              href={item.link}
+              target="_blank"
+              rel="noreferrer"
+              className="group rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm hover:shadow-lg transition-all"
+            >
+              <div className="aspect-square overflow-hidden">
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+              </div>
+              <div className="p-4">
+                <div className="font-bold text-frage-navy text-sm">{item.title}</div>
+                <div className="text-xs text-slate-600 mt-1">{item.desc}</div>
+                <div className="mt-2 text-[11px] text-slate-500">{isEn ? "Open blog in new tab" : "블로그 새 탭 이동"}</div>
+              </div>
+            </a>
+          ))}
         </div>
       </div>
 
