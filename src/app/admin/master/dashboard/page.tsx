@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { supabaseServer } from "@/lib/supabase/server";
 import PortalMasterDashboard from "@/app/portal/master/dashboard/page";
+import { resolveRole } from "@/lib/auth/resolveRole";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,13 @@ export default async function AdminMasterDashboard() {
       </div>
     );
   }
-  const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-  if (!prof || String(prof.role) !== "master_admin") {
+  let profile: any = null;
+  try {
+    const { data: p } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
+    profile = p || null;
+  } catch {}
+  const role = resolveRole({ authUser: user, profile });
+  if (role !== "master_admin") {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center max-w-sm">

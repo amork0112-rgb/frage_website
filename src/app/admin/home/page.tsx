@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bell, MessageSquare, Users, AlertCircle, ArrowRight, CheckCircle2, ChevronDown, MapPin, Settings } from "lucide-react";
 import { CampusType } from "@/data/notices";
 import { supabase } from "@/lib/supabase";
+import { resolveRole } from "@/lib/auth/resolveRole";
 
 type PortalRequest = {
   id: string;
@@ -105,8 +106,13 @@ export default function AdminHome() {
           setRole(null);
           return;
         }
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", uid).single();
-        setRole(profile?.role ? String(profile.role) : null);
+        let profile: any = null;
+        try {
+          const { data: p } = await supabase.from("profiles").select("role").eq("id", uid).single();
+          profile = p || null;
+        } catch {}
+        const r = resolveRole({ authUser: data?.user, profile });
+        setRole(String(r));
       } catch {}
     })();
   }, []);

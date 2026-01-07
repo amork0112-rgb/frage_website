@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { resolveRole } from "@/lib/auth/resolveRole";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,12 @@ export default async function AdminMasterIndex() {
   if (!user) {
     redirect("/portal");
   }
-  const role = (user as any)?.app_metadata?.role;
+  let profile: any = null;
+  try {
+    const { data: prof } = await (supabaseAuth as any).from("profiles").select("role").eq("id", user.id).maybeSingle();
+    profile = prof || null;
+  } catch {}
+  const role = resolveRole({ authUser: user, profile });
   if (role !== "master_admin") {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
