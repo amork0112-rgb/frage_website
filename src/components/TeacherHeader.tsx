@@ -13,6 +13,7 @@ export default function TeacherHeader() {
   const [role, setRole] = useState<string | null>(null);
   const [teacherId, setTeacherId] = useState<string | null>(null);
   const [teacherName, setTeacherName] = useState<string>("");
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -93,7 +94,12 @@ export default function TeacherHeader() {
               (group.href ? pathname.startsWith(group.href) : false) || activeChild;
             if (group.children && group.children.length > 0) {
               return (
-                <div key={group.name} className="relative group">
+                <div
+                  key={group.name}
+                  className="relative"
+                  onMouseEnter={() => setOpenGroup(group.name)}
+                  onMouseLeave={() => setOpenGroup(null)}
+                >
                   <button
                     type="button"
                     className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
@@ -105,7 +111,11 @@ export default function TeacherHeader() {
                     <group.icon className={`w-4 h-4 ${isActive ? "stroke-2" : "stroke-1.5"}`} />
                     {group.name}
                   </button>
-                  <div className="absolute left-0 top-full mt-2 min-w-[180px] rounded-xl border border-slate-200 bg-white shadow-lg hidden group-hover:block">
+                  <div
+                    className={`absolute left-0 top-full min-w-[180px] rounded-xl border border-slate-200 bg-white shadow-lg ${
+                      openGroup === group.name ? "block" : "hidden"
+                    }`}
+                  >
                     <div className="py-2">
                       {group.children.map((child) => {
                         const childActive = pathname.startsWith(child.href);

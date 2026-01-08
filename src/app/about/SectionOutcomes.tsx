@@ -10,7 +10,7 @@ export default function SectionOutcomes({ showHighlights = true }: { showHighlig
   const [previews, setPreviews] = useState<Record<string, { image: string; title: string; description: string }>>({});
   const requestedRef = useRef<Record<string, boolean>>({});
   const highlights = [
-    { title: "유치부 Lexile 865 전국 최연소 · 최고점 기록", link: "https://blog.naver.com/frage_2030" },
+    { title: "유치부 Lexile 865 전국 최연소 · 최고점 기록", link: "https://blog.naver.com/frage_2030/224113840941" },
     { title: "국제통번역자원봉사단 청소년 에세이 공모전 참가 학생 전원 수상", link: "https://blog.naver.com/frage_2030/223161007823" },
     { title: "전국 영어 말하기 대회 누적 750명 이상 출전", link: "https://blog.naver.com/frage_2030/222490002924" },
   ];
