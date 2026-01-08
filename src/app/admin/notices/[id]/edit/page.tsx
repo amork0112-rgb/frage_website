@@ -11,6 +11,7 @@ export default function AdminEditNoticePage() {
   const id = params.id as string;
 
   const editorRef = useRef<HTMLDivElement>(null);
+  const selectionRef = useRef<Range | null>(null);
   const [campus, setCampus] = useState("All");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Schedule");
@@ -54,6 +55,28 @@ export default function AdminEditNoticePage() {
     setRichHtml(editorRef.current?.innerHTML || "");
   };
 
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      selectionRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
+
+  const restoreSelection = () => {
+    const sel = window.getSelection();
+    if (sel && selectionRef.current) {
+      sel.removeAllRanges();
+      sel.addRange(selectionRef.current);
+    }
+  };
+
+  const insertImageAtCaret = (url: string, alt = "") => {
+    restoreSelection();
+    const html = `<img src="${url}" alt="${alt}" style="max-width:100%;height:auto;" />`;
+    document.execCommand("insertHTML", false, html);
+    setRichHtml(editorRef.current?.innerHTML || "");
+  };
+
   const insertTable = () => {
     const html = `<table style="width:100%;border-collapse:collapse;"><tr><th style="border:1px solid #ddd;padding:8px;">Header</th><th style="border:1px solid #ddd;padding:8px;">Header</th></tr><tr><td style="border:1px solid #ddd;padding:8px;">Cell</td><td style="border:1px solid #ddd;padding:8px;">Cell</td></tr></table>`;
     document.execCommand("insertHTML", false, html);
@@ -63,6 +86,7 @@ export default function AdminEditNoticePage() {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const filesArr = Array.from(e.target.files || []);
     const next = filesArr.map(f => ({ name: f.name, url: URL.createObjectURL(f) }));
+    next.forEach(img => insertImageAtCaret(img.url, img.name));
     setImages(prev => [...prev, ...next]);
   };
 
@@ -77,6 +101,7 @@ export default function AdminEditNoticePage() {
     const filesArr = Array.from(e.dataTransfer.files || []);
     const imagesOnly = filesArr.filter(f => f.type.startsWith("image/"));
     const next = imagesOnly.map(f => ({ name: f.name, url: URL.createObjectURL(f) }));
+    next.forEach(img => insertImageAtCaret(img.url, img.name));
     setImages(prev => [...prev, ...next]);
   };
 
@@ -235,7 +260,13 @@ export default function AdminEditNoticePage() {
           <div
             ref={editorRef}
             contentEditable={canEdit}
-            onInput={() => setRichHtml(editorRef.current?.innerHTML || "")}
+            onInput={() => {
+              setRichHtml(editorRef.current?.innerHTML || "");
+              saveSelection();
+            }}
+            onMouseUp={saveSelection}
+            onKeyUp={saveSelection}
+            onFocus={saveSelection}
             className={`min-h-[180px] border border-slate-200 rounded-xl p-4 bg-white text-sm leading-relaxed ${!canEdit ? "opacity-50" : ""}`}
           />
           {previewOpen && (

@@ -2,78 +2,92 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, MapPin, Type, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Eye, Upload, FilePlus2, Table, Info, X } from "lucide-react";
+import {
+  Bell,
+  Bold,
+  Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  List,
+  Eye,
+  FilePlus2,
+  Table,
+  Info,
+  X,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminNewNoticePage() {
   const router = useRouter();
   const editorRef = useRef<HTMLDivElement>(null);
+  const selectionRef = useRef<Range | null>(null);
+
   const [campus, setCampus] = useState("All");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Schedule");
   const [richHtml, setRichHtml] = useState("");
-  const [images, setImages] = useState<{ name: string; url: string }[]>([]);
-  const [files, setFiles] = useState<{ name: string; url: string; type: string }[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [role, setRole] = useState<"admin" | "teacher" | "unknown">("unknown");
+
+  const [role, setRole] = useState<"admin" | "teacher">("admin");
+
   const [promote, setPromote] = useState(false);
   const [newsTitle, setNewsTitle] = useState("");
   const [newsFeatured, setNewsFeatured] = useState(false);
-  const [newsPushEnabled, setNewsPushEnabled] = useState(true);
 
+  /* ---------------- auth role ---------------- */
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
-      const appRole = (data?.user?.app_metadata as any)?.role ?? null;
-      setRole(appRole === "teacher" ? "teacher" : "admin");
+      const appRole = (data?.user?.app_metadata as any)?.role;
+      if (appRole === "teacher") setRole("teacher");
     })();
   }, []);
 
+  /* ---------------- editor utils ---------------- */
   const exec = (cmd: string, value?: string) => {
     document.execCommand(cmd, false, value);
     setRichHtml(editorRef.current?.innerHTML || "");
   };
 
-  const insertTable = () => {
-    const html = `<table style="width:100%;border-collapse:collapse;"><tr><th style="border:1px solid #ddd;padding:8px;">Header</th><th style="border:1px solid #ddd;padding:8px;">Header</th></tr><tr><td style="border:1px solid #ddd;padding:8px;">Cell</td><td style="border:1px solid #ddd;padding:8px;">Cell</td></tr></table>`;
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      selectionRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
+
+  const restoreSelection = () => {
+    const sel = window.getSelection();
+    if (sel && selectionRef.current) {
+      sel.removeAllRanges();
+      sel.addRange(selectionRef.current);
+    }
+  };
+
+  const insertImageAtCaret = (url: string, alt = "") => {
+    restoreSelection();
+    const html = `<img src="${url}" alt="${alt}" style="max-width:100%;height:auto;" />`;
     document.execCommand("insertHTML", false, html);
     setRichHtml(editorRef.current?.innerHTML || "");
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const filesArr = Array.from(e.target.files || []);
-    const next = filesArr.map(f => ({ name: f.name, url: URL.createObjectURL(f) }));
-    setImages(prev => [...prev, ...next]);
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const filesArr = Array.from(e.target.files || []);
-    const next = filesArr.map(f => ({ name: f.name, url: URL.createObjectURL(f), type: f.type }));
-    setFiles(prev => [...prev, ...next]);
-  };
-
-  const handleImageDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const filesArr = Array.from(e.dataTransfer.files || []);
-    const imagesOnly = filesArr.filter(f => f.type.startsWith("image/"));
-    const next = imagesOnly.map(f => ({ name: f.name, url: URL.createObjectURL(f) }));
-    setImages(prev => [...prev, ...next]);
-  };
-
-  const handleAttachDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const filesArr = Array.from(e.dataTransfer.files || []);
-    const next = filesArr.map(f => ({ name: f.name, url: URL.createObjectURL(f), type: f.type }));
-    setFiles(prev => [...prev, ...next]);
-  };
-
-  const handleRemoveImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleRemoveFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+  const insertTable = () => {
+    const html = `
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <th style="border:1px solid #ddd;padding:8px;">Header</th>
+          <th style="border:1px solid #ddd;padding:8px;">Header</th>
+        </tr>
+        <tr>
+          <td style="border:1px solid #ddd;padding:8px;">Cell</td>
+          <td style="border:1px solid #ddd;padding:8px;">Cell</td>
+        </tr>
+      </table>`;
+    document.execCommand("insertHTML", false, html);
+    setRichHtml(editorRef.current?.innerHTML || "");
   };
 
   const plainText = (html: string) => {
@@ -83,74 +97,92 @@ export default function AdminNewNoticePage() {
   };
 
   const validate = () => {
-    const content = editorRef.current?.innerHTML || "";
     if (!title.trim()) return false;
     if (!campus) return false;
     if (!category) return false;
-    if (!plainText(content).trim()) return false;
+    if (!plainText(editorRef.current?.innerHTML || "").trim()) return false;
     return true;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  /* ---------------- submit ---------------- */
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!validate()) {
       alert("필수 항목을 입력해 주세요.");
       return;
     }
-    setLoading(true);
-    const contentHtml = editorRef.current?.innerHTML || "";
-    const summary = plainText(contentHtml).slice(0, 140);
 
-    const persistToSupabase = async () => {
-      try {
-        await supabase.from("posts").insert({
+    setLoading(true);
+
+    try {
+      const contentHtml = editorRef.current?.innerHTML || "";
+      const contentText = plainText(contentHtml);
+
+      /* ✅ 공지 저장 */
+      const { error } = await supabase
+        .from("posts")
+        .insert({
           title,
-          content: plainText(contentHtml),
+          content: contentText,
           category: "notice",
           published: true,
           is_pinned: false,
-          image_url: null as any,
+          image_url: null,
         });
-      } catch {}
-    };
-    persistToSupabase();
 
-    const doPromote = async () => {
-      if (!promote) return;
-      try {
-        const insert = {
-          title: (newsTitle || title).trim(),
-          content: plainText(contentHtml),
-          category: "news",
-          published: true,
-          is_pinned: newsFeatured,
-          image_url: null as any,
-        };
-        await supabase.from("posts").insert(insert);
-      } catch {}
-    };
-    doPromote();
-    setTimeout(() => {
+      if (error) {
+        console.error("NOTICE INSERT ERROR:", error);
+        alert("공지 저장 중 오류가 발생했습니다.");
+        setLoading(false);
+        return;
+      }
+
+      /* ✅ 소식 동시 게시 */
+      if (promote) {
+        const { error: newsError } = await supabase
+          .from("posts")
+          .insert({
+            title: (newsTitle || title).trim(),
+            content: contentText,
+            category: "news",
+            published: true,
+            is_pinned: newsFeatured,
+          });
+
+        if (newsError) {
+          console.error("NEWS INSERT ERROR:", newsError);
+        }
+      }
+
       alert("공지 등록이 완료되었습니다.");
       router.push("/admin/notices");
-    }, 600);
+
+    } catch (err) {
+      console.error("UNEXPECTED ERROR:", err);
+      alert("예기치 못한 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  /* ---------------- UI ---------------- */
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
       <div className="flex items-center gap-2 mb-6">
         <Bell className="w-6 h-6 text-frage-orange" />
-        <h1 className="text-2xl font-black text-slate-900">새 공지 등록</h1>
+        <h1 className="text-2xl font-black">새 공지 등록</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border p-6 space-y-6">
+        {/* campus & category */}
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">캠퍼스</label>
+            <label className="block text-sm font-bold mb-2">캠퍼스</label>
             <select
               value={campus}
               onChange={(e) => setCampus(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+              className="w-full border rounded-lg px-3 py-2"
             >
               <option value="All">전체</option>
               <option value="International">국제관</option>
@@ -158,191 +190,132 @@ export default function AdminNewNoticePage() {
               <option value="Platz">플라츠</option>
             </select>
           </div>
+
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">카테고리</label>
+            <label className="block text-sm font-bold mb-2">카테고리</label>
             <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setCategory("Schedule")}
-                className={`py-2 rounded-lg font-bold text-sm border ${category === "Schedule" ? "bg-orange-50 border-orange-200 text-frage-orange" : "bg-white border-slate-200 text-slate-600"}`}
-              >
+              <button type="button" onClick={() => setCategory("Schedule")}
+                className={`py-2 rounded-lg font-bold border ${category === "Schedule" ? "bg-orange-50 border-orange-200 text-frage-orange" : ""}`}>
                 일정
               </button>
-              <button
-                type="button"
-                onClick={() => setCategory("Academic")}
-                className={`py-2 rounded-lg font-bold text-sm border ${category === "Academic" ? "bg-blue-50 border-blue-200 text-blue-600" : "bg-white border-slate-200 text-slate-600"}`}
-              >
+              <button type="button" onClick={() => setCategory("Academic")}
+                className={`py-2 rounded-lg font-bold border ${category === "Academic" ? "bg-blue-50 border-blue-200 text-blue-600" : ""}`}>
                 학사
               </button>
             </div>
           </div>
         </div>
 
+        {/* title */}
         <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">제목</label>
+          <label className="block text-sm font-bold mb-2">제목</label>
           <input
-            type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-4 py-3 text-sm bg-white"
+            className="w-full border rounded-lg px-4 py-3"
             placeholder="공지 제목"
           />
         </div>
 
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => exec("bold")} className="px-3 py-2 rounded-lg border text-sm"><Bold className="w-4 h-4" /></button>
-            <button type="button" onClick={() => exec("italic")} className="px-3 py-2 rounded-lg border text-sm"><Italic className="w-4 h-4" /></button>
-            <button type="button" onClick={() => exec("underline")} className="px-3 py-2 rounded-lg border text-sm"><Underline className="w-4 h-4" /></button>
-            <button type="button" onClick={() => exec("justifyLeft")} className="px-3 py-2 rounded-lg border text-sm"><AlignLeft className="w-4 h-4" /></button>
-            <button type="button" onClick={() => exec("justifyCenter")} className="px-3 py-2 rounded-lg border text-sm"><AlignCenter className="w-4 h-4" /></button>
-            <button type="button" onClick={() => exec("justifyRight")} className="px-3 py-2 rounded-lg border text-sm"><AlignRight className="w-4 h-4" /></button>
-            <button type="button" onClick={() => exec("insertUnorderedList")} className="px-3 py-2 rounded-lg border text-sm"><List className="w-4 h-4" /></button>
-            <button type="button" onClick={insertTable} className="px-3 py-2 rounded-lg border text-sm"><Table className="w-4 h-4" /></button>
-            <select onChange={(e) => exec("fontSize", e.target.value)} className="px-2 py-2 rounded-lg border text-sm">
-              <option value="3">크기</option>
-              <option value="2">작게</option>
-              <option value="3">보통</option>
-              <option value="4">크게</option>
-              <option value="5">아주 크게</option>
-            </select>
-            <input type="color" onChange={(e) => exec("foreColor", e.target.value)} className="w-10 h-10 rounded border" />
-            <button type="button" onClick={() => setPreviewOpen(!previewOpen)} className="px-3 py-2 rounded-lg border text-sm"><Eye className="w-4 h-4" /></button>
+        {/* editor */}
+        <div>
+          <div className="flex flex-wrap gap-2 mb-2">
+            <button type="button" onClick={() => exec("bold")}><Bold /></button>
+            <button type="button" onClick={() => exec("italic")}><Italic /></button>
+            <button type="button" onClick={() => exec("underline")}><Underline /></button>
+            <button type="button" onClick={() => exec("justifyLeft")}><AlignLeft /></button>
+            <button type="button" onClick={() => exec("justifyCenter")}><AlignCenter /></button>
+            <button type="button" onClick={() => exec("justifyRight")}><AlignRight /></button>
+            <button type="button" onClick={() => exec("insertUnorderedList")}><List /></button>
+            <button type="button" onClick={insertTable}><Table /></button>
+            <button type="button" onClick={() => setPreviewOpen(!previewOpen)}><Eye /></button>
           </div>
+
           <div
             ref={editorRef}
             contentEditable
-            onInput={() => setRichHtml(editorRef.current?.innerHTML || "")}
-            className="min-h-[180px] border border-slate-200 rounded-xl p-4 bg-white text-sm leading-relaxed"
+            onInput={() => {
+              setRichHtml(editorRef.current?.innerHTML || "");
+              saveSelection();
+            }}
+            onMouseUp={saveSelection}
+            onKeyUp={saveSelection}
+            onFocus={saveSelection}
+            className="min-h-[180px] border rounded-xl p-4"
           />
+
           {previewOpen && (
-            <div className="mt-3 border border-slate-200 rounded-xl p-4 bg-slate-50">
-              <div dangerouslySetInnerHTML={{ __html: richHtml }} />
-            </div>
+            <div className="mt-3 border rounded-xl p-4 bg-slate-50"
+              dangerouslySetInnerHTML={{ __html: richHtml }} />
           )}
         </div>
 
+        {/* image insert */}
         <div className="grid sm:grid-cols-2 gap-6">
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleImageDrop}
-            className="rounded-xl border border-dashed border-slate-300 p-4"
-          >
+          <div className="rounded-xl border border-dashed p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-bold text-slate-700">이미지 업로드</span>
+              <span className="text-sm font-bold">이미지 삽입</span>
               <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer">
                 <FilePlus2 className="w-4 h-4" />
                 선택
-                <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const filesArr = Array.from(e.target.files || []);
+                    filesArr.forEach((f) => {
+                      const url = URL.createObjectURL(f);
+                      insertImageAtCaret(url, f.name);
+                    });
+                  }}
+                />
               </label>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              {images.map((img, i) => (
-                <div key={`${img.name}-${i}`} className="aspect-square rounded-lg overflow-hidden border">
-                  <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleAttachDrop}
-            className="rounded-xl border border-dashed border-slate-300 p-4"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-bold text-slate-700">파일 첨부</span>
-              <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer">
-                <FilePlus2 className="w-4 h-4" />
-                선택
-                <input type="file" multiple className="hidden" onChange={handleFileSelect} />
-              </label>
-            </div>
-            <div className="space-y-2">
-              {files.map((f, i) => (
-                <div key={`${f.name}-${i}`} className="flex items-center justify-between rounded-lg border px-3 py-2 bg-slate-50">
-                  <span className="text-sm font-medium text-slate-700 truncate flex-1 mr-2">{f.name}</span>
-                  <div className="flex items-center gap-2">
-                    <a href={f.url} target="_blank" rel="noreferrer" className="text-xs font-bold text-frage-blue hover:underline">열기</a>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile(i)}
-                      className="text-slate-400 hover:text-red-500 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <div className="text-xs text-slate-500">선택한 이미지는 커서 위치에 바로 삽입됩니다.</div>
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-3">
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-frage-navy text-white py-3 rounded-xl font-bold text-sm"
-          >
-            {loading ? "등록 중..." : "공지 등록"}
-          </button>
-        </div>
+        {/* submit */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-frage-navy text-white py-3 rounded-xl font-bold"
+        >
+          {loading ? "등록 중..." : "공지 등록"}
+        </button>
 
-        <div className="pt-4 border-t border-slate-100 space-y-3">
-          <label className={`flex items-center gap-3 cursor-pointer ${role === "teacher" ? "opacity-50 cursor-not-allowed" : ""}`}>
+        {/* promote */}
+        <div className="pt-4 border-t space-y-3">
+          <label className={`flex items-center gap-3 ${role === "teacher" ? "opacity-50" : ""}`}>
             <input
               type="checkbox"
-              className="w-5 h-5 rounded border-slate-300 text-frage-orange focus:ring-frage-orange"
               checked={promote}
               onChange={(e) => role === "teacher" ? null : setPromote(e.target.checked)}
               disabled={role === "teacher"}
             />
-            <span className="font-bold text-slate-700">프라게 소식으로 함께 게시</span>
+            <span className="font-bold">프라게 소식으로 함께 게시</span>
           </label>
+
           {promote && (
-            <div className="space-y-3">
-              <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-sm text-orange-800 flex items-start gap-2">
-                <Info className="w-4 h-4 mt-0.5" />
-                <div>
-                  이 공지는 프라게 공식 소식 페이지와 홈페이지 소식 영역에도 함께 게시됩니다. (전체 학부모 대상)
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-3">
-                <div className="text-xs font-bold text-slate-500 mb-2">소식 게시 옵션</div>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">소식 제목</label>
-                    <input
-                      type="text"
-                      value={newsTitle}
-                      onChange={(e) => setNewsTitle(e.target.value)}
-                      placeholder="(미입력 시 공지 제목 사용)"
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
-                    />
-                  </div>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="w-5 h-5 rounded border-slate-300 text-frage-orange focus:ring-frage-orange"
-                      checked={newsFeatured}
-                      onChange={(e) => setNewsFeatured(e.target.checked)}
-                    />
-                    <span className="text-sm font-bold text-slate-700">홈 상단 강조 소식으로 표시</span>
-                  </label>
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-5 h-5 rounded border-slate-300 text-frage-orange focus:ring-frage-orange"
-                        checked={newsPushEnabled}
-                        onChange={(e) => setNewsPushEnabled(e.target.checked)}
-                      />
-                      <span className="text-sm font-bold text-slate-700">앱 푸시 발송 (기본 ON)</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
+            <div className="bg-orange-50 border rounded-xl p-3 text-sm">
+              <Info className="inline w-4 h-4 mr-1" />
+              홈페이지 소식에도 함께 게시됩니다.
+              <input
+                className="mt-2 w-full border rounded px-3 py-2"
+                placeholder="소식 제목 (선택)"
+                value={newsTitle}
+                onChange={(e) => setNewsTitle(e.target.value)}
+              />
+              <label className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  checked={newsFeatured}
+                  onChange={(e) => setNewsFeatured(e.target.checked)}
+                />
+                홈 상단 강조
+              </label>
             </div>
           )}
         </div>
