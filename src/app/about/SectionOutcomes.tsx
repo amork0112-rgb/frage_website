@@ -7,11 +7,34 @@ import React, { useEffect, useRef, useState } from "react";
 export default function SectionOutcomes({ showHighlights = true }: { showHighlights?: boolean }) {
   const { language } = useLanguage();
   const isEn = language === "en";
+  const [previews, setPreviews] = useState<Record<string, { image: string; title: string; description: string }>>({});
+  const requestedRef = useRef<Record<string, boolean>>({});
   const highlights = [
     { title: "유치부 Lexile 865 전국 최연소 · 최고점 기록", link: "https://blog.naver.com/frage_2030" },
     { title: "국제통번역자원봉사단 청소년 에세이 공모전 참가 학생 전원 수상", link: "https://blog.naver.com/frage_2030/223161007823" },
     { title: "전국 영어 말하기 대회 누적 750명 이상 출전", link: "https://blog.naver.com/frage_2030/222490002924" },
   ];
+  useEffect(() => {
+    highlights.forEach((h) => {
+      const key = h.link;
+      if (requestedRef.current[key]) return;
+      requestedRef.current[key] = true;
+      (async () => {
+        try {
+          const res = await fetch(`/api/og-preview?url=${encodeURIComponent(h.link)}`);
+          const data = await res.json();
+          setPreviews((prev) => ({
+            ...prev,
+            [key]: {
+              image: String(data?.image || ""),
+              title: String(data?.title || ""),
+              description: String(data?.description || ""),
+            },
+          }));
+        } catch {}
+      })();
+    });
+  }, []);
   const awardSlides: {
     title: string;
     desc?: string;
@@ -91,7 +114,17 @@ export default function SectionOutcomes({ showHighlights = true }: { showHighlig
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {highlights.map((h, i) => (
               <a key={i} href={h.link} target="_blank" rel="noreferrer" className="group rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm hover:shadow-md transition-all">
-                <div className="h-32 bg-frage-blue/10"></div>
+                <div className="aspect-video bg-slate-100">
+                  {previews[h.link]?.image ? (
+                    <img
+                      src={previews[h.link].image}
+                      alt={h.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-slate-200 animate-pulse" />
+                  )}
+                </div>
                 <div className="p-4">
                   <h3 className="font-bold text-frage-navy text-sm leading-tight">{h.title}</h3>
                   <p className="text-xs text-slate-500 mt-2">{isEn ? "Open blog in new tab" : "블로그 새 탭 이동"}</p>

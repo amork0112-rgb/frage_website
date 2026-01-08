@@ -42,12 +42,29 @@ export default function TeacherHeader() {
   const isTeacher = !!role && ["teacher", "교사"].some((k) => role!.toLowerCase().includes(k));
   if (!isTeacher) return null;
 
-  const menuItems = [
+  const menuGroups: {
+    name: string;
+    href?: string;
+    icon: any;
+    children?: { name: string; href: string; icon: any }[];
+  }[] = [
     { name: "Dashboard", href: "/teacher/home", icon: Home },
-    { name: "신규생관리", href: "/teacher/new-students", icon: UserPlus },
-    { name: "Students", href: "/teacher/students", icon: Users },
-    { name: "Video Homework", href: "/teacher/video", icon: Video },
-    { name: "Video Management", href: "/teacher/video-management", icon: Video },
+    {
+      name: "Students",
+      icon: Users,
+      children: [
+        { name: "New", href: "/teacher/new-students", icon: UserPlus },
+        { name: "List", href: "/teacher/students", icon: Users },
+      ],
+    },
+    {
+      name: "Video",
+      icon: Video,
+      children: [
+        { name: "HW", href: "/teacher/video", icon: Video },
+        { name: "Manage", href: "/teacher/video-management", icon: Video },
+      ],
+    },
     { name: "Reports", href: "/teacher/reports", icon: FileText },
   ];
 
@@ -69,20 +86,61 @@ export default function TeacherHeader() {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex gap-1">
-          {menuItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
+          {menuGroups.map((group) => {
+            const activeChild =
+              group.children?.some((c) => pathname.startsWith(c.href)) ?? false;
+            const isActive =
+              (group.href ? pathname.startsWith(group.href) : false) || activeChild;
+            if (group.children && group.children.length > 0) {
+              return (
+                <div key={group.name} className="relative group">
+                  <button
+                    type="button"
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
+                      isActive
+                        ? "bg-slate-100 text-frage-blue"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                    }`}
+                  >
+                    <group.icon className={`w-4 h-4 ${isActive ? "stroke-2" : "stroke-1.5"}`} />
+                    {group.name}
+                  </button>
+                  <div className="absolute left-0 top-full mt-2 min-w-[180px] rounded-xl border border-slate-200 bg-white shadow-lg hidden group-hover:block">
+                    <div className="py-2">
+                      {group.children.map((child) => {
+                        const childActive = pathname.startsWith(child.href);
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold ${
+                              childActive
+                                ? "text-frage-blue bg-slate-50"
+                                : "text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            <child.icon className="w-4 h-4" />
+                            {child.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
             return (
               <Link
-                key={item.href}
-                href={item.href}
+                key={group.href}
+                href={group.href!}
                 className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
-                  isActive 
-                  ? "bg-slate-100 text-frage-blue" 
-                  : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                  isActive
+                    ? "bg-slate-100 text-frage-blue"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
-                <item.icon className={`w-4 h-4 ${isActive ? "stroke-2" : "stroke-1.5"}`} />
-                {item.name}
+                <group.icon className={`w-4 h-4 ${isActive ? "stroke-2" : "stroke-1.5"}`} />
+                {group.name}
               </Link>
             );
           })}
@@ -117,19 +175,53 @@ export default function TeacherHeader() {
       {isMenuOpen && (
         <div className="md:hidden border-t border-slate-100 bg-white absolute w-full left-0 shadow-lg">
           <div className="p-2 space-y-1">
-            {menuItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold ${
-                    pathname.startsWith(item.href) ? "bg-slate-50 text-frage-blue" : "text-slate-600"
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <item.icon className="w-5 h-5" />
-                {item.name}
-              </Link>
-            ))}
+            {menuGroups.map((group) => {
+              const hasChildren = !!group.children && group.children.length > 0;
+              const isActive =
+                (group.href ? pathname.startsWith(group.href) : false) ||
+                (group.children?.some((c) => pathname.startsWith(c.href)) ?? false);
+              return (
+                <div key={group.name} className="space-y-1">
+                  <div
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold ${
+                      isActive ? "bg-slate-50 text-frage-blue" : "text-slate-600"
+                    }`}
+                  >
+                    <group.icon className="w-5 h-5" />
+                    {group.name}
+                  </div>
+                  {hasChildren && (
+                    <div className="pl-10 space-y-1">
+                      {group.children!.map((child) => {
+                        const childActive = pathname.startsWith(child.href);
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold ${
+                              childActive ? "bg-slate-50 text-frage-blue" : "text-slate-600"
+                            }`}
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            <child.icon className="w-4 h-4" />
+                            {child.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {!hasChildren && group.href && (
+                    <Link
+                      href={group.href}
+                      className="sr-only"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {group.name}
+                    </Link>
+                  )}
+                </div>
+              );
+            })}
             <div className="h-px bg-slate-100 my-2"></div>
             <button 
                 onClick={handleLogout}
