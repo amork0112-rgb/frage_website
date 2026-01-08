@@ -42,6 +42,7 @@ const typeDot = (t: ScheduleType) =>
 export default function TeacherHome() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [teacherName, setTeacherName] = useState<string>("");
   const [rememberItems, setRememberItems] = useState<string[]>([]);
   const [teacherClass, setTeacherClass] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
@@ -56,6 +57,19 @@ export default function TeacherHome() {
       const uid = data?.user?.id || null;
       setTeacherId(uid);
       if (!uid) return;
+      try {
+        const { data: trow } = await supabase
+          .from("teachers")
+          .select("name")
+          .eq("id", uid)
+          .limit(1);
+        const t = Array.isArray(trow) && trow.length > 0 ? trow[0] : null;
+        const fallback =
+          (data?.user?.user_metadata as any)?.name ||
+          String(data?.user?.email || "").split("@")[0] ||
+          "";
+        setTeacherName(t?.name ? String(t.name) : fallback);
+      } catch {}
       const { data: profile } = await supabase
         .from("profiles")
         .select("class_name")
@@ -171,7 +185,7 @@ export default function TeacherHome() {
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-black text-slate-900">Hello, {teacherId === "master_teacher" ? "관리자" : "Ms. Anna"}! 👋</h1>
+        <h1 className="text-2xl font-black text-slate-900">Hello, {teacherId === "master_teacher" ? "관리자" : teacherName || "Teacher"}! 👋</h1>
         <p className="text-slate-500 mt-1">Here is your dashboard for today.</p>
       </div>
 
