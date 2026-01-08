@@ -14,6 +14,8 @@ type Teacher = {
   createdAt: string;
 };
 
+console.log("fetching teachers...");
+
 export default function AdminTeachersPage() {
   const [items, setItems] = useState<Teacher[]>([]);
   const [name, setName] = useState("");

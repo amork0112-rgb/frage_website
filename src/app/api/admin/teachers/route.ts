@@ -5,12 +5,11 @@ import { supabaseService } from "@/lib/supabase/service";
 export async function GET() {
   const { data, error } = await supabaseService
     .from("teachers")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .select("*");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data ?? []);
+  return NextResponse.json(data);
 }
