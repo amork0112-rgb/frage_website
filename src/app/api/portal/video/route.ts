@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
+// RLS enforced: use SSR client only
 
 export async function GET(req: Request) {
   try {
-    const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const supabase = createSupabaseServer();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ items: [] }, { status: 401 });
     const role = user.app_metadata?.role ?? "parent";
     if (role !== "parent") return NextResponse.json({ items: [] }, { status: 403 });
@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     const studentId = String(searchParams.get("studentId") || "");
     if (!studentId) return NextResponse.json({ items: [] }, { status: 200 });
 
-    const { data: studentRows } = await supabaseService
+    const { data: studentRows } = await supabase
       .from("students")
       .select("*")
       .eq("id", studentId)
@@ -24,19 +24,19 @@ export async function GET(req: Request) {
     const cls = String(student.class_name ?? student.className ?? "");
     const camp = String(student.campus ?? "");
 
-    const { data: assignments } = await supabaseService
+    const { data: assignments } = await supabase
       .from("video_assignments")
       .select("*")
       .eq("class_name", cls)
       .eq("campus", camp)
       .order("due_date", { ascending: true });
 
-    const { data: submissions } = await supabaseService
+    const { data: submissions } = await supabase
       .from("portal_video_submissions")
       .select("*")
       .eq("student_id", studentId);
 
-    const { data: feedbacks } = await supabaseService
+    const { data: feedbacks } = await supabase
       .from("portal_video_feedback")
       .select("*")
       .eq("student_id", studentId);
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
       const vp = sub?.video_path || null;
       if (vp) {
         try {
-          const res = await supabaseService.storage.from("student-videos").createSignedUrl(vp, 60);
+          const res = await supabase.storage.from("student-videos").createSignedUrl(vp, 60);
           signedUrl = (res as any)?.data?.signedUrl || null;
         } catch {}
       }

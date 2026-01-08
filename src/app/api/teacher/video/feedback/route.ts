@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
+// RLS enforced: use SSR client only
 
 type FeedbackPayload = {
   overall_message: string;
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     if (!studentId || !assignmentId) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
-    const { data } = await supabaseService
+    const { data } = await supabaseAuth
       .from("portal_video_feedback")
       .select("*")
       .eq("student_id", studentId)
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
       updated_at: feedback.updatedAt,
       attachments: Array.isArray(attachments) ? attachments : ([] as AttachMeta),
     };
-    const { error } = await supabaseService.from("portal_video_feedback").insert(row);
+    const { error } = await supabaseAuth.from("portal_video_feedback").insert(row);
     if (error) return NextResponse.json({ ok: false, error: "db_error" }, { status: 500 });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch {

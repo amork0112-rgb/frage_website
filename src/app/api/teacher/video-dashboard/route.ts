@@ -1,28 +1,28 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
+// RLS enforced: use SSR client only
 
 export async function GET() {
   try {
-    const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const supabase = createSupabaseServer();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ assignments: [] }, { status: 401 });
     const role = user.app_metadata?.role ?? "parent";
     if (role !== "teacher") return NextResponse.json({ assignments: [] }, { status: 403 });
-    const { data: assignments } = await supabaseService
+    const { data: assignments } = await supabase
       .from("video_assignments")
       .select("*")
       .order("due_date", { ascending: true });
 
-    const { data: submissions } = await supabaseService
+    const { data: submissions } = await supabase
       .from("portal_video_submissions")
       .select("*");
 
-    const { data: feedbacks } = await supabaseService
+    const { data: feedbacks } = await supabase
       .from("portal_video_feedback")
       .select("*");
 
-    const { data: students } = await supabaseService
+    const { data: students } = await supabase
       .from("students")
       .select("*");
 

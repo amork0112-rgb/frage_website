@@ -50,7 +50,7 @@ export default function MasterDashboard() {
   const [consultations, setConsultations] = useState<ConsultationItem[]>([]);
   const [surveys, setSurveys] = useState<SurveyItem[]>([]);
   const [thresholds, setThresholds] = useState<Thresholds>({});
-  const [campus, setCampus] = useState<string>("All");
+  const [campus, setCampus] = useState<string>("전체");
   const [period, setPeriod] = useState<"month" | "quarter">("month");
   const last6 = monthsBack(6);
   const month = ymStr(new Date());
@@ -81,7 +81,7 @@ export default function MasterDashboard() {
   }, []);
 
   const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
-  const filterCampus = useCallback(<T extends { campus?: string }>(arr: T[]) => (campus === "All" ? arr : arr.filter((a) => a.campus === campus)), [campus]);
+  const filterCampus = useCallback(<T extends { campus?: string }>(arr: T[]) => (campus === "전체" ? arr : arr.filter((a) => a.campus === campus)), [campus]);
 
   const profitMargin = useMemo(() => {
     const rv = filterCampus(revenues).filter((r) => r.month === month).map((r) => r.amount);
@@ -138,7 +138,7 @@ export default function MasterDashboard() {
   }, [surveys, month, prev, filterCampus]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50">Loading...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50">로딩 중...</div>;
   }
   if (!authorized) {
     return (
@@ -239,16 +239,16 @@ export default function MasterDashboard() {
       <div className="max-w-[1440px] mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <div className="text-xs font-bold text-slate-500 uppercase">Executive Overview</div>
-            <h1 className="text-2xl font-black text-slate-900">Executive KPI Overview</h1>
+            <div className="text-xs font-bold text-slate-500 uppercase">경영 개요</div>
+            <h1 className="text-2xl font-black text-slate-900">경영 KPI 대시보드</h1>
           </div>
           <div className="flex items-center gap-3">
             <select value={period} onChange={(e) => setPeriod(e.target.value as any)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">
-              <option value="month">Month</option>
-              <option value="quarter">Quarter</option>
+              <option value="month">월간</option>
+              <option value="quarter">분기</option>
             </select>
             <select value={campus} onChange={(e) => setCampus(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">
-              <option value="All">All</option>
+              <option value="전체">전체</option>
               {campuses.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
@@ -258,34 +258,34 @@ export default function MasterDashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase">Profit Margin</div>
+            <div className="text-xs font-bold text-slate-500 uppercase">영업이익률</div>
             <div className="flex items-end gap-2">
               <div className="text-3xl font-black text-slate-900">{Math.round(profitMargin.value * 10) / 10}%</div>
               <div className={`text-xs font-bold ${profitMargin.delta >= 0 ? "text-green-600" : "text-rose-600"}`}>
                 {profitMargin.delta >= 0 ? `+${Math.round(profitMargin.delta * 10) / 10}%` : `${Math.round(profitMargin.delta * 10) / 10}%`}
               </div>
             </div>
-            <span className={`mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(profitMargin.status)}`}>{profitMargin.status === "ok" ? "🟢 Healthy" : profitMargin.status === "warn" ? "🟡 Warning" : "🔴 Risk"}</span>
+            <span className={`mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(profitMargin.status)}`}>{profitMargin.status === "ok" ? "🟢 양호" : profitMargin.status === "warn" ? "🟡 경고" : "🔴 위험"}</span>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase">Retention Rate</div>
+            <div className="text-xs font-bold text-slate-500 uppercase">재등록율</div>
             <div className="flex items-end gap-2">
               <div className="text-3xl font-black text-slate-900">{retentionRate.value}%</div>
               <div className={`text-xs font-bold ${retentionRate.delta >= 0 ? "text-green-600" : "text-rose-600"}`}>
                 {retentionRate.delta >= 0 ? `+${Math.round(retentionRate.delta * 10) / 10}%` : `${Math.round(retentionRate.delta * 10) / 10}%`}
               </div>
             </div>
-            <span className={`mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(retentionRate.status)}`}>{retentionRate.status === "ok" ? "🟢 Healthy" : retentionRate.status === "warn" ? "🟡 Warning" : "🔴 Risk"}</span>
+            <span className={`mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(retentionRate.status)}`}>{retentionRate.status === "ok" ? "🟢 양호" : retentionRate.status === "warn" ? "🟡 경고" : "🔴 위험"}</span>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase">Consultation Conversion</div>
+            <div className="text-xs font-bold text-slate-500 uppercase">상담 전환율</div>
             <div className="flex items-end gap-2">
               <div className="text-3xl font-black text-slate-900">{conversionRate.value}%</div>
               <div className={`text-xs font-bold ${conversionRate.delta >= 0 ? "text-green-600" : "text-rose-600"}`}>
                 {conversionRate.delta >= 0 ? `+${Math.round(conversionRate.delta * 10) / 10}%` : `${Math.round(conversionRate.delta * 10) / 10}%`}
               </div>
             </div>
-            <span className={`mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(conversionRate.status)}`}>{conversionRate.status === "ok" ? "🟢 Healthy" : conversionRate.status === "warn" ? "🟡 Warning" : "🔴 Risk"}</span>
+            <span className={`mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(conversionRate.status)}`}>{conversionRate.status === "ok" ? "🟢 양호" : conversionRate.status === "warn" ? "🟡 경고" : "🔴 위험"}</span>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             <div className="text-xs font-bold text-slate-500 uppercase">NPS</div>
@@ -295,39 +295,39 @@ export default function MasterDashboard() {
                 {npsScore.delta >= 0 ? `+${npsScore.delta}` : `${npsScore.delta}`}
               </div>
             </div>
-            <span className={`mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(npsScore.status)}`}>{npsScore.status === "ok" ? "🟢 Healthy" : npsScore.status === "warn" ? "🟡 Warning" : "🔴 Risk"}</span>
+            <span className={`mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(npsScore.status)}`}>{npsScore.status === "ok" ? "🟢 양호" : npsScore.status === "warn" ? "🟡 경고" : "🔴 위험"}</span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-2">Profit Margin Trend</div>
+            <div className="text-xs font-bold text-slate-500 uppercase mb-2">영업이익률 추이</div>
             <Line values={kpiSeries("profit")} />
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-2">Retention Trend</div>
+            <div className="text-xs font-bold text-slate-500 uppercase mb-2">재등록율 추이</div>
             <Line values={kpiSeries("retention")} />
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-2">Conversion Trend</div>
+            <div className="text-xs font-bold text-slate-500 uppercase mb-2">전환율 추이</div>
             <Line values={kpiSeries("conversion")} />
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-2">NPS Trend</div>
+            <div className="text-xs font-bold text-slate-500 uppercase mb-2">NPS 추이</div>
             <Line values={kpiSeries("nps")} />
           </div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-5 mb-8">
-          <div className="text-xs font-bold text-slate-500 uppercase mb-3">Campus Comparison</div>
+          <div className="text-xs font-bold text-slate-500 uppercase mb-3">캠퍼스 비교</div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-500">
-                  <th className="text-left p-2 font-bold">Campus</th>
-                  <th className="text-left p-2 font-bold">Profit Margin</th>
-                  <th className="text-left p-2 font-bold">Retention</th>
-                  <th className="text-left p-2 font-bold">Conversion</th>
+                  <th className="text-left p-2 font-bold">캠퍼스</th>
+                  <th className="text-left p-2 font-bold">영업이익률</th>
+                  <th className="text-left p-2 font-bold">재등록율</th>
+                  <th className="text-left p-2 font-bold">전환율</th>
                   <th className="text-left p-2 font-bold">NPS</th>
                 </tr>
               </thead>
@@ -360,18 +360,18 @@ export default function MasterDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-bold text-slate-500 uppercase">Retention & Churn</div>
-              <div className="text-[11px] font-bold text-slate-400">Baseline 93%</div>
+              <div className="text-xs font-bold text-slate-500 uppercase">재등록/이탈</div>
+              <div className="text-[11px] font-bold text-slate-400">기준선 93%</div>
             </div>
             <Line values={kpiSeries("retention")} />
             {retentionAlert && (
               <div className="mt-3 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
-                Retention dropped below threshold for 2 consecutive months.
+                2개월 연속 기준선 이하로 재등록율이 하락했습니다.
               </div>
             )}
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-3">Conversion Funnel</div>
+            <div className="text-xs font-bold text-slate-500 uppercase mb-3">전환 퍼널</div>
             <div className="space-y-2">
               {(() => {
                 const ct = filterCampus(consultations).find((c) => c.month === month);
@@ -380,9 +380,9 @@ export default function MasterDashboard() {
                 const registrations = ct?.registered || 0;
                 const total = Math.max(1, inquiries);
                 const items = [
-                  { label: "Inquiries", value: inquiries },
-                  { label: "Consultations", value: consultationsCnt },
-                  { label: "Registrations", value: registrations },
+                  { label: "문의", value: inquiries },
+                  { label: "상담", value: consultationsCnt },
+                  { label: "등록", value: registrations },
                 ];
                 return items.map((it, idx) => {
                   const pct = Math.round((it.value / total) * 100);
@@ -403,31 +403,31 @@ export default function MasterDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-2">NPS Score</div>
+            <div className="text-xs font-bold text-slate-500 uppercase mb-2">NPS 점수</div>
             <div className="flex items-end gap-2">
               <div className="text-4xl font-black text-slate-900">{npsScore.value >= 0 ? `+${npsScore.value}` : `${npsScore.value}`}</div>
               <div className={`text-xs font-bold ${npsScore.delta >= 0 ? "text-green-600" : "text-rose-600"}`}>
                 {npsScore.delta >= 0 ? `+${npsScore.delta}` : `${npsScore.delta}`}
               </div>
-              <span className={`ml-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(npsScore.status)}`}>{npsScore.status === "ok" ? "🟢 Healthy" : npsScore.status === "warn" ? "🟡 Warning" : "🔴 Risk"}</span>
+              <span className={`ml-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(npsScore.status)}`}>{npsScore.status === "ok" ? "🟢 양호" : npsScore.status === "warn" ? "🟡 경고" : "🔴 위험"}</span>
             </div>
             <div className="mt-4 space-y-2">
               <div className="flex items-center gap-3">
-                <div className="w-24 text-xs font-bold text-slate-500 uppercase">Promoters</div>
+                <div className="w-24 text-xs font-bold text-slate-500 uppercase">추천</div>
                 <div className="flex-1 h-4 bg-slate-100 rounded">
                   <div className="h-full bg-slate-700" style={{ width: `${npsScore.breakdown.p}%` }} />
                 </div>
                 <div className="w-12 text-right text-xs font-bold text-slate-700">{npsScore.breakdown.p}%</div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-24 text-xs font-bold text-slate-500 uppercase">Neutral</div>
+                <div className="w-24 text-xs font-bold text-slate-500 uppercase">중립</div>
                 <div className="flex-1 h-4 bg-slate-100 rounded">
                   <div className="h-full bg-slate-500" style={{ width: `${npsScore.breakdown.n}%` }} />
                 </div>
                 <div className="w-12 text-right text-xs font-bold text-slate-700">{npsScore.breakdown.n}%</div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-24 text-xs font-bold text-slate-500 uppercase">Detractors</div>
+                <div className="w-24 text-xs font-bold text-slate-500 uppercase">비추천</div>
                 <div className="flex-1 h-4 bg-slate-100 rounded">
                   <div className="h-full bg-slate-400" style={{ width: `${npsScore.breakdown.d}%` }} />
                 </div>
@@ -436,8 +436,8 @@ export default function MasterDashboard() {
             </div>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-2">Feedback Insights</div>
-            <div className="text-sm text-slate-600">최근 설문 응답 기반 인사이트는 Survey 페이지에서 확인하세요.</div>
+            <div className="text-xs font-bold text-slate-500 uppercase mb-2">피드백 인사이트</div>
+            <div className="text-sm text-slate-600">최근 설문 응답 기반 인사이트는 설문 페이지에서 확인하세요.</div>
           </div>
         </div>
       </div>

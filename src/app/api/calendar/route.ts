@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
+// RLS enforced: use SSR client only
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -11,6 +11,7 @@ const json = (data: any, status = 200) =>
 
 export async function GET(req: Request) {
   try {
+    const supabase = createSupabaseServer();
     const { searchParams } = new URL(req.url);
     const y = Number(searchParams.get("year"));
     const m = Number(searchParams.get("month"));
@@ -21,26 +22,23 @@ export async function GET(req: Request) {
     const last = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
     let campusVal: string | null = null;
     try {
-      const supabaseAuth = createSupabaseServer();
-      const { data: { user } } = await supabaseAuth.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       const uid = user?.id || null;
       if (uid) {
-      // campus는 JWT에 없다면 별도 테이블 접근이 필요할 수 있으나, 인증 판단은 JWT로 일원화
-      // 필요 시 서비스 클라이언트로 읽기
-      try {
-        const { data: prof } = await supabaseService
-          .from("profiles")
-          .select("campus")
-          .eq("id", uid)
-          .maybeSingle();
-        campusVal = prof?.campus ? String(prof.campus) : null;
-      } catch {}
+        try {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("campus")
+            .eq("id", uid)
+            .maybeSingle();
+          campusVal = prof?.campus ? String(prof.campus) : null;
+        } catch {}
       }
     } catch {}
     if (campusParam && typeof campusParam === "string") {
       campusVal = String(campusParam);
     }
-    let q = supabaseService
+    let q = supabase
       .from("academic_calendar")
       .select("*")
       .eq("expose_to_parent", true)

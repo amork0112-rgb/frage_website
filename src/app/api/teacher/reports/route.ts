@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
+// RLS enforced: use SSR client only
 
 export async function GET(req: Request) {
   try {
-    const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const supabase = createSupabaseServer();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
     const role = user.app_metadata?.role ?? "parent";
     if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     if (!studentId || !month) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
-    const { data, error } = await supabaseService
+    const { data, error } = await supabase
       .from("teacher_reports")
       .select("*")
       .eq("student_id", studentId)
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       status: "작성중",
       updated_at: now,
     };
-    const { error } = await supabaseService
+    const { error } = await supabaseAuth
       .from("teacher_reports")
       .upsert(payload, { onConflict: "student_id,month" });
     if (error) {
@@ -108,7 +108,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
     }
     const now = new Date().toISOString();
-    const { error } = await supabaseService
+    const { error } = await supabaseAuth
       .from("teacher_reports")
       .update({ status, updated_at: now })
       .eq("student_id", studentId)
@@ -118,7 +118,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ ok: false }, { status: 500 });
     }
     if (status === "발송요청") {
-      await supabaseService
+      await supabaseAuth
         .from("teacher_reports")
         .update({ status: "발송완료", updated_at: now })
         .eq("student_id", studentId)

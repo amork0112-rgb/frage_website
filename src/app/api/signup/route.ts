@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
+// RLS enforced: use SSR client only
 
 export async function POST(request: Request) {
   try {
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     -------------------------- */
     let parentId: string;
 
-    const { data: existingParent } = await supabaseService
+    const { data: existingParent } = await supabaseAuth
       .from("parents")
       .select("id")
       .eq("auth_user_id", authUserId)
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     if (existingParent) {
       parentId = existingParent.id;
     } else {
-      const { data: newParent, error: parentError } = await supabaseService
+      const { data: newParent, error: parentError } = await supabaseAuth
         .from("parents")
         .insert({
           auth_user_id: authUserId,
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     /* -------------------------
        4️⃣ 기존 draft → waiting 전환 (RPC)
     -------------------------- */
-    const { data: draftRow } = await supabaseService
+    const { data: draftRow } = await supabaseAuth
       .from("new_students")
       .select("id,status")
       .eq("parent_id", parentId)
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const { error: rpcErr } = await supabaseService.rpc("draft_to_waiting", {
+    const { error: rpcErr } = await supabaseAuth.rpc("draft_to_waiting", {
       new_student_id: draft.id,
       student_name: studentName,
     });

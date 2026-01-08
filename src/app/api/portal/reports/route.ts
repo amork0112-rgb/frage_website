@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
+// RLS enforced: use SSR client only
 
 export async function GET(req: Request) {
   try {
-    const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const supabase = createSupabaseServer();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
     const role = user.app_metadata?.role ?? "parent";
     if (role !== "parent") return NextResponse.json({ ok: false }, { status: 403 });
@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     if (!studentId) {
       return NextResponse.json({ ok: false, error: "missing_studentId" }, { status: 400 });
     }
-    const { data, error } = await supabaseService
+    const { data, error } = await supabase
       .from("teacher_reports")
       .select("month, updated_at, status")
       .eq("student_id", studentId)
