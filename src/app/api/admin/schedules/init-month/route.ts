@@ -17,21 +17,14 @@ export async function POST(req: Request) {
     /* ---------------------------------
        2. 인증 + admin 권한 체크
     --------------------------------- */
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-    if (!user) return json({ error: "unauthorized" }, 401);
+  if (!user) return json({ error: "unauthorized" }, 401);
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (!profile || profile.role !== "admin") {
-      return json({ error: "forbidden" }, 403);
-    }
+  const role = (user as any).app_metadata?.role ?? "parent";
+  if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
 
     /* ---------------------------------
        3. 요청 파라미터

@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { resolveRole } from "@/lib/auth/resolveRole";
 
 export default async function AuthRedirectPage() {
   const supabase = createSupabaseServer();
@@ -12,14 +11,14 @@ export default async function AuthRedirectPage() {
     redirect("/portal");
   }
 
-  const role = resolveRole(user, null);
+  const role = user?.app_metadata?.role ?? "parent";
 
-  if (role === "master_admin") {
-    redirect("/admin/master/dashboard");
-  }
-
-  if (role === "admin" || role === "teacher") {
+  if (role === "master_admin" || role === "admin") {
     redirect("/admin/home");
+  }
+  
+  if (role === "teacher") {
+    redirect("/teacher/home");
   }
 
   redirect("/portal/home");

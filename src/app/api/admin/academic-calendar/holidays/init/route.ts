@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 import { getKoreanHolidays } from "@/lib/holidays";
 
 const json = (data: any, status = 200) =>
@@ -12,17 +13,15 @@ export async function POST(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return json({ error: "unauthorized" }, 401);
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
+    const role = user?.app_metadata?.role ?? "parent";
+    if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const year = Number(body.year || 0);
     if (!year) return json({ error: "missing_year" }, 400);
     const events = getKoreanHolidays(year);
     let inserted = 0;
     for (const ev of events) {
-      const { data: dup } = await (supabaseServer as any)
+      const { data: dup } = await supabaseService
         .from("academic_calendar")
         .select("id")
         .eq("type", "공휴일")
@@ -31,7 +30,7 @@ export async function POST(req: Request) {
       const exists = Array.isArray(dup) && dup.length > 0;
       if (exists) continue;
       const now = new Date().toISOString();
-      const { error } = await (supabaseServer as any)
+      const { error } = await supabaseService
         .from("academic_calendar")
         .insert({
           title: ev.title,

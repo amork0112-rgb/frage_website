@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 type ClassRow = {
   id: string;
@@ -29,8 +30,8 @@ function json(data: any, status = 200) {
 async function requireAdmin(supabaseAuth: any) {
   const { data: { user } } = await supabaseAuth.auth.getUser();
   if (!user) return { error: json({ error: "unauthorized" }, 401) };
-  const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!prof || String(prof.role) !== "admin") return { error: json({ error: "forbidden" }, 403) };
+  const role = user.app_metadata?.role ?? "parent";
+  if (role !== "admin" && role !== "master_admin") return { error: json({ error: "forbidden" }, 403) };
   return { user };
 }
 
@@ -40,14 +41,14 @@ export async function GET(req: Request) {
     const guard = await requireAdmin(supabaseAuth);
     if (guard.error) return guard.error;
 
-    const { data: classesData, error: classesErr } = await supabaseServer
+    const { data: classesData, error: classesErr } = await supabaseService
       .from("classes")
       .select("*")
       .order("name", { ascending: true });
     if (classesErr) return json({ items: [] }, 500);
     const classes = Array.isArray(classesData) ? classesData : [];
 
-    const { data: schedData, error: schedErr } = await supabaseServer
+    const { data: schedData, error: schedErr } = await supabaseService
       .from("class_schedules")
       .select("*");
     if (schedErr) return json({ items: [] }, 500);
@@ -96,7 +97,7 @@ export async function POST(req: Request) {
 
     if (!name) return json({ error: "missing_name" }, 400);
 
-    const { data: existingClass } = await supabaseServer
+    const { data: existingClass } = await supabaseService
       .from("classes")
       .select("id")
       .eq("name", name)
@@ -104,7 +105,7 @@ export async function POST(req: Request) {
       .maybeSingle();
     let cls = existingClass || null;
     if (!cls) {
-      const { data: created, error: insertErr } = await supabaseServer
+      const { data: created, error: insertErr } = await supabaseService
         .from("classes")
         .insert({
           name,
@@ -118,7 +119,7 @@ export async function POST(req: Request) {
       if (insertErr || !created) return json({ error: "class_insert_failed" }, 500);
       cls = created;
     } else {
-      await supabaseServer
+      await supabaseService
         .from("classes")
         .update({
           default_pickup_slot,
@@ -133,13 +134,13 @@ export async function POST(req: Request) {
     let createdSchedule: any = null;
     if (schedule && schedule.start_time && schedule.end_time) {
       const now = new Date().toISOString();
-      const { data: existingSched } = await supabaseServer
+      const { data: existingSched } = await supabaseService
         .from("class_schedules")
         .select("id")
         .eq("class_id", cls.id)
         .maybeSingle();
       if (existingSched?.id) {
-        const { data: schedRow, error: schedUpdateErr } = await supabaseServer
+        const { data: schedRow, error: schedUpdateErr } = await supabaseService
           .from("class_schedules")
           .update({
             start_time: String(schedule.start_time),
@@ -152,7 +153,7 @@ export async function POST(req: Request) {
         if (schedUpdateErr) return json({ error: "schedule_update_failed", class: cls }, 500);
         createdSchedule = schedRow;
       } else {
-        const { data: schedRow, error: schedInsertErr } = await supabaseServer
+        const { data: schedRow, error: schedInsertErr } = await supabaseService
           .from("class_schedules")
           .insert({
             class_id: cls.id,

@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function GET(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return NextResponse.json({ items: [] }, { status: 401 });
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-    if (!prof || String(prof.role) !== "parent") return NextResponse.json({ items: [] }, { status: 403 });
+    if (!user) return NextResponse.json({ items: [] }, { status: 401 });
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "parent") return NextResponse.json({ items: [] }, { status: 403 });
     const { searchParams } = new URL(req.url);
     const studentId = String(searchParams.get("studentId") || "");
     if (!studentId) return NextResponse.json({ items: [] }, { status: 200 });
 
-    const { data: studentRows } = await supabaseServer
+    const { data: studentRows } = await supabaseService
       .from("students")
       .select("*")
       .eq("id", studentId)
@@ -24,19 +24,19 @@ export async function GET(req: Request) {
     const cls = String(student.class_name ?? student.className ?? "");
     const camp = String(student.campus ?? "");
 
-    const { data: assignments } = await supabaseServer
+    const { data: assignments } = await supabaseService
       .from("video_assignments")
       .select("*")
       .eq("class_name", cls)
       .eq("campus", camp)
       .order("due_date", { ascending: true });
 
-    const { data: submissions } = await supabaseServer
+    const { data: submissions } = await supabaseService
       .from("portal_video_submissions")
       .select("*")
       .eq("student_id", studentId);
 
-    const { data: feedbacks } = await supabaseServer
+    const { data: feedbacks } = await supabaseService
       .from("portal_video_feedback")
       .select("*")
       .eq("student_id", studentId);
@@ -54,7 +54,7 @@ export async function GET(req: Request) {
       }
     });
 
-    const items = (assignments || []).map((a: any) => {
+    const items = await Promise.all((assignments || []).map(async (a: any) => {
       const aid = String(a.id ?? a.assignment_id ?? "");
       const sub = subByAssign[aid] || null;
       const fb = fbByAssign[aid] || null;
@@ -64,8 +64,10 @@ export async function GET(req: Request) {
       let signedUrl: string | null = null;
       const vp = sub?.video_path || null;
       if (vp) {
-        const res = (supabaseServer as any).storage.from("student-videos").createSignedUrl(vp, 60);
-        signedUrl = res?.data?.signedUrl || null;
+        try {
+          const res = await supabaseService.storage.from("student-videos").createSignedUrl(vp, 60);
+          signedUrl = (res as any)?.data?.signedUrl || null;
+        } catch {}
       }
       return {
         id: `hw_${studentId}_${aid}`,
@@ -91,7 +93,7 @@ export async function GET(req: Request) {
           : null,
         videoUrl: signedUrl,
       };
-    });
+    }));
 
     return NextResponse.json({ items }, { status: 200 });
   } catch {

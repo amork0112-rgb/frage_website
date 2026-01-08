@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 type FeedbackPayload = {
   overall_message: string;
@@ -21,17 +22,16 @@ export async function GET(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return NextResponse.json({ ok: false }, { status: 401 });
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-    if (!prof || String(prof.role) !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
+    if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId") || "";
     const assignmentId = searchParams.get("assignmentId") || "";
     if (!studentId || !assignmentId) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
-    const { data } = await supabaseServer
+    const { data } = await supabaseService
       .from("portal_video_feedback")
       .select("*")
       .eq("student_id", studentId)
@@ -63,10 +63,9 @@ export async function POST(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return NextResponse.json({ ok: false }, { status: 401 });
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-    if (!prof || String(prof.role) !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
+    if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const body = await req.json();
     const { studentId, assignmentId, teacherId, feedback, attachments } = body || {};
     if (
@@ -95,7 +94,7 @@ export async function POST(req: Request) {
       updated_at: feedback.updatedAt,
       attachments: Array.isArray(attachments) ? attachments : ([] as AttachMeta),
     };
-    const { error } = await (supabaseServer as any).from("portal_video_feedback").insert(row);
+    const { error } = await supabaseService.from("portal_video_feedback").insert(row);
     if (error) return NextResponse.json({ ok: false, error: "db_error" }, { status: 500 });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch {

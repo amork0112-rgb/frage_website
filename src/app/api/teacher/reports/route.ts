@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function GET(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return NextResponse.json({ ok: false }, { status: 401 });
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-    if (!prof || String(prof.role) !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
+    if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId") || "";
     const month = searchParams.get("month") || "";
     if (!studentId || !month) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
-    const { data, error } = await supabaseServer
+    const { data, error } = await supabaseService
       .from("teacher_reports")
       .select("*")
       .eq("student_id", studentId)
@@ -51,10 +51,9 @@ export async function POST(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return NextResponse.json({ ok: false }, { status: 401 });
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-    if (!prof || String(prof.role) !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
+    if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const body = await req.json();
     const { studentId, month, className, gender, scores, comments, videoScores, overall } = body || {};
     if (
@@ -82,7 +81,7 @@ export async function POST(req: Request) {
       status: "작성중",
       updated_at: now,
     };
-    const { error } = await supabaseServer
+    const { error } = await supabaseService
       .from("teacher_reports")
       .upsert(payload, { onConflict: "student_id,month" });
     if (error) {
@@ -100,17 +99,16 @@ export async function PUT(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return NextResponse.json({ ok: false }, { status: 401 });
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-    if (!prof || String(prof.role) !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
+    if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const body = await req.json();
     const { studentId, month, status } = body || {};
     if (!studentId || !month || !status) {
       return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
     }
     const now = new Date().toISOString();
-    const { error } = await supabaseServer
+    const { error } = await supabaseService
       .from("teacher_reports")
       .update({ status, updated_at: now })
       .eq("student_id", studentId)
@@ -120,7 +118,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ ok: false }, { status: 500 });
     }
     if (status === "발송요청") {
-      await supabaseServer
+      await supabaseService
         .from("teacher_reports")
         .update({ status: "발송완료", updated_at: now })
         .eq("student_id", studentId)

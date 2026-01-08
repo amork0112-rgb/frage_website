@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createServerClient } from "@supabase/ssr";
+import { createSupabaseServer } from "@/lib/supabase/server";
 import Link from "next/link";
 import type { Post, Profile } from "@/lib/types";
 
@@ -9,29 +8,11 @@ export default async function PostPage({
 }: {
   params: { id: string };
 }) {
-  const cookieStore = cookies();
+  const supabase = createSupabaseServer();
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
-    {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-        set: (name: string, value: string, options: any) => {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove: (name: string, options: any) => {
-          cookieStore.set({ name, value: "", ...options });
-        }
-      }
-    }
-  );
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
-
-  if (!session) {
+  if (!user) {
     return (
       <section className="mx-auto max-w-4xl py-10 px-6">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-10 text-center text-slate-500">
@@ -41,14 +22,7 @@ export default async function PostPage({
     );
   }
 
-  // Fetch user profile to check role
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", session.user.id)
-    .single();
-
-  const isAdmin = (profile as Profile)?.role === "admin";
+  const isAdmin = ((user as any).app_metadata?.role ?? "parent") === "admin";
 
   const { data: post, error } = await supabase
     .from("posts")

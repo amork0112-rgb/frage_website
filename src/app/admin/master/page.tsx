@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { resolveRole } from "@/lib/auth/resolveRole";
 
 export const dynamic = "force-dynamic";
 
@@ -12,18 +11,11 @@ export default async function AdminMasterIndex() {
   const access = cookieStore.get("sb-access-token")?.value || "";
   const refresh = cookieStore.get("sb-refresh-token")?.value || "";
   console.log("SUPABASE USER", user);
-  console.log("APP META", (user as any)?.app_metadata);
-  console.log("USER META", (user as any)?.user_metadata);
   console.log("TOKENS", { hasAccess: !!access, accessLen: access.length, hasRefresh: !!refresh, refreshLen: refresh.length });
   if (!user) {
     redirect("/portal");
   }
-  let profile: any = null;
-  try {
-    const { data: prof } = await (supabaseAuth as any).from("profiles").select("role").eq("id", user.id).maybeSingle();
-    profile = prof || null;
-  } catch {}
-  const role = resolveRole({ authUser: user, profile });
+  const role = user.app_metadata?.role ?? "parent";
   if (role !== "master_admin") {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">

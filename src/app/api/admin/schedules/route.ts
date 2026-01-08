@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -17,15 +18,10 @@ export async function GET(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return json({ error: "unauthorized" }, 401);
-    const { data: prof } = await (supabaseServer as any)
-      .from("profiles")
-      .select("role")
-      .eq("id", uid)
-      .maybeSingle();
-    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
-    let query = (supabaseServer as any).from("schedules").select("*");
+    if (!user) return json({ error: "unauthorized" }, 401);
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
+    let query = supabaseService.from("schedules").select("*");
     if (yearParam && monthParam) {
       const year = Number(yearParam);
       const month = Number(monthParam);
@@ -105,14 +101,9 @@ export async function POST(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return json({ error: "unauthorized" }, 401);
-    const { data: prof } = await (supabaseServer as any)
-      .from("profiles")
-      .select("role")
-      .eq("id", uid)
-      .maybeSingle();
-    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
+    if (!user) return json({ error: "unauthorized" }, 401);
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const date = String(body.date || "");
     const time = String(body.time || "");
@@ -120,7 +111,7 @@ export async function POST(req: Request) {
     const current = Number(body.current ?? 0);
     const isOpen = Boolean(body.isOpen ?? true);
     if (!date || !time) return json({ error: "missing" }, 400);
-    const { data: dupRows } = await (supabaseServer as any)
+    const { data: dupRows } = await supabaseService
       .from("schedules")
       .select("*")
       .eq("date", date)
@@ -141,7 +132,7 @@ export async function POST(req: Request) {
       }, 200);
     }
     const now = new Date().toISOString();
-    const { data, error } = await (supabaseServer as any)
+    const { data, error } = await supabaseService
       .from("schedules")
       .insert({
         date,
@@ -177,14 +168,9 @@ export async function PUT(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return json({ error: "unauthorized" }, 401);
-    const { data: prof } = await (supabaseServer as any)
-      .from("profiles")
-      .select("role")
-      .eq("id", uid)
-      .maybeSingle();
-    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
+    if (!user) return json({ error: "unauthorized" }, 401);
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const id = String(body.id || "");
     if (!id) return json({ error: "missing id" }, 400);
@@ -201,7 +187,7 @@ export async function PUT(req: Request) {
       const dateVal = patch.date ?? undefined;
       const timeVal = patch.time ?? undefined;
       if (dateVal && timeVal) {
-        const { data: dupRows } = await (supabaseServer as any)
+        const { data: dupRows } = await supabaseService
           .from("schedules")
           .select("*")
           .eq("date", dateVal)
@@ -224,7 +210,7 @@ export async function PUT(req: Request) {
         }
       }
     }
-    const { data, error } = await (supabaseServer as any)
+    const { data, error } = await supabaseService
       .from("schedules")
       .update(patch)
       .eq("id", id)
@@ -251,18 +237,13 @@ export async function DELETE(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return json({ error: "unauthorized" }, 401);
-    const { data: prof } = await (supabaseServer as any)
-      .from("profiles")
-      .select("role")
-      .eq("id", uid)
-      .maybeSingle();
-    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
+    if (!user) return json({ error: "unauthorized" }, 401);
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const id = String(body.id || "");
     if (!id) return json({ error: "missing id" }, 400);
-    const { error } = await (supabaseServer as any).from("schedules").delete().eq("id", id);
+    const { error } = await supabaseService.from("schedules").delete().eq("id", id);
     if (error) return json({ error: "delete_failed" }, 500);
     return json({ ok: true });
   } catch {

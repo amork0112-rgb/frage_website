@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -24,18 +25,22 @@ export async function GET(req: Request) {
       const { data: { user } } = await supabaseAuth.auth.getUser();
       const uid = user?.id || null;
       if (uid) {
-        const { data: prof } = await (supabaseServer as any)
+      // campus는 JWT에 없다면 별도 테이블 접근이 필요할 수 있으나, 인증 판단은 JWT로 일원화
+      // 필요 시 서비스 클라이언트로 읽기
+      try {
+        const { data: prof } = await supabaseService
           .from("profiles")
-          .select("role,campus")
+          .select("campus")
           .eq("id", uid)
           .maybeSingle();
         campusVal = prof?.campus ? String(prof.campus) : null;
+      } catch {}
       }
     } catch {}
     if (campusParam && typeof campusParam === "string") {
       campusVal = String(campusParam);
     }
-    let q = (supabaseServer as any)
+    let q = supabaseService
       .from("academic_calendar")
       .select("*")
       .eq("expose_to_parent", true)

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -11,27 +12,21 @@ export async function GET() {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return json({ error: "unauthorized" }, 401);
-    const { data: prof } = await (supabaseServer as any)
-      .from("profiles")
-      .select("role")
-      .eq("id", uid)
-      .maybeSingle();
-    const role = String(prof?.role || "");
-    if (!prof || (role !== "admin" && role !== "teacher")) return json({ error: "forbidden" }, 403);
-    const { data: students, error: e1 } = await (supabaseServer as any)
+    if (!user) return json({ error: "unauthorized" }, 401);
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "admin" && role !== "teacher" && role !== "master_admin") return json({ error: "forbidden" }, 403);
+    const { data: students, error: e1 } = await supabaseService
       .from("new_students")
       .select("*")
       .order("created_at", { ascending: false });
     if (e1) return json({ error: "students_fetch_failed" }, 500);
 
-    const { data: checkRows, error: e2 } = await (supabaseServer as any)
+    const { data: checkRows, error: e2 } = await supabaseService
       .from("new_student_checklists")
       .select("*");
     if (e2) return json({ error: "checklists_fetch_failed" }, 500);
 
-    const { data: reservations, error: e3 } = await (supabaseServer as any)
+    const { data: reservations, error: e3 } = await supabaseService
       .from("student_reservations")
       .select("student_id,slot_id");
     if (e3) return json({ error: "reservations_fetch_failed" }, 500);
@@ -39,7 +34,7 @@ export async function GET() {
     const slotIds: string[] = Array.isArray(reservations)
       ? reservations.map((r: any) => String(r.slot_id || "")).filter(Boolean)
       : [];
-    const { data: slots, error: e4 } = await (supabaseServer as any)
+    const { data: slots, error: e4 } = await supabaseService
       .from("consultation_slots")
       .select("id,date,time")
       .in("id", slotIds);
@@ -95,14 +90,9 @@ export async function PUT(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return json({ error: "unauthorized" }, 401);
-    const { data: prof } = await (supabaseServer as any)
-      .from("profiles")
-      .select("role")
-      .eq("id", uid)
-      .maybeSingle();
-    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
+    if (!user) return json({ error: "unauthorized" }, 401);
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const studentId = String(body.studentId || "");
     const key = String(body.key || "");
@@ -111,20 +101,20 @@ export async function PUT(req: Request) {
     const checked_by = body.checked_by ?? null;
     if (!studentId || !key) return json({ error: "missing" }, 400);
 
-    const { data: exists } = await (supabaseServer as any)
+    const { data: exists } = await supabaseService
       .from("new_student_checklists")
       .select("*")
       .eq("student_id", studentId)
       .eq("key", key);
 
     if (Array.isArray(exists) && exists.length > 0) {
-      await (supabaseServer as any)
+      await supabaseService
         .from("new_student_checklists")
         .update({ checked, checked_at, checked_by })
         .eq("student_id", studentId)
         .eq("key", key);
     } else {
-      await (supabaseServer as any)
+      await supabaseService
         .from("new_student_checklists")
         .insert([{ student_id: studentId, key, checked, checked_at, checked_by }]);
     }
@@ -139,20 +129,15 @@ export async function POST(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return json({ error: "unauthorized" }, 401);
-    const { data: prof } = await (supabaseServer as any)
-      .from("profiles")
-      .select("role")
-      .eq("id", uid)
-      .maybeSingle();
-    if (!prof || String(prof.role) !== "admin") return json({ error: "forbidden" }, 403);
+    if (!user) return json({ error: "unauthorized" }, 401);
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
     const body = await req.json();
     const action = String(body.action || "");
     if (action === "approve") {
       const newStudentId = String(body.studentId || "");
       if (!newStudentId) return json({ error: "missing" }, 400);
-      const { error: rpcErr } = await (supabaseServer as any).rpc("approve_enrollment", {
+      const { error: rpcErr } = await supabaseService.rpc("approve_enrollment", {
         new_student_id: newStudentId,
       });
       if (rpcErr) return json({ error: "approve_failed", details: rpcErr?.message }, 500);

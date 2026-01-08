@@ -8,6 +8,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
+import { login } from "./actions";
 
 export default function PortalPage() {
   const { t } = useLanguage();
@@ -28,18 +29,10 @@ export default function PortalPage() {
 
     (async () => {
       try {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: id.trim(),
-          password: password.trim(),
-        });
-        if (error) {
-          setError(error.message);
-          setLoading(false);
-          return;
-        }
+        await login(id.trim(), password.trim());
         router.replace("/auth/redirect");
-      } catch {
-        setError("로그인 중 문제가 발생했습니다.");
+      } catch (e: any) {
+        setError(e?.message || "로그인 중 문제가 발생했습니다.");
       } finally {
         setLoading(false);
       }

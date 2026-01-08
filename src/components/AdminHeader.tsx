@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, Bell, MessageSquare, Users, LogOut, Menu, X, Settings, AlertCircle, FileText, Plus, Calendar, GraduationCap, Bus, Video } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { resolveRole } from "@/lib/auth/resolveRole";
 
 export default function AdminHeader() {
   const pathname = usePathname();
@@ -19,18 +18,13 @@ export default function AdminHeader() {
     (async () => {
       try {
         const { data } = await supabase.auth.getUser();
-        const uid = data?.user?.id || "";
-        if (!uid) {
+        const user = data?.user;
+        if (!user) {
           setRole(null);
           return;
         }
-        let profile: any = null;
-        try {
-          const { data: p } = await supabase.from("profiles").select("role").eq("id", uid).single();
-          profile = p || null;
-        } catch {}
-        const resolved = resolveRole({ authUser: data?.user, profile });
-        setRole(String(resolved));
+        const appRole = (user.app_metadata as any)?.role ?? null;
+        setRole(appRole ? String(appRole) : null);
       } catch {}
     })();
   }, []);

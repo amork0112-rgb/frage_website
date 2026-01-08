@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function POST(req: Request) {
   try {
@@ -10,24 +11,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    // 2️⃣ admin 체크
-    const { data: profile } = await supabaseAuth
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profile?.role !== "admin") {
+    const authRole = user.app_metadata?.role ?? "parent";
+    if (authRole !== "admin" && authRole !== "master_admin") {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
     // 3️⃣ payload
     const body = await req.json();
-    const { email, password, name, campus = "International", role = "teacher" } = body;
+    const { email, password, name, campus, role = "teacher" } = body;
 
     // 4️⃣ 계정 생성 (service role)
     const { data: created, error } =
-      await supabaseServer.auth.admin.createUser({
+      await supabaseService.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
@@ -40,7 +35,7 @@ export async function POST(req: Request) {
     }
 
     // 5️⃣ teachers 테이블
-    await supabaseServer.from("teachers").insert({
+    await supabaseService.from("teachers").insert({
       id: created.user.id,
       name,
       campus,

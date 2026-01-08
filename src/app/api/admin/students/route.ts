@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 type Status = "재원" | "휴원" | "퇴원";
 
@@ -33,11 +34,10 @@ export async function GET(request: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 401 });
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-    if (!prof || String(prof.role) !== "admin") return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 403 });
-    const { data, error } = await supabaseServer
+    if (!user) return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 401 });
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "admin" && role !== "master_admin") return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 403 });
+    const { data, error } = await supabaseService
       .from("students")
       .select("*")
       .order("name", { ascending: true });
@@ -82,10 +82,9 @@ export async function POST(request: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return NextResponse.json({ ok: false, inserted: 0 }, { status: 401 });
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-    if (!prof || String(prof.role) !== "admin") return NextResponse.json({ ok: false, inserted: 0 }, { status: 403 });
+    if (!user) return NextResponse.json({ ok: false, inserted: 0 }, { status: 401 });
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "admin" && role !== "master_admin") return NextResponse.json({ ok: false, inserted: 0 }, { status: 403 });
     const body = await request.json();
     const items: Student[] = Array.isArray(body?.items) ? body.items : [];
     if (!items.length) {
@@ -93,7 +92,7 @@ export async function POST(request: Request) {
     }
     let inserted = 0;
     for (const s of items) {
-      const { error } = await supabaseServer.from("students").insert({
+      const { error } = await supabaseService.from("students").insert({
         id: s.id,
         child_id: s.childId ?? null,
         name: s.name,

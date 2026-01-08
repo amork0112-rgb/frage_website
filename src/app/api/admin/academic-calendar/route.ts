@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 /* -------------------------------------------------------
   공통 JSON 응답
@@ -20,12 +21,8 @@ async function requireAdmin(supabaseAuth: any) {
     return { error: json({ error: "unauthorized" }, 401) };
   }
 
-  const { data: profile } = await (supabaseServer as any)
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (!profile || String(profile.role) !== "admin") {
+  const role = user.app_metadata?.role ?? "parent";
+  if (role !== "admin" && role !== "master_admin") {
     return { error: json({ error: "forbidden" }, 403) };
   }
 
@@ -51,7 +48,7 @@ export async function GET(req: Request) {
     const lastDay = new Date(year, month, 0).getDate();
     const last = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
-    const { data, error } = await supabaseServer
+    const { data, error } = await supabaseService
       .from("academic_calendar")
       .select("*")
       .lte("start_date", last)
@@ -107,7 +104,7 @@ export async function POST(req: Request) {
 
     // 공휴일 중복 방지
     if (type === "공휴일") {
-      const { data: dup } = await supabaseServer
+      const { data: dup } = await supabaseService
         .from("academic_calendar")
         .select("id")
         .eq("type", "공휴일")
@@ -121,7 +118,7 @@ export async function POST(req: Request) {
 
     const now = new Date().toISOString();
 
-    const { data, error } = await supabaseServer
+    const { data, error } = await supabaseService
       .from("academic_calendar")
       .insert({
         title,
@@ -168,7 +165,7 @@ export async function PUT(req: Request) {
     const patch = { ...body, updated_at: new Date().toISOString() };
     delete patch.id;
 
-    const { data, error } = await supabaseServer
+    const { data, error } = await supabaseService
       .from("academic_calendar")
       .update(patch)
       .eq("id", id)
@@ -199,7 +196,7 @@ export async function DELETE(req: Request) {
     const { id } = await req.json();
     if (!id) return json({ error: "missing id" }, 400);
 
-    const { error } = await supabaseServer
+    const { error } = await supabaseService
       .from("academic_calendar")
       .delete()
       .eq("id", id);

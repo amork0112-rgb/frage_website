@@ -33,10 +33,9 @@ export default function MasterDashboard() {
     (async () => {
       try {
         const { data } = await supabase.auth.getUser();
-        const email = data?.user?.email || "";
-        const masterEmail = process.env.NEXT_PUBLIC_MASTER_ADMIN_EMAIL || "";
-        const ok = !!email && !!masterEmail && email.toLowerCase() === masterEmail.toLowerCase();
-        setAuthorized(ok);
+        const user = data?.user;
+        const role = (user?.app_metadata as any)?.role ?? null;
+        setAuthorized(role === "master_admin");
       } catch {
         setAuthorized(false);
       } finally {

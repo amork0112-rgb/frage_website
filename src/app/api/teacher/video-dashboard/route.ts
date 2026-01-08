@@ -1,28 +1,28 @@
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function GET() {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return NextResponse.json({ assignments: [] }, { status: 401 });
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-    if (!prof || String(prof.role) !== "teacher") return NextResponse.json({ assignments: [] }, { status: 403 });
-    const { data: assignments } = await supabaseServer
+    if (!user) return NextResponse.json({ assignments: [] }, { status: 401 });
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "teacher") return NextResponse.json({ assignments: [] }, { status: 403 });
+    const { data: assignments } = await supabaseService
       .from("video_assignments")
       .select("*")
       .order("due_date", { ascending: true });
 
-    const { data: submissions } = await supabaseServer
+    const { data: submissions } = await supabaseService
       .from("portal_video_submissions")
       .select("*");
 
-    const { data: feedbacks } = await supabaseServer
+    const { data: feedbacks } = await supabaseService
       .from("portal_video_feedback")
       .select("*");
 
-    const { data: students } = await supabaseServer
+    const { data: students } = await supabaseService
       .from("students")
       .select("*");
 

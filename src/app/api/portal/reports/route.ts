@@ -1,20 +1,20 @@
 import { NextResponse } from "next/server";
-import { supabaseServer, createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function GET(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const uid = user?.id || "";
-    if (!uid) return NextResponse.json({ ok: false }, { status: 401 });
-    const { data: prof } = await (supabaseServer as any).from("profiles").select("role").eq("id", uid).maybeSingle();
-    if (!prof || String(prof.role) !== "parent") return NextResponse.json({ ok: false }, { status: 403 });
+    if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "parent") return NextResponse.json({ ok: false }, { status: 403 });
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId") || "";
     if (!studentId) {
       return NextResponse.json({ ok: false, error: "missing_studentId" }, { status: 400 });
     }
-    const { data, error } = await supabaseServer
+    const { data, error } = await supabaseService
       .from("teacher_reports")
       .select("month, updated_at, status")
       .eq("student_id", studentId)

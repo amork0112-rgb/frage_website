@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Bell, FileText, HelpCircle, CheckCircle, FileCheck, Calendar, Truck, AlertTriangle } from "lucide-react";
 import PortalHeader from "@/components/PortalHeader";
 import { supabase } from "@/lib/supabase";
-import { resolveRole } from "@/lib/auth/resolveRole";
 
 export default function ParentPortalHome() {
   const router = useRouter();
@@ -131,17 +130,7 @@ export default function ParentPortalHome() {
           router.replace("/auth/redirect");
           return;
         }
-        let profile: any = null;
-        try {
-          const { data: p } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-          profile = p || null;
-        } catch {}
-        const role = resolveRole({ authUser: user, profile });
-        console.log("PORTAL HOME AUTH USER", user);
-        console.log("PORTAL HOME ROLE", role);
-        console.log("PORTAL HOME APP META", (user as any)?.app_metadata);
-        console.log("PORTAL HOME USER META", (user as any)?.user_metadata);
-        console.log("PORTAL HOME PROFILE ROLE", profile?.role);
+        const role = (user.app_metadata as any)?.role ?? null;
         if (role !== "parent") {
           setAuthorized(false);
           router.replace("/auth/redirect");
