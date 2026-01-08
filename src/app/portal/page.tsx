@@ -8,7 +8,6 @@ import { useLanguage } from "@/context/LanguageContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
-import { login } from "./actions";
 
 export default function PortalPage() {
   const { t } = useLanguage();
@@ -29,8 +28,24 @@ export default function PortalPage() {
 
     (async () => {
       try {
-        await login(id.trim(), password.trim());
-        router.replace("/auth/redirect");
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: id.trim(),
+          password: password.trim(),
+        });
+        if (error) {
+          const msg = error.message;
+          if (msg === "Invalid login credentials") {
+            setError("등록되지 않은 휴대폰 번호이거나 비밀번호가 올바르지 않습니다.");
+          } else {
+            setError("로그인 중 문제가 발생했습니다.");
+          }
+          return;
+        }
+        if (data?.user) {
+          router.replace("/auth/redirect");
+        } else {
+          setError("로그인 중 문제가 발생했습니다.");
+        }
       } catch (e: any) {
         setError(e?.message || "로그인 중 문제가 발생했습니다.");
       } finally {
