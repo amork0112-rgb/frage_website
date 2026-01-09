@@ -40,7 +40,10 @@ export async function GET(req: Request) {
     .gte("end_date", first)
     .order("start_date");
 
-  if (error) return json({ items: [] });
+  if (error) {
+    console.error("calendar GET error:", error);
+    return json({ items: [] });
+  }
 
   return json({ items: data ?? [] });
 }
