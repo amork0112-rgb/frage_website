@@ -1,3 +1,4 @@
+//src/app/api/schedules/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
@@ -98,10 +99,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
-    if (!user) return json({ error: "unauthorized" }, 401);
-    const role = user.app_metadata?.role ?? "parent";
-    if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
+    const guard = await requireAdmin(supabaseAuth);
+    if ((guard as any).error) return (guard as any).error;
     const body = await req.json();
     const date = String(body.date || "");
     const time = String(body.time || "");

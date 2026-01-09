@@ -214,21 +214,21 @@ export default function SignupPage() {
           return;
         }
 
-        const { error: draftErr } = await supabase
-          .from("new_students")
-          .insert({
-            student_name: formData.studentName.trim(),
-            gender: formData.gender,
-            parent_name: formData.parentName.trim() || null,
-            phone: formData.phone.trim(),
-            campus: formData.campus || "전체",
-            status: "draft",
-            memo: null,
-            created_by: userId,
-            parent_id: parentRow.id,
+        try {
+          const res = await fetch("/api/public/new-students/draft", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: formData.studentName.trim(),
+              phone: formData.phone.trim(),
+              memo: null,
+              campus: formData.campus || "전체",
+            }),
           });
-        if (draftErr) {
-          console.error(draftErr);
+          if (!res.ok) {
+            alert("신규 학생 임시 등록(draft) 생성 중 오류가 발생했습니다. 관리자에게 문의해 주세요.");
+          }
+        } catch {
           alert("신규 학생 임시 등록(draft) 생성 중 오류가 발생했습니다. 관리자에게 문의해 주세요.");
         }
         alert("회원가입이 완료되었습니다!");

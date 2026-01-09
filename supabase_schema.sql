@@ -108,3 +108,14 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- Allow draft inserts into new_students
+create policy "new_students_draft_insert" on new_students
+  for insert
+  to authenticated
+  with check (status = 'draft');
+
+create policy "new_students_draft_insert_public" on new_students
+  for insert
+  to anon
+  with check (status = 'draft');
