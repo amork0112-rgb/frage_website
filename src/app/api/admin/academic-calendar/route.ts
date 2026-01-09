@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { supabaseService } from "@/lib/supabase/service";
 
 /* -------------------------------------------------------
   공통 JSON 응답
@@ -20,10 +19,6 @@ const json = (data: any, status = 200) =>
   GET
 ------------------------------------------------------- */
 export async function GET(req: Request) {
-  const supabase = createSupabaseServer();
-  const guard = await requireAdmin(supabase);
-  if (guard.error) return guard.error;
-
   const { searchParams } = new URL(req.url);
   const year = Number(searchParams.get("year"));
   const month = Number(searchParams.get("month"));
@@ -33,7 +28,7 @@ export async function GET(req: Request) {
   const lastDay = new Date(year, month, 0).getDate();
   const last = `${year}-${String(month).padStart(2, "0")}-${lastDay}`;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseService
     .from("academic_calendar")
     .select("*")
     .lte("start_date", last)
@@ -52,10 +47,6 @@ export async function GET(req: Request) {
   POST
 ------------------------------------------------------- */
 export async function POST(req: Request) {
-  const supabase = createSupabaseServer();
-  const guard = await requireAdmin(supabase);
-  if (guard.error) return guard.error;
-
   const body = await req.json();
   const { title, type } = body;
   const start_date: string = body.start_date;
@@ -67,7 +58,7 @@ export async function POST(req: Request) {
 
   // 공휴일 중복 방지
   if (type === "공휴일") {
-    const { data: dup } = await supabase
+    const { data: dup } = await supabaseService
       .from("academic_calendar")
       .select("id")
       .eq("type", "공휴일")
@@ -77,7 +68,7 @@ export async function POST(req: Request) {
     if (dup) return json({ error: "duplicate_holiday" });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseService
     .from("academic_calendar")
     .insert({
       ...body,
@@ -97,10 +88,6 @@ export async function POST(req: Request) {
   PUT
 ------------------------------------------------------- */
 export async function PUT(req: Request) {
-  const supabase = createSupabaseServer();
-  const guard = await requireAdmin(supabase);
-  if (guard.error) return guard.error;
-
   const body = await req.json();
   const { id, ...patch } = body;
   if (!id) return json({ error: "missing id" }, 400);
@@ -108,7 +95,7 @@ export async function PUT(req: Request) {
   const start_date: string | undefined = patch.start_date;
   const end_date: string | undefined = patch.end_date || patch.start_date;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseService
     .from("academic_calendar")
     .update({ ...patch, start_date, end_date, updated_at: new Date().toISOString() })
     .eq("id", id)
@@ -123,14 +110,10 @@ export async function PUT(req: Request) {
   DELETE
 ------------------------------------------------------- */
 export async function DELETE(req: Request) {
-  const supabase = createSupabaseServer();
-  const guard = await requireAdmin(supabase);
-  if (guard.error) return guard.error;
-
   const { id } = await req.json();
   if (!id) return json({ error: "missing id" }, 400);
 
-  const { error } = await supabase
+  const { error } = await supabaseService
     .from("academic_calendar")
     .delete()
     .eq("id", id);
