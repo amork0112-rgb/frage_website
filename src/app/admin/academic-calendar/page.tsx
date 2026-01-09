@@ -31,6 +31,8 @@ export default function AdminAcademicCalendarPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [syncState, setSyncState] = useState<"idle" | "syncing" | "completed">("idle");
+  const [toast, setToast] = useState<string>("");
   
   // Form State
   const [title, setTitle] = useState("");
@@ -54,49 +56,17 @@ export default function AdminAcademicCalendarPage() {
         const data = await res.json();
         const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
         setEvents(items);
+        const monthStr = `${year}-${pad(month + 1)}`;
+        const hasHoliday = items.some((ev) => ev.type === "공휴일" && String(ev.start || "").startsWith(monthStr));
+        setSyncState(hasHoliday ? "completed" : "idle");
       } catch {
         setEvents([]);
+        setSyncState("idle");
       }
     })();
   }, [year, month]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const y = year;
-        const hol: HolidayEvent[] = getKoreanHolidays(y);
-        const monthStr = `${y}-${pad(month + 1)}`;
-        const monthHolidays = hol.filter((h: HolidayEvent) => h.start.startsWith(monthStr));
-        if (monthHolidays.length > 0) {
-          await Promise.all(
-            monthHolidays.map((h: HolidayEvent) =>
-              fetch("/api/admin/academic-calendar", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({
-                  title: h.title,
-                  type: "공휴일",
-                  start_date: h.start,
-                  end_date: h.end,
-                  campus: null,
-                  class_name: null,
-                  place: null,
-                  expose_to_parent: h.exposeToParent ?? true,
-                  notify: false,
-                  notice_link: null,
-                }),
-              })
-            )
-          );
-          const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
-          const data = await res.json();
-          const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
-          setEvents(items);
-        }
-      } catch {}
-    })();
-  }, [year, month]);
+  
 
   const monthDays = useMemo(() => {
     const first = new Date(year, month, 1);
@@ -274,27 +244,47 @@ export default function AdminAcademicCalendarPage() {
           </button>
           <button
             onClick={async () => {
+              if (syncState !== "idle") return;
+              setSyncState("syncing");
               try {
-                await fetch("/api/admin/academic-calendar/holidays/init", {
+                const resInit = await fetch("/api/admin/academic-calendar/holidays/init", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   credentials: "include",
                   body: JSON.stringify({ year }),
                 });
+                const dataInit = await resInit.json();
                 const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
                 const data = await res.json();
                 const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
                 setEvents(items);
-                alert("공휴일 동기화가 완료되었습니다.");
-              } catch {}
+                const monthStr = `${year}-${pad(month + 1)}`;
+                const hasHoliday = items.some((ev) => ev.type === "공휴일" && String(ev.start || "").startsWith(monthStr));
+                setSyncState(hasHoliday ? "completed" : "idle");
+                const insertedCount = Number(dataInit?.insertedCount || 0);
+                setToast(insertedCount > 0 ? "공휴일 동기화가 완료되었습니다." : "이미 공휴일 동기화가 완료되었습니다.");
+                setTimeout(() => setToast(""), 2500);
+              } catch {
+                setSyncState("idle");
+              }
             }}
-            className="px-3 py-1 text-xs font-bold bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 transition-colors"
+            disabled={syncState !== "idle"}
+            className={`px-3 py-1 text-xs font-bold rounded-full transition-colors ${
+              syncState === "idle" ? "bg-slate-100 text-slate-700 hover:bg-slate-200" :
+              syncState === "syncing" ? "bg-slate-200 text-slate-500" :
+              "bg-green-100 text-green-700"
+            }`}
           >
-            공휴일 동기화
+            {syncState === "idle" ? "공휴일 동기화" : syncState === "syncing" ? "동기화 중…" : "공휴일 동기화 완료"}
           </button>
         </div>
         <Link href="/admin/home" className="text-sm font-bold text-slate-700 underline underline-offset-4">대시보드</Link>
       </div>
+      {toast && (
+        <div className="mb-4 px-3 py-2 text-xs font-bold rounded-lg bg-slate-900 text-white inline-block">
+          {toast}
+        </div>
+      )}
 
       <div className="grid md:grid-cols-3 gap-6">
         <section className="md:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm">

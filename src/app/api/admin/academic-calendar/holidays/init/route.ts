@@ -20,11 +20,14 @@ export async function POST(req: Request) {
     const events = getKoreanHolidays(year);
     let inserted = 0;
     for (const ev of events) {
+      if (String(ev.title || "").includes("대체")) continue;
       const { data: dup } = await supabaseAuth
         .from("academic_calendar")
         .select("id")
         .eq("type", "공휴일")
+        .eq("title", ev.title)
         .eq("start_date", ev.start)
+        .eq("campus", "All")
         .limit(1);
       const exists = Array.isArray(dup) && dup.length > 0;
       if (exists) continue;
@@ -47,7 +50,7 @@ export async function POST(req: Request) {
         });
       if (!error) inserted++;
     }
-    return json({ ok: true, inserted });
+    return json({ ok: true, insertedCount: inserted });
   } catch (e) {
     console.error(e);
     return json({ error: "invalid" }, 400);
