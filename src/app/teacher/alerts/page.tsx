@@ -80,14 +80,14 @@ export default function TeacherAlertsPage() {
             checked,
             checked_at,
             checked_by,
-            new_students ( name, campus )
+            new_students ( student_name, campus )
           `)
           .eq("checked", false)
           .order("created_at", { ascending: false });
       const chkList: AlertItem[] = (checks || [])
         .map((c: any) => ({
           id: `chk_${c.id}`,
-          name: String(c?.new_students?.name || "-"),
+          name: String(c?.new_students?.student_name || "-"),
           campus: String(c?.new_students?.campus || "-"),
           className: "-",
           status: "재원",

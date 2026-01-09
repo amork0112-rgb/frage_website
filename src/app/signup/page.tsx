@@ -214,12 +214,19 @@ export default function SignupPage() {
           return;
         }
 
-        const { error: draftErr } = await supabase.rpc("create_draft_student", {
-          parent_id: parentRow.id,
-          parent_name: formData.parentName.trim(),
-          phone: formData.phone.trim(),
-          campus: formData.campus,
-        });
+        const { error: draftErr } = await supabase
+          .from("new_students")
+          .insert({
+            student_name: formData.studentName.trim(),
+            gender: formData.gender,
+            parent_name: formData.parentName.trim() || null,
+            phone: formData.phone.trim(),
+            campus: formData.campus || "전체",
+            status: "draft",
+            memo: null,
+            created_by: userId,
+            parent_id: parentRow.id,
+          });
         if (draftErr) {
           console.error(draftErr);
           alert("신규 학생 임시 등록(draft) 생성 중 오류가 발생했습니다. 관리자에게 문의해 주세요.");

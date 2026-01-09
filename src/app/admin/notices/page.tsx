@@ -198,17 +198,19 @@ export default function AdminNoticesPage() {
                                 </div>
                             </td>
                             <td className="p-4">
-                                <p className="font-bold text-slate-800 line-clamp-1">{notice.title}</p>
-                                <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{notice.summary}</p>
-                                {notice.hasNews && (
-                                  <div className="mt-1">
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-blue-50 text-blue-600 border-blue-100">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="min-w-0 flex flex-col">
+                                    <p className="font-bold text-slate-800 line-clamp-1">{notice.title}</p>
+                                    <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{notice.summary}</p>
+                                  </div>
+                                  {notice.hasNews && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-blue-50 text-blue-600 border-blue-100 whitespace-nowrap">
                                       NEWS
                                       {notice.newsPinned && <Pin className="w-3 h-3" />}
                                       {notice.newsPushEnabled && <Upload className="w-3 h-3" />}
                                     </span>
-                                  </div>
-                                )}
+                                  )}
+                                </div>
                             </td>
                             <td className="p-4">
                                 <span className={`px-2 py-1 rounded text-[10px] font-bold border ${notice.category === 'Schedule' ? 'bg-orange-50 text-frage-orange border-orange-100' : notice.category === 'Academic' ? 'bg-blue-50 text-blue-600 border-blue-100' : notice.category === 'Event' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{notice.category}</span>

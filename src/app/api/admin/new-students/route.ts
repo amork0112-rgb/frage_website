@@ -1,3 +1,4 @@
+// api/admin/new-students
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
@@ -11,10 +12,8 @@ const json = (data: any, status = 200) =>
 export async function GET() {
   try {
     const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
-    if (!user) return json({ error: "unauthorized" }, 401);
-    const role = user.app_metadata?.role ?? "parent";
-    if (role !== "admin" && role !== "teacher" && role !== "master_admin") return json({ error: "forbidden" }, 403);
+    const guard = await requireAdmin(supabaseAuth);
+    if ((guard as any).error) return (guard as any).error;
     const { data: students, error: e1 } = await supabaseAuth
       .from("new_students")
       .select("*")
@@ -71,10 +70,7 @@ export async function GET() {
     });
 
     const list = Array.isArray(students) ? students : [];
-    const filtered =
-      role === "teacher"
-        ? list.filter((s: any) => s.status === "waiting" || s.status === "enrolled")
-        : list.filter((s: any) => s.status !== "draft");
+    const filtered = list.filter((s: any) => s.status !== "draft");
 
     return json({
       items: filtered,
