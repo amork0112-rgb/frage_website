@@ -1,3 +1,4 @@
+//src/app/api/calendar/route.ts
 export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
@@ -46,8 +47,6 @@ export async function GET(req: Request) {
       .gte("end_date", first);
     if (campusVal && campusVal !== "All") {
       q = q.or(`campus.eq.All,campus.eq.${campusVal}`);
-    } else {
-      q = q.eq("campus", "All");
     }
     const { data } = await q.order("start_date", { ascending: true });
     const rows: any[] = Array.isArray(data) ? data : [];
