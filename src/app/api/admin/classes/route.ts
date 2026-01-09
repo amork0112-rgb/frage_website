@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { supabaseService } from "@/lib/supabase/service";
 
 type ClassRow = {
   id: string;
@@ -60,8 +61,8 @@ export async function GET(req: Request) {
         schedules: sched.map((s: any) => ({
           id: String(s.id),
           class_id: String(s.class_id),
-          start_time: String(s.start_time ?? ""),
-          end_time: String(s.end_time ?? ""),
+          start_time: String((s as any).class_start_time ?? s.start_time ?? ""),
+          end_time: String((s as any).class_end_time ?? s.end_time ?? ""),
           dajim_end_time: s.dajim_end_time ?? null,
           created_at: s.created_at ? String(s.created_at) : undefined,
         })),
@@ -91,7 +92,7 @@ export async function POST(req: Request) {
 
     if (!name) return json({ error: "missing_name" }, 400);
 
-    const { data: existingClass } = await supabaseAuth
+    const { data: existingClass } = await supabaseService
       .from("classes")
       .select("id")
       .eq("name", name)
@@ -99,7 +100,7 @@ export async function POST(req: Request) {
       .maybeSingle();
     let cls = existingClass || null;
     if (!cls) {
-      const { data: created, error: insertErr } = await supabaseAuth
+      const { data: created, error: insertErr } = await supabaseService
         .from("classes")
         .insert({
           name,
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
       if (insertErr || !created) return json({ error: "class_insert_failed" }, 500);
       cls = created;
     } else {
-      await supabaseAuth
+      await supabaseService
         .from("classes")
         .update({
           default_pickup_slot,
@@ -128,17 +129,17 @@ export async function POST(req: Request) {
     let createdSchedule: any = null;
     if (schedule && schedule.start_time && schedule.end_time) {
       const now = new Date().toISOString();
-      const { data: existingSched } = await supabaseAuth
+      const { data: existingSched } = await supabaseService
         .from("class_schedules")
         .select("id")
         .eq("class_id", cls.id)
         .maybeSingle();
       if (existingSched?.id) {
-        const { data: schedRow, error: schedUpdateErr } = await supabaseAuth
+        const { data: schedRow, error: schedUpdateErr } = await supabaseService
           .from("class_schedules")
           .update({
-            start_time: String(schedule.start_time),
-            end_time: String(schedule.end_time),
+            class_start_time: String(schedule.start_time),
+            class_end_time: String(schedule.end_time),
             dajim_end_time: schedule.dajim_end_time ?? null,
           })
           .eq("id", existingSched.id)
@@ -147,12 +148,12 @@ export async function POST(req: Request) {
         if (schedUpdateErr) return json({ error: "schedule_update_failed", class: cls }, 500);
         createdSchedule = schedRow;
       } else {
-        const { data: schedRow, error: schedInsertErr } = await supabaseAuth
+        const { data: schedRow, error: schedInsertErr } = await supabaseService
           .from("class_schedules")
           .insert({
             class_id: cls.id,
-            start_time: String(schedule.start_time),
-            end_time: String(schedule.end_time),
+            class_start_time: String(schedule.start_time),
+            class_end_time: String(schedule.end_time),
             dajim_end_time: schedule.dajim_end_time ?? null,
             created_at: now,
           })
