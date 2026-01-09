@@ -5,44 +5,50 @@ import { supabaseService } from "@/lib/supabase/service";
 
 export async function GET() {
   try {
-    const supabase = createSupabaseServer();
-    const guard = await requireAdmin(supabase);
-    if ((guard as any).error) return (guard as any).error;
+    // 1️⃣ 인증/권한 체크 (SSR)
+    const supabaseAuth = createSupabaseServer();
+    const guard = await requireAdmin(supabaseAuth);
+    if ("error" in guard) return guard.error;
 
-    // 3️⃣ teachers 조회 (RLS 적용)
-    const { data, error } = await supabase
+    // 2️⃣ teachers 조회 (🔥 반드시 service_role 🔥)
+    const { data: teachers, error } = await supabaseService
       .from("teachers")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error || !teachers) {
+      console.error("TEACHERS SELECT ERROR:", error);
+      return NextResponse.json([], { status: 200 });
     }
 
-    const rows = Array.isArray(data) ? data : [];
+    // 3️⃣ auth.users 이메일 병합 (실패해도 전체 실패 ❌)
     const enriched = await Promise.all(
-      rows.map(async (row: any) => {
-        const id = String(row.id);
+      teachers.map(async (row: any) => {
         let email = "";
+
         try {
-          const { data: userData } = await supabaseService.auth.admin.getUserById(id);
-          email = String(userData?.user?.email || "");
-        } catch {}
+          const { data } = await supabaseService.auth.admin.getUserById(row.id);
+          email = data?.user?.email ?? "";
+        } catch (e) {
+          // auth.users에 없을 수 있음 → 무시
+          email = "";
+        }
+
         return {
-          id,
+          id: String(row.id),
           name: String(row.name ?? ""),
           email,
           campus: String(row.campus ?? "International"),
           role: String(row.role ?? "teacher"),
-          active: Boolean(row.active ?? true),
-          createdAt: String(row.created_at ?? new Date().toISOString()),
+          active: Boolean(row.active),
+          createdAt: String(row.created_at),
         };
       })
     );
 
-    return NextResponse.json(enriched);
+    return NextResponse.json(enriched, { status: 200 });
   } catch (e) {
-    console.error(e);
+    console.error("ADMIN TEACHERS API ERROR:", e);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }
