@@ -25,7 +25,7 @@ export default function TeacherHeader() {
         if (authUserId) {
           const { data: rows } = await supabase
             .from("teachers")
-            .select("id,name,email")
+            .select("id,name")
             .eq("id", authUserId)
             .limit(1);
           const teacher = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;

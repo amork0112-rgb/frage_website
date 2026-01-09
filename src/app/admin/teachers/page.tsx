@@ -1,8 +1,8 @@
+//src/app/admin/teachers/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Settings, UserPlus, Users, Lock, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 type Teacher = {
   id: string;
@@ -13,8 +13,6 @@ type Teacher = {
   active: boolean;
   createdAt: string;
 };
-
-console.log("fetching teachers...");
 
 export default function AdminTeachersPage() {
   const [items, setItems] = useState<Teacher[]>([]);
@@ -29,19 +27,22 @@ export default function AdminTeachersPage() {
   const [policy, setPolicy] = useState<string>("frage");
 
   const refreshItems = async () => {
-    const { data } = await supabase.from("teachers").select("*").order("created_at", { ascending: false });
-    const list: Teacher[] = Array.isArray(data)
-      ? data.map((row: any) => ({
-          id: String(row.id),
-          name: String(row.name ?? ""),
-          email: String(row.email ?? ""),
-          campus: (String(row.campus ?? "International") as Teacher["campus"]),
-          role: (String(row.role ?? "teacher") as Teacher["role"]),
-          active: !!row.active,
-          createdAt: String(row.created_at ?? new Date().toISOString()),
-        }))
-      : [];
-    setItems(list);
+    try {
+      const res = await fetch("/api/admin/teachers");
+      const json = await res.json();
+      const list: Teacher[] = Array.isArray(json) ? json.map((row: any) => ({
+        id: String(row.id),
+        name: String(row.name ?? ""),
+        email: String(row.email ?? ""),
+        campus: (String(row.campus ?? "International") as Teacher["campus"]),
+        role: (String(row.role ?? "teacher") as Teacher["role"]),
+        active: !!row.active,
+        createdAt: String(row.createdAt ?? new Date().toISOString()),
+      })) : [];
+      setItems(list);
+    } catch {
+      setItems([]);
+    }
   };
   useEffect(() => {
     refreshItems();
@@ -61,18 +62,6 @@ export default function AdminTeachersPage() {
     setPassword(policy);
     setCampus("International");
     setRole("teacher");
-  };
-
-  const saveAll = (_next: Teacher[]) => {};
-
-  const resetAll = () => {
-    (async () => {
-      await supabase.from("teachers").delete();
-      await supabase.from("teacher_classes").delete();
-      setItems([]);
-      setToast("전체 계정을 삭제하고 반 지정 정보를 초기화했습니다");
-      setTimeout(() => setToast(""), 2500);
-    })();
   };
 
   const createTeacher = () => {
@@ -103,10 +92,8 @@ export default function AdminTeachersPage() {
   };
 
   const toggleActive = (id: string) => {
-    const target = items.find(t => t.id === id);
-    const nextActive = target ? !target.active : true;
     (async () => {
-      await supabase.from("teachers").update({ active: nextActive }).eq("id", id);
+      await fetch(`/api/admin/teachers/${id}/active`, { method: "POST" });
       await refreshItems();
     })();
   };
@@ -118,8 +105,7 @@ export default function AdminTeachersPage() {
 
   const removeTeacher = (id: string) => {
     (async () => {
-      await supabase.from("teachers").delete().eq("id", id);
-      await supabase.from("teacher_classes").delete().eq("teacher_id", id);
+      await fetch(`/api/admin/teachers/${id}`, { method: "DELETE" });
       await refreshItems();
     })();
   };
@@ -132,22 +118,15 @@ export default function AdminTeachersPage() {
             <Settings className="w-6 h-6 text-frage-yellow" />
             <h1 className="text-2xl font-black text-slate-900">선생님 계정 관리</h1>
           </div>
-          <div className="hidden md:flex items-center gap-3">
-            <div className="px-3 py-1.5 rounded-lg bg-frage-navy text-white text-xs font-bold">
-              초기 비밀번호 정책: {policy}
-            </div>
-            <button
-              onClick={resetAll}
-              className="px-3 py-1.5 rounded-lg border border-red-200 text-xs font-bold bg-red-50 text-red-700"
-              title="전체 초기화"
-            >
-              전체 초기화
-            </button>
-            <span className="text-sm font-bold text-slate-700">캠퍼스</span>
-            {["All", "International", "Andover", "Platz", "Atheneum"].map((c) => (
-              <button
-                key={c}
-                onClick={() => setCampusFilter(c as any)}
+            <div className="hidden md:flex items-center gap-3">
+              <div className="px-3 py-1.5 rounded-lg bg-frage-navy text-white text-xs font-bold">
+                초기 비밀번호 정책: {policy}
+              </div>
+              <span className="text-sm font-bold text-slate-700">캠퍼스</span>
+              {["All", "International", "Andover", "Platz", "Atheneum"].map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCampusFilter(c as any)}
                 className={`px-3 py-1.5 rounded-lg border text-sm font-bold whitespace-nowrap ${
                   campusFilter === c ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
                 }`}

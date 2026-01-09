@@ -45,10 +45,8 @@ export default function AdminTeacherClassesPage() {
         setRole(null);
       }
       try {
-        const { data } = await supabase
-          .from("teachers")
-          .select("*")
-          .order("created_at", { ascending: false });
+        const res = await fetch("/api/admin/teachers");
+        const data = await res.json();
         const list: Teacher[] = Array.isArray(data)
           ? data.map((row: any) => ({
               id: String(row.id),
@@ -57,7 +55,7 @@ export default function AdminTeacherClassesPage() {
               campus: (String(row.campus ?? "International") as Teacher["campus"]),
               role: (String(row.role ?? "teacher") as Teacher["role"]),
               active: !!row.active,
-              createdAt: String(row.created_at ?? new Date().toISOString()),
+              createdAt: String(row.createdAt ?? new Date().toISOString()),
             }))
           : [];
         setTeachers(list);

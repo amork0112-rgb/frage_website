@@ -1,24 +1,13 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function GET() {
   try {
     const supabase = createSupabaseServer();
-
-    // 1️⃣ 로그인 유저 확인
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-    }
-
-    // 2️⃣ 권한 체크 (JWT 기반)
-    const role = user.app_metadata?.role;
-    if (role !== "admin" && role !== "master_admin") {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    }
+    const guard = await requireAdmin(supabase);
+    if ((guard as any).error) return (guard as any).error;
 
     // 3️⃣ teachers 조회 (RLS 적용)
     const { data, error } = await supabase
@@ -30,7 +19,28 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data ?? []);
+    const rows = Array.isArray(data) ? data : [];
+    const enriched = await Promise.all(
+      rows.map(async (row: any) => {
+        const id = String(row.id);
+        let email = "";
+        try {
+          const { data: userData } = await supabaseService.auth.admin.getUserById(id);
+          email = String(userData?.user?.email || "");
+        } catch {}
+        return {
+          id,
+          name: String(row.name ?? ""),
+          email,
+          campus: String(row.campus ?? "International"),
+          role: String(row.role ?? "teacher"),
+          active: Boolean(row.active ?? true),
+          createdAt: String(row.created_at ?? new Date().toISOString()),
+        };
+      })
+    );
+
+    return NextResponse.json(enriched);
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
