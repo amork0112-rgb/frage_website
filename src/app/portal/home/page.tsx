@@ -173,7 +173,37 @@ export default function ParentPortalHome() {
           setStudentStatus("enrolled");
         } else {
           setStudentStatus("new");
-          setNewStudentProfile({ id: user.id, studentName: "", englishFirstName: "" });
+          let profile: any = { id: user.id, studentName: "", englishFirstName: "" };
+          try {
+            const { data: parentRow } = await supabase
+              .from("parents")
+              .select("id,name,phone,campus")
+              .eq("auth_user_id", user.id)
+              .maybeSingle();
+            const pid = parentRow?.id || null;
+            if (pid) {
+              const { data: nsRows } = await supabase
+                .from("new_students")
+                .select("*")
+                .eq("parent_id", pid)
+                .neq("status", "draft")
+                .order("created_at", { ascending: false })
+                .limit(1);
+              const ns = Array.isArray(nsRows) && nsRows.length > 0 ? nsRows[0] : null;
+              if (ns) profile = ns;
+            } else {
+              const { data: nsRows } = await supabase
+                .from("new_students")
+                .select("*")
+                .eq("parent_auth_user_id", user.id)
+                .neq("status", "draft")
+                .order("created_at", { ascending: false })
+                .limit(1);
+              const ns = Array.isArray(nsRows) && nsRows.length > 0 ? nsRows[0] : null;
+              if (ns) profile = ns;
+            }
+          } catch {}
+          setNewStudentProfile(profile);
           const loadAll = async () => {
             try {
               if (!isAdmin) return;

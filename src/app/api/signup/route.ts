@@ -111,21 +111,52 @@ export async function POST(request: Request) {
       .order("created_at", { ascending: false })
       .limit(1);
     const draft = Array.isArray(draftRow) && draftRow.length > 0 ? draftRow[0] : null;
-    if (!draft?.id) {
-      return NextResponse.json(
-        { ok: false, error: "no_draft_found" },
-        { status: 400 }
-      );
-    }
-    const { error: rpcErr } = await supabaseAuth.rpc("draft_to_waiting", {
-      new_student_id: draft.id,
-      student_name: studentName,
-    });
-    if (rpcErr) {
-      return NextResponse.json(
-        { ok: false, error: "rpc_failed", details: rpcErr.message },
-        { status: 500 }
-      );
+    if (draft?.id) {
+      const { error: rpcErr } = await supabaseAuth.rpc("draft_to_waiting", {
+        new_student_id: draft.id,
+        student_name: studentName,
+      });
+      if (rpcErr) {
+        return NextResponse.json(
+          { ok: false, error: "rpc_failed", details: rpcErr.message },
+          { status: 500 }
+        );
+      }
+      await supabaseAuth
+        .from("new_students")
+        .update({
+          gender,
+          parent_name: parentName,
+          phone,
+          campus,
+          english_first_name: englishFirstName,
+          passport_english_name: passportEnglishName,
+          child_birth_date: childBirthDate,
+        })
+        .eq("id", draft.id);
+    } else {
+      const now = new Date().toISOString();
+      const { error: insertErr } = await supabaseAuth
+        .from("new_students")
+        .insert({
+          parent_id: parentId,
+          student_name: studentName,
+          gender,
+          parent_name: parentName,
+          phone,
+          campus,
+          english_first_name: englishFirstName,
+          passport_english_name: passportEnglishName,
+          child_birth_date: childBirthDate,
+          status: "waiting",
+          created_at: now,
+        });
+      if (insertErr) {
+        return NextResponse.json(
+          { ok: false, error: "new_students_insert_failed" },
+          { status: 500 }
+        );
+      }
     }
 
     /* -------------------------
