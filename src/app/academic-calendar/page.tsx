@@ -102,18 +102,12 @@ export default function AcademicCalendarPage() {
   const eventsByDay = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
     events.forEach(ev => {
-      let curr = new Date(ev.start);
-      const endDt = new Date(ev.end);
-      let safety = 0;
-      while (curr <= endDt && safety < 365) {
-        const y = curr.getFullYear();
-        const m = pad(curr.getMonth() + 1);
-        const d = pad(curr.getDate());
-        const dateStr = `${y}-${m}-${d}`;
+      if (ev.start === ev.end) {
+        const dateStr = toDateStr(ev.start);
         (map[dateStr] ||= []);
-        if (!map[dateStr].find(x => x.id === ev.id)) map[dateStr].push(ev);
-        curr.setDate(curr.getDate() + 1);
-        safety++;
+        if (!map[dateStr].find(x => x.id === ev.id)) {
+          map[dateStr].push(ev);
+        }
       }
     });
     return map;
@@ -130,20 +124,24 @@ export default function AcademicCalendarPage() {
   const weekBars = useMemo(() => {
     const bars: { weekIdx: number; ev: CalendarEvent; startCol: number; span: number }[] = [];
     weeks.forEach((week, wi) => {
-      const weekStart = week[0]?.dateStr;
-      const weekEnd = week[week.length - 1]?.dateStr;
-      if (!weekStart || !weekEnd) return;
+      const visibleIdxs = week.map((c, idx) => (!c.outside ? idx : -1)).filter(idx => idx >= 0);
+      if (!visibleIdxs.length) return;
+      const visStartIdx = visibleIdxs[0];
+      const visEndIdx = visibleIdxs[visibleIdxs.length - 1];
+      const visStartDate = week[visStartIdx]?.dateStr;
+      const visEndDate = week[visEndIdx]?.dateStr;
+      if (!visStartDate || !visEndDate) return;
       events.forEach(ev => {
         const s = toDateStr(ev.start);
         const e = toDateStr(ev.end || ev.start);
-        if (e < weekStart || s > weekEnd) return;
-        const startIdx = week.findIndex(d => d.dateStr === (s < weekStart ? weekStart : s));
-        const endIdx = week.findIndex(d => d.dateStr === (e > weekEnd ? weekEnd : e));
-        const si = startIdx >= 0 ? startIdx : 0;
-        const ei = endIdx >= 0 ? endIdx : 6;
-        if (si <= ei) {
-          bars.push({ weekIdx: wi, ev, startCol: si + 1, span: ei - si + 1 });
-        }
+        if (s >= e) return;
+        if (e < visStartDate || s > visEndDate) return;
+        const idxS = week.findIndex(d => d.dateStr === s);
+        const idxE = week.findIndex(d => d.dateStr === e);
+        const startIdx = Math.max(idxS >= 0 ? idxS : visStartIdx, visStartIdx);
+        const endIdx = Math.min(idxE >= 0 ? idxE : visEndIdx, visEndIdx);
+        if (startIdx > endIdx) return;
+        bars.push({ weekIdx: wi, ev, startCol: startIdx + 1, span: endIdx - startIdx + 1 });
       });
     });
     return bars;
