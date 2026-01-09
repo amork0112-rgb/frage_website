@@ -1,3 +1,4 @@
+// src/app/admin/notices/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -18,20 +19,46 @@ export default function AdminNoticesPage() {
           .eq("category", "notice")
           .order("created_at", { ascending: false });
         if (!error && Array.isArray(data)) {
-          const mapped = data.map((p: any) => ({
-            id: String(p.id),
-            title: p.title,
-            date: p.created_at,
-            category: "Schedule",
-            campus: "All",
-            summary: p.content || "",
-            richHtml: "",
-            images: [],
-            files: [],
-            viewCount: 0,
-            isPinned: !!p.is_pinned,
-            isArchived: !!p.is_archived,
-          }));
+          const ids = data
+            .map((p: any) => Number(p.id))
+            .filter((n: number) => !Number.isNaN(n));
+          let promoMap: Record<number, { pinned: boolean; push_enabled: boolean }> = {};
+          if (ids.length > 0) {
+            const { data: promos } = await supabase
+              .from("notice_promotions")
+              .select("post_id,pinned,push_enabled")
+              .in("post_id", ids);
+            (promos || []).forEach((row: any) => {
+              const pid = Number(row.post_id);
+              if (!Number.isNaN(pid)) {
+                promoMap[pid] = {
+                  pinned: !!row.pinned,
+                  push_enabled: !!row.push_enabled,
+                };
+              }
+            });
+          }
+          const mapped = data.map((p: any) => {
+            const pid = Number(p.id);
+            const promo = promoMap[pid];
+            return {
+              id: String(p.id),
+              title: p.title,
+              date: p.created_at,
+              category: "Schedule",
+              campus: "All",
+              summary: p.content || "",
+              richHtml: "",
+              images: [],
+              files: [],
+              viewCount: 0,
+              isPinned: !!p.is_pinned,
+              isArchived: !!p.is_archived,
+              hasNews: !!promo,
+              newsPinned: !!promo?.pinned,
+              newsPushEnabled: !!promo?.push_enabled,
+            };
+          });
           setServerNotices(mapped);
         }
       } catch {}
@@ -173,6 +200,15 @@ export default function AdminNoticesPage() {
                             <td className="p-4">
                                 <p className="font-bold text-slate-800 line-clamp-1">{notice.title}</p>
                                 <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{notice.summary}</p>
+                                {notice.hasNews && (
+                                  <div className="mt-1">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-blue-50 text-blue-600 border-blue-100">
+                                      NEWS
+                                      {notice.newsPinned && <Pin className="w-3 h-3" />}
+                                      {notice.newsPushEnabled && <Upload className="w-3 h-3" />}
+                                    </span>
+                                  </div>
+                                )}
                             </td>
                             <td className="p-4">
                                 <span className={`px-2 py-1 rounded text-[10px] font-bold border ${notice.category === 'Schedule' ? 'bg-orange-50 text-frage-orange border-orange-100' : notice.category === 'Academic' ? 'bg-blue-50 text-blue-600 border-blue-100' : notice.category === 'Event' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{notice.category}</span>
