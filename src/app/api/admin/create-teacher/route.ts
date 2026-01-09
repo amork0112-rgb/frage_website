@@ -5,37 +5,38 @@ import { supabaseService } from "@/lib/supabase/service";
 
 export async function POST(req: Request) {
   try {
-    /* -------------------------------------------------------
-      1️⃣ Admin 인증 (SSR + role 체크)
-    ------------------------------------------------------- */
+    /* -------------------------------------------------
+      1️⃣ Admin 인증 (SSR + JWT)
+    ------------------------------------------------- */
     const supabaseAuth = createSupabaseServer();
     const guard = await requireAdmin(supabaseAuth);
     if ((guard as any).error) return (guard as any).error;
 
-    /* -------------------------------------------------------
-      2️⃣ Payload 파싱
-    ------------------------------------------------------- */
+    /* -------------------------------------------------
+      2️⃣ Payload
+    ------------------------------------------------- */
     const body = await req.json();
 
-    const email = String(body.email || "").trim().toLowerCase();
-    const password = String(body.password || "");
-    const name = String(body.name || "");
-    const campus = String(body.campus || "");
-    const role = String(body.role || "teacher");
+    const email = String(body.email || "").trim();
+    const password = String(body.password || "").trim();
+    const name = String(body.name || "").trim();
+    const campus = String(body.campus || "").trim();
+    const role = String(body.role || "teacher").trim();
 
-    if (!email || !name || !campus) {
+    if (!email || !password || !name || !campus) {
       return NextResponse.json(
         { error: "invalid_payload" },
         { status: 400 }
       );
     }
 
-    /* -------------------------------------------------------
-      3️⃣ auth.users 에 이미 계정이 있는지 확인
-    ------------------------------------------------------- */
+    /* -------------------------------------------------
+      3️⃣ auth.users 에 동일 이메일 존재 여부 확인
+      (Supabase는 email 필터 API가 없으므로 전체 조회 후 JS 필터)
+    ------------------------------------------------- */
     const { data: listData, error: listErr } =
       await supabaseService.auth.admin.listUsers({
-        email,
+        perPage: 1000,
       });
 
     if (listErr) {
@@ -46,34 +47,25 @@ export async function POST(req: Request) {
       );
     }
 
-    const existingUser = listData?.users?.[0];
+    const existingUser = listData.users.find(
+      (u) => u.email?.toLowerCase() === email.toLowerCase()
+    );
 
     let userId: string;
 
-    /* -------------------------------------------------------
-      4️⃣ Case A: 이미 auth 계정이 존재하는 경우
-    ------------------------------------------------------- */
+    /* -------------------------------------------------
+      4️⃣ auth 계정 생성 또는 재사용
+    ------------------------------------------------- */
     if (existingUser) {
+      // 이미 auth.users 에 계정이 존재
       userId = existingUser.id;
-    }
-
-    /* -------------------------------------------------------
-      5️⃣ Case B: auth 계정이 없는 경우 → 새로 생성
-    ------------------------------------------------------- */
-    else {
-      if (!password) {
-        return NextResponse.json(
-          { error: "password_required_for_new_user" },
-          { status: 400 }
-        );
-      }
-
+    } else {
       const { data: created, error: createErr } =
         await supabaseService.auth.admin.createUser({
           email,
           password,
           email_confirm: true,
-          app_metadata: { role: "teacher" }, // auth 권한은 단순화
+          app_metadata: { role },
           user_metadata: { name, campus },
         });
 
@@ -88,9 +80,9 @@ export async function POST(req: Request) {
       userId = created.user.id;
     }
 
-    /* -------------------------------------------------------
-      6️⃣ teachers 테이블에 이미 연결돼 있는지 확인
-    ------------------------------------------------------- */
+    /* -------------------------------------------------
+      5️⃣ teachers 테이블에 이미 연결되어 있는지 확인
+    ------------------------------------------------- */
     const { data: existingTeacher } = await supabaseService
       .from("teachers")
       .select("id")
@@ -100,22 +92,22 @@ export async function POST(req: Request) {
     if (existingTeacher) {
       return NextResponse.json(
         { error: "teacher_already_exists" },
-        { status: 200 }
+        { status: 409 }
       );
     }
 
-    /* -------------------------------------------------------
-      7️⃣ teachers 테이블에 프로필 생성
-    ------------------------------------------------------- */
+    /* -------------------------------------------------
+      6️⃣ teachers 테이블에 프로필 생성
+    ------------------------------------------------- */
     const now = new Date().toISOString();
 
     const { error: insertErr } = await supabaseService
       .from("teachers")
       .insert({
-        id: userId,           // auth.users.id (FK)
+        id: userId,          // auth.users.id 와 동일
         name,
         campus,
-        role,                 // teacher / campus_manager 등
+        role,
         active: true,
         created_at: now,
         updated_at: now,
@@ -129,13 +121,13 @@ export async function POST(req: Request) {
       );
     }
 
-    /* -------------------------------------------------------
-      8️⃣ 성공
-    ------------------------------------------------------- */
+    /* -------------------------------------------------
+      7️⃣ 성공
+    ------------------------------------------------- */
     return NextResponse.json({ ok: true });
 
   } catch (e) {
-    console.error("CREATE TEACHER FATAL ERROR:", e);
+    console.error("CREATE TEACHER SERVER ERROR:", e);
     return NextResponse.json(
       { error: "server_error" },
       { status: 500 }
