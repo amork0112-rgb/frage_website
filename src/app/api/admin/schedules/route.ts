@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -17,11 +17,9 @@ export async function GET(req: Request) {
   const end = searchParams.get("rangeEnd");
   try {
     const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
-    if (!user) return json({ error: "unauthorized" }, 401);
-    const role = user.app_metadata?.role ?? "parent";
-    if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
-    let query = supabaseService.from("schedules").select("*");
+    const guard = await requireAdmin(supabaseAuth);
+    if ((guard as any).error) return (guard as any).error;
+    let query = supabaseAuth.from("schedules").select("*");
     if (yearParam && monthParam) {
       const year = Number(yearParam);
       const month = Number(monthParam);
@@ -111,7 +109,7 @@ export async function POST(req: Request) {
     const current = Number(body.current ?? 0);
     const isOpen = Boolean(body.isOpen ?? true);
     if (!date || !time) return json({ error: "missing" }, 400);
-    const { data: dupRows } = await supabaseService
+    const { data: dupRows } = await supabaseAuth
       .from("schedules")
       .select("*")
       .eq("date", date)
@@ -132,7 +130,7 @@ export async function POST(req: Request) {
       }, 200);
     }
     const now = new Date().toISOString();
-    const { data, error } = await supabaseService
+    const { data, error } = await supabaseAuth
       .from("schedules")
       .insert({
         date,
@@ -167,10 +165,8 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
-    if (!user) return json({ error: "unauthorized" }, 401);
-    const role = user.app_metadata?.role ?? "parent";
-    if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
+    const guard = await requireAdmin(supabaseAuth);
+    if ((guard as any).error) return (guard as any).error;
     const body = await req.json();
     const id = String(body.id || "");
     if (!id) return json({ error: "missing id" }, 400);
@@ -187,7 +183,7 @@ export async function PUT(req: Request) {
       const dateVal = patch.date ?? undefined;
       const timeVal = patch.time ?? undefined;
       if (dateVal && timeVal) {
-        const { data: dupRows } = await supabaseService
+        const { data: dupRows } = await supabaseAuth
           .from("schedules")
           .select("*")
           .eq("date", dateVal)
@@ -210,7 +206,7 @@ export async function PUT(req: Request) {
         }
       }
     }
-    const { data, error } = await supabaseService
+    const { data, error } = await supabaseAuth
       .from("schedules")
       .update(patch)
       .eq("id", id)
@@ -236,14 +232,12 @@ export async function PUT(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
-    if (!user) return json({ error: "unauthorized" }, 401);
-    const role = user.app_metadata?.role ?? "parent";
-    if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
+    const guard = await requireAdmin(supabaseAuth);
+    if ((guard as any).error) return (guard as any).error;
     const body = await req.json();
     const id = String(body.id || "");
     if (!id) return json({ error: "missing id" }, 400);
-    const { error } = await supabaseService.from("schedules").delete().eq("id", id);
+    const { error } = await supabaseAuth.from("schedules").delete().eq("id", id);
     if (error) return json({ error: "delete_failed" }, 500);
     return json({ ok: true });
   } catch {
