@@ -168,7 +168,7 @@ export default function AdminEditNoticePage() {
         .from("notice_promotions")
         .select("id")
         .eq("post_id", Number(id))
-        .single();
+        .maybeSingle();
       if (existing) {
         await supabase
           .from("notice_promotions")

@@ -37,6 +37,7 @@ export default function AdminNewNoticePage() {
   const [promote, setPromote] = useState(false);
   const [newsTitle, setNewsTitle] = useState("");
   const [newsFeatured, setNewsFeatured] = useState(false);
+  const [newsPushEnabled, setNewsPushEnabled] = useState(true);
 
   /* ---------------- auth role ---------------- */
   useEffect(() => {
@@ -152,18 +153,36 @@ export default function AdminNewNoticePage() {
       }
 
       if (promote) {
-        const { error: promoErr } = await supabase
+        const postId = Number(inserted.id);
+        const { data: existing } = await supabase
           .from("notice_promotions")
-          .insert({
-            post_id: inserted.id,
-            title: (newsTitle || inserted.title).trim(),
-            pinned: false,
-            archived: false,
-            push_enabled: false,
-          });
-        if (promoErr) {
-          console.error("PROMOTION INSERT ERROR:", promoErr);
+          .select("id")
+          .eq("post_id", postId)
+          .maybeSingle();
+        if (existing) {
+          await supabase
+            .from("notice_promotions")
+            .update({
+              title: (newsTitle || title).trim(),
+              pinned: newsFeatured,
+              push_enabled: newsPushEnabled,
+              archived: false,
+            })
+            .eq("post_id", postId);
+        } else {
+          await supabase
+            .from("notice_promotions")
+            .insert({
+              post_id: postId,
+              title: (newsTitle || title).trim(),
+              pinned: newsFeatured,
+              archived: false,
+              push_enabled: newsPushEnabled,
+            });
         }
+      } else {
+        const postId = Number(inserted.id);
+        await supabase.from("notice_promotions").delete().eq("post_id", postId);
       }
 
       alert("공지 등록이 완료되었습니다.");
@@ -326,6 +345,14 @@ export default function AdminNewNoticePage() {
                   onChange={(e) => setNewsFeatured(e.target.checked)}
                 />
                 홈 상단 강조
+              </label>
+              <label className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  checked={newsPushEnabled}
+                  onChange={(e) => setNewsPushEnabled(e.target.checked)}
+                />
+                앱 푸시 발송
               </label>
             </div>
           )}
