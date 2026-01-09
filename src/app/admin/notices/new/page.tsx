@@ -46,6 +46,18 @@ export default function AdminNewNoticePage() {
     })();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      if (process.env.NODE_ENV !== "development") return;
+      const { data } = await supabase.auth.getSession();
+      const tok = data.session?.access_token || "";
+      if (tok) {
+        const masked = `${tok.slice(0, 12)}...${tok.slice(-6)}`;
+        console.log("JWT(access_token):", masked);
+      }
+    })();
+  }, []);
+
   /* ---------------- editor utils ---------------- */
   const exec = (cmd: string, value?: string) => {
     document.execCommand(cmd, false, value);
@@ -119,8 +131,7 @@ export default function AdminNewNoticePage() {
       const contentHtml = editorRef.current?.innerHTML || "";
       const contentText = plainText(contentHtml);
 
-      /* ✅ 공지 저장 */
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from("posts")
         .insert({
           title,
@@ -129,29 +140,28 @@ export default function AdminNewNoticePage() {
           published: true,
           is_pinned: false,
           image_url: null,
-        });
-
-      if (error) {
+        })
+        .select()
+        .single();
+      if (error || !inserted) {
         console.error("NOTICE INSERT ERROR:", error);
         alert("공지 저장 중 오류가 발생했습니다.");
         setLoading(false);
         return;
       }
 
-      /* ✅ 소식 동시 게시 */
       if (promote) {
-        const { error: newsError } = await supabase
-          .from("posts")
+        const { error: promoErr } = await supabase
+          .from("notice_promotions")
           .insert({
-            title: (newsTitle || title).trim(),
-            content: contentText,
-            category: "news",
-            published: true,
-            is_pinned: newsFeatured,
+            post_id: inserted.id,
+            title: (newsTitle || inserted.title).trim(),
+            pinned: false,
+            archived: false,
+            push_enabled: false,
           });
-
-        if (newsError) {
-          console.error("NEWS INSERT ERROR:", newsError);
+        if (promoErr) {
+          console.error("PROMOTION INSERT ERROR:", promoErr);
         }
       }
 

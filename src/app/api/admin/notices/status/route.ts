@@ -1,3 +1,4 @@
+// src/app/api/admin/notices/status/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
@@ -21,7 +22,19 @@ export async function POST(req: Request) {
         : { is_pinned: false, is_archived: false };
     const numId = Number(id);
     if (!Number.isNaN(numId)) {
-      await supabaseAuth.from("posts").update(map).eq("id", numId);
+      const { error } = await supabaseAuth.from("posts").update(map).eq("id", numId);
+      if (error) {
+        return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      }
+      if (status === "pinned" || status === "archived") {
+        await supabaseAuth
+          .from("notice_promotions")
+          .update({
+            pinned: status === "pinned",
+            archived: status === "archived",
+          })
+          .eq("post_id", numId);
+      }
     }
     return NextResponse.json({ ok: true, id, status }, { status: 200 });
   } catch {
