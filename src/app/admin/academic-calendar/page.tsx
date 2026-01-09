@@ -21,6 +21,24 @@ type CalendarEvent = {
   createdAt: string;
 };
 
+const mapApiItemToCalendarEvent = (raw: any): CalendarEvent => {
+  return {
+    id: String(raw.id),
+    title: String(raw.title || ""),
+    type: (raw.type as ScheduleType) ?? "행사",
+    start: String(raw.start_date ?? raw.start ?? ""),
+    end: String(raw.end_date ?? raw.end ?? raw.start_date ?? ""),
+    campus: raw.campus ?? undefined,
+    className: raw.class_name ?? undefined,
+    place: raw.place ?? undefined,
+    exposeToParent: Boolean(raw.expose_to_parent ?? raw.exposeToParent ?? true),
+    notify: Boolean(raw.notify ?? false),
+    notifyDays: Array.isArray(raw.notify_days) ? raw.notify_days : undefined,
+    noticeLink: raw.notice_link ?? raw.noticeLink ?? undefined,
+    createdAt: String(raw.created_at ?? raw.createdAt ?? new Date().toISOString()),
+  };
+};
+
 const monthName = (y: number, m: number) =>
   new Date(y, m, 1).toLocaleString("en-US", { month: "long" });
 const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
@@ -54,7 +72,8 @@ export default function AdminAcademicCalendarPage() {
       try {
         const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store", credentials: "include", });
         const data = await res.json();
-        const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+        const itemsRaw = Array.isArray(data?.items) ? data.items : [];
+        const items: CalendarEvent[] = itemsRaw.map(mapApiItemToCalendarEvent);
         setEvents(items);
         const monthStr = `${year}-${pad(month + 1)}`;
         const hasHoliday = items.some((ev) => ev.type === "공휴일" && String(ev.start || "").startsWith(monthStr));
@@ -149,7 +168,8 @@ export default function AdminAcademicCalendarPage() {
       .then(async () => {
         const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
         const data = await res.json();
-        const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+        const itemsRaw = Array.isArray(data?.items) ? data.items : [];
+        const items: CalendarEvent[] = itemsRaw.map(mapApiItemToCalendarEvent);
         setEvents(items);
         setTitle("");
         setStart("");
@@ -188,7 +208,8 @@ export default function AdminAcademicCalendarPage() {
       .then(async () => {
         const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
         const data = await res.json();
-        const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+        const itemsRaw = Array.isArray(data?.items) ? data.items : [];
+        const items: CalendarEvent[] = itemsRaw.map(mapApiItemToCalendarEvent);
         setEvents(items);
         setEditingEvent(null);
         alert("일정이 수정되었습니다.");
@@ -208,7 +229,8 @@ export default function AdminAcademicCalendarPage() {
       .then(async () => {
         const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
         const data = await res.json();
-        const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+        const itemsRaw = Array.isArray(data?.items) ? data.items : [];
+        const items: CalendarEvent[] = itemsRaw.map(mapApiItemToCalendarEvent);
         setEvents(items);
         setEditingEvent(null);
       })
@@ -256,7 +278,8 @@ export default function AdminAcademicCalendarPage() {
                 const dataInit = await resInit.json();
                 const res = await fetch(`/api/admin/academic-calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
                 const data = await res.json();
-                const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+                const itemsRaw = Array.isArray(data?.items) ? data.items : [];
+                const items: CalendarEvent[] = itemsRaw.map(mapApiItemToCalendarEvent);
                 setEvents(items);
                 const monthStr = `${year}-${pad(month + 1)}`;
                 const hasHoliday = items.some((ev) => ev.type === "공휴일" && String(ev.start || "").startsWith(monthStr));
