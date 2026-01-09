@@ -26,14 +26,25 @@ export async function POST(req: Request) {
       if (error) {
         return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
       }
-      if (status === "pinned" || status === "archived") {
-        await supabaseAuth
+      const { data: promo } = await supabaseAuth
+        .from("notice_promotions")
+        .select("id,pinned,archived")
+        .eq("post_id", numId)
+        .maybeSingle();
+      if (promo) {
+        const promoMap =
+          status === "pinned"
+            ? { pinned: true, archived: false }
+            : status === "archived"
+            ? { pinned: false, archived: true }
+            : { pinned: false, archived: false };
+        const { error: promoErr } = await supabaseAuth
           .from("notice_promotions")
-          .update({
-            pinned: status === "pinned",
-            archived: status === "archived",
-          })
+          .update(promoMap)
           .eq("post_id", numId);
+        if (promoErr) {
+          return NextResponse.json({ ok: false, error: promoErr.message }, { status: 500 });
+        }
       }
     }
     return NextResponse.json({ ok: true, id, status }, { status: 200 });
