@@ -2,27 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, LineChart, Users, Building2, Settings, DollarSign, ArrowLeftRight, ClipboardList, ThumbsUp } from "lucide-react";
+ 
 
 export default function MasterLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const nav = [
-    { href: "/portal/master/dashboard", label: "Dashboard", icon: BarChart3 },
-    { href: "/portal/master/finance/revenue", label: "Finance • Revenue", icon: DollarSign },
-    { href: "/portal/master/finance/cost", label: "Finance • Cost", icon: DollarSign },
-    { href: "/portal/master/finance/profit", label: "Finance • Profit", icon: LineChart },
-    { href: "/portal/master/students/retention", label: "Students • Retention", icon: Users },
-    { href: "/portal/master/students/churn", label: "Students • Churn", icon: Users },
-    { href: "/portal/master/students/lifecycle", label: "Students • Lifecycle", icon: ClipboardList },
-    { href: "/portal/master/marketing/conversion", label: "Marketing • Conversion", icon: ArrowLeftRight },
-    { href: "/portal/master/survey/nps", label: "Survey • NPS", icon: ThumbsUp },
-    { href: "/portal/master/survey/feedback", label: "Survey • Feedback", icon: ClipboardList },
-    { href: "/portal/master/campuses/compare", label: "Campuses • Compare", icon: Building2 },
-    { href: "/portal/master/campuses/detail/International", label: "Campuses • Detail", icon: Building2 },
-    { href: "/portal/master/settings/campus_config", label: "Settings • Campus", icon: Settings },
-    { href: "/portal/master/settings/kpi_thresholds", label: "Settings • Thresholds", icon: Settings },
-    { href: "/portal/master/settings/master_accounts", label: "Settings • Accounts", icon: Settings },
-  ];
+  const nav: { href: string; label: string; icon: any }[] = [];
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
       <div className="flex">
