@@ -1,4 +1,4 @@
-//src/app/api/schedules/route.ts
+//src/app/api/admin/schedules/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";

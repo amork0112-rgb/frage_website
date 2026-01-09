@@ -11,6 +11,7 @@ export default function ParentPortalHome() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [studentStatus, setStudentStatus] = useState<string>("enrolled"); // 'enrolled' or 'new'
   const [newStudentProfile, setNewStudentProfile] = useState<any>(null);
   
@@ -52,6 +53,7 @@ export default function ParentPortalHome() {
     return times;
   }, []);
   const ensureDefaultDaySlots = async (date: string) => {
+    if (!isAdmin) return;
     try {
       const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(date)}`);
       const data = await res.json();
@@ -80,6 +82,7 @@ export default function ParentPortalHome() {
     } catch {}
   };
   const ensureDefaultWeekdaySlotsForMonth = useCallback(async (month: Date) => {
+    if (!isAdmin) return;
     try {
       const start = new Date(month.getFullYear(), month.getMonth(), 1);
       const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
@@ -118,7 +121,7 @@ export default function ParentPortalHome() {
       const items2 = Array.isArray(data2?.items) ? data2.items : [];
       setAllSlots(items2);
     } catch {}
-  }, [DEFAULT_TIMES]);
+  }, [DEFAULT_TIMES, isAdmin]);
 
   useEffect(() => {
     (async () => {
@@ -131,6 +134,7 @@ export default function ParentPortalHome() {
           return;
         }
         const role = (user.app_metadata as any)?.role ?? null;
+        setIsAdmin(role === "admin" || role === "master_admin");
         if (role !== "parent") {
           setAuthorized(false);
           router.replace("/auth/redirect");
@@ -172,6 +176,7 @@ export default function ParentPortalHome() {
           setNewStudentProfile({ id: user.id, studentName: "", englishFirstName: "" });
           const loadAll = async () => {
             try {
+              if (!isAdmin) return;
               const res = await fetch("/api/admin/schedules");
               const data = await res.json();
               const items = Array.isArray(data?.items) ? data.items : [];
@@ -181,7 +186,9 @@ export default function ParentPortalHome() {
           };
           loadAll();
           const m = new Date();
-          ensureDefaultWeekdaySlotsForMonth(new Date(m.getFullYear(), m.getMonth(), 1));
+          if (isAdmin) {
+            ensureDefaultWeekdaySlotsForMonth(new Date(m.getFullYear(), m.getMonth(), 1));
+          }
         }
       } catch (e) {
         console.error(e);
@@ -189,7 +196,7 @@ export default function ParentPortalHome() {
         setLoading(false);
       }
     })();
-  }, [ensureDefaultWeekdaySlotsForMonth]);
+  }, [ensureDefaultWeekdaySlotsForMonth, isAdmin]);
 
   const handleReserve = (slot: any) => {
     if (!confirm(`${slot.date} ${slot.time}에 입학 테스트를 예약하시겠습니까?`)) return;
@@ -203,6 +210,7 @@ export default function ParentPortalHome() {
 
     setMyReservation(reservation);
 
+    if (!isAdmin) return;
     fetch("/api/admin/schedules", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -220,6 +228,10 @@ export default function ParentPortalHome() {
       
       if (myReservation) {
         const id = myReservation.slotId;
+        if (!isAdmin) {
+          setMyReservation(null);
+          return;
+        }
         fetch("/api/admin/schedules", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
