@@ -21,13 +21,25 @@ type CalendarEvent = {
   createdAt: string;
 };
 
+const EVENT_COLOR: Record<ScheduleType, string> = {
+  공휴일: "bg-red-50 text-red-600 border-red-100",
+  방학: "bg-blue-50 text-blue-600 border-blue-100",
+  시험: "bg-purple-50 text-purple-600 border-purple-100",
+  행사: "bg-slate-50 text-slate-600 border-slate-100",
+  차량: "bg-amber-50 text-amber-700 border-amber-100",
+  리포트: "bg-emerald-50 text-emerald-700 border-emerald-100",
+  수업일: "bg-indigo-50 text-indigo-700 border-indigo-100",
+};
+
+const toDateStr = (d: string) => d.slice(0, 10);
+
 const mapApiItemToCalendarEvent = (raw: any): CalendarEvent => {
   return {
     id: String(raw.id),
     title: String(raw.title || ""),
     type: (raw.type as ScheduleType) ?? "행사",
-    start: String(raw.start_date ?? raw.start ?? ""),
-    end: String(raw.end_date ?? raw.end ?? raw.start_date ?? ""),
+    start: toDateStr(String(raw.start_date ?? raw.start)),
+    end: toDateStr(String(raw.end_date ?? raw.end ?? raw.start_date)),
     campus: raw.campus ?? undefined,
     className: raw.class_name ?? undefined,
     place: raw.place ?? undefined,
@@ -95,7 +107,8 @@ export default function AdminAcademicCalendarPage() {
     const cells: { label: string; dateStr: string; outside: boolean }[] = [];
     for (let i = 0; i < startWeekday; i++) {
       const d = prevMonthDays - startWeekday + i + 1;
-      const dateStr = `${year}-${pad(month)}-${pad(d)}`;
+      const prev = new Date(year, month, d);
+      const dateStr = prev.toISOString().slice(0, 10);
       cells.push({ label: String(d), dateStr, outside: true });
     }
     for (let d = 1; d <= total; d++) {
@@ -105,7 +118,8 @@ export default function AdminAcademicCalendarPage() {
     while (cells.length % 7 !== 0) {
       const nextIdx = cells.length - total - startWeekday + 1;
       const d = nextIdx;
-      const dateStr = `${year}-${pad(month + 2)}-${pad(d)}`;
+      const next = new Date(year, month + 1, d);
+      const dateStr = next.toISOString().slice(0, 10);
       cells.push({ label: String(d), dateStr, outside: true });
     }
     return cells;
@@ -120,23 +134,18 @@ export default function AdminAcademicCalendarPage() {
   const eventsByDay = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
     events.forEach(ev => {
-      let curr = new Date(ev.start);
-      const endDt = new Date(ev.end);
-      // Safety: limit loop to prevent infinite loop if bad data
+      const start = ev.start;
+      const end = ev.end || ev.start;
+      let curr = start;
       let safety = 0;
-      while (curr <= endDt && safety < 365) {
-        const y = curr.getFullYear();
-        const m = pad(curr.getMonth() + 1);
-        const d = pad(curr.getDate());
-        const dateStr = `${y}-${m}-${d}`;
-        
-        if (!map[dateStr]) map[dateStr] = [];
-        // Avoid duplicates if multiple passes
-        if (!map[dateStr].find(x => x.id === ev.id)) {
-          map[dateStr].push(ev);
+      while (curr <= end && safety < 400) {
+        if (!map[curr]) map[curr] = [];
+        if (!map[curr].find(e => e.id === ev.id)) {
+          map[curr].push(ev);
         }
-        
-        curr.setDate(curr.getDate() + 1);
+        const d = new Date(curr + "T00:00:00");
+        d.setDate(d.getDate() + 1);
+        curr = d.toISOString().slice(0, 10);
         safety++;
       }
     });
@@ -335,7 +344,7 @@ export default function AdminAcademicCalendarPage() {
                           e.stopPropagation();
                           setEditingEvent(ev);
                         }}
-                        className={`text-[11px] px-2 py-1 rounded cursor-pointer hover:opacity-80 ${ev.type === "공휴일" ? "bg-red-50 text-red-600 border border-red-100" : "bg-slate-50 text-slate-600 border border-slate-100"}`}
+                        className={`text-[11px] px-2 py-1 rounded cursor-pointer hover:opacity-80 border ${EVENT_COLOR[ev.type]}`}
                       >
                         {ev.title}
                       </div>
