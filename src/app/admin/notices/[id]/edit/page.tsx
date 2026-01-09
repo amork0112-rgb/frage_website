@@ -1,3 +1,4 @@
+//src/app/admin/notices/[id]/edit
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -159,16 +160,36 @@ export default function AdminEditNoticePage() {
     updateSupabase();
 
     const doPromote = async () => {
-      if (!promote) return;
-      const insert = {
-        title: (newsTitle || title).trim(),
-        content: plainText(contentHtml),
-        category: "news",
-        published: true,
-        is_pinned: newsFeatured,
-        image_url: null as any,
-      };
-      await supabase.from("posts").insert(insert);
+      if (!promote) {
+        await supabase.from("notice_promotions").delete().eq("post_id", Number(id));
+        return;
+      }
+      const { data: existing } = await supabase
+        .from("notice_promotions")
+        .select("id")
+        .eq("post_id", Number(id))
+        .single();
+      if (existing) {
+        await supabase
+          .from("notice_promotions")
+          .update({
+            title: (newsTitle || title).trim(),
+            pinned: newsFeatured,
+            push_enabled: newsPushEnabled,
+            archived: false,
+          })
+          .eq("post_id", Number(id));
+      } else {
+        await supabase
+          .from("notice_promotions")
+          .insert({
+            post_id: Number(id),
+            title: (newsTitle || title).trim(),
+            pinned: newsFeatured,
+            archived: false,
+            push_enabled: newsPushEnabled,
+          });
+      }
     };
     
     doPromote();

@@ -1,3 +1,4 @@
+//app/admin/notices/new
 "use client";
 
 import { useEffect, useRef, useState } from "react";

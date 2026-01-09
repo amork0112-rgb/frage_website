@@ -1,59 +1,74 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-type Post = {
+type PromotionRow = {
   id: number;
   title: string;
-  category: string;
+  pinned: boolean;
+  push_enabled: boolean;
   created_at: string;
-  content: string; // Using content as summary for now, or truncate it
+  posts: {
+    id: number;
+    title: string;
+    content: string;
+    created_at: string;
+  } | null;
 };
 
 export default function NewsPage() {
-  const [newsItems, setNewsItems] = useState<Post[]>([]);
+  const [promotions, setPromotions] = useState<PromotionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
   useEffect(() => {
-    async function fetchPosts() {
+    async function fetchPromotions() {
       const { data, error } = await supabase
-        .from("posts")
-        .select("*")
-        .eq("published", true)
+        .from("notice_promotions")
+        .select(`
+          id,
+          title,
+          pinned,
+          push_enabled,
+          created_at,
+          posts (
+            id,
+            title,
+            content,
+            created_at
+          )
+        `)
+        .eq("archived", false)
+        .order("pinned", { ascending: false })
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Error fetching news:", error);
+        console.error("Error fetching promotions:", error);
       } else {
-        setNewsItems(data || []);
+        setPromotions((data as any) || []);
       }
       setLoading(false);
     }
 
-    fetchPosts();
+    fetchPromotions();
   }, []);
 
   // Calculate pagination
+  const sorted = useMemo(() => promotions.slice(), [promotions]);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = newsItems.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(newsItems.length / itemsPerPage);
+  const currentItems = sorted.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sorted.length / itemsPerPage);
 
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const getCategoryStyle = (category: string) => {
-      const lower = category.toLowerCase();
-      if (lower.includes('notice')) return 'bg-red-50 text-red-600';
-      if (lower.includes('event')) return 'bg-orange-50 text-orange-600';
-      return 'bg-blue-50 text-blue-600';
-  };
+  const getCategoryStyle = () => 'bg-blue-50 text-blue-600';
 
   const formatDate = (dateString: string) => {
       return new Date(dateString).toLocaleDateString("ko-KR", {
@@ -75,7 +90,7 @@ export default function NewsPage() {
       <section className="container mx-auto mt-12 px-6 max-w-5xl">
         {loading ? (
              <div className="text-center py-20 text-slate-400">Loading news...</div>
-        ) : newsItems.length === 0 ? (
+        ) : promotions.length === 0 ? (
              <div className="text-center py-20 text-slate-400">등록된 소식이 없습니다.</div>
         ) : (
             <>
@@ -83,17 +98,17 @@ export default function NewsPage() {
                 {currentItems.map((item) => (
                     <Link href={`/news/${item.id}`} key={item.id} className="group flex flex-col md:flex-row gap-6 p-6 rounded-xl border border-slate-100 hover:border-frage-blue/30 transition-colors bg-white hover:shadow-sm cursor-pointer">
                     <div className="md:w-32 flex-shrink-0 flex flex-col justify-center">
-                        <span className={`inline-block w-fit px-2 py-1 text-xs font-semibold rounded ${getCategoryStyle(item.category)}`}>
-                        {item.category.toUpperCase()}
+                        <span className={`inline-block w-fit px-2 py-1 text-xs font-semibold rounded ${getCategoryStyle()}`}>
+                        NEWS
                         </span>
-                        <span className="mt-2 text-sm text-slate-400">{formatDate(item.created_at)}</span>
+                        <span className="mt-2 text-sm text-slate-400">{formatDate(item.posts?.created_at || item.created_at)}</span>
                     </div>
                     <div className="flex-grow">
                         <h3 className="text-xl font-bold text-slate-900 group-hover:text-frage-blue transition-colors">
-                        {item.title}
+                        {item.title || item.posts?.title}
                         </h3>
                         <p className="mt-2 text-slate-600 line-clamp-2">
-                        {item.content}
+                        {item.posts?.content || ""}
                         </p>
                     </div>
                     </Link>
