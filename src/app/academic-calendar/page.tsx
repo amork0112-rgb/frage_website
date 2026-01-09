@@ -1,3 +1,4 @@
+// src/app/academic-calendar/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -13,6 +14,12 @@ type CalendarEvent = {
   className?: string;
   place?: string;
   noticeLink?: string;
+};
+
+const toDateStr = (s: string) => String(s).slice(0, 10);
+const normalizeType = (t: string): ScheduleType => {
+  const allowed: ScheduleType[] = ["수업일","방학","시험","행사","차량","리포트","공휴일"];
+  return allowed.includes(t as ScheduleType) ? (t as ScheduleType) : "행사";
 };
 
 const TYPE_STYLE: Record<ScheduleType, string> = {
@@ -44,7 +51,19 @@ export default function AcademicCalendarPage() {
         setLoading(true);
         const res = await fetch(`/api/calendar?year=${year}&month=${month + 1}`, { cache: "no-store" });
         const data = await res.json();
-        const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+        const items: CalendarEvent[] = Array.isArray(data?.items)
+          ? data.items.map((r: any) => ({
+              id: String(r.id),
+              title: String(r.title || ""),
+              type: normalizeType(String(r.type || "")),
+              start: toDateStr(r.start),
+              end: toDateStr(r.end || r.start),
+              campus: r.campus ? String(r.campus) as any : undefined,
+              className: r.className ? String(r.className) : undefined,
+              place: r.place ? String(r.place) : undefined,
+              noticeLink: r.noticeLink ? String(r.noticeLink) : undefined,
+            }))
+          : [];
         setEvents(items);
       } catch {
         setEvents([]);
@@ -62,7 +81,8 @@ export default function AcademicCalendarPage() {
     const cells: { label: string; dateStr: string; outside: boolean }[] = [];
     for (let i = 0; i < startWeekday; i++) {
       const d = prevMonthDays - startWeekday + i + 1;
-      const dateStr = `${year}-${pad(month)}-${pad(d)}`;
+      const prev = new Date(year, month, d);
+      const dateStr = prev.toISOString().slice(0, 10);
       cells.push({ label: String(d), dateStr, outside: true });
     }
     for (let d = 1; d <= total; d++) {
@@ -72,7 +92,8 @@ export default function AcademicCalendarPage() {
     while (cells.length % 7 !== 0) {
       const nextIdx = cells.length - total - startWeekday + 1;
       const d = nextIdx;
-      const dateStr = `${year}-${pad(month + 2)}-${pad(d)}`;
+      const next = new Date(year, month + 1, d);
+      const dateStr = next.toISOString().slice(0, 10);
       cells.push({ label: String(d), dateStr, outside: true });
     }
     return cells;
@@ -97,6 +118,36 @@ export default function AcademicCalendarPage() {
     });
     return map;
   }, [events]);
+
+  const weeks = useMemo(() => {
+    const arr: typeof monthDays[] = [];
+    for (let i = 0; i < monthDays.length; i += 7) {
+      arr.push(monthDays.slice(i, i + 7));
+    }
+    return arr;
+  }, [monthDays]);
+
+  const weekBars = useMemo(() => {
+    const bars: { weekIdx: number; ev: CalendarEvent; startCol: number; span: number }[] = [];
+    weeks.forEach((week, wi) => {
+      const weekStart = week[0]?.dateStr;
+      const weekEnd = week[week.length - 1]?.dateStr;
+      if (!weekStart || !weekEnd) return;
+      events.forEach(ev => {
+        const s = toDateStr(ev.start);
+        const e = toDateStr(ev.end || ev.start);
+        if (e < weekStart || s > weekEnd) return;
+        const startIdx = week.findIndex(d => d.dateStr === (s < weekStart ? weekStart : s));
+        const endIdx = week.findIndex(d => d.dateStr === (e > weekEnd ? weekEnd : e));
+        const si = startIdx >= 0 ? startIdx : 0;
+        const ei = endIdx >= 0 ? endIdx : 6;
+        if (si <= ei) {
+          bars.push({ weekIdx: wi, ev, startCol: si + 1, span: ei - si + 1 });
+        }
+      });
+    });
+    return bars;
+  }, [weeks, events]);
 
   const prevMonth = () => {
     const d = new Date(year, month, 1);
@@ -152,25 +203,46 @@ export default function AcademicCalendarPage() {
                 <div key={d} className="bg-white p-2 text-center">{d}</div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-px bg-slate-100">
-              {monthDays.map(cell => {
-                const list = eventsByDay[cell.dateStr] || [];
+            <div className="space-y-px bg-slate-100">
+              {weeks.map((week, wi) => {
+                const bars = weekBars.filter(b => b.weekIdx === wi);
                 return (
-                  <div key={cell.dateStr} className={`bg-white min-h-24 p-2 ${cell.outside ? "bg-slate-50 text-slate-400" : ""}`}>
-                    <div className="text-xs font-bold">{cell.label}</div>
-                    <div className="mt-1 space-y-1">
-                      {list.slice(0, 3).map(ev => (
+                  <div key={wi} className="relative">
+                    <div className="grid grid-cols-7 gap-px">
+                      {week.map(cell => {
+                        const list = eventsByDay[cell.dateStr] || [];
+                        return (
+                          <div key={cell.dateStr} className={`bg-white min-h-24 p-2 ${cell.outside ? "bg-slate-50 text-slate-400" : ""}`}>
+                            <div className="text-xs font-bold">{cell.label}</div>
+                            <div className="mt-1 space-y-1">
+                              {list.slice(0, 3).map(ev => (
+                                <button
+                                  key={ev.id}
+                                  onClick={() => setSelected(ev)}
+                                  className={`w-full text-left text-[11px] px-2 py-1 rounded ${TYPE_STYLE[ev.type]}`}
+                                >
+                                  {ev.title}
+                                </button>
+                              ))}
+                              {list.length > 3 && (
+                                <div className="text-[11px] text-slate-400">+{list.length - 3}</div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="absolute left-0 right-0 top-6 grid grid-cols-7 gap-px px-px">
+                      {bars.map(b => (
                         <button
-                          key={ev.id}
-                          onClick={() => setSelected(ev)}
-                          className={`w-full text-left text-[11px] px-2 py-1 rounded ${TYPE_STYLE[ev.type]}`}
+                          key={`${wi}_${b.ev.id}`}
+                          onClick={() => setSelected(b.ev)}
+                          className={`h-5 rounded ${TYPE_STYLE[b.ev.type]}`}
+                          style={{ gridColumn: `${b.startCol} / span ${b.span}` }}
                         >
-                          {ev.title}
+                          <span className="text-[11px] px-2">{b.ev.title}</span>
                         </button>
                       ))}
-                      {list.length > 3 && (
-                        <div className="text-[11px] text-slate-400">+{list.length - 3}</div>
-                      )}
                     </div>
                   </div>
                 );
