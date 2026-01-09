@@ -154,9 +154,9 @@ export default function AdminAcademicCalendarPage() {
 
   const addEvent = () => {
     const s = (start || "").trim();
-    const e = (end || "").trim();
+    const e = (end || s).trim();
     const t = title.trim();
-    if (!t || !s || !e) return;
+    if (!t || !s) return;
     fetch("/api/admin/academic-calendar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -205,7 +205,7 @@ export default function AdminAcademicCalendarPage() {
         title: editingEvent.title,
         type: editingEvent.type,
         start_date: editingEvent.start,
-        end_date: editingEvent.end,
+        end_date: editingEvent.end || editingEvent.start,
         campus: editingEvent.campus ?? null,
         class_name: editingEvent.className || null,
         place: editingEvent.place || null,
@@ -374,8 +374,9 @@ export default function AdminAcademicCalendarPage() {
             </select>
             <div className="grid grid-cols-2 gap-2">
               <input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-              <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+              <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} placeholder="미입력 시 시작일과 동일" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
             </div>
+            <p className="text-xs text-slate-400">종료일을 입력하지 않으면 시작일과 동일하게 저장됩니다.</p>
             <div className="grid grid-cols-2 gap-2">
               <select value={campus || ""} onChange={(e) => setCampus((e.target.value || "") as any)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
                 <option value="">캠퍼스 선택</option>

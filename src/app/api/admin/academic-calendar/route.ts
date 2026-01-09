@@ -54,9 +54,11 @@ export async function POST(req: Request) {
   if (guard.error) return guard.error;
 
   const body = await req.json();
-  const { title, type, start_date, end_date } = body;
+  const { title, type } = body;
+  const start_date: string = body.start_date;
+  const end_date: string = body.end_date || body.start_date;
 
-  if (!title || !type || !start_date || !end_date) {
+  if (!title || !type || !start_date) {
     return json({ error: "missing" }, 400);
   }
 
@@ -76,6 +78,8 @@ export async function POST(req: Request) {
     .from("academic_calendar")
     .insert({
       ...body,
+      start_date,
+      end_date,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -98,9 +102,12 @@ export async function PUT(req: Request) {
   const { id, ...patch } = body;
   if (!id) return json({ error: "missing id" }, 400);
 
+  const start_date: string | undefined = patch.start_date;
+  const end_date: string | undefined = patch.end_date || patch.start_date;
+
   const { data, error } = await supabase
     .from("academic_calendar")
-    .update({ ...patch, updated_at: new Date().toISOString() })
+    .update({ ...patch, start_date, end_date, updated_at: new Date().toISOString() })
     .eq("id", id)
     .select()
     .single();
