@@ -119,3 +119,15 @@ create policy "new_students_draft_insert_public" on new_students
   for insert
   to anon
   with check (status = 'draft');
+
+-- Relax NOT NULL constraints for draft stage in new_students
+alter table if exists new_students
+  alter column campus drop not null;
+alter table if exists new_students
+  alter column student_name drop not null;
+alter table if exists new_students
+  alter column phone drop not null;
+
+-- Ensure created_by defaults to the current auth user
+alter table if exists new_students
+  alter column created_by set default auth.uid();

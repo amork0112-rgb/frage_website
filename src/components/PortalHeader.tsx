@@ -20,62 +20,31 @@ export default function PortalHeader() {
 
   useEffect(() => {
     (async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id;
-      if (!userId) {
-        return;
-      }
-      const { data: rows } = await supabase
-        .from("parents")
-        .select("*")
-        .eq("auth_user_id", userId)
-        .limit(1);
-      const parent = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-      if (!parent) {
-        return;
-      }
-      const name: string = parent.name || "학부모";
-      setParentName(name);
-      const initFromName = () => {
-        const v = String(name || "").trim();
-        if (!v) return "S";
-        const parts = v.split(/\s+/);
-        const a = parts[0]?.[0] || "";
-        const b = parts[1]?.[0] || "";
-        return (a + b).toUpperCase() || a.toUpperCase() || "S";
-      };
-      setAvatarInitials(initFromName());
-      const { data: studs } = await supabase
-        .from("students")
-        .select("id")
-        .eq("parent_auth_user_id", userId);
-      const hasStudents = Array.isArray(studs) && studs.length > 0;
-      setIsEnrolled(hasStudents);
-      if (!hasStudents) {
-        const pid = parent?.id || null;
-        if (pid) {
-          const { data: nsRows } = await supabase
-            .from("new_students")
-            .select("status")
-            .eq("parent_id", pid)
-            .neq("status", "draft")
-            .order("created_at", { ascending: false })
-            .limit(1);
-          const ns = Array.isArray(nsRows) && nsRows.length > 0 ? nsRows[0] : null;
-          setNewStatus(ns?.status || null);
+      try {
+        const res = await fetch("/api/portal/home", { cache: "no-store" });
+        const payload = await res.json();
+        const type = String(payload?.type || "");
+        if (type === "enrolled") {
+          setIsEnrolled(true);
+          setNewStatus(null);
+        } else if (type === "new_student") {
+          setIsEnrolled(false);
+          const ns = payload?.newStudent || null;
+          setNewStatus(String(ns?.status || ""));
+          const name = String(ns?.parent_name || "학부모");
+          setParentName(name);
+          const v = name.trim();
+          const parts = v.split(/\s+/);
+          const a = parts[0]?.[0] || "";
+          const b = parts[1]?.[0] || "";
+          setAvatarInitials(((a + b).toUpperCase() || a.toUpperCase() || "S") as string);
         } else {
-          const { data: nsRows } = await supabase
-            .from("new_students")
-            .select("status")
-            .eq("parent_auth_user_id", userId)
-            .neq("status", "draft")
-            .order("created_at", { ascending: false })
-            .limit(1);
-          const ns = Array.isArray(nsRows) && nsRows.length > 0 ? nsRows[0] : null;
-          setNewStatus(ns?.status || null);
+          setIsEnrolled(false);
+          setNewStatus(null);
+          setParentName("학부모");
+          setAvatarInitials("S");
         }
-      } else {
-        setNewStatus(null);
+      } catch {
       }
     })();
   }, [router]);

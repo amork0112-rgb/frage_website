@@ -15,10 +15,79 @@ export async function POST(request: Request) {
       passportEnglishName,
       englishFirstName,
       childBirthDate,
+      status,
+      mode,
     } = body || {};
 
+    const supabaseAuth = createSupabaseServer();
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json(
+        { ok: false, error: "인증 정보 없음" },
+        { status: 401 }
+      );
+    }
+
+    const authUserId = user.id;
+
     /* -------------------------
-       1️⃣ 기본 유효성 검사
+       1️⃣ Draft 생성 요청 처리
+    -------------------------- */
+    if (String(mode || status || "").toLowerCase() === "draft") {
+      try {
+        const { data: existingParent } = await supabaseAuth
+          .from("parents")
+          .select("id")
+          .eq("auth_user_id", authUserId)
+          .single();
+        let parentId: string | null = existingParent?.id || null;
+        if (!parentId) {
+          const { data: newParent, error: parentError } = await supabaseAuth
+            .from("parents")
+            .insert({
+              auth_user_id: authUserId,
+              name: parentName || null,
+              phone: phone || null,
+              campus: campus || null,
+            })
+            .select()
+            .single();
+          if (parentError || !newParent) {
+            return NextResponse.json(
+              { ok: false, error: "parents 생성 실패" },
+              { status: 500 }
+            );
+          }
+          parentId = newParent.id;
+        }
+        const now = new Date().toISOString();
+        const { error: draftErr } = await supabaseAuth
+          .from("new_students")
+          .insert({
+            parent_id: parentId,
+            parent_auth_user_id: authUserId,
+            status: "draft",
+            created_at: now,
+            created_by: authUserId,
+          });
+        if (draftErr) {
+          return NextResponse.json(
+            { ok: false, error: draftErr.message || "new_students_draft_failed" },
+            { status: 500 }
+          );
+        }
+        return NextResponse.json({ ok: true, status: "draft" });
+      } catch (e: any) {
+        return NextResponse.json(
+          { ok: false, error: e?.message || "draft_create_error" },
+          { status: 500 }
+        );
+      }
+    }
+
+    /* -------------------------
+       2️⃣ 기본 유효성 검사 (waiting)
     -------------------------- */
     if (
       !studentName ||
@@ -53,20 +122,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabaseAuth = createSupabaseServer();
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { ok: false, error: "인증 정보 없음" },
-        { status: 401 }
-      );
-    }
-
-    const authUserId = user.id;
-
     /* -------------------------
-       3️⃣ parents 생성 또는 조회
+       3️⃣ parents 생성 또는 조회 (waiting)
     -------------------------- */
     let parentId: string;
 
@@ -131,6 +188,7 @@ export async function POST(request: Request) {
           passport_english_name: passportEnglishName,
           child_birth_date: childBirthDate,
           status: "waiting",
+          created_by: authUserId,
         })
         .eq("id", primary.id);
       if (extras.length > 0) {
@@ -153,6 +211,7 @@ export async function POST(request: Request) {
           child_birth_date: childBirthDate,
           status: "waiting",
           created_at: now,
+          created_by: authUserId,
         });
       if (insertErr) {
         return NextResponse.json(
