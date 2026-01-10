@@ -24,9 +24,9 @@ export async function POST(req: Request) {
     const englishHistory = String(body?.englishHistory || "");
     const officialScore = body?.officialScore ? String(body.officialScore) : null;
     const srScore = body?.srScore ? String(body.srScore) : null;
-    const availableDays = String(body?.availableDays || "");
+    const availableDays = body?.availableDays ? String(body.availableDays) : null;
 
-    if (!studentId || !grade || !currentSchool || !englishHistory || !availableDays) {
+    if (!studentId || !grade || !currentSchool || !englishHistory) {
       return json({ error: "missing_fields" }, 400);
     }
 
@@ -38,30 +38,24 @@ export async function POST(req: Request) {
 
     if (!stu) return json({ error: "no_new_student" }, 404);
 
-    const payload = {
-      grade,
-      currentSchool,
-      englishHistory,
-      officialScore,
-      srScore,
-      availableDays,
-      submittedAt: new Date().toISOString(),
-    };
+    const now = new Date().toISOString();
+    const { error: upErr } = await supabaseService
+      .from("admission_extras")
+      .upsert(
+        {
+          new_student_id: String(stu.id),
+          grade,
+          current_school: currentSchool,
+          english_history: englishHistory,
+          official_score: officialScore,
+          sr_score: srScore,
+          available_days: availableDays,
+          updated_at: now,
+        },
+        { onConflict: "new_student_id" }
+      );
 
-    const insertRow = {
-      child_id: String(stu.parent_id || ""),
-      child_name: String(stu.student_name || ""),
-      campus: String(stu.campus || "International"),
-      type: "admission_extra_info",
-      note: JSON.stringify(payload),
-      created_at: new Date().toISOString(),
-    };
-
-    const { error: insErr } = await supabaseService
-      .from("portal_requests")
-      .insert(insertRow);
-
-    if (insErr) return json({ error: "insert_failed" }, 500);
+    if (upErr) return json({ error: "insert_failed" }, 500);
 
     return json({ ok: true });
   } catch {

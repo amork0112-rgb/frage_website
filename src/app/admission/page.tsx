@@ -549,7 +549,7 @@ export default function AdmissionPage() {
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-slate-600 mb-2">학생 학년</label>
+                  <label className="block text-sm font-bold text-slate-600 mb-2">학생 학년 <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     value={extraGrade}
@@ -560,7 +560,7 @@ export default function AdmissionPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-600 mb-2">재학 학교</label>
+                  <label className="block text-sm font-bold text-slate-600 mb-2">재학 학교 <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     value={extraSchool}
@@ -572,7 +572,7 @@ export default function AdmissionPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-600 mb-2">영어 학습 이력</label>
+                <label className="block text-sm font-bold text-slate-600 mb-2">영어 학습 이력 <span className="text-red-500">*</span></label>
                 <textarea
                   value={extraHistory}
                   onChange={(e) => setExtraHistory(e.target.value)}
@@ -583,7 +583,7 @@ export default function AdmissionPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-slate-600 mb-2">공인 영어 시험 점수 (선택)</label>
+                  <label className="block text-sm font-bold text-slate-600 mb-2">공인 영어 시험 점수 <span className="text-slate-400 font-normal">(선택)</span></label>
                   <input
                     type="text"
                     value={extraOfficialScore}
@@ -593,7 +593,7 @@ export default function AdmissionPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-600 mb-2">SR 점수 (선택)</label>
+                  <label className="block text-sm font-bold text-slate-600 mb-2">SR 점수 <span className="text-slate-400 font-normal">(선택)</span></label>
                   <input
                     type="text"
                     value={extraSrScore}
@@ -604,14 +604,14 @@ export default function AdmissionPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-600 mb-2">입학 시 등원 가능 일</label>
+                <label className="block text-sm font-bold text-slate-600 mb-2">입학 시 등원 가능 일 <span className="text-slate-400 font-normal">(선택)</span></label>
                 <input
                   type="text"
                   value={extraAvailableDays}
                   onChange={(e) => setExtraAvailableDays(e.target.value)}
                   placeholder="예: 월/수/금 오후"
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
-                  required
+                  
                 />
               </div>
               <div className="flex justify-end">
