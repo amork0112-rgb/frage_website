@@ -19,6 +19,7 @@ export async function POST(request: Request) {
       childBirthDate,
       status,
       mode,
+      privacyAgreed,
     } = body || {};
 
     const supabaseAuth = createSupabaseServer();
@@ -43,6 +44,12 @@ export async function POST(request: Request) {
     /* -------------------------
        2️⃣ 기본 유효성 검사 (waiting)
     -------------------------- */
+    if (privacyAgreed !== true) {
+      return NextResponse.json(
+        { ok: false, error: "privacy_required" },
+        { status: 400 }
+      );
+    }
     if (
       !studentName ||
       (gender !== "M" && gender !== "F") ||

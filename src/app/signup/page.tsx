@@ -237,6 +237,7 @@ export default function SignupPage() {
               englishFirstName: formData.englishFirstName.trim(),
               childBirthDate: formData.childBirthDate,
               status: "waiting",
+              privacyAgreed: formData.privacyAgreed === true,
             }),
           });
           const payload = await res.json().catch(() => ({}));
@@ -556,6 +557,7 @@ export default function SignupPage() {
                       name="privacyAgreed"
                       checked={formData.privacyAgreed}
                       onChange={handleChange}
+                      required
                       className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-gray-300 shadow-sm checked:border-frage-blue checked:bg-frage-blue hover:border-frage-blue focus:outline-none focus:ring-2 focus:ring-frage-blue/20"
                     />
                     <Check className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100" />
