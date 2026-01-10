@@ -14,7 +14,6 @@ export async function POST(req: Request) {
     const supabase = createSupabaseServer();
     const { data: userData } = await supabase.auth.getUser();
     const user = userData?.user;
-    const bannedTimes = ["12:00", "16:00", "18:00"];
 
     if (!user) return json({ error: "unauthorized" }, 401);
     if ((user.app_metadata as any)?.role !== "parent")
@@ -22,7 +21,6 @@ export async function POST(req: Request) {
 
     const { date, time } = await req.json();
     if (!date || !time) return json({ error: "missing_params" }, 400);
-    if (bannedTimes.includes(String(time))) return json({ error: "closed" }, 409);
 
     /* 1️⃣ 부모 확인 */
     const { data: parent } = await supabase
