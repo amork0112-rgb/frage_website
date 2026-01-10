@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     const supabase = createSupabaseServer();
     const { data: userData } = await supabase.auth.getUser();
     const user = userData?.user;
+    const bannedTimes = ["12:00", "16:00", "18:00"];
 
     if (!user) return json({ error: "unauthorized" }, 401);
     if ((user.app_metadata as any)?.role !== "parent")
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
 
     const { date, time } = await req.json();
     if (!date || !time) return json({ error: "missing_params" }, 400);
+    if (bannedTimes.includes(String(time))) return json({ error: "closed" }, 409);
 
     /* 1️⃣ 부모 확인 */
     const { data: parent } = await supabase
@@ -41,34 +43,19 @@ export async function POST(req: Request) {
 
     if (!student) return json({ error: "no_new_student" }, 400);
 
-    /* 3️⃣ 이미 예약된 슬롯인지 확인 (한 슬롯 = 한 명) */
-    const { data: existingSlot } = await supabaseService
-      .from("consultation_slots")
-      .select("id")
-      .eq("date", date)
-      .eq("time", time)
-      .maybeSingle();
-
-    if (existingSlot) {
-      return json({ error: "slot_already_reserved" }, 409);
-    }
-
-    /* 4️⃣ 슬롯 생성 */
-    const { data: slot, error: slotErr } = await supabaseService
-      .from("consultation_slots")
-      .insert({ date, time })
-      .select()
-      .single();
-
-    if (slotErr || !slot) {
-      return json({ error: "slot_create_failed" }, 500);
-    }
-
-    /* 5️⃣ 예약 생성 */
-    await supabaseService.from("student_reservations").insert({
-      student_id: student.id,
-      slot_id: slot.id,
+    /* 3️⃣ 원자적 예약 처리 (RPC) */
+    const { error: rpcErr } = await supabaseService.rpc("reserve_consultation", {
+      p_student_id: String(student.id),
+      p_date: String(date),
+      p_time: String(time),
     });
+    if (rpcErr) {
+      const msg = rpcErr.message || "";
+      if (msg.includes("slot full") || msg.includes("closed")) {
+        return json({ error: "slot_full_or_closed" }, 409);
+      }
+      return json({ error: "reservation_failed" }, 500);
+    }
 
     return json({
       ok: true,
