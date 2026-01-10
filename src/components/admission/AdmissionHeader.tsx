@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { HelpCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-export default function AdmissionHeader() {
+type Props = {
+  currentStep?: string;
+};
+
+export default function AdmissionHeader({ currentStep }: Props) {
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -18,10 +22,13 @@ export default function AdmissionHeader() {
   return (
     <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
       <div className="h-14 px-4 max-w-5xl mx-auto flex items-center justify-between">
-        <div className="font-black text-slate-900">
-          입학 포털
-        </div>
+        <div className="font-black text-slate-900">입학 포털</div>
         <div className="flex items-center gap-2">
+          {currentStep && (
+            <div className="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-xs font-bold">
+              {currentStep}
+            </div>
+          )}
           <button
             type="button"
             onClick={handleLogout}

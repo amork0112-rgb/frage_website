@@ -225,7 +225,16 @@ export default function SignupPage() {
           return;
         }
         alert("회원가입이 완료되었습니다!");
-        router.push("/portal/home");
+        {
+          let trials = 0;
+          while (trials < 10) {
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData?.session) break;
+            await new Promise((r) => setTimeout(r, 300));
+            trials++;
+          }
+        }
+        router.replace("/entry");
       } catch (e: any) {
         const m = typeof e?.message === "string" ? e.message : "알 수 없는 오류가 발생했습니다.";
         setErrorMessage(`처리 오류: ${m}`);

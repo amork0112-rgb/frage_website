@@ -156,7 +156,7 @@ export default function AdmissionPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
-      <AdmissionHeader />
+      <AdmissionHeader currentStep={currentStep} />
       <main className="px-4 py-8 max-w-lg mx-auto space-y-6">
         <StudentInfoCard
           studentName={items[0]?.student_name || "신규 학생"}
