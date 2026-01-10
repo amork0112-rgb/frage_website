@@ -178,6 +178,7 @@ export default function SignupPage() {
           if (msg.includes("already") && msg.includes("registered")) {
             setErrorMessage("이미 가입된 이메일입니다. 다른 이메일로 가입하거나 로그인해 주세요.");
             alert("이미 가입된 이메일입니다.");
+            router.replace("/portal");
           } else if (msg.includes("password")) {
             setErrorMessage("비밀번호 정책 오류: 영문+숫자 6자 이상으로 설정해 주세요.");
             alert("비밀번호 정책 오류입니다.");

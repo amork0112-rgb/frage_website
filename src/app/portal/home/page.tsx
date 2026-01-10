@@ -13,6 +13,7 @@ export default function ParentPortalHome() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [studentStatus, setStudentStatus] = useState<string>("enrolled"); // 'enrolled' or 'new'
   const [newStudentProfile, setNewStudentProfile] = useState<any>(null);
   
@@ -131,17 +132,20 @@ export default function ParentPortalHome() {
         const user = data?.user;
         if (!user) {
           setAuthorized(false);
-          router.replace("/auth/redirect");
+          setAuthChecked(true);
+          router.replace("/portal");
           return;
         }
         const role = (user.app_metadata as any)?.role ?? null;
         setIsAdmin(role === "admin" || role === "master_admin");
         if (role !== "parent") {
           setAuthorized(false);
-          router.replace("/auth/redirect");
+          setAuthChecked(true);
+          router.replace("/portal");
           return;
         }
         setAuthorized(true);
+        setAuthChecked(true);
       } catch {}
     })();
     const today = new Date();
@@ -157,13 +161,10 @@ export default function ParentPortalHome() {
   useEffect(() => {
     (async () => {
       try {
-        const { data: userData } = await supabase.auth.getUser();
-        const user = userData?.user;
-        if (!user) {
+        if (!authChecked || !authorized) {
           setLoading(false);
           return;
         }
-        setAuthorized(true);
         const res = await fetch("/api/portal/home", { cache: "no-store" });
         const payload = await res.json();
         const type = String(payload?.type || "");
@@ -202,7 +203,7 @@ export default function ParentPortalHome() {
         setLoading(false);
       }
     })();
-  }, [ensureDefaultWeekdaySlotsForMonth, isAdmin]);
+  }, [ensureDefaultWeekdaySlotsForMonth, isAdmin, authChecked, authorized]);
 
   const handleReserve = (slot: any) => {
     if (!confirm(`${slot.date} ${slot.time}에 입학 테스트를 예약하시겠습니까?`)) return;
@@ -291,9 +292,7 @@ export default function ParentPortalHome() {
     };
   }, [studentId, studentStatus]);
 
-  if (!authorized) {
-    return null;
-  }
+  if (!authChecked) return null;
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50">Loading...</div>;
