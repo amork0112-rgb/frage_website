@@ -44,10 +44,32 @@ export default function SignupPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value
-    }));
+    if (name === "phone") {
+      const digits = value.replace(/[^\d]/g, "");
+      if (digits.startsWith("02")) {
+        if (digits.length <= 2) {
+          setFormData(prev => ({ ...prev, phone: digits }));
+        } else if (digits.length <= 5) {
+          setFormData(prev => ({ ...prev, phone: `02-${digits.slice(2)}` }));
+        } else {
+          const last4 = digits.slice(-4);
+          const mid = digits.slice(2, digits.length - 4);
+          setFormData(prev => ({ ...prev, phone: `02-${mid}-${last4}` }));
+        }
+      } else {
+        if (digits.length <= 3) {
+          setFormData(prev => ({ ...prev, phone: digits }));
+        } else if (digits.length <= 7) {
+          setFormData(prev => ({ ...prev, phone: `${digits.slice(0, 3)}-${digits.slice(3)}` }));
+        } else {
+          const last4 = digits.slice(-4);
+          const mid = digits.slice(3, digits.length - 4);
+          setFormData(prev => ({ ...prev, phone: `${digits.slice(0, 3)}-${mid}-${last4}` }));
+        }
+      }
+      return;
+    }
+    setFormData(prev => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   };
 
   const handleAddressSearch = () => {

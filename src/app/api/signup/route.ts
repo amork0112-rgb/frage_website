@@ -112,7 +112,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
-    const { error: insertErr } = await supabaseAuth
+    const { error: insertErr } = await supabaseService
       .from("new_students")
       .insert({
         parent_id: parentId,
