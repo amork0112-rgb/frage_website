@@ -12,7 +12,6 @@ export default function ParentPortalHome() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [studentStatus, setStudentStatus] = useState<string | null>(null); // 'enrolled' or 'new', set by server only
   const [newStudentProfile, setNewStudentProfile] = useState<any>(null);
@@ -54,76 +53,8 @@ export default function ParentPortalHome() {
     }
     return times;
   }, []);
-  const ensureDefaultDaySlots = async (date: string) => {
-    if (!isAdmin) return;
-    try {
-      const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(date)}`);
-      const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const existing = new Set(items.map((s: any) => s.time));
-      const tasks: Promise<any>[] = [];
-      DEFAULT_TIMES.forEach((t: string) => {
-        if (!existing.has(t)) {
-          tasks.push(
-            fetch("/api/admin/schedules", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ date, time: t, max: 5, current: 0, isOpen: true })
-            })
-          );
-        }
-      });
-      if (tasks.length) await Promise.all(tasks);
-      const res2 = await fetch(`/api/admin/schedules?date=${encodeURIComponent(date)}`);
-      const data2 = await res2.json();
-      const updatedItems = Array.isArray(data2?.items) ? data2.items : [];
-      setAllSlots(prev => {
-        const others = prev.filter((s: any) => s.date !== date);
-        return [...others, ...updatedItems];
-      });
-    } catch {}
-  };
-  const ensureDefaultWeekdaySlotsForMonth = useCallback(async (month: Date) => {
-    if (!isAdmin) return;
-    try {
-      const start = new Date(month.getFullYear(), month.getMonth(), 1);
-      const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-      const startStr = fmtYMD(start);
-      const endStr = fmtYMD(end);
-      const res = await fetch(`/api/admin/schedules?rangeStart=${encodeURIComponent(startStr)}&rangeEnd=${encodeURIComponent(endStr)}`);
-      const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const byDate: Record<string, Set<string>> = {};
-      items.forEach((s: any) => {
-        if (!byDate[s.date]) byDate[s.date] = new Set();
-        byDate[s.date].add(s.time);
-      });
-      const tasks: Promise<any>[] = [];
-      for (let d = 1; d <= end.getDate(); d++) {
-        const curr = new Date(month.getFullYear(), month.getMonth(), d);
-        const day = curr.getDay();
-        if (day === 0 || day === 6) continue;
-        const dateStr = fmtYMD(curr);
-        const set = byDate[dateStr] || new Set<string>();
-        DEFAULT_TIMES.forEach((t: string) => {
-          if (!set.has(t)) {
-            tasks.push(
-              fetch("/api/admin/schedules", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ date: dateStr, time: t, max: 5, current: 0, isOpen: true })
-              })
-            );
-          }
-        });
-      }
-      if (tasks.length) await Promise.all(tasks);
-      const res2 = await fetch(`/api/admin/schedules?rangeStart=${encodeURIComponent(startStr)}&rangeEnd=${encodeURIComponent(endStr)}`);
-      const data2 = await res2.json();
-      const items2 = Array.isArray(data2?.items) ? data2.items : [];
-      setAllSlots(items2);
-    } catch {}
-  }, [DEFAULT_TIMES, isAdmin]);
+  const ensureDefaultDaySlots = async (_date: string) => {};
+  const ensureDefaultWeekdaySlotsForMonth = useCallback(async (_month: Date) => {}, []);
 
   useEffect(() => {
     (async () => {
@@ -137,7 +68,6 @@ export default function ParentPortalHome() {
           return;
         }
         const role = (user.app_metadata as any)?.role ?? null;
-        setIsAdmin(role === "admin" || role === "master_admin");
         if (role !== "parent") {
           setAuthorized(false);
           setAuthChecked(true);
@@ -178,21 +108,10 @@ export default function ParentPortalHome() {
           if (payload?.progressStep) {
             setCurrentStep(String(payload.progressStep));
           }
-          const loadAll = async () => {
-            try {
-              if (!isAdmin) return;
-              const res2 = await fetch("/api/admin/schedules");
-              const data = await res2.json();
-              const items = Array.isArray(data?.items) ? data.items : [];
-              setAllSlots(items);
-              setAvailableSlots(items.filter((s: any) => s.isOpen));
-            } catch {}
-          };
-          loadAll();
+          setAllSlots([]);
+          setAvailableSlots([]);
           const m = new Date();
-          if (isAdmin) {
-            ensureDefaultWeekdaySlotsForMonth(new Date(m.getFullYear(), m.getMonth(), 1));
-          }
+          ensureDefaultWeekdaySlotsForMonth(new Date(m.getFullYear(), m.getMonth(), 1));
         } else if (type === "no_parent") {
           setStudentStatus("new");
           setNewStudentProfile(null);
@@ -203,7 +122,7 @@ export default function ParentPortalHome() {
         setLoading(false);
       }
     })();
-  }, [ensureDefaultWeekdaySlotsForMonth, isAdmin, authChecked, authorized]);
+  }, [ensureDefaultWeekdaySlotsForMonth, authChecked, authorized]);
 
   const handleReserve = (slot: any) => {
     if (!confirm(`${slot.date} ${slot.time}에 입학 테스트를 예약하시겠습니까?`)) return;
@@ -217,15 +136,8 @@ export default function ParentPortalHome() {
 
     setMyReservation(reservation);
 
-    if (!isAdmin) return;
-    fetch("/api/admin/schedules", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: slot.id, current: (slot.current || 0) + 1 })
-    }).then(() => {
-      setAllSlots(prev => prev.map((s: any) => s.id === slot.id ? { ...s, current: (s.current || 0) + 1 } : s));
-      setAvailableSlots(prev => prev.map((s: any) => s.id === slot.id ? { ...s, current: (s.current || 0) + 1 } : s).filter((s: any) => s.isOpen));
-    }).catch(() => {});
+    setAllSlots(prev => prev.map((s: any) => s.id === slot.id ? { ...s, current: (s.current || 0) + 1 } : s));
+    setAvailableSlots(prev => prev.map((s: any) => s.id === slot.id ? { ...s, current: (s.current || 0) + 1 } : s).filter((s: any) => s.isOpen));
     
     alert("예약이 완료되었습니다.");
   };
@@ -235,18 +147,8 @@ export default function ParentPortalHome() {
       
       if (myReservation) {
         const id = myReservation.slotId;
-        if (!isAdmin) {
-          setMyReservation(null);
-          return;
-        }
-        fetch("/api/admin/schedules", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, current: Math.max(0, (myReservation.current || 1) - 1) })
-        }).then(() => {
-          setAllSlots(prev => prev.map((s: any) => s.id === id ? { ...s, current: Math.max(0, (s.current || 1) - 1) } : s));
-          setAvailableSlots(prev => prev.map((s: any) => s.id === id ? { ...s, current: Math.max(0, (s.current || 1) - 1) } : s).filter((s: any) => s.isOpen));
-        }).catch(() => {});
+        setAllSlots(prev => prev.map((s: any) => s.id === id ? { ...s, current: Math.max(0, (s.current || 1) - 1) } : s));
+        setAvailableSlots(prev => prev.map((s: any) => s.id === id ? { ...s, current: Math.max(0, (s.current || 1) - 1) } : s).filter((s: any) => s.isOpen));
       }
 
       setMyReservation(null);
