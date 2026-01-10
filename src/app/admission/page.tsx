@@ -1,3 +1,4 @@
+// admission page
 "use client";
 
 import { useEffect, useState } from "react";
@@ -471,7 +472,7 @@ export default function AdmissionPage() {
                   {(() => {
                     const baseTimes = DEFAULT_TIMES;
                     const openSlots = allSlots
-                      .filter((s) => s.date === selectedDate && s.isOpen && (s.current || 0) < (s.max || 0))
+                      .filter((s) => s.date === selectedDate && s.is_open === true && (s.current || 0) < (s.max || 0))
                       .sort((a, b) => {
                         const ai = baseTimes.indexOf(a.time);
                         const bi = baseTimes.indexOf(b.time);
@@ -485,18 +486,21 @@ export default function AdmissionPage() {
                         </div>
                       );
                     }
-                    return openSlots.map((slot) => {
-                      const isFull = (slot.current || 0) >= slot.max;
-                      const canReserve = !isFull;
-                      return (
-                        <button
-                          key={slot.id}
-                          onClick={() => canReserve && handleReserve(slot)}
-                          disabled={!canReserve}
-                          className={`h-20 rounded-2xl border text-sm font-bold flex flex-col items-center justify-center ${
-                            canReserve ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100" : "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
-                          }`}
-                        >
+                      return openSlots.map((slot) => {
+                        const isFull = (slot.current || 0) >= slot.max;
+                        const canReserve = !isFull;
+                        return (
+                          <button
+                            key={slot.id}
+                            onClick={() => {
+                              console.log("RESERVE SLOT", slot);
+                              if (canReserve) handleReserve(slot);
+                            }}
+                            disabled={!canReserve}
+                            className={`h-20 rounded-2xl border text-sm font-bold flex flex-col items-center justify-center ${
+                              canReserve ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100" : "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
+                            }`}
+                          >
                           <span>{slot.time}</span>
                           <span className="text-xs">{`신청 ${slot.current || 0}/${slot.max}`}</span>
                         </button>
