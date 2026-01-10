@@ -214,6 +214,8 @@ export default function AdmissionPage() {
                         birthDate={it?.child_birth_date || ""}
                         status={st}
                         campus={it?.campus || undefined}
+                        address={it?.address || ""}
+                        parentPhone={it?.phone || ""}
                       />
                     </div>
                   )}
@@ -227,6 +229,8 @@ export default function AdmissionPage() {
               birthDate=""
               status="waiting"
               campus={undefined}
+              address=""
+              parentPhone=""
             />
           )}
           <button

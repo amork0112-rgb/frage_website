@@ -6,6 +6,8 @@ type Props = {
   birthDate: string;
   status: Status;
   campus?: string;
+  address?: string;
+  parentPhone?: string;
 };
 const STATUS_LABELS: Record<Status, string> = {
   waiting: "원서 접수 완료",
@@ -19,6 +21,8 @@ export default function StudentInfoCard({
   birthDate,
   status,
   campus,
+  address,
+  parentPhone,
 }: Props) {
   const statusLabel = STATUS_LABELS[status];
   return (
@@ -31,6 +35,12 @@ export default function StudentInfoCard({
             <div className="text-slate-500 text-sm">{birthDate}</div>
             {campus && (
               <div className="text-slate-500 text-sm">{campus}</div>
+            )}
+            {address && (
+              <div className="text-slate-500 text-sm">{address}</div>
+            )}
+            {parentPhone && (
+              <div className="text-slate-500 text-sm">{parentPhone}</div>
             )}
           </div>
           <div className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">

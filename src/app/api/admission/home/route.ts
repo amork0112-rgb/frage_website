@@ -16,7 +16,7 @@ export async function GET() {
 
     const { data: parent } = await supabase
       .from("parents")
-      .select("id,name,phone,campus")
+      .select("*")
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
@@ -44,6 +44,7 @@ export async function GET() {
           phone: String(r.phone || ""),
           campus: String(r.campus || ""),
           created_at: String(r.created_at || ""),
+          address: String((parent as any)?.address || ""),
         }))
       : [];
 
