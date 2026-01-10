@@ -1,6 +1,7 @@
 //app/api/admission/home/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function GET() {
   try {
@@ -26,7 +27,7 @@ export async function GET() {
     }
 
     /* 2️⃣ 부모 정보 조회 */
-    const { data: parent, error: parentErr } = await supabase
+    const { data: parent, error: parentErr } = await supabaseService
       .from("parents")
       .select("id")
       .eq("auth_user_id", user.id)
@@ -41,7 +42,7 @@ export async function GET() {
     }
 
     /* 3️⃣ 신규 학생(new_students) 조회 */
-    const { data: rows, error: studentErr } = await supabase
+    const { data: rows, error: studentErr } = await supabaseService
       .from("new_students")
       .select(`
         id,
