@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, Calendar, FileCheck, AlertTriangle, UserPlus } from "lucide-react";
+import { CheckCircle, Calendar, FileCheck, AlertTriangle, UserPlus, ChevronDown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import AdmissionHeader from "@/components/admission/AdmissionHeader";
 import StudentInfoCard from "@/components/admission/StudentInfoCard";
@@ -30,6 +30,7 @@ export default function AdmissionPage() {
   })();
   const [allSlots, setAllSlots] = useState<any[]>([]);
   const [myReservation, setMyReservation] = useState<any>(null);
+  const [openIndices, setOpenIndices] = useState<number[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -160,17 +161,48 @@ export default function AdmissionPage() {
       <main className="px-4 py-8 max-w-lg mx-auto space-y-6">
         <div className="space-y-4">
           {Array.isArray(items) && items.length > 0 ? (
-            items.map((it: any) => {
+            items.map((it: any, idx: number) => {
               const st = String(it?.status || "waiting") as "waiting" | "consulting" | "consulted" | "approved";
               return (
-                <StudentInfoCard
-                  key={String(it?.id || it?.student_name || Math.random())}
-                  studentName={it?.student_name || "신규 학생"}
-                  englishFirstName={it?.english_first_name || ""}
-                  birthDate={it?.child_birth_date || ""}
-                  status={st}
-                  campus={it?.campus || undefined}
-                />
+                <div key={String(it?.id || it?.student_name || idx)} className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+                  <button
+                    onClick={() =>
+                      setOpenIndices((prev) =>
+                        prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
+                      )
+                    }
+                    className="w-full flex items-center justify-between px-5 py-4"
+                  >
+                    <div className="text-sm font-bold text-slate-900">{it?.student_name || "신규 학생"}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-500">
+                        {st === "waiting"
+                          ? "원서 접수 완료"
+                          : st === "consulting"
+                          ? "상담 예약 대기"
+                          : st === "consulted"
+                          ? "상담 완료"
+                          : "입학 승인 완료"}
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-400 transition-transform ${
+                          openIndices.includes(idx) ? "rotate-180" : ""
+                        }`}
+                      />
+                    </div>
+                  </button>
+                  {openIndices.includes(idx) && (
+                    <div className="px-5 pb-5">
+                      <StudentInfoCard
+                        studentName={it?.student_name || "신규 학생"}
+                        englishFirstName={it?.english_first_name || ""}
+                        birthDate={it?.child_birth_date || ""}
+                        status={st}
+                        campus={it?.campus || undefined}
+                      />
+                    </div>
+                  )}
+                </div>
               );
             })
           ) : (
