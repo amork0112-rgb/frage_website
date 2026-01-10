@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Script from "next/script";
 import Header from "@/components/Header";
@@ -17,6 +17,11 @@ declare global {
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isSibling = (searchParams.get("sibling") || "") === "1";
+  const preParentName = searchParams.get("parentName") || "";
+  const prePhone = searchParams.get("phone") || "";
+  const preCampus = searchParams.get("campus") || "";
   
   const [formData, setFormData] = useState({
     passportEnglishName: "",
@@ -24,14 +29,14 @@ export default function SignupPage() {
     childBirthDate: "",
     studentName: "",
     gender: "",
-    parentName: "",
-    phone: "",
+    parentName: preParentName,
+    phone: prePhone,
     id: "",
     password: "",
     address: "",
     addressDetail: "",
     privacyAgreed: false,
-    campus: ""
+    campus: preCampus
   });
   
   const [loading, setLoading] = useState(false);
@@ -234,7 +239,11 @@ export default function SignupPage() {
             trials++;
           }
         }
-        router.replace("/entry");
+        if (isSibling) {
+          router.replace("/admission");
+        } else {
+          router.replace("/entry");
+        }
       } catch (e: any) {
         const m = typeof e?.message === "string" ? e.message : "알 수 없는 오류가 발생했습니다.";
         setErrorMessage(`처리 오류: ${m}`);
@@ -307,17 +316,18 @@ export default function SignupPage() {
               </div>
 
               {/* Campus Selection */}
-              <div>
-                <label htmlFor="campus" className="block text-sm font-bold text-frage-navy mb-2">
-                  캠퍼스 선택 <span className="text-red-500">*</span>
-                </label>
-                <div className="space-y-2">
+                <div>
+                  <label htmlFor="campus" className="block text-sm font-bold text-frage-navy mb-2">
+                    캠퍼스 선택 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="space-y-2">
                   <select
                     id="campus"
                     name="campus"
                     required
                     value={formData.campus}
                     onChange={(e) => handleChange(e as any)}
+                    disabled={isSibling}
                     className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
                   >
                     <option value="">캠퍼스를 선택해주세요</option>
@@ -332,8 +342,8 @@ export default function SignupPage() {
                       캠퍼스 안내 페이지로 이동하기
                     </Link>
                   </p>
+                  </div>
                 </div>
-              </div>
 
               {/* Student Name */}
               <div>
@@ -451,6 +461,7 @@ export default function SignupPage() {
                   required
                   value={formData.parentName}
                   onChange={handleChange}
+                  readOnly={isSibling}
                   className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
                 />
               </div>
@@ -468,6 +479,7 @@ export default function SignupPage() {
                   placeholder="010-0000-0000"
                   value={formData.phone}
                   onChange={handleChange}
+                  readOnly={isSibling}
                   className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
                 />
               </div>

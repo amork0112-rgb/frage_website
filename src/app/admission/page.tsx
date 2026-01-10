@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, Calendar, FileCheck, AlertTriangle } from "lucide-react";
+import { CheckCircle, Calendar, FileCheck, AlertTriangle, UserPlus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import AdmissionHeader from "@/components/admission/AdmissionHeader";
 import StudentInfoCard from "@/components/admission/StudentInfoCard";
@@ -158,17 +158,43 @@ export default function AdmissionPage() {
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
       <AdmissionHeader currentStep={currentStep} />
       <main className="px-4 py-8 max-w-lg mx-auto space-y-6">
-        <StudentInfoCard
-          studentName={items[0]?.student_name || "신규 학생"}
-          englishFirstName={items[0]?.english_first_name || ""}
-          birthDate={items[0]?.child_birth_date || ""}
-          status={
-            currentStep === "상담 대기" ? "consulting" :
-            currentStep === "상담 일정 확정" ? "consulted" :
-            currentStep === "입학 서류 작성" ? "approved" : "waiting"
-          }
-          campus={items[0]?.campus || undefined}
-        />
+        <div className="space-y-4">
+          {Array.isArray(items) && items.length > 0 ? (
+            items.map((it: any) => {
+              const st = String(it?.status || "waiting") as "waiting" | "consulting" | "consulted" | "approved";
+              return (
+                <StudentInfoCard
+                  key={String(it?.id || it?.student_name || Math.random())}
+                  studentName={it?.student_name || "신규 학생"}
+                  englishFirstName={it?.english_first_name || ""}
+                  birthDate={it?.child_birth_date || ""}
+                  status={st}
+                  campus={it?.campus || undefined}
+                />
+              );
+            })
+          ) : (
+            <StudentInfoCard
+              studentName="신규 학생"
+              englishFirstName=""
+              birthDate=""
+              status="waiting"
+              campus={undefined}
+            />
+          )}
+          <button
+            onClick={() => {
+              const parentName = encodeURIComponent(String(items[0]?.parent_name || ""));
+              const phone = encodeURIComponent(String(items[0]?.phone || ""));
+              const campus = encodeURIComponent(String(items[0]?.campus || ""));
+              router.push(`/signup?sibling=1&parentName=${parentName}&phone=${phone}&campus=${campus}`);
+            }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 font-bold hover:bg-slate-50"
+          >
+            <UserPlus className="w-4 h-4" />
+            형제 추가하기
+          </button>
+        </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
