@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle, Calendar, FileCheck, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import AdmissionHeader from "@/components/admission/AdmissionHeader";
+import StudentInfoCard from "@/components/admission/StudentInfoCard";
 
 export default function AdmissionPage() {
   const router = useRouter();
@@ -154,6 +156,7 @@ export default function AdmissionPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
+      <AdmissionHeader />
       <main className="px-4 py-8 max-w-lg mx-auto space-y-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 flex items-center justify-between">
           <div>
@@ -162,6 +165,17 @@ export default function AdmissionPage() {
             <div className="text-xs text-yellow-800 mt-1">아직 수업은 시작되지 않았습니다.</div>
           </div>
         </div>
+        <StudentInfoCard
+          studentName={items[0]?.student_name || "신규 학생"}
+          englishFirstName={items[0]?.english_first_name || ""}
+          birthDate={items[0]?.child_birth_date || ""}
+          status={
+            currentStep === "상담 대기" ? "consulting" :
+            currentStep === "상담 일정 확정" ? "consulted" :
+            currentStep === "입학 서류 작성" ? "approved" : "waiting"
+          }
+          campus={items[0]?.campus || undefined}
+        />
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
@@ -188,7 +202,7 @@ export default function AdmissionPage() {
           <section className="animate-fade-in-up delay-100">
             <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-purple-600" />
-              STEP 1. 입학 테스트 예약
+              STEP 1. 입학 상담/테스트 예약
             </h3>
             {myReservation ? (
               <div className="bg-purple-50 rounded-xl p-5 border border-purple-100">
