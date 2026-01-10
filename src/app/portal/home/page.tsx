@@ -53,8 +53,6 @@ export default function ParentPortalHome() {
     }
     return times;
   }, []);
-  const ensureDefaultDaySlots = async (_date: string) => {};
-  const ensureDefaultWeekdaySlotsForMonth = useCallback(async (_month: Date) => {}, []);
 
   useEffect(() => {
     (async () => {
@@ -304,7 +302,7 @@ export default function ParentPortalHome() {
                                     d.setMonth(d.getMonth() - 1);
                                     const nextMonth = new Date(d.getFullYear(), d.getMonth(), 1);
                                     setCurrentMonth(nextMonth);
-                                    ensureDefaultWeekdaySlotsForMonth(nextMonth);
+                                    
                                   } else {
                                     const base = parseYMD(selectedDate || fmtYMD(new Date()));
                                     base.setDate(base.getDate() - 7);
@@ -312,7 +310,7 @@ export default function ParentPortalHome() {
                                     setSelectedDate(nextDate);
                                     const nextMonth = new Date(base.getFullYear(), base.getMonth(), 1);
                                     setCurrentMonth(nextMonth);
-                                    ensureDefaultWeekdaySlotsForMonth(nextMonth);
+                                    
                                   }
                                 }}
                                 className="p-2 rounded-lg border border-slate-200 bg-white"
@@ -326,7 +324,7 @@ export default function ParentPortalHome() {
                                     d.setMonth(d.getMonth() + 1);
                                     const nextMonth = new Date(d.getFullYear(), d.getMonth(), 1);
                                     setCurrentMonth(nextMonth);
-                                    ensureDefaultWeekdaySlotsForMonth(nextMonth);
+                                    
                                   } else {
                                     const base = parseYMD(selectedDate || fmtYMD(new Date()));
                                     base.setDate(base.getDate() + 7);
@@ -334,7 +332,7 @@ export default function ParentPortalHome() {
                                     setSelectedDate(nextDate);
                                     const nextMonth = new Date(base.getFullYear(), base.getMonth(), 1);
                                     setCurrentMonth(nextMonth);
-                                    ensureDefaultWeekdaySlotsForMonth(nextMonth);
+                                    
                                   }
                                 }}
                                 className="p-2 rounded-lg border border-slate-200 bg-white"
@@ -371,7 +369,6 @@ export default function ParentPortalHome() {
                                       key={dateStr}
                                       onClick={() => {
                                         setSelectedDate(dateStr);
-                                        ensureDefaultDaySlots(dateStr);
                                       }}
                                       className={`h-16 md:h-20 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-purple-400 bg-purple-50" : "border-slate-200 bg-white"}`}
                                     >
@@ -413,7 +410,6 @@ export default function ParentPortalHome() {
                                       key={dateStr}
                                       onClick={() => {
                                         setSelectedDate(dateStr);
-                                        ensureDefaultDaySlots(dateStr);
                                       }}
                                       className={`h-16 md:h-20 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-purple-400 bg-purple-50" : "border-slate-200 bg-white"}`}
                                     >
