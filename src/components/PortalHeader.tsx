@@ -15,6 +15,8 @@ export default function PortalHeader() {
   const [avatarInitials, setAvatarInitials] = useState<string>("S");
   const [parentName, setParentName] = useState<string>("학부모");
   const [studentDisplayName, setStudentDisplayName] = useState<string>("");
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
+  const [newStatus, setNewStatus] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -43,13 +45,45 @@ export default function PortalHeader() {
         return (a + b).toUpperCase() || a.toUpperCase() || "S";
       };
       setAvatarInitials(initFromName());
+      const { data: studs } = await supabase
+        .from("students")
+        .select("id")
+        .eq("parent_auth_user_id", userId);
+      const hasStudents = Array.isArray(studs) && studs.length > 0;
+      setIsEnrolled(hasStudents);
+      if (!hasStudents) {
+        const pid = parent?.id || null;
+        if (pid) {
+          const { data: nsRows } = await supabase
+            .from("new_students")
+            .select("status")
+            .eq("parent_id", pid)
+            .neq("status", "draft")
+            .order("created_at", { ascending: false })
+            .limit(1);
+          const ns = Array.isArray(nsRows) && nsRows.length > 0 ? nsRows[0] : null;
+          setNewStatus(ns?.status || null);
+        } else {
+          const { data: nsRows } = await supabase
+            .from("new_students")
+            .select("status")
+            .eq("parent_auth_user_id", userId)
+            .neq("status", "draft")
+            .order("created_at", { ascending: false })
+            .limit(1);
+          const ns = Array.isArray(nsRows) && nsRows.length > 0 ? nsRows[0] : null;
+          setNewStatus(ns?.status || null);
+        }
+      } else {
+        setNewStatus(null);
+      }
     })();
   }, [router]);
 
   const menuItems = [
     { name: "홈", href: "/portal/home", icon: Home },
-    { name: "영상 과제", href: "/portal/video", icon: Video },
-    { name: "월간 리포트", href: "/portal/report", icon: FileText },
+    ...(isEnrolled ? [{ name: "영상 과제", href: "/portal/video", icon: Video }] : []),
+    ...(isEnrolled ? [{ name: "월간 리포트", href: "/portal/report", icon: FileText }] : []),
     { name: "학사일정", href: "/calendar", icon: Calendar },
     { name: "공지사항", href: "/portal/notices", icon: Bell },
     { name: "요청 전달", href: "/portal/requests", icon: MessageCircle },

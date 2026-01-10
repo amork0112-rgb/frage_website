@@ -1,3 +1,4 @@
+//src/app/portal/home
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -163,52 +164,24 @@ export default function ParentPortalHome() {
           return;
         }
         setAuthorized(true);
-        setStudentId(user.id);
-        const { data: studentRows } = await supabase
-          .from("students")
-          .select("id")
-          .eq("parent_auth_user_id", user.id);
-        const hasStudents = Array.isArray(studentRows) && studentRows.length > 0;
-        if (hasStudents) {
+        const res = await fetch("/api/portal/home", { cache: "no-store" });
+        const payload = await res.json();
+        const type = String(payload?.type || "");
+        if (type === "enrolled") {
           setStudentStatus("enrolled");
-        } else {
+          const first = Array.isArray(payload?.students) ? payload.students[0] : null;
+          setStudentId(String(first?.id || ""));
+        } else if (type === "new_student") {
           setStudentStatus("new");
-          let profile: any = { id: user.id, studentName: "", englishFirstName: "" };
-          try {
-            const { data: parentRow } = await supabase
-              .from("parents")
-              .select("id,name,phone,campus")
-              .eq("auth_user_id", user.id)
-              .maybeSingle();
-            const pid = parentRow?.id || null;
-            if (pid) {
-              const { data: nsRows } = await supabase
-                .from("new_students")
-                .select("*")
-                .eq("parent_id", pid)
-                .neq("status", "draft")
-                .order("created_at", { ascending: false })
-                .limit(1);
-              const ns = Array.isArray(nsRows) && nsRows.length > 0 ? nsRows[0] : null;
-              if (ns) profile = ns;
-            } else {
-              const { data: nsRows } = await supabase
-                .from("new_students")
-                .select("*")
-                .eq("parent_auth_user_id", user.id)
-                .neq("status", "draft")
-                .order("created_at", { ascending: false })
-                .limit(1);
-              const ns = Array.isArray(nsRows) && nsRows.length > 0 ? nsRows[0] : null;
-              if (ns) profile = ns;
-            }
-          } catch {}
-          setNewStudentProfile(profile);
+          setNewStudentProfile(payload?.newStudent || null);
+          if (payload?.progressStep) {
+            setCurrentStep(String(payload.progressStep));
+          }
           const loadAll = async () => {
             try {
               if (!isAdmin) return;
-              const res = await fetch("/api/admin/schedules");
-              const data = await res.json();
+              const res2 = await fetch("/api/admin/schedules");
+              const data = await res2.json();
               const items = Array.isArray(data?.items) ? data.items : [];
               setAllSlots(items);
               setAvailableSlots(items.filter((s: any) => s.isOpen));
@@ -219,6 +192,9 @@ export default function ParentPortalHome() {
           if (isAdmin) {
             ensureDefaultWeekdaySlotsForMonth(new Date(m.getFullYear(), m.getMonth(), 1));
           }
+        } else if (type === "no_parent") {
+          setStudentStatus("new");
+          setNewStudentProfile(null);
         }
       } catch (e) {
         console.error(e);
@@ -330,6 +306,22 @@ export default function ParentPortalHome() {
         <PortalHeader />
         
         <main className="px-4 py-8 max-w-lg mx-auto space-y-6">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-bold text-yellow-700">신규 학생 상태</div>
+              <div className="text-sm font-bold text-yellow-900">{(newStudentProfile?.status || "waiting") === "waiting" ? "상담 대기" : String(newStudentProfile?.status || "신규")}</div>
+              <div className="text-xs text-yellow-800 mt-1">아직 수업은 시작되지 않았습니다.</div>
+            </div>
+            <button
+              onClick={() => {
+                const el = document.getElementById("consultation-reservation");
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-yellow-600 text-white hover:bg-yellow-700 transition-colors"
+            >
+              상담 예약
+            </button>
+          </div>
           {/* Welcome Header */}
           <div className="text-center mb-8">
             <h1 className="text-2xl font-black text-slate-900">
@@ -395,7 +387,7 @@ export default function ParentPortalHome() {
                     </div>
                 ) : (
                     <div className="space-y-6">
-                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+                      <div id="consultation-reservation" className="bg-white rounded-2xl border border-slate-200 shadow-sm">
                         <div className="p-4 flex items-center justify-between">
                           <div className="font-bold text-slate-900">
                             {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월

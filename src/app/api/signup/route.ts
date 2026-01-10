@@ -100,31 +100,29 @@ export async function POST(request: Request) {
       parentId = newParent.id;
     }
 
-    /* -------------------------
-       4️⃣ 기존 draft → waiting 전환 (RPC)
-    -------------------------- */
-    const { data: draftRow } = await supabaseAuth
+    const { data: cand1 } = await supabaseAuth
       .from("new_students")
       .select("id,status")
       .eq("parent_id", parentId)
-      .eq("status", "draft")
-      .order("created_at", { ascending: false })
-      .limit(1);
-    const draft = Array.isArray(draftRow) && draftRow.length > 0 ? draftRow[0] : null;
-    if (draft?.id) {
-      const { error: rpcErr } = await supabaseAuth.rpc("draft_to_waiting", {
-        new_student_id: draft.id,
-        student_name: studentName,
-      });
-      if (rpcErr) {
-        return NextResponse.json(
-          { ok: false, error: "rpc_failed", details: rpcErr.message },
-          { status: 500 }
-        );
-      }
+      .in("status", ["draft", "waiting"])
+      .order("created_at", { ascending: false });
+    let candidates = Array.isArray(cand1) ? cand1 : [];
+    if (candidates.length === 0) {
+      const { data: cand2 } = await supabaseAuth
+        .from("new_students")
+        .select("id,status")
+        .eq("parent_auth_user_id", authUserId)
+        .in("status", ["draft", "waiting"])
+        .order("created_at", { ascending: false });
+      candidates = Array.isArray(cand2) ? cand2 : [];
+    }
+    if (candidates.length > 0) {
+      const primary = candidates[0];
+      const extras = candidates.slice(1).map((r: any) => r.id).filter(Boolean);
       await supabaseAuth
         .from("new_students")
         .update({
+          student_name: studentName,
           gender,
           parent_name: parentName,
           phone,
@@ -132,14 +130,19 @@ export async function POST(request: Request) {
           english_first_name: englishFirstName,
           passport_english_name: passportEnglishName,
           child_birth_date: childBirthDate,
+          status: "waiting",
         })
-        .eq("id", draft.id);
+        .eq("id", primary.id);
+      if (extras.length > 0) {
+        await supabaseAuth.from("new_students").delete().in("id", extras);
+      }
     } else {
       const now = new Date().toISOString();
       const { error: insertErr } = await supabaseAuth
         .from("new_students")
         .insert({
           parent_id: parentId,
+          parent_auth_user_id: authUserId,
           student_name: studentName,
           gender,
           parent_name: parentName,

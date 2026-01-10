@@ -82,9 +82,32 @@ export async function POST(request: Request) {
     const guard = await requireAdmin(supabaseAuth);
     if ((guard as any).error) return (guard as any).error;
     const body = await request.json();
+    const source = String(body?.source || "");
     const items: Student[] = Array.isArray(body?.items) ? body.items : [];
     if (!items.length) {
       return NextResponse.json({ ok: false, inserted: 0 }, { status: 400 });
+    }
+    if (source === "csv") {
+      const payload = items.map((s) => ({
+        student_name: s.name,
+        english_name: s.englishName,
+        birth_date: s.birthDate,
+        phone: s.phone,
+        parent_name: s.parentName,
+        address: s.address,
+        class_name: s.className,
+        campus: s.campus,
+        status: "재원",
+      }));
+      const { data, error } = await supabaseAuth.rpc("admin_import_students_csv", {
+        items: payload,
+      });
+      if (error) {
+        console.error(error);
+        return NextResponse.json({ ok: false, inserted: 0 }, { status: 500 });
+      }
+      const inserted = Array.isArray(data?.inserted_ids) ? data.inserted_ids.length : items.length;
+      return NextResponse.json({ ok: true, inserted }, { status: 200 });
     }
     let inserted = 0;
     for (const s of items) {

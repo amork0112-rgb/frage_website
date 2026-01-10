@@ -1,4 +1,4 @@
-// api/admin/new-students
+// api/admin/new-students/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
@@ -70,7 +70,7 @@ export async function GET() {
     });
 
     const list = Array.isArray(students) ? students : [];
-    const filtered = list.filter((s: any) => s.status !== "draft");
+    const filtered = list.filter((s: any) => String(s.status || "") === "waiting");
 
     return json({
       items: filtered,
@@ -97,21 +97,10 @@ export async function PUT(req: Request) {
 
     const { data: exists } = await supabaseAuth
       .from("new_student_checklists")
-      .select("*")
-      .eq("student_id", studentId)
-      .eq("key", key);
-
-    if (Array.isArray(exists) && exists.length > 0) {
-      await supabaseAuth
-        .from("new_student_checklists")
-        .update({ checked, checked_at, checked_by })
-        .eq("student_id", studentId)
-        .eq("key", key);
-    } else {
-      await supabaseAuth
-        .from("new_student_checklists")
-        .insert([{ student_id: studentId, key, checked, checked_at, checked_by }]);
-    }
+      .upsert(
+        [{ student_id: studentId, key, checked, checked_at, checked_by }],
+        { onConflict: "student_id,key" }
+      );
 
     return json({ ok: true });
   } catch {
@@ -129,11 +118,12 @@ export async function POST(req: Request) {
     if (action === "approve") {
       const newStudentId = String(body.studentId || "");
       if (!newStudentId) return json({ error: "missing" }, 400);
-      const { error: rpcErr } = await supabaseAuth.rpc("approve_enrollment", {
+      const { data, error: rpcErr } = await supabaseAuth.rpc("approve_enrollment", {
         new_student_id: newStudentId,
       });
       if (rpcErr) return json({ error: "approve_failed", details: rpcErr?.message }, 500);
-      return json({ ok: true, approved: true });
+      const payload = data && typeof data === "object" ? data : {};
+      return json({ ok: true, approved: true, ...payload });
     }
     return json({ error: "unsupported" }, 400);
   } catch {

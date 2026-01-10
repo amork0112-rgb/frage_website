@@ -1,3 +1,4 @@
+//src/app/admin/students/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
@@ -598,7 +599,7 @@ export default function AdminStudentsPage() {
         fetch("/api/admin/students", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items: parsed })
+          body: JSON.stringify({ source: "csv", items: parsed })
         }).then(async (res) => {
           if (!res.ok) throw new Error("upload_failed");
           alert(`학생 ${parsed.length}명이 업로드되었습니다.`);
