@@ -14,7 +14,7 @@ export default function ParentPortalHome() {
   const [authorized, setAuthorized] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
-  const [studentStatus, setStudentStatus] = useState<string>("enrolled"); // 'enrolled' or 'new'
+  const [studentStatus, setStudentStatus] = useState<string | null>(null); // 'enrolled' or 'new', set by server only
   const [newStudentProfile, setNewStudentProfile] = useState<any>(null);
   
   // For Enrolled Students
@@ -28,7 +28,7 @@ export default function ParentPortalHome() {
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const [myReservation, setMyReservation] = useState<any>(null);
 
-  const [studentId, setStudentId] = useState<string>("s8");
+  const [studentId, setStudentId] = useState<string | null>(null);
 
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [allSlots, setAllSlots] = useState<any[]>([]);
@@ -171,7 +171,7 @@ export default function ParentPortalHome() {
         if (type === "enrolled") {
           setStudentStatus("enrolled");
           const first = Array.isArray(payload?.students) ? payload.students[0] : null;
-          setStudentId(String(first?.id || ""));
+          setStudentId(first?.id ? String(first.id) : null);
         } else if (type === "new_student") {
           setStudentStatus("new");
           setNewStudentProfile(payload?.newStudent || null);
@@ -255,6 +255,7 @@ export default function ParentPortalHome() {
   // Fetch data for Enrolled Students
   useEffect(() => {
     if (studentStatus !== "enrolled") return;
+    if (!studentId) return;
     
     let alive = true;
     const load = async () => {
