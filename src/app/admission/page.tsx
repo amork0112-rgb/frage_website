@@ -158,13 +158,6 @@ export default function AdmissionPage() {
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
       <AdmissionHeader />
       <main className="px-4 py-8 max-w-lg mx-auto space-y-6">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <div className="text-xs font-bold text-yellow-700">신규 학생 상태</div>
-            <div className="text-sm font-bold text-yellow-900">{currentStep}</div>
-            <div className="text-xs text-yellow-800 mt-1">아직 수업은 시작되지 않았습니다.</div>
-          </div>
-        </div>
         <StudentInfoCard
           studentName={items[0]?.student_name || "신규 학생"}
           englishFirstName={items[0]?.english_first_name || ""}
