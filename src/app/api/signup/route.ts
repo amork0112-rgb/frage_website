@@ -20,6 +20,8 @@ export async function POST(request: Request) {
       status,
       mode,
       privacyAgreed,
+      address,
+      addressDetail,
     } = body || {};
 
     const supabaseAuth = createSupabaseServer();
@@ -119,6 +121,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
+    const fullAddress = [String(address || "").trim(), String(addressDetail || "").trim()].filter(Boolean).join(" ");
     const { error: insertErr } = await supabaseService
       .from("new_students")
       .insert({
@@ -132,6 +135,7 @@ export async function POST(request: Request) {
         english_first_name: englishFirstName,
         passport_english_name: passportEnglishName,
         child_birth_date: childBirthDate,
+        address: fullAddress || null,
         status: "waiting",
         created_at: now,
         created_by: authUserId,

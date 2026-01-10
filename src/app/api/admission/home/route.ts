@@ -44,7 +44,7 @@ export async function GET() {
           phone: String(r.phone || ""),
           campus: String(r.campus || ""),
           created_at: String(r.created_at || ""),
-          address: String((parent as any)?.address || ""),
+          address: String(r.address || ""),
         }))
       : [];
 

@@ -238,6 +238,8 @@ export default function SignupPage() {
               childBirthDate: formData.childBirthDate,
               status: "waiting",
               privacyAgreed: formData.privacyAgreed === true,
+              address: formData.address.trim(),
+              addressDetail: formData.addressDetail.trim(),
             }),
           });
           const payload = await res.json().catch(() => ({}));
