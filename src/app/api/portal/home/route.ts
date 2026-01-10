@@ -48,7 +48,6 @@ export async function GET() {
       .from("new_students")
       .select("*")
       .eq("parent_id", parentId)
-      .neq("status", "draft")
       .order("created_at", { ascending: false })
       .limit(1);
 
