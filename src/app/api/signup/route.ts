@@ -38,60 +38,7 @@ export async function POST(request: Request) {
       });
     } catch {}
 
-    /* -------------------------
-       1️⃣ Draft 생성 요청 처리
-    -------------------------- */
-    if (String(mode || status || "").toLowerCase() === "draft") {
-      try {
-        const { data: existingParent } = await supabaseAuth
-          .from("parents")
-          .select("id")
-          .eq("auth_user_id", authUserId)
-          .single();
-        let parentId: string | null = existingParent?.id || null;
-        if (!parentId) {
-          const { data: newParent, error: parentError } = await supabaseAuth
-            .from("parents")
-            .insert({
-              auth_user_id: authUserId,
-              name: parentName || null,
-              phone: phone || null,
-              campus: campus || null,
-            })
-            .select()
-            .single();
-          if (parentError || !newParent) {
-            return NextResponse.json(
-              { ok: false, error: "parents 생성 실패" },
-              { status: 500 }
-            );
-          }
-          parentId = newParent.id;
-        }
-        const now = new Date().toISOString();
-        const { error: draftErr } = await supabaseAuth
-          .from("new_students")
-          .insert({
-            parent_id: parentId,
-            parent_auth_user_id: authUserId,
-            status: "draft",
-            created_at: now,
-            created_by: authUserId,
-          });
-        if (draftErr) {
-          return NextResponse.json(
-            { ok: false, error: draftErr.message || "new_students_draft_failed" },
-            { status: 500 }
-          );
-        }
-        return NextResponse.json({ ok: true, status: "draft" });
-      } catch (e: any) {
-        return NextResponse.json(
-          { ok: false, error: e?.message || "draft_create_error" },
-          { status: 500 }
-        );
-      }
-    }
+    
 
     /* -------------------------
        2️⃣ 기본 유효성 검사 (waiting)
@@ -164,68 +111,29 @@ export async function POST(request: Request) {
       parentId = newParent.id;
     }
 
-    const { data: cand1 } = await supabaseAuth
+    const now = new Date().toISOString();
+    const { error: insertErr } = await supabaseAuth
       .from("new_students")
-      .select("id,status")
-      .eq("parent_id", parentId)
-      .in("status", ["draft", "waiting"])
-      .order("created_at", { ascending: false });
-    let candidates = Array.isArray(cand1) ? cand1 : [];
-    if (candidates.length === 0) {
-      const { data: cand2 } = await supabaseAuth
-        .from("new_students")
-        .select("id,status")
-        .eq("parent_auth_user_id", authUserId)
-        .in("status", ["draft", "waiting"])
-        .order("created_at", { ascending: false });
-      candidates = Array.isArray(cand2) ? cand2 : [];
-    }
-    if (candidates.length > 0) {
-      const primary = candidates[0];
-      const extras = candidates.slice(1).map((r: any) => r.id).filter(Boolean);
-      await supabaseAuth
-        .from("new_students")
-        .update({
-          student_name: studentName,
-          gender,
-          parent_name: parentName,
-          phone,
-          campus,
-          english_first_name: englishFirstName,
-          passport_english_name: passportEnglishName,
-          child_birth_date: childBirthDate,
-          status: "waiting",
-          created_by: authUserId,
-        })
-        .eq("id", primary.id);
-      if (extras.length > 0) {
-        await supabaseAuth.from("new_students").delete().in("id", extras);
-      }
-    } else {
-      const now = new Date().toISOString();
-      const { error: insertErr } = await supabaseAuth
-        .from("new_students")
-        .insert({
-          parent_id: parentId,
-          parent_auth_user_id: authUserId,
-          student_name: studentName,
-          gender,
-          parent_name: parentName,
-          phone,
-          campus,
-          english_first_name: englishFirstName,
-          passport_english_name: passportEnglishName,
-          child_birth_date: childBirthDate,
-          status: "waiting",
-          created_at: now,
-          created_by: authUserId,
-        });
-      if (insertErr) {
-        return NextResponse.json(
-          { ok: false, error: "new_students_insert_failed" },
-          { status: 500 }
-        );
-      }
+      .insert({
+        parent_id: parentId,
+        parent_auth_user_id: authUserId,
+        student_name: studentName,
+        gender,
+        parent_name: parentName,
+        phone,
+        campus,
+        english_first_name: englishFirstName,
+        passport_english_name: passportEnglishName,
+        child_birth_date: childBirthDate,
+        status: "waiting",
+        created_at: now,
+        created_by: authUserId,
+      });
+    if (insertErr) {
+      return NextResponse.json(
+        { ok: false, error: "new_students_insert_failed" },
+        { status: 500 }
+      );
     }
 
     /* -------------------------
