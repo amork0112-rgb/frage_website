@@ -7,11 +7,11 @@ export async function GET() {
     const { data: userData } = await supabase.auth.getUser();
     const user = userData?.user;
     if (!user) {
-      return NextResponse.json({ ok: false }, { status: 401 });
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     const role = (user.app_metadata as any)?.role ?? "parent";
     if (role !== "parent") {
-      return NextResponse.json({ ok: false }, { status: 403 });
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
     const { data: parent } = await supabase
