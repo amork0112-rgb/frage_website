@@ -97,32 +97,21 @@ export default function ParentPortalHome() {
         }
         const res = await fetch("/api/portal/home", { cache: "no-store" });
         const payload = await res.json();
-        const type = String(payload?.type || "");
-        if (type === "enrolled") {
-          setStudentStatus("enrolled");
-          const first = Array.isArray(payload?.students) ? payload.students[0] : null;
-          setStudentId(first?.id ? String(first.id) : null);
-        } else if (type === "new_student") {
-          setStudentStatus("new");
-          setNewStudentProfile(payload?.newStudent || null);
-          if (payload?.progressStep) {
-            setCurrentStep(String(payload.progressStep));
-          }
-          setAllSlots([]);
-          setAvailableSlots([]);
-          const m = new Date();
-          ensureDefaultWeekdaySlotsForMonth(new Date(m.getFullYear(), m.getMonth(), 1));
-        } else if (type === "no_parent") {
-          setStudentStatus("new");
-          setNewStudentProfile(null);
+        const students = Array.isArray(payload?.students) ? payload.students : [];
+        if (students.length === 0) {
+          router.replace("/admission");
+          return;
         }
+        setStudentStatus("enrolled");
+        const first = students[0] || null;
+        setStudentId(first?.id ? String(first.id) : null);
       } catch (e) {
         console.error(e);
       } finally {
         setLoading(false);
       }
     })();
-  }, [ensureDefaultWeekdaySlotsForMonth, authChecked, authorized]);
+  }, [authChecked, authorized, router]);
 
   const handleReserve = (slot: any) => {
     if (!confirm(`${slot.date} ${slot.time}에 입학 테스트를 예약하시겠습니까?`)) return;

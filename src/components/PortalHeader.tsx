@@ -21,15 +21,21 @@ export default function PortalHeader() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/portal/home", { cache: "no-store" });
-        const payload = await res.json();
-        const type = String(payload?.type || "");
-        if (type === "enrolled") {
-          setIsEnrolled(true);
+        if (pathname.startsWith("/portal")) {
+          const res = await fetch("/api/portal/home", { cache: "no-store" });
+          const payload = await res.json();
+          const students = Array.isArray(payload?.students) ? payload.students : [];
+          setIsEnrolled(students.length > 0);
           setNewStatus(null);
-        } else if (type === "new_student") {
+          const first = students[0] || null;
+          const name = String(first?.englishName || first?.name || "학부모");
+          setStudentDisplayName(name);
+        } else if (pathname.startsWith("/admission")) {
+          const res = await fetch("/api/admission/home", { cache: "no-store" });
+          const payload = await res.json();
+          const items = Array.isArray(payload?.items) ? payload.items : [];
           setIsEnrolled(false);
-          const ns = payload?.newStudent || null;
+          const ns = items[0] || null;
           setNewStatus(String(ns?.status || ""));
           const name = String(ns?.parent_name || "학부모");
           setParentName(name);
@@ -47,7 +53,7 @@ export default function PortalHeader() {
       } catch {
       }
     })();
-  }, [router]);
+  }, [router, pathname]);
 
   const menuItems = [
     { name: "홈", href: "/portal/home", icon: Home },

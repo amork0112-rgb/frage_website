@@ -21,5 +21,5 @@ export default async function AuthRedirectPage() {
     redirect("/teacher/home");
   }
 
-  redirect("/portal/home");
+  redirect("/entry");
 }
