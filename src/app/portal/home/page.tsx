@@ -474,8 +474,8 @@ export default function ParentPortalHome() {
 
           {/* Action Items */}
           {admissionOpen ? (
-             <section className="animate-fade-in-up">
-              <Link href="/portal/admission" className="block group">
+            <section className="animate-fade-in-up">
+              <div className="block group">
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-200 transform transition-all hover:scale-[1.02]">
                   <div className="flex justify-between items-start">
                     <div>
@@ -498,7 +498,7 @@ export default function ParentPortalHome() {
                     </div>
                   </div>
                 </div>
-              </Link>
+              </div>
             </section>
           ) : (
             <div className="bg-slate-100 rounded-xl p-4 text-center text-slate-500 text-sm">

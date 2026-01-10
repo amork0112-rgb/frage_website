@@ -179,13 +179,13 @@ export default function AdmissionPage() {
               return (
                 <div key={String(it?.id || it?.student_name || idx)} className="bg-white rounded-2xl border border-slate-200 shadow-sm">
                   <button
-                    onClick={() =>
+                    onClick={() => {
+                      console.log("CLICK ITEM", it);
+                      setSelectedStudentIdx(idx);
                       setOpenIndices((prev) =>
                         prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
-                      )
-                    }
-                    onFocus={() => setSelectedStudentIdx(idx)}
-                    onMouseDown={() => setSelectedStudentIdx(idx)}
+                      );
+                    }}
                     className="w-full flex items-center justify-between px-5 py-4"
                   >
                     <div className="text-sm font-bold text-slate-900">{it?.student_name || "신규 학생"}</div>
@@ -827,7 +827,7 @@ export default function AdmissionPage() {
         )}
         {admissionOpen ? (
           <section className="animate-fade-in-up">
-            <a href="/portal/admission" className="block group">
+            <div className="block group">
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-200 transform transition-all hover:scale-[1.02]">
                 <div className="flex justify-between items-start">
                   <div>
@@ -854,7 +854,7 @@ export default function AdmissionPage() {
                   </div>
                 </div>
               </div>
-            </a>
+            </div>
           </section>
         ) : (
           <div className="bg-slate-100 rounded-xl p-4 text-center text-slate-500 text-sm">

@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       .from("parents")
       .select("id")
       .eq("auth_user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (!parent) return json({ error: "no_parent" }, 400);
 
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       .select("id")
       .eq("parent_id", parent.id)
       .order("created_at", { ascending: false })
-      .single();
+      .maybeSingle();
 
     if (!student) return json({ error: "no_new_student" }, 400);
 
@@ -50,6 +50,12 @@ export async function POST(req: Request) {
       p_time: String(time),
     });
     if (rpcErr) {
+      console.error("reserve_consultation rpc error", {
+        error: rpcErr,
+        studentId: String(student.id),
+        date: String(date),
+        time: String(time),
+      });
       const msg = rpcErr.message || "";
       if (msg.includes("slot full") || msg.includes("closed")) {
         return json({ error: "slot_full_or_closed" }, 409);
