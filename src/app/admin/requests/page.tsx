@@ -40,26 +40,23 @@ export default function AdminRequestsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data } = await supabase
-          .from("portal_requests")
-          .select("*")
-          .order("created_at", { ascending: false });
-        const list: PortalRequest[] = Array.isArray(data)
-          ? data.map((row: any) => ({
-              id: String(row.id),
-              childId: String(row.child_id ?? ""),
-              childName: String(row.child_name ?? ""),
-              campus: String(row.campus ?? "International"),
-              type: String(row.type ?? "absence") as RequestType,
-              dateStart: String(row.date_start ?? ""),
-              dateEnd: row.date_end ? String(row.date_end) : undefined,
-              time: row.time ? String(row.time) : undefined,
-              note: row.note ? String(row.note) : undefined,
-              changeType: row.change_type ? (String(row.change_type) as PortalRequest["changeType"]) : undefined,
-              medName: row.med_name ? String(row.med_name) : undefined,
-              createdAt: String(row.created_at ?? new Date().toISOString()),
-            }))
-          : [];
+        const res = await fetch("/api/admin/requests");
+        const payload = await res.json();
+        const rows = Array.isArray(payload?.items) ? payload.items : [];
+        const list: PortalRequest[] = rows.map((row: any) => ({
+          id: String(row.id),
+          childId: String(row.childId ?? ""),
+          childName: String(row.childName ?? ""),
+          campus: String(row.campus ?? "International"),
+          type: String(row.type ?? "absence") as RequestType,
+          dateStart: String(row.dateStart ?? ""),
+          dateEnd: row.dateEnd ? String(row.dateEnd) : undefined,
+          time: row.time ? String(row.time) : undefined,
+          note: row.note ? String(row.note) : undefined,
+          changeType: row.changeType ? (String(row.changeType) as PortalRequest["changeType"]) : undefined,
+          medName: row.medName ? String(row.medName) : undefined,
+          createdAt: String(row.createdAt ?? new Date().toISOString()),
+        }));
         setRequests(list);
       } catch {
         setRequests([]);
@@ -113,40 +110,39 @@ export default function AdminRequestsPage() {
     };
     const insert = async () => {
       try {
-        await supabase.from("portal_requests").insert({
-          id: payload.id,
-          child_id: payload.childId,
-          child_name: payload.childName,
-          campus: payload.campus,
-          type: payload.type,
-          date_start: payload.dateStart,
-          date_end: payload.dateEnd ?? null,
-          time: payload.time ?? null,
-          change_type: payload.changeType ?? null,
-          med_name: payload.medName ?? null,
-          note: payload.note ?? null,
-          created_at: payload.createdAt,
+        await fetch("/api/admin/requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            childId: payload.childId,
+            childName: payload.childName,
+            campus: payload.campus,
+            type: payload.type,
+            dateStart: payload.dateStart,
+            dateEnd: payload.dateEnd ?? null,
+            time: payload.time ?? null,
+            changeType: payload.changeType ?? null,
+            medName: payload.medName ?? null,
+            note: payload.note ?? null,
+          }),
         });
-        const { data } = await supabase
-          .from("portal_requests")
-          .select("*")
-          .order("created_at", { ascending: false });
-        const list: PortalRequest[] = Array.isArray(data)
-          ? data.map((row: any) => ({
-              id: String(row.id),
-              childId: String(row.child_id ?? ""),
-              childName: String(row.child_name ?? ""),
-              campus: String(row.campus ?? "International"),
-              type: String(row.type ?? "absence") as RequestType,
-              dateStart: String(row.date_start ?? ""),
-              dateEnd: row.date_end ? String(row.date_end) : undefined,
-              time: row.time ? String(row.time) : undefined,
-              note: row.note ? String(row.note) : undefined,
-              changeType: row.change_type ? (String(row.change_type) as PortalRequest["changeType"]) : undefined,
-              medName: row.med_name ? String(row.med_name) : undefined,
-              createdAt: String(row.created_at ?? new Date().toISOString()),
-            }))
-          : [];
+        const res = await fetch("/api/admin/requests");
+        const data = await res.json();
+        const rows = Array.isArray(data?.items) ? data.items : [];
+        const list: PortalRequest[] = rows.map((row: any) => ({
+          id: String(row.id),
+          childId: String(row.childId ?? ""),
+          childName: String(row.childName ?? ""),
+          campus: String(row.campus ?? "International"),
+          type: String(row.type ?? "absence") as RequestType,
+          dateStart: String(row.dateStart ?? ""),
+          dateEnd: row.dateEnd ? String(row.dateEnd) : undefined,
+          time: row.time ? String(row.time) : undefined,
+          note: row.note ? String(row.note) : undefined,
+          changeType: row.changeType ? (String(row.changeType) as PortalRequest["changeType"]) : undefined,
+          medName: row.medName ? String(row.medName) : undefined,
+          createdAt: String(row.createdAt ?? new Date().toISOString()),
+        }));
         setRequests(list);
         setActiveTab(newType);
         setCreateOpen(false);
@@ -157,8 +153,7 @@ export default function AdminRequestsPage() {
         setNewChangeType("no_bus");
         setNewMedName("");
         setNewNote("");
-      } catch {
-      }
+      } catch {}
     };
     insert();
   };
