@@ -196,38 +196,21 @@ export default function SignupPage() {
           setLoading(false);
           return;
         }
-        const now = new Date().toISOString();
-        const { data: parentRow, error: dbError } = await supabase
-          .from("parents")
-          .insert({
-            auth_user_id: userId,
-            name: formData.parentName.trim(),
-            phone: formData.phone.trim(),
-            campus: formData.campus,
-            created_at: now,
-          })
-          .select("id")
-          .single();
-        if (dbError || !parentRow?.id) {
-          setErrorMessage(`회원 정보 저장 오류: ${dbError?.message || "보호자 정보 생성 실패"}`);
-          alert("회원 정보 저장 중 오류가 발생했습니다.");
-          setLoading(false);
-          return;
-        }
-
         try {
-          const res = await fetch("/api/public/new-students/draft", {
+          const res = await fetch("/api/signup", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              name: formData.studentName.trim(),
+              mode: "draft",
+              parentName: formData.parentName.trim(),
               phone: formData.phone.trim(),
-              memo: null,
-              campus: formData.campus || "전체",
+              campus: formData.campus,
             }),
           });
-          if (!res.ok) {
-            alert("신규 학생 임시 등록(draft) 생성 중 오류가 발생했습니다. 관리자에게 문의해 주세요.");
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok || payload?.ok !== true) {
+            const msg = payload?.error ? String(payload.error) : "임시 등록 생성 실패";
+            alert(`신규 학생 임시 등록(draft) 생성 중 오류: ${msg}`);
           }
         } catch {
           alert("신규 학생 임시 등록(draft) 생성 중 오류가 발생했습니다. 관리자에게 문의해 주세요.");
