@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 // RLS enforced: use SSR client only
 
 export async function POST(request: Request) {
@@ -30,6 +31,11 @@ export async function POST(request: Request) {
     }
 
     const authUserId = user.id;
+    try {
+      await supabaseService.auth.admin.updateUserById(authUserId, {
+        app_metadata: { role: "parent" },
+      });
+    } catch {}
 
     /* -------------------------
        1️⃣ Draft 생성 요청 처리
