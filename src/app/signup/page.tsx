@@ -201,19 +201,28 @@ export default function SignupPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              mode: "draft",
+              studentName: formData.studentName.trim(),
+              gender: formData.gender,
               parentName: formData.parentName.trim(),
               phone: formData.phone.trim(),
               campus: formData.campus,
+              passportEnglishName: formData.passportEnglishName.trim(),
+              englishFirstName: formData.englishFirstName.trim(),
+              childBirthDate: formData.childBirthDate,
+              status: "waiting",
             }),
           });
           const payload = await res.json().catch(() => ({}));
           if (!res.ok || payload?.ok !== true) {
-            const msg = payload?.error ? String(payload.error) : "임시 등록 생성 실패";
-            alert(`신규 학생 임시 등록(draft) 생성 중 오류: ${msg}`);
+            const msg = payload?.error ? String(payload.error) : "신규 학생 등록 실패";
+            alert(msg);
+            setLoading(false);
+            return;
           }
-        } catch {
-          alert("신규 학생 임시 등록(draft) 생성 중 오류가 발생했습니다. 관리자에게 문의해 주세요.");
+        } catch (err: any) {
+          alert("신규 학생 등록 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+          setLoading(false);
+          return;
         }
         alert("회원가입이 완료되었습니다!");
         router.push("/portal/home");
