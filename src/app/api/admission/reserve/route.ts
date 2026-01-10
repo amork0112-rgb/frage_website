@@ -1,3 +1,4 @@
+//api/admission/reserve
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -10,73 +11,77 @@ const json = (data: any, status = 200) =>
 
 export async function POST(req: Request) {
   try {
-    const supabase = createSupabaseServer();
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData?.user;
+    /** 1️⃣ 부모 인증 (읽기 전용) */
+    const supabaseAuth = createSupabaseServer();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
-    const role = (user.app_metadata as any)?.role ?? "parent";
-    if (role !== "parent") return json({ error: "forbidden" }, 403);
-    const body = await req.json();
-    const date = String(body?.date || "");
-    const time = String(body?.time || "");
-    if (!date || !time) return json({ error: "missing_params" }, 400);
 
-    const { data: parent } = await supabase
+    /** 2️⃣ 요청값: slotId만 받음 */
+    const { slotId } = await req.json();
+    if (!slotId) return json({ error: "missing_slot" }, 400);
+
+    /** 3️⃣ 부모 → 최신 new_student */
+    const { data: parent } = await supabaseAuth
       .from("parents")
       .select("id")
       .eq("auth_user_id", user.id)
-      .maybeSingle();
+      .single();
+
     if (!parent) return json({ error: "no_parent" }, 400);
 
-    const { data: newStudent } = await supabase
+    const { data: student } = await supabaseAuth
       .from("new_students")
-      .select("id,status")
-      .eq("parent_id", String(parent.id))
+      .select("id")
+      .eq("parent_id", parent.id)
       .order("created_at", { ascending: false })
-      .maybeSingle();
-    if (!newStudent) return json({ error: "no_new_student" }, 400);
-    const studentId = String(newStudent.id);
+      .limit(1)
+      .single();
 
-    const { data: scheduleRows } = await supabaseService
-      .from("schedules")
-      .select("*")
-      .eq("date", date)
-      .eq("time", time)
-      .limit(1);
-    const schedule = Array.isArray(scheduleRows) && scheduleRows.length > 0 ? scheduleRows[0] : null;
-    if (!schedule) return json({ error: "no_slot" }, 404);
-    if (!Boolean(schedule.is_open ?? true)) return json({ error: "closed" }, 409);
-    const max = Number(schedule.max ?? 5);
-    const current = Number(schedule.current ?? 0);
-    if (current >= max) return json({ error: "full" }, 409);
-    await supabaseService.from("schedules").update({ current: current + 1 }).eq("id", schedule.id);
+    if (!student) return json({ error: "no_student" }, 400);
 
-    const { data: slotRows } = await supabaseService
+    /** 4️⃣ 슬롯 상태 확인 (시스템 권한) */
+    const { data: slot } = await supabaseService
       .from("consultation_slots")
-      .select("*")
-      .eq("date", date)
-      .eq("time", time)
-      .limit(1);
-    let slot = Array.isArray(slotRows) && slotRows.length > 0 ? slotRows[0] : null;
-    if (!slot) {
-      const { data: inserted } = await supabaseService
-        .from("consultation_slots")
-        .insert({ date, time })
-        .select()
-        .limit(1);
-      slot = Array.isArray(inserted) && inserted.length > 0 ? inserted[0] : null;
-    }
-    if (!slot) return json({ error: "slot_create_failed" }, 500);
+      .select("id, is_open")
+      .eq("id", slotId)
+      .single();
 
-    await supabaseService
+    if (!slot || slot.is_open !== true) {
+      return json({ error: "slot_closed" }, 409);
+    }
+
+    /** 5️⃣ 예약 INSERT (한 슬롯 = 한 명) */
+    const { error: insertErr } = await supabaseService
       .from("student_reservations")
-      .upsert({ student_id: studentId, slot_id: String(slot.id) }, { onConflict: "student_id" });
+      .insert({
+        student_id: student.id,
+        slot_id: slot.id,
+      });
+
+    if (insertErr) {
+      // UNIQUE(slot_id) 위반 → 이미 예약됨
+      if ((insertErr as any).code === "23505") {
+        return json({ error: "already_reserved" }, 409);
+      }
+      throw insertErr;
+    }
+
+    /** 6️⃣ 슬롯 닫기 */
+    await supabaseService
+      .from("consultation_slots")
+      .update({ is_open: false })
+      .eq("id", slot.id);
 
     return json({
       ok: true,
-      reservation: { studentId, date, time, slotId: String(slot.id) },
+      reservation: {
+        studentId: student.id,
+        slotId: slot.id,
+      },
     });
-  } catch {
-    return json({ error: "invalid" }, 400);
+  } catch (e) {
+    console.error("reserve error", e);
+    return json({ error: "reservation_failed" }, 500);
   }
 }
+

@@ -20,6 +20,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const date = searchParams.get("date");
+    const bannedTimes = ["12:00", "16:00", "18:00"];
 
     if (!date) {
       return json({ items: [] });
@@ -50,13 +51,10 @@ export async function GET(req: Request) {
         const baseTimes = [
           "10:00",
           "11:00",
-          "12:00",
           "13:00",
           "14:00",
           "15:00",
-          "16:00",
           "17:00",
-          "18:00",
           "19:00",
           "20:00",
         ];
@@ -91,6 +89,7 @@ export async function GET(req: Request) {
     const items = data
       .filter(
         (slot) =>
+          !bannedTimes.includes(String(slot.time)) &&
           slot.is_open === true &&
           Number(slot.current) < Number(slot.max)
       )
