@@ -102,17 +102,17 @@ export async function PUT(req: Request) {
     if ((guard as any).error) return (guard as any).error;
     const body = await req.json();
     const studentId = String(body.studentId || "");
-    const key = String(body.key || "");
+    const stepKey = String(body.stepKey || "");
     const checked = Boolean(body.checked ?? false);
     const checked_at = body.checked_at ?? (checked ? new Date().toISOString() : null);
     const checked_by = body.checked_by ?? null;
-    if (!studentId || !key) return json({ error: "missing" }, 400);
+    if (!studentId || !stepKey) return json({ error: "missing" }, 400);
 
     const { data: exists } = await supabaseAuth
       .from("new_student_checklists")
       .upsert(
-        [{ student_id: studentId, key, checked, checked_at, checked_by }],
-        { onConflict: "student_id,key" }
+        [{ student_id: studentId, step_key: stepKey, checked, checked_at, checked_by }],
+        { onConflict: "student_id,step_key" }
       );
 
     return json({ ok: true });

@@ -1,3 +1,9 @@
+// /api/admission/survey
+/**
+ * Guard logic depends on /api/admission/home
+ * - items[] must include admissionStep
+ * - only admissionStep === "reserved" can access survey
+ */
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -66,4 +72,11 @@ export async function POST(req: Request) {
     console.error(e);
     return json({ error: "invalid" }, 400);
   }
+}
+
+export async function GET() {
+  return new NextResponse(
+    JSON.stringify({ error: "method_not_allowed" }),
+    { status: 405, headers: { "Content-Type": "application/json" } }
+  );
 }
