@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { supabaseService } from "@/lib/supabase/service";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -14,18 +15,18 @@ export async function GET() {
     const supabaseAuth = createSupabaseServer();
     const guard = await requireAdmin(supabaseAuth);
     if ((guard as any).error) return (guard as any).error;
-    const { data: students, error: e1 } = await supabaseAuth
+    const { data: students, error: e1 } = await supabaseService
       .from("new_students")
       .select("*")
       .order("created_at", { ascending: false });
     if (e1) return json({ error: "students_fetch_failed" }, 500);
 
-    const { data: checkRows, error: e2 } = await supabaseAuth
+    const { data: checkRows, error: e2 } = await supabaseService
       .from("new_student_checklists")
       .select("*");
     if (e2) return json({ error: "checklists_fetch_failed" }, 500);
 
-    const { data: reservations, error: e3 } = await supabaseAuth
+    const { data: reservations, error: e3 } = await supabaseService
       .from("student_reservations")
       .select("student_id,slot_id");
     if (e3) return json({ error: "reservations_fetch_failed" }, 500);
@@ -35,7 +36,7 @@ export async function GET() {
       : [];
     let slots: any[] = [];
     if (slotIds.length > 0) {
-      const { data, error } = await supabaseAuth
+      const { data, error } = await supabaseService
         .from("consultation_slots")
         .select("id,date,time")
         .in("id", slotIds);
