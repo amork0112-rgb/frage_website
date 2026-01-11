@@ -10,7 +10,7 @@ type Props = {
   parentPhone?: string;
 };
 const STATUS_LABELS: Record<Status, string> = {
-  waiting: "원서 접수 완료",
+  waiting: "",
   consulting: "상담 예약 대기",
   consulted: "상담 완료",
   approved: "입학 승인 완료",
@@ -55,9 +55,11 @@ export default function StudentInfoCard({
               <div className="text-slate-400 text-sm">학부모 전화 미입력</div>
             )}
           </div>
-          <div className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">
-            {statusLabel}
-          </div>
+          {statusLabel && (
+            <div className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">
+              {statusLabel}
+            </div>
+          )}
         </div>
       </div>
     </div>

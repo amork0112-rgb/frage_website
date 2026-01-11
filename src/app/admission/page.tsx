@@ -76,19 +76,18 @@ export default function AdmissionPage() {
         const list = Array.isArray(payload?.items) ? payload.items : [];
         setItems(list);
         const first = list[0] || null;
-        const status = String(first?.status || "");
-        const step =
-          status === "waiting"
+        const admissionStep = String(first?.admissionStep || "not_reserved");
+        const current =
+          admissionStep === "not_reserved"
+            ? "예약 전"
+            : admissionStep === "reserved"
             ? "상담 대기"
-            : status === "consultation_confirmed"
-            ? "상담 일정 확정"
-            : status === "admission_open"
-            ? "입학 서류 작성"
-            : status === "approved"
-            ? "승인 완료"
-            : "대기";
-        setCurrentStep(step);
-        setAdmissionOpen(status === "admission_open");
+            : admissionStep === "consult_done"
+            ? "상담 완료"
+            : "승인 완료";
+        setCurrentStep(current);
+        const statusVal = String(first?.status || "");
+        setAdmissionOpen(statusVal === "admission_open");
       } catch {
       } finally {
         setLoading(false);
@@ -176,7 +175,7 @@ export default function AdmissionPage() {
         <div className="space-y-4">
           {Array.isArray(items) && items.length > 0 ? (
             items.map((it: any, idx: number) => {
-              const st = String(it?.status || "waiting") as "waiting" | "consulting" | "consulted" | "approved";
+              const step = String(it?.admissionStep || "not_reserved") as "not_reserved" | "reserved" | "consult_done" | "approved";
               return (
                 <div key={String(it?.id || it?.student_name || idx)} className="bg-white rounded-2xl border border-slate-200 shadow-sm">
                   <button
@@ -192,11 +191,11 @@ export default function AdmissionPage() {
                     <div className="text-sm font-bold text-slate-900">{it?.student_name || "신규 학생"}</div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-slate-500">
-                        {st === "waiting"
-                          ? "원서 접수 완료"
-                          : st === "consulting"
-                          ? "상담 예약 대기"
-                          : st === "consulted"
+                        {step === "not_reserved"
+                          ? "예약 전"
+                          : step === "reserved"
+                          ? "상담 대기"
+                          : step === "consult_done"
                           ? "상담 완료"
                           : "입학 승인 완료"}
                       </span>
@@ -213,7 +212,7 @@ export default function AdmissionPage() {
                         studentName={it?.student_name || "신규 학생"}
                         englishFirstName={it?.english_first_name || ""}
                         birthDate={it?.child_birth_date || ""}
-                        status={st}
+                        status={String(it?.status || "waiting") as "waiting" | "consulting" | "consulted" | "approved"}
                         campus={it?.campus || undefined}
                         address={it?.address || ""}
                         parentPhone={it?.phone || ""}
@@ -472,7 +471,7 @@ export default function AdmissionPage() {
                   {(() => {
                     const baseTimes = DEFAULT_TIMES;
                     const openSlots = allSlots
-                      .filter((s) => s.date === selectedDate && s.is_open === true && (s.current || 0) < (s.max || 0))
+                      .filter((s) => s.date === selectedDate)
                       .sort((a, b) => {
                         const ai = baseTimes.indexOf(a.time);
                         const bi = baseTimes.indexOf(b.time);

@@ -67,26 +67,45 @@ export async function GET() {
       );
     }
 
-    /* 4️⃣ 프론트에서 바로 쓰기 좋은 형태로 정리 */
     const items = Array.isArray(rows)
-      ? rows.map((r: any) => ({
-          id: String(r.id),
-          status: String(r.status || "waiting"),
-
-          student_name: String(r.student_name || ""),
-          english_first_name: String(r.english_first_name || ""),
-          passport_english_name: String(r.passport_english_name || ""),
-          child_birth_date: r.child_birth_date
-            ? String(r.child_birth_date)
-            : "",
-
-          parent_name: String(r.parent_name || ""),
-          phone: String(r.phone || ""),
-          campus: String(r.campus || ""),
-          address: String(r.address || ""),
-
-          created_at: r.created_at ? String(r.created_at) : "",
-        }))
+      ? await Promise.all(
+          rows.map(async (r: any) => {
+            const { data: reservation } = await supabaseService
+              .from("student_reservations")
+              .select("id")
+              .eq("student_id", r.id)
+              .maybeSingle();
+            const { data: consult } = await supabaseService
+              .from("student_consults")
+              .select("id")
+              .eq("student_id", r.id)
+              .maybeSingle();
+            let admissionStep: "not_reserved" | "reserved" | "consult_done" | "approved" = "not_reserved";
+            if (reservation) {
+              admissionStep = "reserved";
+            }
+            if (consult) {
+              admissionStep = "consult_done";
+            }
+            if (String(r.status || "") === "approved") {
+              admissionStep = "approved";
+            }
+            return {
+              id: String(r.id),
+              status: String(r.status || "waiting"),
+              admissionStep,
+              student_name: String(r.student_name || ""),
+              english_first_name: String(r.english_first_name || ""),
+              passport_english_name: String(r.passport_english_name || ""),
+              child_birth_date: r.child_birth_date ? String(r.child_birth_date) : "",
+              parent_name: String(r.parent_name || ""),
+              phone: String(r.phone || ""),
+              campus: String(r.campus || ""),
+              address: String(r.address || ""),
+              created_at: r.created_at ? String(r.created_at) : "",
+            };
+          })
+        )
       : [];
 
     return NextResponse.json(
