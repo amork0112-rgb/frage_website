@@ -247,7 +247,7 @@ export const translations = {
       ],
     },
     philosophy: {
-      title: "아이를 가르치는 일이 아니라,\n아이의 성장을 함께 책임집니다.",
+      title: "가르치는 교육이 아니라,\n성장을 함께 책임지는 교육",
       subtitle: "프라게는 단순한 영어 학원이 아니라 아이의 사고력과 표현력을 함께 키우는 교육 공간입니다.",
       values: [
         "Thinking Reader",

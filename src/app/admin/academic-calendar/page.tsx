@@ -55,6 +55,21 @@ const monthName = (y: number, m: number) =>
   new Date(y, m, 1).toLocaleString("en-US", { month: "long" });
 const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
 const pad = (n: number) => String(n).padStart(2, "0");
+const toLocalDateStr = (y: number, m: number, d: number) =>
+  `${y}-${pad(m + 1)}-${pad(d)}`;
+const parseDateStr = (s: string) => {
+  const [yy, mm, dd] = s.split("-").map(n => parseInt(n, 10));
+  return { y: yy, m: mm - 1, d: dd };
+};
+const addOneDayLocal = (s: string) => {
+  const { y, m, d } = parseDateStr(s);
+  const total = daysInMonth(y, m);
+  const nd = d + 1;
+  if (nd <= total) return toLocalDateStr(y, m, nd);
+  const nm = m + 1;
+  if (nm <= 11) return toLocalDateStr(y, nm, 1);
+  return toLocalDateStr(y + 1, 0, 1);
+};
 
 export default function AdminAcademicCalendarPage() {
   const now = new Date();
@@ -103,24 +118,35 @@ export default function AdminAcademicCalendarPage() {
     const first = new Date(year, month, 1);
     const startWeekday = first.getDay();
     const total = daysInMonth(year, month);
-    const prevMonthDays = daysInMonth(year, month - 1);
+    const prevMonthTotal = daysInMonth(year, month - 1);
     const cells: { label: string; dateStr: string; outside: boolean }[] = [];
     for (let i = 0; i < startWeekday; i++) {
-      const d = prevMonthDays - startWeekday + i + 1;
-      const prev = new Date(year, month, d);
-      const dateStr = prev.toISOString().slice(0, 10);
-      cells.push({ label: String(d), dateStr, outside: true });
+      const d = prevMonthTotal - startWeekday + i + 1;
+      const y = month === 0 ? year - 1 : year;
+      const m = month === 0 ? 11 : month - 1;
+      cells.push({
+        label: String(d),
+        dateStr: toLocalDateStr(y, m, d),
+        outside: true,
+      });
     }
     for (let d = 1; d <= total; d++) {
-      const dateStr = `${year}-${pad(month + 1)}-${pad(d)}`;
-      cells.push({ label: String(d), dateStr, outside: false });
+      cells.push({
+        label: String(d),
+        dateStr: toLocalDateStr(year, month, d),
+        outside: false,
+      });
     }
+    let nextDay = 1;
     while (cells.length % 7 !== 0) {
-      const nextIdx = cells.length - total - startWeekday + 1;
-      const d = nextIdx;
-      const next = new Date(year, month + 1, d);
-      const dateStr = next.toISOString().slice(0, 10);
-      cells.push({ label: String(d), dateStr, outside: true });
+      const y = month === 11 ? year + 1 : year;
+      const m = month === 11 ? 0 : month + 1;
+      cells.push({
+        label: String(nextDay),
+        dateStr: toLocalDateStr(y, m, nextDay),
+        outside: true,
+      });
+      nextDay++;
     }
     return cells;
   }, [year, month]);
@@ -143,9 +169,7 @@ export default function AdminAcademicCalendarPage() {
         if (!map[curr].find(e => e.id === ev.id)) {
           map[curr].push(ev);
         }
-        const d = new Date(curr + "T00:00:00");
-        d.setDate(d.getDate() + 1);
-        curr = d.toISOString().slice(0, 10);
+        curr = addOneDayLocal(curr);
         safety++;
       }
     });
