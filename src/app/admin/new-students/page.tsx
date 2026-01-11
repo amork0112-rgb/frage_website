@@ -167,9 +167,25 @@ export default function AdminNewStudentsPage() {
       try {
         const res = await fetch("/api/admin/new-students", { cache: "no-store" });
         const data = await res.json();
-        const items = Array.isArray(data?.items) ? data.items : [];
-        items.sort((a: any, b: any) => new Date(b.createdAt || b.created_at).getTime() - new Date(a.createdAt || a.created_at).getTime());
-        setStudents(items);
+        const rows = Array.isArray(data?.items) ? data.items : [];
+        const mapped: StudentProfile[] = rows.map((r: any) => ({
+          id: String(r.id),
+          studentName: String(r.studentName ?? r.student_name ?? r.name ?? ""),
+          gender: String(r.gender ?? ""),
+          parentName: String(r.parentName ?? r.parent_name ?? ""),
+          phone: String(r.phone ?? ""),
+          campus: String(r.campus ?? ""),
+          createdAt: String(r.createdAt ?? r.created_at ?? ""),
+          status: String(r.status ?? "waiting"),
+          memo: String(r.memo ?? ""),
+          englishFirstName: String(r.englishFirstName ?? r.english_first_name ?? ""),
+          passportEnglishName: String(r.passportEnglishName ?? r.passport_english_name ?? ""),
+          childBirthDate: String(r.childBirthDate ?? r.child_birth_date ?? ""),
+          address: String(r.address ?? ""),
+          addressDetail: String(r.addressDetail ?? r.address_detail ?? ""),
+        }));
+        mapped.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setStudents(mapped);
         setChecklists(data?.checklists || {});
         setStudentReservations(data?.reservations || {});
       } catch (e) {}
@@ -743,7 +759,7 @@ export default function AdminNewStudentsPage() {
               >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-black text-lg">
-                    {student.studentName[0]}
+                    {(student.studentName || "").charAt(0) || "?"}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">

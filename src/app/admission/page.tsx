@@ -68,7 +68,9 @@ export default function AdmissionPage() {
           admissionStep === "not_reserved"
             ? "예약 전"
             : admissionStep === "reserved"
-            ? "상담 대기"
+            ? "예약 완료 (확인 대기)"
+            : admissionStep === "reserved_confirmed"
+            ? "예약 확정"
             : admissionStep === "consult_done"
             ? "상담 완료"
             : "승인 완료";
@@ -120,7 +122,9 @@ export default function AdmissionPage() {
         admissionStep === "not_reserved"
           ? "예약 전"
           : admissionStep === "reserved"
-          ? "상담 대기"
+          ? "예약 완료 (확인 대기)"
+          : admissionStep === "reserved_confirmed"
+          ? "예약 확정"
           : admissionStep === "consult_done"
           ? "상담 완료"
           : "승인 완료";
@@ -211,7 +215,7 @@ export default function AdmissionPage() {
         <div className="space-y-4">
           {Array.isArray(items) && items.length > 0 ? (
             items.map((it: any, idx: number) => {
-              const step = String(it?.admissionStep || "not_reserved") as "not_reserved" | "reserved" | "consult_done" | "approved";
+              const step = String(it?.admissionStep || "not_reserved") as "not_reserved" | "reserved" | "reserved_confirmed" | "consult_done" | "approved";
               return (
                 <div key={String(it?.id || it?.student_name || idx)} className="bg-white rounded-2xl border border-slate-200 shadow-sm">
                   <button
@@ -229,7 +233,9 @@ export default function AdmissionPage() {
                         {step === "not_reserved"
                           ? "예약 전"
                           : step === "reserved"
-                          ? "상담 대기"
+                          ? "예약 완료 (확인 대기)"
+                          : step === "reserved_confirmed"
+                          ? "예약 확정"
                           : step === "consult_done"
                           ? "상담 완료"
                           : "입학 승인 완료"}
@@ -539,30 +545,29 @@ export default function AdmissionPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="inline-block px-2 py-0.5 rounded bg-purple-200 text-purple-700 text-xs font-bold mb-2">
-                      예약 완료
+                      {selectedStep === "reserved_confirmed" ? "예약 확정" : "예약 완료"}
                     </span>
-                    <h4 className="text-lg font-bold text-slate-800">입학 테스트 일정이 확정되었습니다.</h4>
+                    <h4 className="text-lg font-bold text-slate-800">
+                      {selectedStep === "reserved_confirmed"
+                        ? "입학 테스트 일정이 확정되었습니다."
+                        : "예약이 완료되었습니다. 학원 확인 후 확정 안내가 발송됩니다."}
+                    </h4>
                     <p className="text-slate-600 mt-1">
                       {reservedDate} {reservedTime}
                     </p>
-                    <p className="text-xs text-slate-500 mt-2 font-bold">상담 대기 상태</p>
+                    <p className="text-xs text-slate-500 mt-2 font-bold">
+                      {selectedStep === "reserved_confirmed" ? "상담 예정 확정" : "상담 확인 대기"}
+                    </p>
                     <p className="text-xs text-slate-400 mt-1">* 변경이 필요하시면 학원으로 문의해주세요.</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={handleCancelReservation} className="text-sm text-slate-400 underline hover:text-red-500">
-                      예약 취소
-                    </button>
-                    <button onClick={handleChangeReservation} className="text-sm text-slate-400 underline hover:text-purple-600">
-                      예약 변경
-                    </button>
-                  </div>
+                  {/* 예약 취소/변경 버튼 제거 */}
                 </div>
               </div>
             )}
           </section>
         )}
         
-        {selectedStep === "reserved" && (
+        {(selectedStep === "reserved" || selectedStep === "reserved_confirmed") && (
           <section className="animate-fade-in-up">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
               <h3 className="text-lg font-bold text-slate-800 mb-2">

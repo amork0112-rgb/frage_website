@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const supabase = createSupabaseServer();
@@ -66,9 +69,24 @@ export async function GET() {
       );
     }
 
-    const items = Array.isArray(rows)
+    const list = Array.isArray(rows) ? rows : [];
+    const studentIds = list.map((r: any) => String(r.id));
+    let confirmMap: Record<string, boolean> = {};
+    if (studentIds.length > 0) {
+      const { data: checks } = await supabaseService
+        .from("new_student_checklists")
+        .select("student_id,key,checked")
+        .in("student_id", studentIds)
+        .eq("key", "consultation_confirmed");
+      (checks || []).forEach((c: any) => {
+        const sid = String(c.student_id || "");
+        confirmMap[sid] = !!c.checked;
+      });
+    }
+
+    const items = list.length
       ? await Promise.all(
-          rows.map(async (r: any) => {
+          list.map(async (r: any) => {
             const { data: reservation } = await supabaseService
               .from("student_reservations")
               .select("id,slot_id")
@@ -79,7 +97,7 @@ export async function GET() {
               .select("id")
               .eq("student_id", r.id)
               .maybeSingle();
-            let admissionStep: "not_reserved" | "reserved" | "consult_done" | "approved" = "not_reserved";
+            let admissionStep: "not_reserved" | "reserved" | "reserved_confirmed" | "consult_done" | "approved" = "not_reserved";
             let reservationDate: string | null = null;
             let reservationTime: string | null = null;
             if (reservation?.slot_id) {
@@ -91,6 +109,10 @@ export async function GET() {
                 .maybeSingle();
               reservationDate = slot?.date ? String(slot.date) : null;
               reservationTime = slot?.time ? String(slot.time) : null;
+            }
+            const sid = String(r.id);
+            if (admissionStep === "reserved" && confirmMap[sid]) {
+              admissionStep = "reserved_confirmed";
             }
             if (consult) {
               admissionStep = "consult_done";
