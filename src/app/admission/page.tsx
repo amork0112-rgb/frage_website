@@ -550,7 +550,7 @@ export default function AdmissionPage() {
                     <h4 className="text-lg font-bold text-slate-800">
                       {selectedStep === "reserved_confirmed"
                         ? "입학 테스트 일정이 확정되었습니다."
-                        : "예약이 완료되었습니다. 학원 확인 후 확정 안내가 발송됩니다."}
+                        : "예약이 완료되었습니다. 확인 후 확정 안내가 발송됩니다."}
                     </h4>
                     <p className="text-slate-600 mt-1">
                       {reservedDate} {reservedTime}
