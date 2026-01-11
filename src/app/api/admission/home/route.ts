@@ -34,11 +34,10 @@ export async function GET() {
       .maybeSingle();
 
     if (parentErr || !parent) {
-      // 부모 레코드가 아직 없으면 빈 리스트 반환
-      return NextResponse.json(
-        { ok: true, items: [] },
-        { status: 200 }
-      );
+      await supabaseService
+        .from("parents")
+        .upsert([{ auth_user_id: user.id, name: "", phone: "", campus: "All" }], { onConflict: "auth_user_id" });
+      return NextResponse.json({ ok: true, items: [] }, { status: 200 });
     }
 
     /* 3️⃣ 신규 학생(new_students) 조회 */
