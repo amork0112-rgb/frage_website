@@ -45,7 +45,7 @@ export default function AdmissionSurveyPage({
           return;
         }
         const step = String(target?.admissionStep || "not_reserved");
-        if (step !== "reserved") {
+        if (step !== "reserved" && step !== "reserved_confirmed") {
           router.replace("/admission");
           return;
         }

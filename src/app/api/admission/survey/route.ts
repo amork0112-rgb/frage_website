@@ -1,6 +1,15 @@
+// /api/admission/survey
+/**
+ * Guard logic depends on /api/admission/home
+ * - items[] must include admissionStep
+ * - only admissionStep === "reserved" can access survey
+ */
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
