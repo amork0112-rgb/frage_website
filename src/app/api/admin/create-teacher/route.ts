@@ -30,35 +30,45 @@ export async function POST(req: Request) {
       );
     }
 
-    /* -------------------------------------------------
-      3️⃣ auth.users 에 동일 이메일 존재 여부 확인
-      (Supabase는 email 필터 API가 없으므로 전체 조회 후 JS 필터)
-    ------------------------------------------------- */
-    const { data: listData, error: listErr } =
-      await supabaseService.auth.admin.listUsers({
-        perPage: 1000,
-      });
-
-    if (listErr) {
-      console.error("LIST USER ERROR:", listErr);
+    const ALLOWED_CAMPUSES = ["International", "Atheneum", "Andover"];
+    if (!ALLOWED_CAMPUSES.includes(campus)) {
       return NextResponse.json(
-        { error: "list_user_failed" },
-        { status: 500 }
+        { error: "invalid_campus" },
+        { status: 400 }
       );
     }
 
-    const existingUser = listData.users.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase()
-    );
+    /* -------------------------------------------------
+      3️⃣ auth.users 동일 이메일 존재 여부 확인 (권장 방식)
+    ------------------------------------------------- */
+    // Robust email lookup with paging to avoid perPage cap issues
+    let existingUser: any = null;
+    {
+      let page = 1;
+      const perPage = 200;
+      // loop up to 20 pages (max 4000 users)
+      while (page <= 20 && !existingUser) {
+        const { data: pageData, error: pageErr } = await supabaseService.auth.admin.listUsers({ page, perPage });
+        if (pageErr) break;
+        const users = Array.isArray(pageData?.users) ? pageData.users : [];
+        existingUser = users.find((u: any) => String(u.email || "").toLowerCase() === email.toLowerCase()) || null;
+        if (!users.length) break;
+        page += 1;
+      }
+    }
 
     let userId: string;
+    let createdNewUser = false;
 
     /* -------------------------------------------------
       4️⃣ auth 계정 생성 또는 재사용
     ------------------------------------------------- */
-    if (existingUser) {
-      // 이미 auth.users 에 계정이 존재
+    if (existingUser?.id) {
       userId = existingUser.id;
+      await supabaseService.auth.admin.updateUserById(userId, {
+        app_metadata: { role },
+        user_metadata: { name, campus },
+      });
     } else {
       const { data: created, error: createErr } =
         await supabaseService.auth.admin.createUser({
@@ -78,6 +88,7 @@ export async function POST(req: Request) {
       }
 
       userId = created.user.id;
+      createdNewUser = true;
     }
 
     /* -------------------------------------------------
@@ -115,11 +126,30 @@ export async function POST(req: Request) {
 
     if (insertErr) {
       console.error("INSERT TEACHER ERROR:", insertErr);
+      if (createdNewUser) {
+        try {
+          await supabaseService.auth.admin.deleteUser(userId);
+        } catch {}
+      }
       return NextResponse.json(
         { error: "insert_teacher_failed" },
         { status: 500 }
       );
     }
+
+    try {
+      const adminId = (guard as any).user?.id ?? null;
+      if (adminId) {
+        await supabaseService
+          .from("admin_logs")
+          .insert({
+            admin_id: adminId,
+            action: "create_teacher",
+            target_user_id: userId,
+            created_at: now,
+          });
+      }
+    } catch {}
 
     /* -------------------------------------------------
       7️⃣ 성공
