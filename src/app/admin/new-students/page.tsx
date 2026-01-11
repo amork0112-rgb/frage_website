@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import { Check, AlertCircle, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote, ChevronLeft, ChevronRight } from "lucide-react";
 import { CAMPUS_CONFIG } from "@/config/campus";
+import { supabase } from "@/lib/supabase";
 
 type StudentProfile = {
   id: string;
@@ -137,20 +138,16 @@ export default function AdminNewStudentsPage() {
   
   // Reservation Management State
   const [showReservationModal, setShowReservationModal] = useState(false);
-  const [reservationSlots, setReservationSlots] = useState<{id: string, date: string, time: string, max: number, current: number, isOpen: boolean}[]>([]);
-  const [scheduleMap, setScheduleMap] = useState<Record<string, { isOpen: boolean; slots: { time: string; max: number; current: number }[] }>>({});
-  const [scheduleSummary, setScheduleSummary] = useState<{ totalDays: number; openDays: number; totalSlots: number; reservedSlots: number } | null>(null);
+  const [dbSlots, setDbSlots] = useState<{id: string, date: string, time: string, max: number, current: number, is_open: boolean}[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [errorSlots, setErrorSlots] = useState<string | null>(null);
   const [studentReservations, setStudentReservations] = useState<Record<string, any>>({});
-  const [newSlotTime, setNewSlotTime] = useState("");
   const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [selectedDate, setSelectedDate] = useState<string>(() => fmtYMD(new Date()));
-  const [daySlots, setDaySlots] = useState<{id: string, date: string, time: string, max: number, current: number, isOpen: boolean}[]>([]);
-  const [loadingDaySlots, setLoadingDaySlots] = useState(false);
-  const [errorDaySlots, setErrorDaySlots] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const inFlightDatesRef = useRef<Set<string>>(new Set());
   const inFlightMonthRef = useRef<string | null>(null);
@@ -193,193 +190,60 @@ export default function AdminNewStudentsPage() {
     load();
   }, []);
   useEffect(() => {
-    const loadMonth = async () => {
-      try {
-        const y = currentMonth.getFullYear();
-        const m = currentMonth.getMonth() + 1;
-        await fetch("/api/admin/schedules/init-month", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ year: y, month: m, weekdaysOnly: true })
-        });
-        const res = await fetch(`/api/admin/schedules?year=${y}&month=${m}`, { cache: "no-store" });
-        const data = await res.json();
-        setScheduleMap(data?.days || {});
-        setScheduleSummary(data?.summary || null);
-      } catch {}
-    };
-    loadMonth();
+    // month-level schedule initialization removed
   }, [currentMonth]);
 
-  const fetchDaySlots = useCallback((date: string) => {
-    setLoadingDaySlots(true);
-    setErrorDaySlots(null);
-    const day = scheduleMap[date];
-    setTimeout(() => {
-      setDaySlots(
-        day
-          ? day.slots.map((s, idx) => ({
-              id: `${date}_${s.time}_${idx}`,
-              date,
-              time: s.time,
-              max: s.max,
-              current: s.current,
-              isOpen: day.isOpen,
-            }))
-          : []
-      );
-      setLoadingDaySlots(false);
-    }, 0);
-  }, [scheduleMap]);
+  const loadDbSlots = useCallback(async (date: string) => {
+    if (!date) return;
+    try {
+      setLoadingSlots(true);
+      setErrorSlots(null);
+      const { data, error } = await supabase
+        .from("consultation_slots")
+        .select("id,date,time,max,current,is_open")
+        .eq("date", date)
+        .order("time");
+      if (error) {
+        setDbSlots([]);
+        setErrorSlots("슬롯 조회 중 오류가 발생했습니다.");
+      } else {
+        setDbSlots(Array.isArray(data) ? data.map((s: any) => ({
+          id: String(s.id),
+          date: String(s.date),
+          time: String(s.time),
+          max: Number(s.max ?? 0),
+          current: Number(s.current ?? 0),
+          is_open: !!s.is_open,
+        })) : []);
+      }
+    } finally {
+      setLoadingSlots(false);
+    }
+  }, []);
 
   useEffect(() => {
-    // 캘린더 렌더링은 조회만 수행합니다. 월 초기화는 명시적인 버튼 액션으로만 처리합니다.
+    // calendar only for picking date
   }, [showCalendar, currentMonth]);
 
   useEffect(() => {
     if (showReservationModal) {
-      fetchDaySlots(selectedDate);
+      loadDbSlots(selectedDate);
     }
-  }, [showReservationModal, selectedDate, fetchDaySlots]);
+  }, [showReservationModal, selectedDate, loadDbSlots]);
 
-  const addDaySlot = async () => {
-    if (!selectedDate || !newSlotTime) return alert("시간을 입력해주세요.");
+  const toggleSlotOpen = async (id: string, next: boolean) => {
     try {
-      const res = await fetch("/api/admin/schedules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: selectedDate, time: newSlotTime, max: 5, current: 0, isOpen: true })
-      });
-      const data = await res.json();
-      const item = data?.item;
-      setScheduleMap((prev) => {
-        const day = prev[selectedDate] || { isOpen: true, slots: [] };
-        const exists = day.slots.some((s) => s.time === newSlotTime);
-        const nextSlots = exists ? day.slots.map((s) => (s.time === newSlotTime ? { ...s, max: 5, current: 0 } : s)) : [...day.slots, { time: newSlotTime, max: 5, current: 0 }];
-        return { ...prev, [selectedDate]: { isOpen: true, slots: nextSlots } };
-      });
-      fetchDaySlots(selectedDate);
-      setNewSlotTime("");
-    } catch {}
-  };
-
-  const deleteDaySlot = async (id: string) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
-    try {
-      const time = id.split("_")[1];
-      const day = scheduleMap[selectedDate];
-      const found = Array.isArray(day?.slots) ? day.slots.find((s) => s.time === time) : null;
-      if (found) {
-        const delRes = await fetch("/api/admin/schedules", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id })
-        });
-        if (delRes.ok) {
-          setScheduleMap((prev) => {
-            const curr = prev[selectedDate] || { isOpen: false, slots: [] };
-            const next = { ...prev, [selectedDate]: { ...curr, slots: curr.slots.filter((s) => s.time !== time) } };
-            return next;
-          });
-          fetchDaySlots(selectedDate);
-        }
+      const { error } = await supabase
+        .from("consultation_slots")
+        .update({ is_open: next })
+        .eq("id", id);
+      if (!error) {
+        setDbSlots(prev => prev.map(s => s.id === id ? { ...s, is_open: next } : s));
       }
-    } catch {}
-  };
-
-  const toggleDaySlot = async (id: string, next: boolean) => {
-    try {
-      await fetch("/api/admin/schedules", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, isOpen: next })
-      });
-      setScheduleMap((prev) => {
-        const curr = prev[selectedDate] || { isOpen: false, slots: [] };
-        return { ...prev, [selectedDate]: { ...curr, isOpen: next } };
-      });
-      fetchDaySlots(selectedDate);
     } catch {}
   };
   
-  const refreshMonthSchedules = async () => {
-    try {
-      const y = currentMonth.getFullYear();
-      const m = currentMonth.getMonth() + 1;
-      const res = await fetch(`/api/admin/schedules?year=${y}&month=${m}`, { cache: "no-store" });
-      const data = await res.json();
-      setScheduleMap(data?.days || {});
-      setScheduleSummary(data?.summary || null);
-    } catch {}
-  };
-  
-  // 자동 생성 제거: 날짜 클릭 시 생성하지 않습니다.
-  
-  const initMonthSlots = async (month: Date) => {
-    try {
-      const y = month.getFullYear();
-      const m = month.getMonth() + 1;
-      const res = await fetch("/api/admin/schedules/init-month", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ year: y, month: m, weekdaysOnly: true })
-      });
-      const data = await res.json();
-      await refreshMonthSchedules();
-      if (showReservationModal) fetchDaySlots(selectedDate);
-      if (!data?.ok) {
-        alert("월 초기화에 실패했습니다.");
-      } else if (!data.initialized) {
-        alert("월 기본 시간대가 생성되었습니다.");
-      } else {
-        alert("이미 초기화된 월입니다.");
-      }
-    } catch {
-      alert("월 초기화 중 오류가 발생했습니다.");
-    }
-  };
-
-  const deleteAllDaySlots = async () => {
-    try {
-      const day = scheduleMap[selectedDate];
-      const items = Array.isArray(day?.slots) ? day.slots : [];
-      for (const slot of items) {
-        await fetch("/api/admin/schedules", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: `${selectedDate}_${slot.time}_0` })
-        });
-      }
-      setScheduleMap((prev) => ({ ...prev, [selectedDate]: { isOpen: false, slots: [] } }));
-      fetchDaySlots(selectedDate);
-    } catch {}
-  };
-
-  const deleteWeekdaySlotsForMonth = async (month: Date) => {
-    try {
-      const y = month.getFullYear();
-      const m = month.getMonth() + 1;
-      const map = { ...scheduleMap };
-      for (const [dateStr, day] of Object.entries(map)) {
-        const [yy, mm] = dateStr.split("-").map((v) => parseInt(v, 10));
-        if (yy === y && mm === m) {
-          const [_, __, dd] = dateStr.split("-").map((v) => parseInt(v, 10));
-          const dt = new Date(yy, mm - 1, dd);
-          const dayIdx = dt.getDay();
-          if (dayIdx === 0 || dayIdx === 6) continue;
-          for (const slot of day.slots) {
-            await fetch("/api/admin/schedules", {
-              method: "DELETE",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: `${dateStr}_${slot.time}_0` })
-            });
-          }
-          map[dateStr] = { isOpen: false, slots: [] };
-        }
-      }
-      setScheduleMap(map);
-    } catch {}
-  };
+  // 기존 스케줄 맵/가짜 슬롯 로직 제거됨
 
   const toggleCheck = async (studentId: string, stepKey: string, stepLabel: string) => {
     const currentList = checklists[studentId] || {};
@@ -672,9 +536,7 @@ export default function AdminNewStudentsPage() {
                         <div className={`text-xs md:text-sm font-bold ${isToday ? "text-blue-600" : "text-slate-700"}`}>
                           {day}
                         </div>
-                        <div className="mt-0.5 text-[10px] font-bold text-slate-400">
-                          {(scheduleMap[dateStr]?.isOpen ? (scheduleMap[dateStr]?.slots?.length || 0) : 0)}개 오픈
-                        </div>
+                        
                       </button>
                     );
                   }
@@ -716,9 +578,7 @@ export default function AdminNewStudentsPage() {
                         <div className={`text-xs md:text-sm font-bold ${isToday ? "text-blue-600" : "text-slate-700"}`}>
                           {d.getDate()}
                         </div>
-                        <div className="mt-0.5 text-[10px] font-bold text-slate-400">
-                          {(scheduleMap[dateStr]?.isOpen ? (scheduleMap[dateStr]?.slots?.length || 0) : 0)}개 오픈
-                        </div>
+                        
                       </button>
                     );
                   }
@@ -903,83 +763,48 @@ export default function AdminNewStudentsPage() {
             </div>
             
             <div className="p-6 space-y-6">
-              <div className="bg-white p-3 rounded-xl border border-slate-200">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => initMonthSlots(currentMonth)}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold"
-                  >
-                    월 기본 시간대 초기화
-                  </button>
-                  <button
-                    onClick={refreshMonthSchedules}
-                    className="px-3 py-2 bg-slate-100 text-slate-800 rounded-lg text-sm font-bold border border-slate-200"
-                  >
-                    새로고침
-                  </button>
-                </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-500">DB 기준으로 실제 상담 슬롯을 표시합니다.</p>
+                <button
+                  onClick={() => loadDbSlots(selectedDate)}
+                  className="px-3 py-2 bg-slate-100 text-slate-800 rounded-lg text-sm font-bold border border-slate-200"
+                >
+                  새로고침
+                </button>
               </div>
-              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                <h4 className="text-sm font-bold text-blue-800 mb-3">시간 추가</h4>
-                <div className="flex gap-2">
-                  <input 
-                    type="time" 
-                    value={newSlotTime}
-                    onChange={(e) => setNewSlotTime(e.target.value)}
-                    className="w-32 px-3 py-2 rounded-lg border border-blue-200 text-sm focus:outline-none focus:border-blue-500"
-                  />
-                  <button 
-                    onClick={addDaySlot}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors"
-                  >
-                    추가
-                  </button>
-                  <button
-                    onClick={deleteAllDaySlots}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-colors"
-                  >
-                    선택 날짜 전체 삭제
-                  </button>
-                </div>
-              </div>
-
               <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                <h4 className="text-sm font-bold text-slate-700">등록된 시간대 ({daySlots.length})</h4>
-                {loadingDaySlots ? (
+                <h4 className="text-sm font-bold text-slate-700">등록된 슬롯 ({dbSlots.length})</h4>
+                {loadingSlots ? (
                   <p className="text-center text-slate-400 text-sm py-4">로딩중...</p>
-                ) : errorDaySlots ? (
-                  <p className="text-center text-red-500 text-sm py-4">{errorDaySlots}</p>
-                ) : daySlots.length === 0 ? (
-                  <p className="text-center text-slate-400 text-sm py-4">시간대가 없습니다.</p>
+                ) : errorSlots ? (
+                  <p className="text-center text-red-500 text-sm py-4">{errorSlots}</p>
+                ) : dbSlots.length === 0 ? (
+                  <p className="text-center text-slate-400 text-sm py-4">슬롯이 없습니다.</p>
                 ) : (
-                  daySlots.map(slot => (
-                    <div key={slot.id} className={`flex items-center justify-between p-2 rounded-lg border ${slot.isOpen ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200'}`}>
+                  dbSlots.map((slot) => (
+                    <div key={slot.id} className={`flex items-center justify-between p-2 rounded-lg border ${slot.is_open ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200'}`}>
                       <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${slot.isOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                        <div className={`w-2 h-2 rounded-full ${slot.is_open ? 'bg-green-500' : 'bg-red-500'}`}></div>
                         <div>
                           <div className="font-bold text-slate-800 text-xs md:text-sm">
                             {slot.time}
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-bold">
+                            남은 {Math.max(0, slot.max - slot.current)}명
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <button 
-                          onClick={() => toggleDaySlot(slot.id, !slot.isOpen)}
+                          onClick={() => toggleSlotOpen(slot.id, !slot.is_open)}
                           className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-bold border transition-all ${
-                            slot.isOpen 
+                            slot.is_open 
                               ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
                               : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
                           }`}
                         >
-                          <div className={`w-2 h-2 rounded-full ${slot.isOpen ? 'bg-green-500' : 'bg-slate-400'}`}></div>
-                          {slot.isOpen ? "접수중" : "마감됨"}
-                        </button>
-                        <button 
-                          onClick={() => deleteDaySlot(slot.id)}
-                          className="p-1 text-slate-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
-                          title="삭제"
-                        >
-                          <Search className="w-4 h-4 rotate-45" />
+                          <div className={`w-2 h-2 rounded-full ${slot.is_open ? 'bg-green-500' : 'bg-slate-400'}`}></div>
+                          {slot.is_open ? "접수중" : "마감됨"}
                         </button>
                       </div>
                     </div>

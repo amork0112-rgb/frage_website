@@ -124,10 +124,10 @@ export default function TeacherNewStudentsPage() {
   
   // Reservation Management State
   const [showReservationModal, setShowReservationModal] = useState(false);
-  const [reservationSlots, setReservationSlots] = useState<{id: string, date: string, time: string, max: number, current: number, isOpen: boolean}[]>([]);
+  const [dbSlots, setDbSlots] = useState<{id: string, date: string, time: string, max: number, current: number, is_open: boolean}[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [errorSlots, setErrorSlots] = useState<string | null>(null);
   const [studentReservations, setStudentReservations] = useState<Record<string, any>>({});
-  const [newSlotDate, setNewSlotDate] = useState("");
-  const [newSlotTime, setNewSlotTime] = useState("");
   const [selectedDateGrid, setSelectedDateGrid] = useState("");
 
   useEffect(() => {
@@ -177,76 +177,52 @@ export default function TeacherNewStudentsPage() {
   }, []);
 
   useEffect(() => {
-    if (!selectedDateGrid) return;
-    (async () => {
+    const loadSlots = async () => {
+      if (!selectedDateGrid) return;
       try {
-        const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(selectedDateGrid)}`, { cache: "no-store" });
-        const data = await res.json();
-        const items = Array.isArray(data?.items) ? data.items : [];
-        setReservationSlots(items);
-      } catch {
-        setReservationSlots([]);
+        setLoadingSlots(true);
+        setErrorSlots(null);
+        const { data, error } = await supabase
+          .from("consultation_slots")
+          .select("id,date,time,max,current,is_open")
+          .eq("date", selectedDateGrid)
+          .order("time");
+        if (error) {
+          setDbSlots([]);
+          setErrorSlots("슬롯 조회 중 오류가 발생했습니다.");
+        } else {
+          const list = Array.isArray(data) ? data.map((s: any) => ({
+            id: String(s.id),
+            date: String(s.date),
+            time: String(s.time),
+            max: Number(s.max ?? 0),
+            current: Number(s.current ?? 0),
+            is_open: !!s.is_open,
+          })) : [];
+          setDbSlots(list);
+        }
+      } finally {
+        setLoadingSlots(false);
       }
-    })();
-  }, [selectedDateGrid]);
-
-  const handleToggleCell = (time: string) => {
-    const existing = reservationSlots.find(s => s.date === selectedDateGrid && s.time === time);
-    if (existing) {
-      fetch("/api/admin/schedules", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: existing.id, isOpen: !existing.isOpen })
-      })
-      .then(() => {
-        setReservationSlots(prev => prev.map(s => s.id === existing.id ? { ...s, isOpen: !existing.isOpen } : s));
-      })
-      .catch(() => {});
-    } else {
-      fetch("/api/admin/schedules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: selectedDateGrid, time, max: 1, current: 0, isOpen: true })
-      })
-      .then(async () => {
-        const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(selectedDateGrid)}`, { cache: "no-store" });
-        const data = await res.json();
-        const items = Array.isArray(data?.items) ? data.items : [];
-        setReservationSlots(items);
-      })
-      .catch(() => {});
+    };
+    if (showReservationModal) {
+      loadSlots();
     }
+  }, [showReservationModal, selectedDateGrid]);
+
+  const toggleSlotOpen = async (id: string, next: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("consultation_slots")
+        .update({ is_open: next })
+        .eq("id", id);
+      if (!error) {
+        setDbSlots(prev => prev.map(s => s.id === id ? { ...s, is_open: next } : s));
+      }
+    } catch {}
   };
 
-  const handleDeleteSlot = (id: string) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
-    fetch("/api/admin/schedules", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id })
-    })
-    .then(async () => {
-      const res = await fetch(`/api/admin/schedules?date=${encodeURIComponent(selectedDateGrid)}`, { cache: "no-store" });
-      const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
-      setReservationSlots(items);
-    })
-    .catch(() => {});
-  };
-
-  const toggleSlotStatus = (id: string) => {
-    const slot = reservationSlots.find(s => s.id === id);
-    const next = slot ? !slot.isOpen : true;
-    fetch("/api/admin/schedules", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, isOpen: next })
-    })
-    .then(() => {
-      setReservationSlots(prev => prev.map(s => s.id === id ? { ...s, isOpen: next } : s));
-    })
-    .catch(() => {});
-  };
+  // legacy slot grid handlers removed; using DB-based toggleSlotOpen above
 
   const toggleCheck = async (studentId: string, stepKey: string, stepLabel: string) => {
     const currentList = checklists[studentId] || {};
@@ -543,7 +519,7 @@ export default function TeacherNewStudentsPage() {
 
               {/* Slot List */}
               <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                <h4 className="text-sm font-bold text-slate-700">등록된 일정 ({reservationSlots.length})</h4>
+                <h4 className="text-sm font-bold text-slate-700">등록된 슬롯 ({dbSlots.length})</h4>
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {(() => {
                     const arr: {dateStr: string; day: string; week: string}[] = [];
@@ -576,53 +552,44 @@ export default function TeacherNewStudentsPage() {
                     });
                   })()}
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {(() => {
-                    const baseTimes = ["10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00"];
-                    const map = new Map<string, any>();
-                    reservationSlots.forEach(s => {
-                      if (s.date === selectedDateGrid) {
-                        map.set(s.time, s);
-                      }
-                    });
-                    return baseTimes.map(t => {
-                      const slot = map.get(t);
-                      const isOpen = slot ? slot.isOpen : false;
-                      let reservedName = "";
-                      if (slot) {
-                        for (const sid of Object.keys(studentReservations || {})) {
-                          const res = studentReservations[sid];
-                          if (res && ((res.slotId && res.slotId === slot.id) || (res.date === slot.date && res.time === slot.time))) {
-                            const stu = students.find(s => s.id === sid);
-                            reservedName = stu?.studentName || "";
-                            break;
-                          }
-                        }
-                      }
-                      return (
-                        <button
-                          key={t}
-                          onClick={() => handleToggleCell(t)}
-                          className={`h-20 rounded-2xl border text-sm font-bold flex flex-col items-center justify-center ${
-                            slot
-                              ? (isOpen ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100" : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200")
-                              : "bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200"
-                          }`}
-                        >
-                          <span>{t}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs">{slot ? `신청 ${slot.current || 0}/1` : "-"}</span>
-                            {reservedName ? (
-                              <span className="text-[10px] font-bold text-green-700">신청됨 ({reservedName})</span>
-                            ) : (
-                              <span className="text-[10px] font-bold">{isOpen ? "신청가능" : "신청불가"}</span>
-                            )}
+                {loadingSlots ? (
+                  <p className="text-center text-slate-400 text-sm py-4">로딩중...</p>
+                ) : errorSlots ? (
+                  <p className="text-center text-red-500 text-sm py-4">{errorSlots}</p>
+                ) : dbSlots.length === 0 ? (
+                  <p className="text-center text-slate-400 text-sm py-4">슬롯이 없습니다.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {dbSlots.filter(s => s.date === selectedDateGrid).map((slot) => (
+                      <div key={slot.id} className={`flex items-center justify-between p-2 rounded-lg border ${slot.is_open ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200'}`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${slot.is_open ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          <div>
+                            <div className="font-bold text-slate-800 text-xs md:text-sm">
+                              {slot.time}
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-bold">
+                              남은 {Math.max(0, slot.max - slot.current)}명
+                            </div>
                           </div>
-                        </button>
-                      );
-                    });
-                  })()}
-                </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button 
+                            onClick={() => toggleSlotOpen(slot.id, !slot.is_open)}
+                            className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-bold border transition-all ${
+                              slot.is_open 
+                                ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
+                                : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <div className={`w-2 h-2 rounded-full ${slot.is_open ? 'bg-green-500' : 'bg-slate-400'}`}></div>
+                            {slot.is_open ? "접수중" : "마감됨"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

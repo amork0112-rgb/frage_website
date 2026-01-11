@@ -102,18 +102,25 @@ export async function PUT(req: Request) {
     if ((guard as any).error) return (guard as any).error;
     const body = await req.json();
     const studentId = String(body.studentId || "");
-    const stepKey = String(body.stepKey || "");
+    const stepKey = String(body.stepKey || body.key || "");
     const checked = Boolean(body.checked ?? false);
-    const checked_at = body.checked_at ?? (checked ? new Date().toISOString() : null);
-    const checked_by = body.checked_by ?? null;
+    const checked_at = body.checked_at ?? body.date ?? (checked ? new Date().toISOString() : null);
+    const checked_by = body.checked_by ?? body.by ?? null;
     if (!studentId || !stepKey) return json({ error: "missing" }, 400);
 
     const { data: exists } = await supabaseAuth
       .from("new_student_checklists")
       .upsert(
-        [{ student_id: studentId, step_key: stepKey, checked, checked_at, checked_by }],
-        { onConflict: "student_id,step_key" }
+        [{ student_id: studentId, key: stepKey, checked, checked_at, checked_by }],
+        { onConflict: "student_id,key" }
       );
+
+    if (checked && stepKey === "admission_confirmed") {
+      await supabaseAuth
+        .from("new_students")
+        .update({ status: "step2" })
+        .eq("id", studentId);
+    }
 
     return json({ ok: true });
   } catch {
