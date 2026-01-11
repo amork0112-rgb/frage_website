@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, Calendar, FileCheck, AlertTriangle, UserPlus, ChevronDown, MessageCircle } from "lucide-react";
+import { CheckCircle, Calendar, FileCheck, AlertTriangle, UserPlus, ChevronDown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import AdmissionHeader from "@/components/admission/AdmissionHeader";
 import StudentInfoCard from "@/components/admission/StudentInfoCard";
@@ -33,12 +33,6 @@ export default function AdmissionPage() {
   const [myReservation, setMyReservation] = useState<any>(null);
   const [openIndices, setOpenIndices] = useState<number[]>([]);
   const [selectedStudentIdx, setSelectedStudentIdx] = useState<number>(0);
-  const [extraGrade, setExtraGrade] = useState("");
-  const [extraSchool, setExtraSchool] = useState("");
-  const [extraHistory, setExtraHistory] = useState("");
-  const [extraOfficialScore, setExtraOfficialScore] = useState("");
-  const [extraSrScore, setExtraSrScore] = useState("");
-  const [extraAvailableDays, setExtraAvailableDays] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -546,133 +540,7 @@ export default function AdmissionPage() {
             )}
           </section>
         )}
-        {!admissionOpen && (
-          <section className="animate-fade-in-up delay-150">
-            <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-purple-600" />
-              추가 정보 입력
-            </h3>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const sel = items[selectedStudentIdx] || items[0];
-                if (!sel?.id) {
-                  alert("학생 정보를 확인할 수 없습니다.");
-                  return;
-                }
-                (async () => {
-                  try {
-                    const res = await fetch("/api/admission/extra", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        studentId: String(sel.id),
-                        grade: extraGrade.trim(),
-                        currentSchool: extraSchool.trim(),
-                        englishHistory: extraHistory.trim(),
-                        officialScore: extraOfficialScore.trim() || null,
-                        srScore: extraSrScore.trim() || null,
-                        availableDays: extraAvailableDays.trim(),
-                      }),
-                    });
-                    const data = await res.json().catch(() => ({}));
-                    if (!res.ok || data?.ok !== true) {
-                      const msg = data?.error ? String(data.error) : "저장 실패";
-                      alert(msg);
-                      return;
-                    }
-                    alert("추가 정보가 저장되었습니다.");
-                    setExtraGrade("");
-                    setExtraSchool("");
-                    setExtraHistory("");
-                    setExtraOfficialScore("");
-                    setExtraSrScore("");
-                    setExtraAvailableDays("");
-                  } catch {
-                    alert("처리 중 오류가 발생했습니다.");
-                  }
-                })();
-              }}
-              className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-600 mb-2">학생 학년 <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={extraGrade}
-                    onChange={(e) => setExtraGrade(e.target.value)}
-                    placeholder="예: 초3 / 중1"
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-600 mb-2">재학 학교 <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={extraSchool}
-                    onChange={(e) => setExtraSchool(e.target.value)}
-                    placeholder="예: OO초등학교"
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-600 mb-2">영어 학습 이력 <span className="text-red-500">*</span></label>
-                <textarea
-                  value={extraHistory}
-                  onChange={(e) => setExtraHistory(e.target.value)}
-                  placeholder="예: 학원 2년 수강, 홈스쿨링 1년 등"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900 min-h-[100px]"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-600 mb-2">공인 영어 시험 점수 <span className="text-slate-400 font-normal">(선택)</span></label>
-                  <input
-                    type="text"
-                    value={extraOfficialScore}
-                    onChange={(e) => setExtraOfficialScore(e.target.value)}
-                    placeholder="예: TOEFL Junior 760"
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-600 mb-2">SR 점수 <span className="text-slate-400 font-normal">(선택)</span></label>
-                  <input
-                    type="text"
-                    value={extraSrScore}
-                    onChange={(e) => setExtraSrScore(e.target.value)}
-                    placeholder="예: SR 78"
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-600 mb-2">입학 시 등원 가능 일 <span className="text-slate-400 font-normal">(선택)</span></label>
-                <input
-                  type="text"
-                  value={extraAvailableDays}
-                  onChange={(e) => setExtraAvailableDays(e.target.value)}
-                  placeholder="예: 월/수/금 오후"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
-                  
-                />
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700"
-                >
-                  저장하기
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
+        
         {myReservation && (
           <section className="animate-fade-in-up">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
@@ -692,9 +560,9 @@ export default function AdmissionPage() {
                   }
                   router.push(`/admission/${sid}/survey`);
                 }}
-                className="w-full px-4 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700"
+                className="w-full mt-4 px-4 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700"
               >
-                설문 작성하러 가기 →
+                상담 전 설문 작성하러 가기 →
               </button>
             </div>
           </section>

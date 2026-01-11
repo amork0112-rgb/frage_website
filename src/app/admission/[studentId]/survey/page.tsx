@@ -1,4 +1,9 @@
 // /admission/[studentId]/survey/page.tsx
+/**
+ * Guard logic depends on /api/admission/home
+ * - items[] must include admissionStep
+ * - only admissionStep === "reserved" can access survey
+ */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -95,7 +100,7 @@ export default function AdmissionSurveyPage({
           (async () => {
             try {
               const payload = {
-                studentId,
+                student_id: studentId,
                 lead_source: [
                   ...lead.filter((v) => v !== "기타"),
                   ...(lead.includes("기타") && leadEtc.trim() ? [leadEtc.trim()] : []),
@@ -105,7 +110,7 @@ export default function AdmissionSurveyPage({
                   ...(reasons.includes("기타") && reasonsEtc.trim() ? [reasonsEtc.trim()] : []),
                 ],
                 expectations: expectations.trim(),
-                concerns: concerns.trim() || undefined,
+                concerns: concerns.trim() ? concerns.trim() : null,
               };
               const res = await fetch("/api/admission/survey", {
                 method: "POST",
@@ -266,4 +271,3 @@ export default function AdmissionSurveyPage({
     </main>
   );
 }
-

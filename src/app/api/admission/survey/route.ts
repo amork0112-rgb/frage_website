@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     if (role !== "parent") return json({ error: "forbidden" }, 403);
 
     const body = await req.json();
-    const studentId = String(body?.studentId || "");
+    const studentId = String((body as any)?.student_id ?? (body as any)?.studentId ?? "");
     const leadSource = Array.isArray(body?.lead_source) ? body.lead_source : [];
     const interestReasons = Array.isArray(body?.interest_reasons) ? body.interest_reasons : [];
     const expectations = String(body?.expectations || "");
