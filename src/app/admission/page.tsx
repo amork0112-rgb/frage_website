@@ -1,4 +1,4 @@
-// admission page
+// admission/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -39,12 +39,6 @@ export default function AdmissionPage() {
   const [extraOfficialScore, setExtraOfficialScore] = useState("");
   const [extraSrScore, setExtraSrScore] = useState("");
   const [extraAvailableDays, setExtraAvailableDays] = useState("");
-  const [surveyLead, setSurveyLead] = useState<string[]>([]);
-  const [surveyLeadEtc, setSurveyLeadEtc] = useState("");
-  const [surveyReasons, setSurveyReasons] = useState<string[]>([]);
-  const [surveyReasonsEtc, setSurveyReasonsEtc] = useState("");
-  const [surveyExpectations, setSurveyExpectations] = useState("");
-  const [surveyConcerns, setSurveyConcerns] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -131,10 +125,12 @@ export default function AdmissionPage() {
           alert("학생 정보를 확인할 수 없습니다.");
           return;
         }
+        const payload = { slot_id: slot.id, student_id: selectedStudentId };
+        console.log("RESERVE PAYLOAD", payload);
         const res = await fetch("/api/admission/reserve", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slot_id: slot.id, student_id: selectedStudentId })
+          body: JSON.stringify(payload)
         });
         const data = await res.json().catch(() => ({}));
         if (res.status === 400) {
@@ -154,7 +150,7 @@ export default function AdmissionPage() {
           return;
         }
         const reservation = {
-          slotId: String(data?.reservation?.slotId || slot.id),
+          slot_id: String(data?.reservation?.slot_id || slot.id),
           date: String(data?.reservation?.date || slot.date),
           time: String(data?.reservation?.time || slot.time),
           reservedAt: new Date().toISOString(),
@@ -178,7 +174,7 @@ export default function AdmissionPage() {
   const handleCancelReservation = () => {
     if (!confirm("예약을 취소하시겠습니까?")) return;
     if (myReservation) {
-      const id = myReservation.slotId;
+      const id = myReservation.slot_id;
       setAllSlots((prev) =>
         prev.map((s: any) =>
           s.id === id ? { ...s, current: Math.max(0, (s.current || 1) - 1) } : s
@@ -532,7 +528,6 @@ export default function AdmissionPage() {
                           <button
                             key={slot.id}
                             onClick={() => {
-                              console.log("RESERVE SLOT", slot);
                               if (canReserve) handleReserve(slot);
                             }}
                             disabled={!canReserve}
@@ -679,193 +674,29 @@ export default function AdmissionPage() {
           </section>
         )}
         {myReservation && (
-          <section className="animate-fade-in-up delay-200">
-            <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-              <MessageCircle className="w-5 h-5 text-purple-600" />
-              상담 전, 어머님의 생각을 조금만 알려주세요
-            </h3>
-            <div className="text-slate-500 text-sm mb-3">상담을 더 정확하게 준비하기 위한 간단한 질문입니다.</div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const sel = items[selectedStudentIdx] || items[0];
-                if (!sel?.id) {
-                  alert("학생 정보를 확인할 수 없습니다.");
-                  return;
-                }
-                if (surveyExpectations.length > 300) {
-                  alert("기대하는 점은 300자 이내로 작성해주세요.");
-                  return;
-                }
-                (async () => {
-                  try {
-                    const payload = {
-                      studentId: String(sel.id),
-                      lead_source: [
-                        ...surveyLead.filter((v) => v !== "기타"),
-                        ...(surveyLead.includes("기타") && surveyLeadEtc.trim() ? [surveyLeadEtc.trim()] : []),
-                      ],
-                      interest_reasons: [
-                        ...surveyReasons.filter((v) => v !== "기타"),
-                        ...(surveyReasons.includes("기타") && surveyReasonsEtc.trim() ? [surveyReasonsEtc.trim()] : []),
-                      ],
-                      expectations: surveyExpectations.trim(),
-                      concerns: surveyConcerns.trim() || undefined,
-                    };
-                    const res = await fetch("/api/admission/survey", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify(payload),
-                    });
-                    const data = await res.json().catch(() => ({}));
-                    if (!res.ok || data?.ok !== true) {
-                      const msg = data?.error ? String(data.error) : "저장 중 문제가 발생했습니다. 다시 시도해주세요.";
-                      alert(msg);
-                      return;
-                    }
-                    alert("상담 준비가 완료되었습니다.");
-                    setSurveyLead([]);
-                    setSurveyLeadEtc("");
-                    setSurveyReasons([]);
-                    setSurveyReasonsEtc("");
-                    setSurveyExpectations("");
-                    setSurveyConcerns("");
-                  } catch {
-                    alert("저장 중 문제가 발생했습니다. 다시 시도해주세요.");
+          <section className="animate-fade-in-up">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+              <h3 className="text-lg font-bold text-slate-800 mb-2">
+                상담 전 간단한 설문이 있습니다
+              </h3>
+              <p className="text-sm text-slate-500 mb-4">
+                상담을 더 정확하게 준비하기 위한 질문입니다. (약 2분)
+              </p>
+              <button
+                onClick={() => {
+                  const sel = items[selectedStudentIdx] || items[0];
+                  const sid = String(sel?.id || "");
+                  if (!sid) {
+                    alert("학생 정보를 확인할 수 없습니다.");
+                    return;
                   }
-                })();
-              }}
-              className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-5"
-            >
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  프라게를 어떻게 알게 되셨나요? <span className="text-red-500">*</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    "지인 추천",
-                    "형제·지인 재원",
-                    "네이버 검색",
-                    "블로그 / 카페",
-                    "인스타그램",
-                    "지역 커뮤니티 (맘카페 등)",
-                    "현수막 / 간판",
-                    "설명회 / 행사",
-                    "기타",
-                  ].map((opt) => {
-                    const active = surveyLead.includes(opt);
-                    return (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() =>
-                          setSurveyLead((prev) =>
-                            active ? prev.filter((v) => v !== opt) : [...prev, opt]
-                          )
-                        }
-                        className={`px-3 py-1.5 rounded-full border text-sm font-bold transition-all ${
-                          active
-                            ? "bg-purple-600 border-purple-600 text-white scale-[1.03]"
-                            : "bg-white border-slate-300 text-slate-700 hover:border-purple-400"
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-                {surveyLead.includes("기타") && (
-                  <input
-                    type="text"
-                    value={surveyLeadEtc}
-                    onChange={(e) => setSurveyLeadEtc(e.target.value)}
-                    placeholder="기타 내용 입력"
-                    className="mt-2 w-full px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
-                  />
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  프라게에 관심을 가지신 이유는 무엇인가요? <span className="text-red-500">*</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    "영어 실력 향상",
-                    "발표·토론·사고력 수업",
-                    "프로젝트형 수업",
-                    "선생님/원장에 대한 신뢰",
-                    "초등·중등까지 이어지는 커리큘럼",
-                    "아이 성향에 맞을 것 같아서",
-                    "주변 평판",
-                    "기타",
-                  ].map((opt) => {
-                    const active = surveyReasons.includes(opt);
-                    return (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() =>
-                          setSurveyReasons((prev) =>
-                            active ? prev.filter((v) => v !== opt) : [...prev, opt]
-                          )
-                        }
-                        className={`px-3 py-1.5 rounded-full border text-sm font-bold transition-all ${
-                          active
-                            ? "bg-purple-600 border-purple-600 text-white scale-[1.03]"
-                            : "bg-white border-slate-300 text-slate-700 hover:border-purple-400"
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-                {surveyReasons.includes("기타") && (
-                  <input
-                    type="text"
-                    value={surveyReasonsEtc}
-                    onChange={(e) => setSurveyReasonsEtc(e.target.value)}
-                    placeholder="기타 내용 입력"
-                    className="mt-2 w-full px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
-                  />
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  프라게에서 아이가 어떤 모습으로 성장하길 바라시나요? <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={surveyExpectations}
-                  onChange={(e) => setSurveyExpectations(e.target.value.slice(0, 300))}
-                  placeholder="예) 영어로 자기 생각을 자신 있게 말하는 아이가 되었으면 합니다."
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900 min-h-[80px]"
-                />
-                <div className="text-xs text-slate-400 mt-1">자유롭게 작성해주세요 (최대 300자)</div>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">현재 가장 걱정되는 부분이 있다면 무엇인가요? <span className="text-slate-400 font-normal">(선택)</span></label>
-                <input
-                  type="text"
-                  value={surveyConcerns}
-                  onChange={(e) => setSurveyConcerns(e.target.value)}
-                  placeholder="예: 말하기 자신감, 영어에 대한 거부감 등"
-                  className="w-full px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
-                />
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={
-                    surveyLead.length === 0 ||
-                    surveyReasons.length === 0 ||
-                    surveyExpectations.trim().length === 0
-                  }
-                  className="px-4 py-2 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  저장하고 상담 준비하기
-                </button>
-              </div>
-            </form>
+                  router.push(`/admission/${sid}/survey`);
+                }}
+                className="w-full px-4 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700"
+              >
+                설문 작성하러 가기 →
+              </button>
+            </div>
           </section>
         )}
         {admissionOpen ? (
