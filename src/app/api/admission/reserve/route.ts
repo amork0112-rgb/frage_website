@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     }
 
     /* 학생 존재 확인 */
-    const { data: student } = await supabase
+    const { data: student } = await supabaseService
       .from("new_students")
       .select("id")
       .eq("id", studentId)
