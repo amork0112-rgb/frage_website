@@ -61,6 +61,12 @@ export async function POST(req: Request) {
       return json({ error: "reservation_failed" }, 500);
     }
 
+    /* 신규학생 상태 업데이트: 상담 예약됨 */
+    await supabaseService
+      .from("new_students")
+      .update({ status: "consultation_reserved" })
+      .eq("id", studentId);
+
     /* 5️⃣ 슬롯 current + 1 (동작 우선) */
     const nextCurrent = Number(slot.current ?? 0) + 1;
     const { error: updateErr } = await supabaseService

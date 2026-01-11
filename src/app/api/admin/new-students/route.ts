@@ -70,7 +70,12 @@ export async function GET() {
     });
 
     const list = Array.isArray(students) ? students : [];
-    const filtered = list.filter((s: any) => String(s.status || "") === "waiting");
+    const filtered = list.filter((s: any) => {
+      const sid = String(s.id || "");
+      const hasReservation = !!reservationsMap[sid];
+      const isWaiting = String(s.status || "") === "waiting";
+      return hasReservation || isWaiting;
+    });
 
     return json({
       items: filtered,

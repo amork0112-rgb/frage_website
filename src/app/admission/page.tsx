@@ -30,7 +30,6 @@ export default function AdmissionPage() {
     return times;
   })();
   const [allSlots, setAllSlots] = useState<any[]>([]);
-  const [myReservation, setMyReservation] = useState<any>(null);
   const [openIndices, setOpenIndices] = useState<number[]>([]);
   const [selectedStudentIdx, setSelectedStudentIdx] = useState<number>(0);
 
@@ -109,6 +108,28 @@ export default function AdmissionPage() {
     })();
   }, [selectedDate]);
 
+  const refreshAdmissionHome = async () => {
+    try {
+      const res = await fetch("/api/admission/home", { cache: "no-store" });
+      const payload = await res.json().catch(() => ({}));
+      const list = Array.isArray(payload?.items) ? payload.items : [];
+      setItems(list);
+      const first = list[0] || null;
+      const admissionStep = String(first?.admissionStep || "not_reserved");
+      const current =
+        admissionStep === "not_reserved"
+          ? "예약 전"
+          : admissionStep === "reserved"
+          ? "상담 대기"
+          : admissionStep === "consult_done"
+          ? "상담 완료"
+          : "승인 완료";
+      setCurrentStep(current);
+      const statusVal = String(first?.status || "");
+      setAdmissionOpen(statusVal === "admission_open");
+    } catch {}
+  };
+
   const handleReserve = (slot: any) => {
     if (!confirm(`${slot.date} ${slot.time}에 입학 테스트를 예약하시겠습니까?`)) return;
     (async () => {
@@ -143,13 +164,6 @@ export default function AdmissionPage() {
           alert("예약 처리 중 오류가 발생했습니다.");
           return;
         }
-        const reservation = {
-          slot_id: String(data?.reservation?.slot_id || slot.id),
-          date: String(data?.reservation?.date || slot.date),
-          time: String(data?.reservation?.time || slot.time),
-          reservedAt: new Date().toISOString(),
-        };
-        setMyReservation(reservation);
         const refetch = await fetch(`/api/admission/schedules?date=${encodeURIComponent(selectedDate)}`, { cache: "no-store" });
         const refreshed = await refetch.json().catch(() => ({}));
         const refreshedItems = Array.isArray(refreshed?.items) ? refreshed.items : [];
@@ -157,7 +171,7 @@ export default function AdmissionPage() {
           const others = prev.filter((s) => s.date !== selectedDate);
           return [...others, ...refreshedItems];
         });
-        setCurrentStep("상담 대기");
+        await refreshAdmissionHome();
         alert("예약이 완료되었습니다.");
       } catch {
         alert("예약 처리 중 오류가 발생했습니다.");
@@ -166,16 +180,13 @@ export default function AdmissionPage() {
   };
 
   const handleCancelReservation = () => {
-    if (!confirm("예약을 취소하시겠습니까?")) return;
-    if (myReservation) {
-      const id = myReservation.slot_id;
-      setAllSlots((prev) =>
-        prev.map((s: any) =>
-          s.id === id ? { ...s, current: Math.max(0, (s.current || 1) - 1) } : s
-        )
-      );
-    }
-    setMyReservation(null);
+    alert("예약 취소는 학원으로 문의해주세요. 캠퍼스 연락처 페이지로 이동합니다.");
+    router.push("/campuses");
+  };
+
+  const handleChangeReservation = () => {
+    alert("예약 변경은 학원으로 문의해주세요. 캠퍼스 연락처 페이지로 이동합니다.");
+    router.push("/campuses");
   };
 
   if (!authChecked) return null;
@@ -183,8 +194,8 @@ export default function AdmissionPage() {
 
   const selected = items[selectedStudentIdx] || items[0] || null;
   const selectedStep = String(selected?.admissionStep || "not_reserved");
-  const reservedDate = String((myReservation?.date as string) || selected?.reservation_date || "");
-  const reservedTime = String((myReservation?.time as string) || selected?.reservation_time || "");
+  const reservedDate = String(selected?.reservation_date || "");
+  const reservedTime = String(selected?.reservation_time || "");
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
@@ -205,7 +216,6 @@ export default function AdmissionPage() {
                 <div key={String(it?.id || it?.student_name || idx)} className="bg-white rounded-2xl border border-slate-200 shadow-sm">
                   <button
                     onClick={() => {
-                      console.log("CLICK ITEM", it);
                       setSelectedStudentIdx(idx);
                       setOpenIndices((prev) =>
                         prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
@@ -538,18 +548,21 @@ export default function AdmissionPage() {
                     <p className="text-xs text-slate-500 mt-2 font-bold">상담 대기 상태</p>
                     <p className="text-xs text-slate-400 mt-1">* 변경이 필요하시면 학원으로 문의해주세요.</p>
                   </div>
-                  {myReservation && (
+                  <div className="flex items-center gap-3">
                     <button onClick={handleCancelReservation} className="text-sm text-slate-400 underline hover:text-red-500">
                       예약 취소
                     </button>
-                  )}
+                    <button onClick={handleChangeReservation} className="text-sm text-slate-400 underline hover:text-purple-600">
+                      예약 변경
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
           </section>
         )}
         
-        {myReservation && (
+        {selectedStep === "reserved" && (
           <section className="animate-fade-in-up">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
               <h3 className="text-lg font-bold text-slate-800 mb-2">
