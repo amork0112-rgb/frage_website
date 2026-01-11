@@ -792,6 +792,11 @@ export default function AdminNewStudentsPage() {
                           {reservedText}
                         </span>
                       )}
+                      {!reservedText && (
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                          미예약
+                        </span>
+                      )}
                         </div>
                         <div className="text-sm text-slate-500 font-medium mt-0.5">
                           {student.gender === "M" ? "남" : "여"} • {student.parentName} ({student.phone})
