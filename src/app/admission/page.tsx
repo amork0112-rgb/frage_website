@@ -181,6 +181,11 @@ export default function AdmissionPage() {
   if (!authChecked) return null;
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50">Loading...</div>;
 
+  const selected = items[selectedStudentIdx] || items[0] || null;
+  const selectedStep = String(selected?.admissionStep || "not_reserved");
+  const reservedDate = String((myReservation?.date as string) || selected?.reservation_date || "");
+  const reservedTime = String((myReservation?.time as string) || selected?.reservation_time || "");
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
       <AdmissionHeader
@@ -294,25 +299,7 @@ export default function AdmissionPage() {
               <Calendar className="w-5 h-5 text-purple-600" />
               STEP 1. 입학 상담/테스트 예약
             </h3>
-            {myReservation ? (
-              <div className="bg-purple-50 rounded-xl p-5 border border-purple-100">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="inline-block px-2 py-0.5 rounded bg-purple-200 text-purple-700 text-xs font-bold mb-2">
-                      예약 완료
-                    </span>
-                    <h4 className="text-lg font-bold text-slate-800">입학 테스트 일정이 확정되었습니다.</h4>
-                    <p className="text-slate-600 mt-1">
-                      {myReservation.date} {myReservation.time}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-2">* 변경이 필요하시면 학원으로 문의해주세요.</p>
-                  </div>
-                  <button onClick={handleCancelReservation} className="text-sm text-slate-400 underline hover:text-red-500">
-                    예약 취소
-                  </button>
-                </div>
-              </div>
-            ) : (
+            {selectedStep === "not_reserved" ? (
               <div className="space-y-6">
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
                   <div className="p-4 flex items-center justify-between">
@@ -535,6 +522,27 @@ export default function AdmissionPage() {
                       );
                     });
                   })()}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-purple-50 rounded-xl p-5 border border-purple-100">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="inline-block px-2 py-0.5 rounded bg-purple-200 text-purple-700 text-xs font-bold mb-2">
+                      예약 완료
+                    </span>
+                    <h4 className="text-lg font-bold text-slate-800">입학 테스트 일정이 확정되었습니다.</h4>
+                    <p className="text-slate-600 mt-1">
+                      {reservedDate} {reservedTime}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-2 font-bold">상담 대기 상태</p>
+                    <p className="text-xs text-slate-400 mt-1">* 변경이 필요하시면 학원으로 문의해주세요.</p>
+                  </div>
+                  {myReservation && (
+                    <button onClick={handleCancelReservation} className="text-sm text-slate-400 underline hover:text-red-500">
+                      예약 취소
+                    </button>
+                  )}
                 </div>
               </div>
             )}

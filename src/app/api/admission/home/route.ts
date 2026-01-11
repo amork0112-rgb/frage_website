@@ -71,7 +71,7 @@ export async function GET() {
           rows.map(async (r: any) => {
             const { data: reservation } = await supabaseService
               .from("student_reservations")
-              .select("id")
+              .select("id,slot_id")
               .eq("student_id", r.id)
               .maybeSingle();
             const { data: consult } = await supabaseService
@@ -80,8 +80,17 @@ export async function GET() {
               .eq("student_id", r.id)
               .maybeSingle();
             let admissionStep: "not_reserved" | "reserved" | "consult_done" | "approved" = "not_reserved";
-            if (reservation) {
+            let reservationDate: string | null = null;
+            let reservationTime: string | null = null;
+            if (reservation?.slot_id) {
               admissionStep = "reserved";
+              const { data: slot } = await supabaseService
+                .from("consultation_slots")
+                .select("date,time")
+                .eq("id", reservation.slot_id)
+                .maybeSingle();
+              reservationDate = slot?.date ? String(slot.date) : null;
+              reservationTime = slot?.time ? String(slot.time) : null;
             }
             if (consult) {
               admissionStep = "consult_done";
@@ -93,6 +102,8 @@ export async function GET() {
               id: String(r.id),
               status: String(r.status || "waiting"),
               admissionStep,
+              reservation_date: reservationDate,
+              reservation_time: reservationTime,
               student_name: String(r.student_name || ""),
               english_first_name: String(r.english_first_name || ""),
               passport_english_name: String(r.passport_english_name || ""),
