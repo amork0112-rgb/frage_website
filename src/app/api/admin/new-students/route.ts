@@ -103,25 +103,22 @@ export async function PUT(req: Request) {
     const studentId = String(body.studentId || "");
     const key = String(body.key || body.stepKey || "");
     const checked = Boolean(body.checked ?? false);
-    const date = body.date ?? body.checked_at ?? null;
-    const by = body.by ?? body.checked_by ?? null;
     if (!studentId || !key) return json({ error: "missing" }, 400);
 
-    const { data: exists } = await supabaseAuth
+    const payload = {
+      student_id: studentId,
+      step_key: key,
+      step_label: key,
+      checked,
+      checked_at: checked ? new Date().toISOString() : null,
+    };
+
+    const { error } = await supabaseAuth
       .from("new_student_checklists")
-      .upsert(
-        [
-          {
-            student_id: studentId,
-            step_key: key,
-            step_label: key,
-            checked,
-            checked_at: date,
-            checked_by: by,
-          },
-        ],
-        { onConflict: "student_id,step_key" }
-      );
+      .upsert(payload, { onConflict: "student_id,step_key" });
+    if (error) {
+      return json({ error: error.message }, 400);
+    }
 
     if (checked && key === "admission_confirmed") {
       await supabaseAuth
