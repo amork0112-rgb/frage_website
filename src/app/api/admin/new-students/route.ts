@@ -54,11 +54,10 @@ export async function GET() {
     const checklists: Record<string, Record<string, any>> = {};
     (checkRows || []).forEach((row: any) => {
       const sid = String(row.student_id ?? row.studentId ?? "");
-      const key = String(row.key ?? "");
+      const key = String(row.step_key ?? row.key ?? "");
       if (!sid || !key) return;
       if (!checklists[sid]) checklists[sid] = {};
       checklists[sid][key] = {
-        key,
         checked: !!row.checked,
         date: row.checked_at ?? null,
         by: row.checked_by ?? null,
@@ -102,20 +101,29 @@ export async function PUT(req: Request) {
     if ((guard as any).error) return (guard as any).error;
     const body = await req.json();
     const studentId = String(body.studentId || "");
-    const stepKey = String(body.stepKey || body.key || "");
+    const key = String(body.key || body.stepKey || "");
     const checked = Boolean(body.checked ?? false);
-    const checked_at = body.checked_at ?? body.date ?? (checked ? new Date().toISOString() : null);
-    const checked_by = body.checked_by ?? body.by ?? null;
-    if (!studentId || !stepKey) return json({ error: "missing" }, 400);
+    const date = body.date ?? body.checked_at ?? null;
+    const by = body.by ?? body.checked_by ?? null;
+    if (!studentId || !key) return json({ error: "missing" }, 400);
 
     const { data: exists } = await supabaseAuth
       .from("new_student_checklists")
       .upsert(
-        [{ student_id: studentId, key: stepKey, checked, checked_at, checked_by }],
-        { onConflict: "student_id,key" }
+        [
+          {
+            student_id: studentId,
+            step_key: key,
+            step_label: key,
+            checked,
+            checked_at: date,
+            checked_by: by,
+          },
+        ],
+        { onConflict: "student_id,step_key" }
       );
 
-    if (checked && stepKey === "admission_confirmed") {
+    if (checked && key === "admission_confirmed") {
       await supabaseAuth
         .from("new_students")
         .update({ status: "step2" })
