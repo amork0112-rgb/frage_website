@@ -33,11 +33,18 @@ export async function GET() {
     const slotIds: string[] = Array.isArray(reservations)
       ? reservations.map((r: any) => String(r.slot_id || "")).filter(Boolean)
       : [];
-    const { data: slots, error: e4 } = await supabaseAuth
-      .from("consultation_slots")
-      .select("id,date,time")
-      .in("id", slotIds);
-    if (e4) return json({ error: "slots_fetch_failed" }, 500);
+    let slots: any[] = [];
+    if (slotIds.length > 0) {
+      const { data, error } = await supabaseAuth
+        .from("consultation_slots")
+        .select("id,date,time")
+        .in("id", slotIds);
+      if (error) {
+        console.error("slots_fetch_failed", error);
+        return json({ error: "slots_fetch_failed" }, 500);
+      }
+      slots = data ?? [];
+    }
     const slotMap: Record<string, { date: string | null; time: string | null }> = {};
     (slots || []).forEach((s: any) => {
       slotMap[String(s.id)] = { date: s?.date ?? null, time: s?.time ?? null };
