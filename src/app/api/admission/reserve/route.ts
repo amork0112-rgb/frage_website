@@ -27,26 +27,16 @@ export async function POST(req: Request) {
       return json({ error: "slot_id and student_id required" }, 400);
     }
 
-    /* 1️⃣ 부모 확인 */
-    const { data: parent } = await supabase
-      .from("parents")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-
-    if (!parent) return json({ error: "no_parent" }, 400);
-
-    /* 2️⃣ 학생 소유권 확인 */
+    /* 학생 존재 확인 */
     const { data: student } = await supabase
       .from("new_students")
       .select("id")
       .eq("id", studentId)
-      .eq("parent_id", parent.id)
       .maybeSingle();
 
     if (!student) return json({ error: "no_new_student" }, 400);
 
-    /* 3️⃣ 슬롯 상태 확인 */
+    /* 슬롯 상태 확인 */
     const { data: slot } = await supabaseService
       .from("consultation_slots")
       .select("id,date,time,max,current,is_open")
