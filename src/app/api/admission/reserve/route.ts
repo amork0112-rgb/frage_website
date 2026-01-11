@@ -19,8 +19,12 @@ export async function POST(req: Request) {
     if ((user.app_metadata as any)?.role !== "parent")
       return json({ error: "forbidden" }, 403);
 
-    const { date, time } = await req.json();
-    if (!date || !time) return json({ error: "missing_params" }, 400);
+    const body = await req.json();
+    const slotId: string | null = body?.slot_id ? String(body.slot_id) : null;
+    const providedStudentId: string | null = body?.student_id ? String(body.student_id) : null;
+    if (!slotId || !providedStudentId) {
+      return json({ error: "slot_id and student_id required" }, 400);
+    }
 
     /* 1️⃣ 부모 확인 */
     const { data: parent } = await supabase
@@ -31,39 +35,45 @@ export async function POST(req: Request) {
 
     if (!parent) return json({ error: "no_parent" }, 400);
 
-    /* 2️⃣ 신청 학생 확인 */
-    const { data: student } = await supabase
+    /* 2️⃣ 학생 소유권 확인 */
+    const { data: studentRow } = await supabase
       .from("new_students")
       .select("id")
+      .eq("id", providedStudentId)
       .eq("parent_id", parent.id)
-      .order("created_at", { ascending: false })
       .maybeSingle();
+    if (!studentRow?.id) return json({ error: "no_new_student" }, 400);
 
-    if (!student) return json({ error: "no_new_student" }, 400);
-
-    /* 3️⃣ 원자적 예약 처리 (RPC) */
-    const { error: rpcErr } = await supabaseService.rpc("reserve_consultation", {
-      p_student_id: String(student.id),
-      p_date: String(date),
-      p_time: String(time),
-    });
-    if (rpcErr) {
-      console.error("reserve_consultation rpc error", {
-        error: rpcErr,
-        studentId: String(student.id),
-        date: String(date),
-        time: String(time),
-      });
-      const msg = rpcErr.message || "";
-      if (msg.includes("slot full") || msg.includes("closed")) {
-        return json({ error: "slot_full_or_closed" }, 409);
-      }
-      return json({ error: "reservation_failed" }, 500);
+    /* 3️⃣ 슬롯 상태 확인 */
+    const { data: slot } = await supabaseService
+      .from("consultation_slots")
+      .select("id,date,time,max,current,is_open")
+      .eq("id", slotId)
+      .maybeSingle();
+    if (!slot?.id) return json({ error: "slot_not_found" }, 404);
+    const isClosed = slot.is_open !== true;
+    const isFull = Number(slot.current ?? 0) >= Number(slot.max ?? 0);
+    if (isClosed || isFull) {
+      return json({ error: "slot_full_or_closed" }, 409);
     }
+
+    /* 4️⃣ 예약 생성 또는 갱신 */
+    const { error: upsertErr } = await supabaseService
+      .from("student_reservations")
+      .upsert([{ slot_id: slotId, student_id: providedStudentId }], { onConflict: "student_id" });
+    if (upsertErr) return json({ error: "reservation_failed" }, 500);
+
+    /* 5️⃣ 슬롯 인원 증가 (동작 우선: read-modify-write) */
+    const nextCurrent = Number(slot.current ?? 0) + 1;
+    const { error: updateErr } = await supabaseService
+      .from("consultation_slots")
+      .update({ current: nextCurrent })
+      .eq("id", slotId);
+    if (updateErr) return json({ error: "slot_update_failed" }, 500);
 
     return json({
       ok: true,
-      reservation: { date, time },
+      reservation: { date: String(slot.date), time: String(slot.time), slotId, studentId: providedStudentId },
     });
   } catch (e) {
     return json({ error: "server_error" }, 500);

@@ -125,10 +125,16 @@ export default function AdmissionPage() {
     if (!confirm(`${slot.date} ${slot.time}에 입학 테스트를 예약하시겠습니까?`)) return;
     (async () => {
       try {
+        const selected = items[selectedStudentIdx] || items[0];
+        const selectedStudentId = String(selected?.id || "");
+        if (!selectedStudentId) {
+          alert("학생 정보를 확인할 수 없습니다.");
+          return;
+        }
         const res = await fetch("/api/admission/reserve", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date: slot.date, time: slot.time })
+          body: JSON.stringify({ slot_id: slot.id, student_id: selectedStudentId })
         });
         const data = await res.json();
         if (!res.ok || !data?.ok) {
@@ -136,15 +142,16 @@ export default function AdmissionPage() {
           return;
         }
         const reservation = {
-          slotId: data?.reservation?.slotId || slot.id,
-          date: slot.date,
-          time: slot.time,
+          slotId: String(data?.reservation?.slotId || slot.id),
+          date: String(data?.reservation?.date || slot.date),
+          time: String(data?.reservation?.time || slot.time),
           reservedAt: new Date().toISOString(),
         };
         setMyReservation(reservation);
         setAllSlots((prev) =>
           prev.map((s: any) => (s.id === slot.id ? { ...s, current: (s.current || 0) + 1 } : s))
         );
+        setCurrentStep("상담 대기");
         alert("예약이 완료되었습니다.");
       } catch {
         alert("예약 처리 중 오류가 발생했습니다.");
@@ -170,7 +177,14 @@ export default function AdmissionPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
-      <AdmissionHeader currentStep={currentStep} />
+      <AdmissionHeader
+        currentStep={currentStep}
+        studentName={
+          Array.isArray(items) && items.length > 0
+            ? String(items[selectedStudentIdx]?.student_name || items[0]?.student_name || "")
+            : ""
+        }
+      />
       <main className="px-4 py-8 max-w-lg mx-auto space-y-6">
         <div className="space-y-4">
           {Array.isArray(items) && items.length > 0 ? (
@@ -402,13 +416,18 @@ export default function AdmissionPage() {
                               today.getDate() === day;
                             const isSelected = selectedDate === dateStr;
                             cells.push(
-                              <button
+                          <button
                                 key={dateStr}
                                 onClick={() => {
                                   setSelectedDate(dateStr);
                                 }}
+                                disabled={dateStr < `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`}
                                 className={`aspect-square rounded-xl border flex flex-col items-center justify-center transition-all ${
-                                  isSelected ? "border-purple-400 bg-purple-50" : "border-slate-200 bg-white"
+                                  dateStr < `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
+                                    ? "border-slate-200 bg-slate-100 cursor-not-allowed"
+                                    : isSelected
+                                    ? "border-purple-400 bg-purple-50"
+                                    : "border-slate-200 bg-white"
                                 }`}
                               >
                                 <div className={`text-xs md:text-sm font-bold ${isToday ? "text-purple-600" : "text-slate-700"}`}>{day}</div>
@@ -448,13 +467,18 @@ export default function AdmissionPage() {
                             const isToday = today.getFullYear() === y && today.getMonth() === d.getMonth() && today.getDate() === d.getDate();
                             const isSelected = selectedDate === dateStr;
                             cells.push(
-                              <button
+                          <button
                                 key={dateStr}
                                 onClick={() => {
                                   setSelectedDate(dateStr);
                                 }}
+                                disabled={dateStr < `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`}
                                 className={`aspect-square rounded-xl border flex flex-col items-center justify-center transition-all ${
-                                  isSelected ? "border-purple-400 bg-purple-50" : "border-slate-200 bg-white"
+                                  dateStr < `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
+                                    ? "border-slate-200 bg-slate-100 cursor-not-allowed"
+                                    : isSelected
+                                    ? "border-purple-400 bg-purple-50"
+                                    : "border-slate-200 bg-white"
                                 }`}
                               >
                                 <div className={`text-xs md:text-sm font-bold ${isToday ? "text-purple-600" : "text-slate-700"}`}>{d.getDate()}</div>
@@ -487,7 +511,7 @@ export default function AdmissionPage() {
                     }
                       return openSlots.map((slot) => {
                         const isFull = (slot.current || 0) >= slot.max;
-                        const canReserve = !isFull;
+                        const canReserve = !isFull && !(selectedDate < `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`);
                         return (
                           <button
                             key={slot.id}

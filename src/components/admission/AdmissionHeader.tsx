@@ -7,9 +7,10 @@ import { supabase } from "@/lib/supabase";
 
 type Props = {
   currentStep?: string;
+  studentName?: string;
 };
 
-export default function AdmissionHeader({ currentStep }: Props) {
+export default function AdmissionHeader({ currentStep, studentName }: Props) {
   const router = useRouter();
   const [helpOpen, setHelpOpen] = React.useState(false);
 
@@ -25,6 +26,11 @@ export default function AdmissionHeader({ currentStep }: Props) {
       <div className="h-14 px-4 max-w-5xl mx-auto flex items-center justify-between">
         <div className="font-black text-slate-900">입학 포털</div>
         <div className="flex items-center gap-2">
+          {studentName && (
+            <div className="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-xs font-bold">
+              {`${studentName} 학생`}
+            </div>
+          )}
           {currentStep && (
             <div className="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-xs font-bold">
               {currentStep}
