@@ -20,9 +20,10 @@ export async function POST(req: Request) {
       return json({ error: "forbidden" }, 403);
 
     const body = await req.json();
-    const slotId: string | null = body?.slot_id ? String(body.slot_id) : null;
-    const providedStudentId: string | null = body?.student_id ? String(body.student_id) : null;
-    if (!slotId || !providedStudentId) {
+    const slotId = body?.slot_id;
+    const studentId = body?.student_id;
+
+    if (!slotId || !studentId) {
       return json({ error: "slot_id and student_id required" }, 400);
     }
 
@@ -36,13 +37,14 @@ export async function POST(req: Request) {
     if (!parent) return json({ error: "no_parent" }, 400);
 
     /* 2️⃣ 학생 소유권 확인 */
-    const { data: studentRow } = await supabase
+    const { data: student } = await supabase
       .from("new_students")
       .select("id")
-      .eq("id", providedStudentId)
+      .eq("id", studentId)
       .eq("parent_id", parent.id)
       .maybeSingle();
-    if (!studentRow?.id) return json({ error: "no_new_student" }, 400);
+
+    if (!student) return json({ error: "no_new_student" }, 400);
 
     /* 3️⃣ 슬롯 상태 확인 */
     const { data: slot } = await supabaseService
@@ -57,25 +59,39 @@ export async function POST(req: Request) {
       return json({ error: "slot_full_or_closed" }, 409);
     }
 
-    /* 4️⃣ 예약 생성 또는 갱신 */
-    const { error: upsertErr } = await supabaseService
+    /* 4️⃣ 예약 INSERT */
+    const { error: insertErr } = await supabaseService
       .from("student_reservations")
-      .upsert([{ slot_id: slotId, student_id: providedStudentId }], { onConflict: "student_id" });
-    if (upsertErr) return json({ error: "reservation_failed" }, 500);
+      .insert({
+        student_id: studentId,
+        slot_id: slotId,
+      });
 
-    /* 5️⃣ 슬롯 인원 증가 (동작 우선: read-modify-write) */
+    if (insertErr) {
+      return json({ error: "reservation_failed" }, 500);
+    }
+
+    /* 5️⃣ 슬롯 current + 1 (동작 우선) */
     const nextCurrent = Number(slot.current ?? 0) + 1;
     const { error: updateErr } = await supabaseService
       .from("consultation_slots")
       .update({ current: nextCurrent })
       .eq("id", slotId);
-    if (updateErr) return json({ error: "slot_update_failed" }, 500);
+    if (updateErr) {
+      return json({ error: "slot_update_failed" }, 500);
+    }
 
     return json({
       ok: true,
-      reservation: { date: String(slot.date), time: String(slot.time), slotId, studentId: providedStudentId },
+      reservation: {
+        slot_id: slotId,
+        student_id: studentId,
+        date: String(slot.date),
+        time: String(slot.time),
+      },
     });
   } catch (e) {
+    console.error("[reserve]", e);
     return json({ error: "server_error" }, 500);
   }
 }
