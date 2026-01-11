@@ -136,7 +136,19 @@ export default function AdmissionPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ slot_id: slot.id, student_id: selectedStudentId })
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 400) {
+          alert("예약 정보가 올바르지 않습니다.");
+          return;
+        }
+        if (res.status === 401) {
+          router.replace("/portal");
+          return;
+        }
+        if (res.status === 409) {
+          alert("이미 마감된 시간입니다.");
+          return;
+        }
         if (!res.ok || !data?.ok) {
           alert("예약 처리 중 오류가 발생했습니다.");
           return;
@@ -148,9 +160,13 @@ export default function AdmissionPage() {
           reservedAt: new Date().toISOString(),
         };
         setMyReservation(reservation);
-        setAllSlots((prev) =>
-          prev.map((s: any) => (s.id === slot.id ? { ...s, current: (s.current || 0) + 1 } : s))
-        );
+        const refetch = await fetch(`/api/admission/schedules?date=${encodeURIComponent(selectedDate)}`, { cache: "no-store" });
+        const refreshed = await refetch.json().catch(() => ({}));
+        const refreshedItems = Array.isArray(refreshed?.items) ? refreshed.items : [];
+        setAllSlots((prev) => {
+          const others = prev.filter((s) => s.date !== selectedDate);
+          return [...others, ...refreshedItems];
+        });
         setCurrentStep("상담 대기");
         alert("예약이 완료되었습니다.");
       } catch {
