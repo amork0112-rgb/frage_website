@@ -151,11 +151,11 @@ export async function POST(req: Request) {
     if (action === "finalize") {
       const newStudentId = String(body.studentId || "");
       if (!newStudentId) return json({ error: "missing_studentId" }, 400);
-      const { data, error } = await supabaseService.rpc("approve_enrollment", {
-        new_student_id: newStudentId,
+      const { data, error } = await supabaseService.rpc("promote_new_student_to_student", {
+        _new_student_id: newStudentId,
       });
       if (error) {
-        console.error("FINALIZE_APPROVE_ERROR", error);
+        console.error("FINALIZE_PROMOTE_ERROR", error);
         return json({ error: "finalize_failed", details: error.message }, 500);
       }
       return json({ ok: true, result: data || {} });
