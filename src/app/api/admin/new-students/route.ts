@@ -100,10 +100,13 @@ export async function PUT(req: Request) {
     const guard = await requireAdmin(supabaseAuth);
     if ((guard as any).error) return (guard as any).error;
     const body = await req.json();
-    const studentId = String(body.studentId || "");
-    const key = String(body.key || body.stepKey || "");
+    const studentId = String(body.studentId ?? body.student_id ?? "");
+    const key = String(body.key ?? body.stepKey ?? body.step_key ?? "");
     const checked = Boolean(body.checked ?? false);
-    if (!studentId || !key) return json({ error: "missing" }, 400);
+    if (!studentId || !key) {
+      console.error("PUT /api/admin/new-students missing params", body);
+      return json({ error: "missing studentId or step_key" }, 400);
+    }
 
     const SYSTEM_TEACHER_ID = "00000000-0000-0000-0000-000000000001";
     const payload = {
@@ -124,11 +127,21 @@ export async function PUT(req: Request) {
     }
 
     if (checked && key === "admission_confirmed") {
-      await supabaseAuth
+      const { error: stepError } = await supabaseAuth
         .from("new_students")
-        .update({ status: "step2" })
+        .update({ current_step: 2, status: "step2" })
         .eq("id", studentId);
+      if (stepError) {
+        console.error("STEP UPDATE ERROR", stepError);
+      }
     }
+
+    console.log("[NEW_STUDENT_PROGRESS]", {
+      studentId,
+      stepKey: key,
+      checked,
+      timestamp: new Date().toISOString(),
+    });
 
     return json({ ok: true });
   } catch {
