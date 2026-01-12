@@ -28,10 +28,23 @@ export async function GET() {
       .select("is_pinned");
     const noticesCount = Array.isArray(posts) ? posts.filter((p: any) => !!p.is_pinned).length : 0;
 
-    const { data: signups } = await supabase
-      .from("signups")
-      .select("status");
-    const guestInquiriesCount = Array.isArray(signups) ? signups.filter((s: any) => String(s.status || "") !== "enrolled").length : 0;
+    const { data: newStudents } = await supabase
+      .from("new_students")
+      .select("id,status");
+
+    const { data: reservations } = await supabase
+      .from("student_reservations")
+      .select("student_id");
+    
+    const reservationSet = new Set((reservations || []).map((r: any) => String(r.student_id)));
+
+    const guestInquiriesCount = Array.isArray(newStudents)
+      ? newStudents.filter((s: any) => {
+          const isWaiting = String(s.status || "waiting") === "waiting";
+          const hasReservation = reservationSet.has(String(s.id));
+          return isWaiting || hasReservation;
+        }).length
+      : 0;
 
     const { data: students } = await supabase
       .from("students")
