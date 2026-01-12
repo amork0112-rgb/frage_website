@@ -60,7 +60,7 @@ const WORKFLOW_STEPS = [
     title: "STEP 3. 입학 서류 (전자서명 패키지)",
     color: "bg-indigo-500",
     items: [
-      { key: "docs_submitted", label: "학부모 서류 제출 완료 확인", role: "행정" },
+      { key: "documents_completed", label: "학부모 서류 제출 완료 확인", role: "행정" },
       // Actual items are handled by parent, admin just sees "Complete"
     ]
   },
@@ -224,10 +224,32 @@ export default function TeacherNewStudentsPage() {
 
   // legacy slot grid handlers removed; using DB-based toggleSlotOpen above
 
+  const refetchNewStudents = async () => {
+    try {
+      const res = await fetch("/api/teacher/new-students", { cache: "no-store", credentials: "include" });
+      const all = await res.json();
+      const items = Array.isArray(all?.items) ? all.items : [];
+      const mapped: StudentProfile[] = items.map((r: any) => ({
+        id: String(r.id),
+        studentName: String(r.studentName ?? r.student_name ?? r.name ?? ""),
+        gender: String(r.gender ?? ""),
+        parentName: String(r.parentName ?? r.parent_name ?? ""),
+        phone: String(r.phone ?? ""),
+        campus: String(r.campus ?? ""),
+        createdAt: String(r.createdAt ?? r.created_at ?? ""),
+        status: String(r.status ?? "waiting"),
+        memo: String(r.memo ?? ""),
+      }));
+      setStudents(mapped);
+      const checks = all?.checklists || {};
+      const reservations = all?.reservations || {};
+      setChecklists(checks);
+      setStudentReservations(reservations);
+    } catch {}
+  };
+
   const toggleCheck = async (studentId: string, stepKey: string, stepLabel: string) => {
-    const currentList = checklists[studentId] || {};
-    const currentItem = currentList[stepKey] || { key: stepKey, label: stepLabel, checked: false };
-    const nextChecked = !currentItem.checked;
+    const nextChecked = !(checklists[studentId]?.[stepKey]?.checked ?? false);
     const nextCheckedAt = nextChecked ? new Date().toISOString() : undefined;
     try {
       await fetch("/api/teacher/new-students", {
@@ -241,18 +263,10 @@ export default function TeacherNewStudentsPage() {
           date: nextCheckedAt,
         }),
       });
-      setChecklists(prev => ({
-        ...prev,
-        [studentId]: {
-          ...(prev[studentId] || {}),
-          [stepKey]: {
-            key: stepKey,
-            label: stepLabel,
-            checked: nextChecked,
-            date: nextCheckedAt,
-          },
-        },
-      }));
+      if (stepKey === "documents_completed" && nextChecked) {
+        console.log("[CHECKLIST] STEP 3 completed", { studentId, stepKey, checked: nextChecked });
+      }
+      await refetchNewStudents();
     } catch {}
 
     // Trigger Logic (Automations)
@@ -278,9 +292,6 @@ export default function TeacherNewStudentsPage() {
           });
         } catch {
         }
-      }
-      if (stepKey === "docs_submitted") {
-        alert("입학 서류 제출 확인되었습니다. 승인은 관리자 페이지에서 처리됩니다.");
       }
       if (stepKey === "band_invite") {
          const today = new Date();
@@ -395,34 +406,7 @@ export default function TeacherNewStudentsPage() {
                               </span>
                             );
                           })()}
-                          {student.status === "waiting" && (
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                try {
-                                  const res = await fetch("/api/teacher/new-students", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    credentials: "include",
-                                    body: JSON.stringify({ action: "approve", studentId: student.id })
-                                  });
-                                  if (res.ok) {
-                                    setStudents(prev => prev.map(s => s.id === student.id ? { ...s, status: "enrolled" } : s));
-                                    alert("✅ 등록 승인이 완료되었습니다.");
-                                  } else if (res.status === 403) {
-                                    alert("권한이 없습니다. 관리자에게 요청해 주세요.");
-                                  } else {
-                                    alert("등록 승인 중 오류가 발생했습니다.");
-                                  }
-                                } catch {
-                                  alert("등록 승인 중 오류가 발생했습니다.");
-                                }
-                              }}
-                              className="text-[11px] font-bold px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
-                            >
-                              등록 승인
-                            </button>
-                          )}
+                          
                         </div>
                         <div className="text-sm text-slate-500 font-medium mt-0.5">
                           {student.gender === "M" ? "남" : "여"} • {student.parentName} ({student.phone})

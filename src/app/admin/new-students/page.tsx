@@ -66,7 +66,7 @@ const WORKFLOW_STEPS = [
     title: "STEP 3. 입학 서류 (전자서명 패키지)",
     color: "bg-indigo-500",
     items: [
-      { key: "docs_submitted", label: "학부모 서류 제출 완료 확인", role: "행정" },
+      { key: "documents_completed", label: "학부모 서류 제출 완료 확인", role: "행정" },
       // Actual items are handled by parent, admin just sees "Complete"
     ]
   },
@@ -193,6 +193,34 @@ export default function AdminNewStudentsPage() {
     // month-level schedule initialization removed
   }, [currentMonth]);
 
+  const refetchNewStudents = async () => {
+    try {
+      const res = await fetch("/api/admin/new-students", { cache: "no-store", credentials: "include" });
+      const data = await res.json();
+      const rows = Array.isArray(data?.items) ? data.items : [];
+      const mapped: StudentProfile[] = rows.map((r: any) => ({
+        id: String(r.id),
+        studentName: String(r.studentName ?? r.student_name ?? r.name ?? ""),
+        gender: String(r.gender ?? ""),
+        parentName: String(r.parentName ?? r.parent_name ?? ""),
+        phone: String(r.phone ?? ""),
+        campus: String(r.campus ?? ""),
+        createdAt: String(r.createdAt ?? r.created_at ?? ""),
+        status: String(r.status ?? "waiting"),
+        memo: String(r.memo ?? ""),
+        englishFirstName: String(r.englishFirstName ?? r.english_first_name ?? ""),
+        passportEnglishName: String(r.passportEnglishName ?? r.passport_english_name ?? ""),
+        childBirthDate: String(r.childBirthDate ?? r.child_birth_date ?? ""),
+        address: String(r.address ?? ""),
+        addressDetail: String(r.addressDetail ?? r.address_detail ?? ""),
+      }));
+      mapped.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setStudents(mapped);
+      setChecklists(data?.checklists || {});
+      setStudentReservations(data?.reservations || {});
+    } catch {}
+  };
+
   const loadDbSlots = useCallback(async (date: string) => {
     if (!date) return;
     try {
@@ -246,27 +274,10 @@ export default function AdminNewStudentsPage() {
   // 기존 스케줄 맵/가짜 슬롯 로직 제거됨
 
   const toggleCheck = async (studentId: string, stepKey: string, stepLabel: string) => {
-    const currentList = checklists[studentId] || {};
-    const currentItem = currentList[stepKey] || { key: stepKey, label: stepLabel, checked: false };
-    
-    const nextItem = {
-      ...currentItem,
-      checked: !currentItem.checked,
-      date: !currentItem.checked ? new Date().toISOString() : undefined,
-      by: !currentItem.checked ? "Teacher" : undefined // In real app, use actual user role
-    };
-
-    const nextList = {
-      ...currentList,
-      [stepKey]: nextItem
-    };
-
-    const nextChecklists = {
-      ...checklists,
-      [studentId]: nextList
-    };
-
-    setChecklists(nextChecklists);
+    const currentChecked = !!(checklists[studentId]?.[stepKey]?.checked);
+    const nextChecked = !currentChecked;
+    const nextDate = nextChecked ? new Date().toISOString() : undefined;
+    const nextBy = nextChecked ? "Admin" : undefined;
     try {
       await fetch("/api/admin/new-students", {
         method: "PUT",
@@ -275,15 +286,19 @@ export default function AdminNewStudentsPage() {
         body: JSON.stringify({
           studentId,
           key: stepKey,
-          checked: nextItem.checked,
-          date: nextItem.date,
-          by: nextItem.by,
+          checked: nextChecked,
+          date: nextDate,
+          by: nextBy,
         }),
       });
+      if (stepKey === "documents_completed" && nextChecked) {
+        console.log("[CHECKLIST] STEP 3 completed", { studentId, stepKey, checked: nextChecked });
+      }
+      await refetchNewStudents();
     } catch {}
 
-      // Trigger Logic (Automations)
-    if (nextItem.checked) {
+    // Trigger Logic (Automations)
+    if (nextChecked) {
       if (stepKey === "consultation_confirmed") {
         // Find reservation
         const reservation = studentReservations[studentId];
@@ -394,8 +409,8 @@ export default function AdminNewStudentsPage() {
          // Just a mock check
         alert("✅ 밴드 초대 링크가 발송되었습니다. (입학 전날 원칙 준수 요망)");
       }
-      if (stepKey === "docs_submitted") {
-        alert("입학 서류 제출 확인되었습니다. 승인은 '등록 승인' 버튼으로 처리하세요.");
+      if (stepKey === "documents_completed") {
+        console.log("[CHECKLIST] STEP 3 completed", { studentId, stepKey, checked: true });
       }
     }
   };
@@ -636,31 +651,7 @@ export default function AdminNewStudentsPage() {
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${enrolled ? "text-white bg-green-600" : "text-white bg-slate-400"}`}>
                               {st}
                             </span>
-                            {!enrolled && st === "waiting" && (
-                              <button
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    const res = await fetch("/api/admin/new-students", {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ action: "approve", studentId: student.id })
-                                    });
-                                    if (res.ok) {
-                                      setStudents(prev => prev.map(s => s.id === student.id ? { ...s, status: "enrolled" } : s));
-                                      alert("✅ 등록 승인이 완료되었습니다.");
-                                    } else {
-                                      alert("등록 승인 중 오류가 발생했습니다.");
-                                    }
-                                  } catch {
-                                    alert("등록 승인 중 오류가 발생했습니다.");
-                                  }
-                                }}
-                                className="text-[11px] font-bold px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
-                              >
-                                등록 승인
-                              </button>
-                            )}
+                            
                           </div>
                         );
                       })()}

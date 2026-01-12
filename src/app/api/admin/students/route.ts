@@ -1,31 +1,22 @@
+// src/app/api/admin/students/route.ts
 import { NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { supabaseService } from "@/lib/supabase/service";
 
 type Status = "재원" | "휴원" | "퇴원";
 
 type Student = {
   id: string;
-  childId?: string;
-  name: string;
-  englishName: string;
-  birthDate: string;
-  phone: string;
-  className: string;
+  student_name: string;
   campus: string;
   status: Status;
-  parentName: string;
-  parentAccountId: string;
   address: string;
-  bus: string;
-  departureTime: string;
-  pickupLat?: number;
-  pickupLng?: number;
-  dropoffLat?: number;
-  dropoffLng?: number;
-  pickupType?: "bus" | "self";
-  dropoffType?: "bus" | "self";
+  pickup_lat?: number | null;
+  pickup_lng?: number | null;
+  dropoff_lat?: number | null;
+  dropoff_lng?: number | null;
+  parent_auth_user_id?: string | null;
+  source_new_student_id?: string | null;
+  created_at: string;
 };
 
 export async function GET(request: Request) {
@@ -33,40 +24,42 @@ export async function GET(request: Request) {
   const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
   const pageSize = Math.max(parseInt(url.searchParams.get("pageSize") || "200", 10), 1);
   try {
-    const supabaseAuth = createSupabaseServer();
-    const guard = await requireAdmin(supabaseAuth);
-    if ((guard as any).error) return (guard as any).error;
     const { data, error } = await supabaseService
       .from("students")
-      .select("*")
-      .order("name", { ascending: true });
+      .select(`
+        id,
+        student_name,
+        campus,
+        status,
+        address,
+        pickup_lat,
+        pickup_lng,
+        dropoff_lat,
+        dropoff_lng,
+        parent_auth_user_id,
+        source_new_student_id,
+        created_at
+      `)
+      .order("student_name", { ascending: true });
     if (error) {
       console.error(error);
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
     }
     const rows = Array.isArray(data) ? data : [];
-  const base: Student[] = rows.map((r: any) => ({
-    id: String(r.id ?? ""),
-    childId: r.child_id ?? undefined,
-    name: String(r.name ?? ""),
-    englishName: String(r.english_name ?? ""),
-    birthDate: String(r.birth_date ?? ""),
-    phone: String(r.phone ?? ""),
-    className: String(r.class_name ?? "미배정"),
-    campus: String(r.campus ?? "미지정"),
-    status: (String(r.status ?? "재원") as Status),
-    parentName: String(r.parent_name ?? ""),
-    parentAccountId: String(r.parent_account_id ?? ""),
-    address: String(r.address ?? ""),
-    bus: String(r.bus ?? ""),
-    departureTime: String(r.departure_time ?? ""),
-    pickupLat: typeof r.pickup_lat === "number" ? r.pickup_lat : undefined,
-    pickupLng: typeof r.pickup_lng === "number" ? r.pickup_lng : undefined,
-    dropoffLat: typeof r.dropoff_lat === "number" ? r.dropoff_lat : undefined,
-    dropoffLng: typeof r.dropoff_lng === "number" ? r.dropoff_lng : undefined,
-    pickupType: (r.pickup_type as any) ?? "self",
-    dropoffType: (r.dropoff_type as any) ?? "self",
-  }));
+    const base: Student[] = rows.map((r: any) => ({
+      id: String(r.id ?? ""),
+      student_name: String(r.student_name ?? ""),
+      campus: String(r.campus ?? ""),
+      status: (String(r.status ?? "재원") as Status),
+      address: String(r.address ?? ""),
+      pickup_lat: r.pickup_lat ?? null,
+      pickup_lng: r.pickup_lng ?? null,
+      dropoff_lat: r.dropoff_lat ?? null,
+      dropoff_lng: r.dropoff_lng ?? null,
+      parent_auth_user_id: r.parent_auth_user_id ?? null,
+      source_new_student_id: r.source_new_student_id ?? null,
+      created_at: String(r.created_at ?? ""),
+    }));
     const total = base.length;
     const start = (page - 1) * pageSize;
     const items = base.slice(start, start + pageSize);
@@ -79,26 +72,24 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const supabaseAuth = createSupabaseServer();
-    const guard = await requireAdmin(supabaseAuth);
-    if ((guard as any).error) return (guard as any).error;
     const body = await request.json();
     const source = String(body?.source || "");
-    const items: Student[] = Array.isArray(body?.items) ? body.items : [];
+    const items: any[] = Array.isArray(body?.items) ? body.items : [];
     if (!items.length) {
       return NextResponse.json({ ok: false, inserted: 0 }, { status: 400 });
     }
     if (source === "csv") {
       const payload = items.map((s) => ({
-        student_name: s.name,
-        english_name: s.englishName,
-        birth_date: s.birthDate,
-        phone: s.phone,
-        parent_name: s.parentName,
-        address: s.address,
-        class_name: s.className,
-        campus: s.campus,
-        status: "재원",
+        student_name: String(s.student_name ?? s.name ?? ""),
+        campus: String(s.campus ?? ""),
+        status: String(s.status ?? "재원"),
+        address: String(s.address ?? ""),
+        pickup_lat: typeof s.pickup_lat === "number" ? s.pickup_lat : null,
+        pickup_lng: typeof s.pickup_lng === "number" ? s.pickup_lng : null,
+        dropoff_lat: typeof s.dropoff_lat === "number" ? s.dropoff_lat : null,
+        dropoff_lng: typeof s.dropoff_lng === "number" ? s.dropoff_lng : null,
+        parent_auth_user_id: s.parent_auth_user_id ?? null,
+        source_new_student_id: s.source_new_student_id ?? null,
       }));
       const { data, error } = await supabaseService.rpc("admin_import_students_csv", {
         items: payload,
@@ -113,26 +104,17 @@ export async function POST(request: Request) {
     let inserted = 0;
     for (const s of items) {
       const { error } = await supabaseService.from("students").insert({
-        id: s.id,
-        child_id: s.childId ?? null,
-        name: s.name,
-        english_name: s.englishName,
-        birth_date: s.birthDate,
-        phone: s.phone,
-        class_name: s.className,
-        campus: s.campus,
-        status: s.status,
-        parent_name: s.parentName,
-        parent_account_id: s.parentAccountId,
-        address: s.address,
-        bus: s.bus,
-        departure_time: s.departureTime,
-        pickup_lat: typeof s.pickupLat === "number" ? s.pickupLat : null,
-        pickup_lng: typeof s.pickupLng === "number" ? s.pickupLng : null,
-        dropoff_lat: typeof s.dropoffLat === "number" ? s.dropoffLat : null,
-        dropoff_lng: typeof s.dropoffLng === "number" ? s.dropoffLng : null,
-        pickup_type: s.pickupType ?? "self",
-        dropoff_type: s.dropoffType ?? "self",
+        id: s.id ?? undefined,
+        student_name: String(s.student_name ?? s.name ?? ""),
+        campus: String(s.campus ?? ""),
+        status: String(s.status ?? "재원"),
+        address: String(s.address ?? ""),
+        pickup_lat: typeof s.pickup_lat === "number" ? s.pickup_lat : null,
+        pickup_lng: typeof s.pickup_lng === "number" ? s.pickup_lng : null,
+        dropoff_lat: typeof s.dropoff_lat === "number" ? s.dropoff_lat : null,
+        dropoff_lng: typeof s.dropoff_lng === "number" ? s.dropoff_lng : null,
+        parent_auth_user_id: s.parent_auth_user_id ?? null,
+        source_new_student_id: s.source_new_student_id ?? null,
       });
       if (error) {
         console.error(error);

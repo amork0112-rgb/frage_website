@@ -121,15 +121,7 @@ export async function PUT(req: Request) {
       return json({ error: error.message }, 400);
     }
 
-    if (checked && key === "admission_confirmed") {
-      const { error: stepErr } = await supabaseService
-        .from("new_students")
-        .update({ current_step: 2, status: "step2" })
-        .eq("id", studentId);
-      if (stepErr) {
-        console.error("TEACHER STEP UPDATE ERROR", stepErr);
-      }
-    }
+    
 
     console.log("[TEACHER_NEW_STUDENT_PROGRESS]", {
       teacherId: String(user.id),
@@ -140,33 +132,6 @@ export async function PUT(req: Request) {
     });
 
     return json({ ok: true });
-  } catch {
-    return json({ error: "invalid" }, 400);
-  }
-}
-
-export async function POST(req: Request) {
-  try {
-    const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
-    if (!user) return json({ error: "unauthorized" }, 401);
-    const role = user.app_metadata?.role ?? "parent";
-    if (role !== "teacher" && role !== "admin" && role !== "master_admin") {
-      return json({ error: "forbidden" }, 403);
-    }
-    const body = await req.json();
-    const action = String(body.action || "");
-    if (action === "approve") {
-      const newStudentId = String(body.studentId || body.student_id || "");
-      if (!newStudentId) return json({ error: "missing" }, 400);
-      const { data, error: rpcErr } = await supabaseService.rpc("approve_enrollment", {
-        new_student_id: newStudentId,
-      });
-      if (rpcErr) return json({ error: "approve_failed", details: rpcErr?.message }, 500);
-      const payload = data && typeof data === "object" ? data : {};
-      return json({ ok: true, approved: true, ...payload });
-    }
-    return json({ error: "unsupported" }, 400);
   } catch {
     return json({ error: "invalid" }, 400);
   }
