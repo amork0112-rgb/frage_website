@@ -105,18 +105,21 @@ export async function PUT(req: Request) {
     const checked = Boolean(body.checked ?? false);
     if (!studentId || !key) return json({ error: "missing" }, 400);
 
+    const SYSTEM_TEACHER_ID = "00000000-0000-0000-0000-000000000001";
     const payload = {
       student_id: studentId,
       step_key: key,
       step_label: key,
       checked,
       checked_at: checked ? new Date().toISOString() : null,
+      teacher_id: SYSTEM_TEACHER_ID,
     };
 
     const { error } = await supabaseAuth
       .from("new_student_checklists")
       .upsert(payload, { onConflict: "student_id,step_key" });
     if (error) {
+      console.error("CHECKLIST UPSERT ERROR", error);
       return json({ error: error.message }, 400);
     }
 
