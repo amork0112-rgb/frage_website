@@ -109,37 +109,14 @@ export default function AdmissionSurveyPage({
           }
           (async () => {
             try {
-              const extraRes = await fetch("/api/admission/extra", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  studentId,
-                  grade: grade.trim(),
-                  currentSchool: currentSchool.trim(),
-                  englishHistory: englishHistory.trim(),
-                  officialScore: officialScore.trim() ? officialScore.trim() : null,
-                  srScore: srScore.trim() ? srScore.trim() : null,
-                }),
-              });
-              const extraData = await extraRes.json().catch(() => ({}));
-              if (!extraRes.ok || extraData?.ok !== true) {
-                const msg = extraData?.error ? String(extraData.error) : "추가정보 저장 중 문제가 발생했습니다.";
-                alert(msg);
-                return;
-              }
               const payload = {
-                student_id: studentId,
-                lead_source: [
-                  ...lead.filter((v) => v !== "기타" && v !== "형제·지인 재원"),
-                  ...(lead.includes("기타") && leadEtc.trim() ? [leadEtc.trim()] : []),
-                  ...(lead.includes("형제·지인 재원")
-                    ? [leadReferralName.trim() ? `형제·지인 재원: ${leadReferralName.trim()}` : "형제·지인 재원"]
-                    : []),
-                ],
-                interest_reasons: [
-                  ...reasons.filter((v) => v !== "기타"),
-                  ...(reasons.includes("기타") && reasonsEtc.trim() ? [reasonsEtc.trim()] : []),
-                ],
+                new_student_id: studentId,
+                grade: grade.trim(),
+                current_school: currentSchool.trim(),
+                english_history: englishHistory.trim(),
+                official_score: officialScore.trim() ? officialScore.trim() : null,
+                sr_score: srScore.trim() ? srScore.trim() : null,
+                available_days: null,
                 expectations: expectations.trim(),
                 concerns: concerns.trim() ? concerns.trim() : null,
               };
