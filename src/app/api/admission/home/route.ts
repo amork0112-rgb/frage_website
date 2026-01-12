@@ -72,6 +72,8 @@ export async function GET() {
     const list = Array.isArray(rows) ? rows : [];
     const studentIds = list.map((r: any) => String(r.id));
     let confirmMap: Record<string, boolean> = {};
+    let surveyMap: Record<string, boolean> = {};
+
     if (studentIds.length > 0) {
       const { data: checks } = await supabaseService
         .from("new_student_checklists")
@@ -81,6 +83,15 @@ export async function GET() {
       (checks || []).forEach((c: any) => {
         const sid = String(c.student_id || "");
         confirmMap[sid] = !!c.checked;
+      });
+
+      const { data: surveys } = await supabaseService
+        .from("admission_extras")
+        .select("new_student_id")
+        .in("new_student_id", studentIds);
+      (surveys || []).forEach((s: any) => {
+        const sid = String(s.new_student_id || "");
+        surveyMap[sid] = true;
       });
     }
 
@@ -135,6 +146,7 @@ export async function GET() {
               campus: String(r.campus || ""),
               address: String(r.address || ""),
               created_at: r.created_at ? String(r.created_at) : "",
+              survey_completed: !!surveyMap[sid],
             };
           })
         )

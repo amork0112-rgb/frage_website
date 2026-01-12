@@ -577,6 +577,7 @@ export default function AdmissionPage() {
                 상담을 더 정확하게 준비하기 위한 질문입니다. (약 2분)
               </p>
               <button
+                disabled={!!selected?.survey_completed}
                 onClick={() => {
                   const sel = items[selectedStudentIdx] || items[0];
                   const sid = String(sel?.id || "");
@@ -586,9 +587,13 @@ export default function AdmissionPage() {
                   }
                   router.push(`/admission/${sid}/survey`);
                 }}
-                className="w-full mt-4 px-4 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700"
+                className={`w-full mt-4 px-4 py-3 rounded-xl font-bold transition-colors ${
+                  selected?.survey_completed
+                    ? "bg-slate-300 text-white cursor-not-allowed"
+                    : "bg-purple-600 text-white hover:bg-purple-700"
+                }`}
               >
-                상담 전 설문 작성하러 가기 →
+                {selected?.survey_completed ? "설문조사완료" : "상담 전 설문 작성하러 가기 →"}
               </button>
             </div>
           </section>
