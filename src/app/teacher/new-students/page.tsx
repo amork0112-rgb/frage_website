@@ -138,7 +138,7 @@ export default function TeacherNewStudentsPage() {
           const { data } = await supabase.auth.getUser();
           setTeacherId(data?.user?.id || null);
         }
-        const res = await fetch("/api/admin/new-students", { cache: "no-store" });
+        const res = await fetch("/api/teacher/new-students", { cache: "no-store", credentials: "include" });
         const all = await res.json();
         const items = Array.isArray(all?.items) ? all.items : [];
         const mapped: StudentProfile[] = items.map((r: any) => ({
@@ -154,7 +154,7 @@ export default function TeacherNewStudentsPage() {
         }));
         setStudents(mapped);
         try {
-          const res = await fetch("/api/admin/new-students", { cache: "no-store" });
+          const res = await fetch("/api/teacher/new-students", { cache: "no-store", credentials: "include" });
           const all = await res.json();
           const checks = all?.checklists || {};
           const reservations = all?.reservations || {};
@@ -230,32 +230,29 @@ export default function TeacherNewStudentsPage() {
     const nextChecked = !currentItem.checked;
     const nextCheckedAt = nextChecked ? new Date().toISOString() : undefined;
     try {
-      if (supabaseReady) {
-        const { data } = await supabase.auth.getUser();
-        const uid = data?.user?.id || null;
-        await supabase.from("new_student_checklists").upsert({
-          student_id: studentId,
+      await fetch("/api/teacher/new-students", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          studentId,
           key: stepKey,
           checked: nextChecked,
-          checked_at: nextCheckedAt,
-          checked_by: uid,
-        });
-        const { data: rows } = await supabase
-          .from("new_student_checklists")
-          .select("*")
-          .eq("student_id", studentId);
-        const map: StudentChecklist = {};
-        (rows || []).forEach((row: any) => {
-          map[row.key] = {
-            key: row.key,
+          date: nextCheckedAt,
+        }),
+      });
+      setChecklists(prev => ({
+        ...prev,
+        [studentId]: {
+          ...(prev[studentId] || {}),
+          [stepKey]: {
+            key: stepKey,
             label: stepLabel,
-            checked: !!row.checked,
-            date: row.checked_at || undefined,
-            by: row.checked_by || undefined,
-          };
-        });
-        setChecklists(prev => ({ ...prev, [studentId]: map }));
-      }
+            checked: nextChecked,
+            date: nextCheckedAt,
+          },
+        },
+      }));
     } catch {}
 
     // Trigger Logic (Automations)
