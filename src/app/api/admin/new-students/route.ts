@@ -76,6 +76,17 @@ export async function GET() {
       };
     });
 
+    const { data: extrasRows, error: e4 } = await supabaseService
+      .from("admission_extras")
+      .select("new_student_id");
+    if (e4) return json({ error: "extras_fetch_failed" }, 500);
+    const extrasExists: Record<string, boolean> = {};
+    (extrasRows || []).forEach((row: any) => {
+      const sid = String(row.new_student_id ?? "");
+      if (!sid) return;
+      extrasExists[sid] = true;
+    });
+
     const list = Array.isArray(students) ? students : [];
     const filtered = list.filter((s: any) => {
       const sid = String(s.id || "");
@@ -88,6 +99,7 @@ export async function GET() {
       items: filtered,
       checklists,
       reservations: reservationsMap,
+      extrasExists,
     });
   } catch {
     return json({ error: "unexpected" }, 500);

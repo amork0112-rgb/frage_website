@@ -135,6 +135,7 @@ export default function AdminNewStudentsPage() {
   const [filterCampus, setFilterCampus] = useState("All");
   const [memoEditingId, setMemoEditingId] = useState<string | null>(null);
   const [memoText, setMemoText] = useState("");
+  const [extrasExists, setExtrasExists] = useState<Record<string, boolean>>({});
   
   // Reservation Management State
   const [showReservationModal, setShowReservationModal] = useState(false);
@@ -185,6 +186,7 @@ export default function AdminNewStudentsPage() {
         setStudents(mapped);
         setChecklists(data?.checklists || {});
         setStudentReservations(data?.reservations || {});
+        setExtrasExists(data?.extrasExists || {});
       } catch (e) {}
     };
     load();
@@ -218,6 +220,7 @@ export default function AdminNewStudentsPage() {
       setStudents(mapped);
       setChecklists(data?.checklists || {});
       setStudentReservations(data?.reservations || {});
+      setExtrasExists(data?.extrasExists || {});
     } catch {}
   };
 
@@ -530,7 +533,16 @@ export default function AdminNewStudentsPage() {
               </div>
             </div>
             {showCalendar && (
-              <div className="px-4 pb-2 text-[11px] text-slate-500">캘린더 렌더링은 조회만 수행합니다. 시간대 생성은 월 초기화 버튼으로 실행됩니다.</div>
+              <>
+                <div className="px-4 pb-2 text-[11px] text-slate-500">캘린더 렌더링은 조회만 수행합니다. 시간대 생성은 월 초기화 버튼으로 실행됩니다.</div>
+                <div className="px-4">
+                  <div className="mb-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-[12px] text-yellow-800 font-bold space-y-2">
+                    <div>📌 초등학생의 경우 학생과 학부모님이 모두 방문 가능한 시간으로 예약해주세요 (테스트 후 바로 상담이 이루어지게 됩니다)</div>
+                    <div>📍 소요시간은 학생의 레벨에 따라 상이하며 대략 30분~1시간 소요됩니다</div>
+                    <div>✏️ 테스트를 치게 되면 테스트 비용이 발생되는 점 참고 부탁드립니다 (학생의 자세한 진단을 위해 추가적인 테스트가 추가될 수도 있습니다)</div>
+                  </div>
+                </div>
+              </>
             )}
           {showCalendar && (
           <div className="p-4 pt-0" id="calendar-section">
@@ -698,7 +710,7 @@ export default function AdminNewStudentsPage() {
                       })()}
                       {reservedText && (
                         <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
-                          {reservedText}
+                          상담예약 : {reservedText}
                         </span>
                       )}
                       {!reservedText && (
@@ -725,15 +737,34 @@ export default function AdminNewStudentsPage() {
                       </div>
                       {isExpanded ? <ChevronUp className="text-slate-400" /> : <ChevronDown className="text-slate-400" />}
                     </div>
-                  </div>
+                </div>
 
-                  {isExpanded && (
-                    <div className="p-6 pt-0 border-t border-slate-100 bg-slate-50/50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 py-6">
-                        {WORKFLOW_STEPS.map((step) => (
-                          <div key={step.id} className="flex flex-col">
-                            <h4 className="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${step.color}`}></span>
+                {isExpanded && (
+                  <div className="p-6 pt-0 border-t border-slate-100 bg-slate-50/50">
+                    <div className="mb-4">
+                      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full ${extrasExists[student.id] ? "bg-green-500" : "bg-slate-300"}`}></div>
+                          <div>
+                            <div className="text-sm font-bold text-slate-900">상담 전 설문</div>
+                            <div className="text-[11px] font-bold text-slate-500 mt-0.5">
+                              작성 상태: {extrasExists[student.id] ? "완료" : "미작성"}
+                            </div>
+                          </div>
+                        </div>
+                        <Link
+                          href={`/admin/new-students/${student.id}/survey`}
+                          className="text-[11px] px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100"
+                        >
+                          자세히 보기
+                        </Link>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 py-6">
+                      {WORKFLOW_STEPS.map((step) => (
+                        <div key={step.id} className="flex flex-col">
+                          <h4 className="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${step.color}`}></span>
                               {step.title}
                             </h4>
                             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden flex-1 shadow-sm">

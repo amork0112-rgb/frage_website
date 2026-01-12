@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import { Youtube, BookOpen } from "lucide-react";
 
 export default function AdmissionsPage() {
   return (
@@ -68,6 +69,39 @@ export default function AdmissionsPage() {
           >
             가까운 캠퍼스 찾기
           </Link>
+        </div>
+      </section>
+      
+      <section className="container mx-auto mt-12 max-w-3xl px-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <a
+            href="https://blog.naver.com/prologue/PrologueList.naver?blogId=frage_2030&skinType=&skinId=&from=menu&userSelectMenu=true"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex items-center gap-4 hover:border-frage-primary hover:shadow-md transition-all"
+          >
+            <div className="w-12 h-12 rounded-xl bg-frage-navy/10 flex items-center justify-center">
+              <BookOpen className="w-6 h-6 text-frage-navy" />
+            </div>
+            <div className="flex-1">
+              <div className="text-base font-bold text-slate-900">프라게 블로그 구경하기</div>
+              <div className="text-xs font-bold text-slate-500 mt-1">네이버 블로그에서 교육 철학과 소식을 만나보세요</div>
+            </div>
+          </a>
+          <a
+            href="https://www.youtube.com/@FRAGE_Edu/featured"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex items-center gap-4 hover:border-frage-primary hover:shadow-md transition-all"
+          >
+            <div className="w-12 h-12 rounded-xl bg-red-600/10 flex items-center justify-center">
+              <Youtube className="w-6 h-6 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <div className="text-base font-bold text-slate-900">프라게 유튜브 구경하기</div>
+              <div className="text-xs font-bold text-slate-500 mt-1">프라게 TV에서 프로그램과 학습 콘텐츠를 확인하세요</div>
+            </div>
+          </a>
         </div>
       </section>
     </main>
