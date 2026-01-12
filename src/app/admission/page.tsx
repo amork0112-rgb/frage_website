@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, Calendar, FileCheck, AlertTriangle, UserPlus, ChevronDown } from "lucide-react";
+import { CheckCircle, Calendar, FileCheck, AlertTriangle, UserPlus, ChevronDown, BookOpen, Youtube } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import AdmissionHeader from "@/components/admission/AdmissionHeader";
 import StudentInfoCard from "@/components/admission/StudentInfoCard";
@@ -640,8 +640,35 @@ export default function AdmissionPage() {
             <Calendar className="w-5 h-5 text-purple-600" />
             입학 관련 안내
           </h3>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-sm text-slate-700">
-            학원에서 곧 연락드려 상담 일정을 확정합니다. 입학 테스트 및 서류 작성은 상담 결과에 따라 진행됩니다.
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a
+              href="https://blog.naver.com/prologue/PrologueList.naver?blogId=frage_2030&skinType=&skinId=&from=menu&userSelectMenu=true"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3 hover:border-purple-500 hover:shadow-md transition-all"
+            >
+              <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-purple-600" />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-bold text-slate-900">프라게 블로그 구경하기</div>
+                <div className="text-xs font-bold text-slate-500 mt-0.5">교육 철학과 학원 소식을 확인하세요</div>
+              </div>
+            </a>
+            <a
+              href="https://www.youtube.com/@FRAGE_Edu/featured"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3 hover:border-red-500 hover:shadow-md transition-all"
+            >
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                <Youtube className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-bold text-slate-900">프라게 유튜브 구경하기</div>
+                <div className="text-xs font-bold text-slate-500 mt-0.5">프라게 TV에서 프로그램과 콘텐츠를 보세요</div>
+              </div>
+            </a>
           </div>
         </section>
       </main>
