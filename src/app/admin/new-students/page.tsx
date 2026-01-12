@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import Link from "next/link";
 import { Check, AlertCircle, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote, ChevronLeft, ChevronRight } from "lucide-react";
 import { CAMPUS_CONFIG } from "@/config/campus";
 import { supabase } from "@/lib/supabase";
@@ -137,6 +136,7 @@ export default function AdminNewStudentsPage() {
   const [memoText, setMemoText] = useState("");
   const [extrasExists, setExtrasExists] = useState<Record<string, boolean>>({});
   const [extrasData, setExtrasData] = useState<Record<string, any>>({});
+  const [surveyExpanded, setSurveyExpanded] = useState<Record<string, boolean>>({});
   
   // Reservation Management State
   const [showReservationModal, setShowReservationModal] = useState(false);
@@ -756,15 +756,16 @@ export default function AdminNewStudentsPage() {
                               </div>
                             </div>
                           </div>
-                          <Link
-                            href={`/admin/new-students/${student.id}/survey`}
-                            className="text-[11px] px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100"
+                          <button
+                            onClick={() => setSurveyExpanded(prev => ({ ...prev, [student.id]: !prev[student.id] }))}
+                            className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100"
                           >
-                            전체 보기
-                          </Link>
+                            {surveyExpanded[student.id] ? "접기" : "전체 보기"}
+                            {surveyExpanded[student.id] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          </button>
                         </div>
                         
-                        {extrasExists[student.id] && extrasData[student.id] && (
+                        {surveyExpanded[student.id] && extrasExists[student.id] && extrasData[student.id] && (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-100 text-xs">
                              <div className="col-span-1 md:col-span-2">
                                <span className="font-bold text-slate-500 block mb-1">영어 학습 이력 (English History)</span>
