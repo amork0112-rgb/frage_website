@@ -36,11 +36,14 @@ export default function SignupPage() {
     address: "",
     addressDetail: "",
     privacyAgreed: false,
+    marketingAgreed: false,
     campus: preCampus
   });
   
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPrivacyDetail, setShowPrivacyDetail] = useState(false);
+  const [showMarketingDetail, setShowMarketingDetail] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -551,25 +554,184 @@ export default function SignupPage() {
               
 
               {/* Privacy Policy */}
-              <div className="pt-4 border-t border-gray-100">
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <div className="relative flex items-center">
-                    <input
-                      type="checkbox"
-                      name="privacyAgreed"
-                      checked={formData.privacyAgreed}
-                      onChange={handleChange}
-                      required
-                      className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-gray-300 shadow-sm checked:border-frage-blue checked:bg-frage-blue hover:border-frage-blue focus:outline-none focus:ring-2 focus:ring-frage-blue/20"
-                    />
-                    <Check className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100" />
-                  </div>
-                  <div className="text-sm">
-                    <span className="font-bold text-frage-navy block mb-1">개인정보 수집 및 이용 동의</span>
-                    <span className="text-frage-gray">상담 및 학사 관리 목적의 개인정보 수집·이용에 동의합니다.</span>
-                  </div>
-                </label>
+              <div className="pt-4 border-t border-gray-100 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <div className="relative flex items-center">
+                      <input
+                        type="checkbox"
+                        name="privacyAgreed"
+                        checked={formData.privacyAgreed}
+                        onChange={handleChange}
+                        required
+                        className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-gray-300 shadow-sm checked:border-frage-blue checked:bg-frage-blue hover:border-frage-blue focus:outline-none focus:ring-2 focus:ring-frage-blue/20"
+                      />
+                      <Check className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100" />
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-bold text-frage-navy block mb-1">개인정보 수집·이용 동의 (필수)</span>
+                      <span className="text-frage-gray">입학 상담 및 학사 관리 목적의 개인정보 수집·이용에 동의합니다.</span>
+                    </div>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPrivacyDetail(true)}
+                    className="text-xs font-bold text-frage-blue underline hover:text-frage-navy"
+                  >
+                    전문 보기
+                  </button>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <div className="relative flex items-center">
+                      <input
+                        type="checkbox"
+                        name="marketingAgreed"
+                        checked={formData.marketingAgreed}
+                        onChange={handleChange}
+                        className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-gray-300 shadow-sm checked:border-frage-blue checked:bg-frage-blue hover:border-frage-blue focus:outline-none focus:ring-2 focus:ring-frage-blue/20"
+                      />
+                      <Check className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100" />
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-bold text-frage-navy block mb-1">마케팅·안내 수신 동의 (선택)</span>
+                      <div className="text-frage-gray space-y-1">
+                        <div>- 학원 행사, 설명회, 학습 리포트 안내</div>
+                        <div>- 수신 방법: 문자, 알림톡, 앱 푸시</div>
+                      </div>
+                    </div>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowMarketingDetail(true)}
+                    className="text-xs font-bold text-frage-blue underline hover:text-frage-navy"
+                  >
+                    전문 보기
+                  </button>
+                </div>
               </div>
+
+              {showPrivacyDetail && (
+                <div className="fixed inset-0 z-[2000] bg-black/50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+                    <div className="p-6 border-b">
+                      <h3 className="text-xl font-black text-frage-navy">📌 개인정보 수집 및 이용 동의서</h3>
+                    </div>
+                    <div className="p-6 space-y-6 text-sm text-slate-700">
+                      <p>본 학원은 「개인정보보호법」 제15조에 따라 아래와 같이 개인정보를 수집·이용하고자 합니다. 내용을 충분히 숙지하신 후 동의 여부를 결정해 주시기 바랍니다.</p>
+                      <div>
+                        <div className="font-bold text-frage-navy mb-2">1. 개인정보 수집·이용 목적</div>
+                        <div className="space-y-1">
+                          <div>입학 상담 및 등록 절차 진행</div>
+                          <div>학사 관리(출결 관리, 수업 운영, 평가 및 리포트 제공)</div>
+                          <div>학부모 상담 및 공지사항 전달</div>
+                          <div>차량 운행 및 안전 관리(해당 시)</div>
+                          <div>교육 서비스 제공 및 학원 운영 관련 안내</div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-bold text-frage-navy mb-2">2. 수집하는 개인정보 항목</div>
+                        <div className="space-y-1">
+                          <div>필수항목: 학생 성명, 생년월일, 보호자 성명, 보호자 연락처, 주소</div>
+                          <div>선택항목: 학생 사진, 건강 및 알레르기 관련 정보, 차량 이용 정보</div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-bold text-frage-navy mb-2">3. 개인정보 보유 및 이용 기간</div>
+                        <div className="space-y-1">
+                          <div>수집·이용 목적 달성 시까지</div>
+                          <div>단, 관계 법령에 따라 보존이 필요한 경우 해당 법령에서 정한 기간 동안 보관</div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-bold text-frage-navy mb-2">4. 동의 거부 권리 및 불이익 안내</div>
+                        <div className="space-y-1">
+                          <div>개인정보 수집·이용에 대한 동의를 거부할 수 있으며,</div>
+                          <div>다만, 필수항목에 대한 동의를 거부할 경우 입학 상담, 학사 관리 등 학원 서비스 제공이 제한될 수 있습니다.</div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-bold text-frage-navy mb-2">5. 개인정보의 제3자 제공 및 처리 위탁</div>
+                        <div className="space-y-1">
+                          <div>원칙적으로 개인정보를 제3자에게 제공하지 않습니다.</div>
+                          <div>다만, 학사 운영을 위해 필요한 경우(문자·알림톡 발송, 전산 시스템 운영 등) 관련 법령에 따라 위탁 처리할 수 있습니다.</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-6 border-t flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setShowPrivacyDetail(false)}
+                        className="px-4 py-2 rounded-lg bg-frage-navy text-white text-sm font-bold"
+                      >
+                        닫기
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showMarketingDetail && (
+                <div className="fixed inset-0 z-[2000] bg-black/50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+                    <div className="p-6 border-b">
+                      <h3 className="text-xl font-black text-frage-navy">📢 마케팅·안내 정보 수신 동의서 (선택)</h3>
+                    </div>
+                    <div className="p-6 space-y-6 text-sm text-slate-700">
+                      <p>본 학원은 「개인정보보호법」 및 「정보통신망 이용촉진 및 정보보호 등에 관한 법률」에 따라 아래와 같이 홍보·마케팅 목적의 정보 제공을 위해 개인정보를 이용하고자 합니다. 내용을 충분히 확인하신 후 동의 여부를 자율적으로 선택해 주시기 바랍니다.</p>
+                      <div>
+                        <div className="font-bold text-frage-navy mb-2">1. 이용 목적</div>
+                        <div className="space-y-1">
+                          <div>학원 설명회, 공개 수업, 행사 안내</div>
+                          <div>신규 과정, 프로그램, 커리큘럼 안내</div>
+                          <div>이벤트, 프로모션, 혜택 정보 제공</div>
+                          <div>기타 학원 홍보 및 마케팅 목적의 안내</div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-bold text-frage-navy mb-2">2. 이용하는 개인정보 항목</div>
+                        <div className="space-y-1">
+                          <div>보호자 연락처(휴대전화 번호)</div>
+                          <div>보호자 이름</div>
+                          <div>학생 이름(안내 식별 목적)</div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-bold text-frage-navy mb-2">3. 정보 수신 방법</div>
+                        <div className="space-y-1">
+                          <div>문자메시지(SMS/LMS)</div>
+                          <div>카카오 알림톡</div>
+                          <div>앱 푸시 알림</div>
+                          <div>이메일(해당 시)</div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-bold text-frage-navy mb-2">4. 보유 및 이용 기간</div>
+                        <div className="space-y-1">
+                          <div>동의일로부터 동의 철회 시까지</div>
+                          <div>또는 해당 목적 달성 시까지</div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-bold text-frage-navy mb-2">5. 동의 거부 권리 및 불이익 안내</div>
+                        <div className="space-y-1">
+                          <div>귀하는 마케팅·안내 정보 수신에 대한 동의를 거부할 권리가 있습니다.</div>
+                          <div>동의를 거부하더라도 입학, 수업, 학사 관리 등 필수 학원 서비스 이용에는 어떠한 불이익도 없습니다.</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-6 border-t flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setShowMarketingDetail(false)}
+                        className="px-4 py-2 rounded-lg bg-frage-navy text-white text-sm font-bold"
+                      >
+                        닫기
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Submit Button */}
               <button

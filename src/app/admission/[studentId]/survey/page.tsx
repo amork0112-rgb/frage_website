@@ -28,6 +28,11 @@ export default function AdmissionSurveyPage({
   const [reasonsEtc, setReasonsEtc] = useState("");
   const [expectations, setExpectations] = useState("");
   const [concerns, setConcerns] = useState("");
+  const [grade, setGrade] = useState("");
+  const [currentSchool, setCurrentSchool] = useState("");
+  const [englishHistory, setEnglishHistory] = useState("");
+  const [officialScore, setOfficialScore] = useState("");
+  const [srScore, setSrScore] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -97,8 +102,30 @@ export default function AdmissionSurveyPage({
             alert("기대하는 점은 300자 이내로 작성해주세요.");
             return;
           }
+          if (!grade.trim() || !currentSchool.trim() || !englishHistory.trim()) {
+            alert("학생 학년, 재학학교, 영어학습이력을 입력해 주세요.");
+            return;
+          }
           (async () => {
             try {
+              const extraRes = await fetch("/api/admission/extra", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  studentId,
+                  grade: grade.trim(),
+                  currentSchool: currentSchool.trim(),
+                  englishHistory: englishHistory.trim(),
+                  officialScore: officialScore.trim() ? officialScore.trim() : null,
+                  srScore: srScore.trim() ? srScore.trim() : null,
+                }),
+              });
+              const extraData = await extraRes.json().catch(() => ({}));
+              if (!extraRes.ok || extraData?.ok !== true) {
+                const msg = extraData?.error ? String(extraData.error) : "추가정보 저장 중 문제가 발생했습니다.";
+                alert(msg);
+                return;
+              }
               const payload = {
                 student_id: studentId,
                 lead_source: [
@@ -132,6 +159,69 @@ export default function AdmissionSurveyPage({
         }}
         className="space-y-6"
       >
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <div className="mb-2">
+            <label className="block text-sm font-bold text-slate-700 mb-2">
+              학생 학년 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={grade}
+              onChange={(e) => setGrade(e.target.value)}
+              placeholder="예: 초4 / 중1"
+              className="w-full px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
+            />
+          </div>
+          <div className="mb-2">
+            <label className="block text-sm font-bold text-slate-700 mb-2">
+              재학 학교 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={currentSchool}
+              onChange={(e) => setCurrentSchool(e.target.value)}
+              placeholder="예: ○○초등학교 / ○○중학교"
+              className="w-full px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
+            />
+          </div>
+          <div className="mb-2">
+            <label className="block text-sm font-bold text-slate-700 mb-2">
+              영어 학습 이력 <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={englishHistory}
+              onChange={(e) => setEnglishHistory(e.target.value)}
+              placeholder="예: 학원/과외/온라인 학습 경험, 학습 기간 등"
+              className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900 min-h-[80px]"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">
+                공인인증시험 점수 <span className="text-slate-400 font-normal">(선택)</span>
+              </label>
+              <input
+                type="text"
+                value={officialScore}
+                onChange={(e) => setOfficialScore(e.target.value)}
+                placeholder="예: TOEFL Junior 820, TOEIC Bridge 110"
+                className="w-full px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">
+                SR 점수 <span className="text-slate-400 font-normal">(선택)</span>
+              </label>
+              <input
+                type="text"
+                value={srScore}
+                onChange={(e) => setSrScore(e.target.value)}
+                placeholder="예: SR 72"
+                className="w-full px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus;border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
+              />
+            </div>
+          </div>
+        </section>
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
           <div className="mb-2">
             <label className="block text-sm font-bold text-slate-700 mb-2">
@@ -261,7 +351,14 @@ export default function AdmissionSurveyPage({
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={lead.length === 0 || reasons.length === 0 || expectations.trim().length === 0}
+            disabled={
+              lead.length === 0 ||
+              reasons.length === 0 ||
+              expectations.trim().length === 0 ||
+              !grade.trim() ||
+              !currentSchool.trim() ||
+              !englishHistory.trim()
+            }
             className="px-4 py-2 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             저장하고 상담 준비하기
