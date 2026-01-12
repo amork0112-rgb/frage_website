@@ -18,24 +18,23 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const {
-      new_student_id,
+      studentId,
       grade,
-      current_school,
-      english_history,
-      official_score,
-      sr_score,
-      available_days,
+      currentSchool,
+      englishHistory,
+      officialScore,
+      srScore,
+      availableDays,
+      leadSources,
+      leadEtc,
+      referralName,
+      interestReasons,
       expectations,
       concerns,
     } = body;
 
-    if (
-      !new_student_id ||
-      !grade ||
-      !current_school ||
-      !english_history ||
-      !expectations
-    ) {
+    // studentId 필수 체크
+    if (!studentId) {
       return NextResponse.json(
         { ok: false, error: "Missing required fields" },
         { status: 400 }
@@ -45,27 +44,31 @@ export async function POST(request: Request) {
     const now = new Date().toISOString();
 
     // 변수 매핑 및 안전한 값 처리
-    const stu = { id: new_student_id };
-    const currentSchool = current_school;
-    const englishHistory = english_history;
-    const officialScore = official_score || null;
-    const srScore = sr_score || null;
-    const availableDays = typeof available_days === "string" ? available_days : null;
+    const safeAvailableDays = typeof availableDays === "string" ? availableDays : null;
+    const safeLeadSources = Array.isArray(leadSources) ? leadSources : [];
+    const safeInterestReasons = Array.isArray(interestReasons) ? interestReasons : [];
 
     // payload (이대로 써)
     const { error: upErr } = await supabaseService
       .from("admission_extras")
       .upsert(
         {
-          new_student_id: String(stu.id),
+          new_student_id: String(studentId),
           grade,
           current_school: currentSchool,
-          english_history: englishHistory, // ❗ 컬럼명 정확히
-          official_score: officialScore,
-          sr_score: srScore,
-          available_days: availableDays,
+          english_history: englishHistory,
+          official_score: officialScore || null,
+          sr_score: srScore || null,
+          available_days: safeAvailableDays,
+
+          lead_sources: safeLeadSources,
+          lead_etc: leadEtc || null,
+          referral_name: referralName || null,
+
+          interest_reasons: safeInterestReasons,
           expectations,
           concerns: concerns || null,
+
           created_at: now,      // ✅ 필수
           updated_at: now,      // ✅ 필수
           created_by: user.id,  // ✅ 필수
