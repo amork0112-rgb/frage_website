@@ -1,82 +1,108 @@
-// /api/admission/survey
-/**
- * Guard logic depends on /api/admission/home
- * - items[] must include admissionStep
- * - only admissionStep === "reserved" can access survey
- */
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-const json = (data: any, status = 200) =>
-  new NextResponse(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const supabaseAuth = createSupabaseServer();
+    const supabase = createSupabaseServer();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    /* 1️⃣ 로그인 유저 */
-    const { data: userData } = await supabaseAuth.auth.getUser();
-    const user = userData?.user;
-    if (!user) return json({ error: "unauthorized" }, 401);
-
-    const role = (user.app_metadata as any)?.role ?? "parent";
-    if (role !== "parent") return json({ error: "forbidden" }, 403);
-
-    /* 2️⃣ 부모 기준 new_students 조회 (🔥 핵심 수정) */
-    const { data: stu } = await supabaseAuth
-      .from("new_students")
-      .select("id")
-      .eq("parent_auth_user_id", user.id)
-      .maybeSingle();
-
-    if (!stu) return json({ error: "no_new_student" }, 404);
-
-    /* 3️⃣ payload */
-    const body = await req.json();
-    const leadSource = Array.isArray(body?.lead_source) ? body.lead_source : [];
-    const interestReasons = Array.isArray(body?.interest_reasons) ? body.interest_reasons : [];
-    const expectations = String(body?.expectations || "");
-    const concerns = body?.concerns ? String(body.concerns) : null;
-
-    if (leadSource.length === 0 || interestReasons.length === 0 || !expectations) {
-      return json({ error: "missing_fields" }, 400);
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: "unauthorized" },
+        { status: 401 }
+      );
     }
 
-    /* 4️⃣ survey 저장 */
-    const now = new Date().toISOString();
-    const { error } = await supabaseService
-      .from("admission_surveys")
-      .upsert(
-        {
-          new_student_id: stu.id, // show-stopper 해결 포인트
-          lead_source: leadSource,
-          interest_reasons: interestReasons,
-          expectations,
-          concerns,
-          updated_at: now,
-        },
-        { onConflict: "new_student_id" }
+    const body = await request.json();
+    const {
+      new_student_id,
+      grade,
+      current_school,
+      english_history,
+      official_score,
+      sr_score,
+      available_days,
+      expectations,
+      concerns,
+    } = body;
+
+    if (
+      !new_student_id ||
+      !grade ||
+      !current_school ||
+      !english_history ||
+      !expectations
+    ) {
+      return NextResponse.json(
+        { ok: false, error: "Missing required fields" },
+        { status: 400 }
       );
+    }
 
-    if (error) return json({ error: "insert_failed" }, 500);
+    const now = new Date().toISOString();
+    
+    // 3️⃣ available_days 타입 보완 (string 아니면 null)
+    const safeAvailableDays = typeof available_days === "string" ? available_days : null;
 
-    return json({ ok: true });
-  } catch (e) {
-    console.error(e);
-    return json({ error: "invalid" }, 400);
+    // 공통 Payload (updated_at 포함)
+    const basePayload = {
+      grade,
+      current_school,
+      english_history,
+      official_score: official_score || null,
+      sr_score: sr_score || null,
+      available_days: safeAvailableDays,
+      expectations,
+      concerns: concerns || null,
+      updated_at: now,
+    };
+
+    // 2️⃣ insert/update 분리 (created_by 덮어쓰기 방지)
+    const { data: existing } = await supabase
+      .from("admission_extras")
+      .select("id")
+      .eq("new_student_id", new_student_id)
+      .maybeSingle();
+
+    let error;
+
+    if (existing) {
+      // Update: created_at, created_by 제외
+      const { error: updateErr } = await supabase
+        .from("admission_extras")
+        .update(basePayload)
+        .eq("new_student_id", new_student_id);
+      error = updateErr;
+    } else {
+      // Insert: created_at, created_by 포함 (1️⃣ created_at 추가)
+      const { error: insertErr } = await supabase
+        .from("admission_extras")
+        .insert({
+          ...basePayload,
+          new_student_id,
+          created_by: user.id,
+          created_at: now,
+        });
+      error = insertErr;
+    }
+
+    if (error) {
+      // 4️⃣ 에러 메시지 보안 처리 (서버 로그엔 상세히, 클라이언트엔 일반 메시지)
+      console.error("SURVEY_SUBMIT_ERROR:", error);
+      return NextResponse.json(
+        { ok: false, error: "Submission failed" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    console.error("SURVEY_API_UNEXPECTED_ERROR:", e);
+    return NextResponse.json(
+      { ok: false, error: "Server error" },
+      { status: 500 }
+    );
   }
-}
-
-export async function GET() {
-  return new NextResponse(
-    JSON.stringify({ error: "method_not_allowed" }),
-    { status: 405, headers: { "Content-Type": "application/json" } }
-  );
 }

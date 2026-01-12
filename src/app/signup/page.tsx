@@ -355,7 +355,6 @@ export default function SignupPage() {
                     required
                     value={formData.campus}
                     onChange={(e) => handleChange(e as any)}
-                    disabled={isSibling}
                     className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy"
                   >
                     <option value="">캠퍼스를 선택해주세요</option>
