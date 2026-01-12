@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { supabaseService } from "@/lib/supabase/service";
 
 type Status = "재원" | "휴원" | "퇴원";
 
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
     const supabaseAuth = createSupabaseServer();
     const guard = await requireAdmin(supabaseAuth);
     if ((guard as any).error) return (guard as any).error;
-    const { data, error } = await supabaseAuth
+    const { data, error } = await supabaseService
       .from("students")
       .select("*")
       .order("name", { ascending: true });
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
         campus: s.campus,
         status: "재원",
       }));
-      const { data, error } = await supabaseAuth.rpc("admin_import_students_csv", {
+      const { data, error } = await supabaseService.rpc("admin_import_students_csv", {
         items: payload,
       });
       if (error) {
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
     }
     let inserted = 0;
     for (const s of items) {
-      const { error } = await supabaseAuth.from("students").insert({
+      const { error } = await supabaseService.from("students").insert({
         id: s.id,
         child_id: s.childId ?? null,
         name: s.name,

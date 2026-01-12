@@ -61,7 +61,7 @@ export default function TeacherStudentsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/admin/students");
+        const res = await fetch("/api/teacher/students", { cache: "no-store", credentials: "include" });
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.items || [];
         setStudents(items);
@@ -169,7 +169,7 @@ export default function TeacherStudentsPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Users className="w-6 h-6 text-slate-400" />
-          <h1 className="text-2xl font-black text-slate-900">원생 관리</h1>
+          <h1 className="text-2xl font-black text-slate-900">Student List</h1>
         </div>
         <Link href="/teacher/alerts" className="text-sm font-bold text-frage-blue">내부 알림</Link>
       </div>

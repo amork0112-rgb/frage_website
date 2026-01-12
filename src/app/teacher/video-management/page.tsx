@@ -37,7 +37,7 @@ export default function TeacherVideoManagementPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/admin/students");
+        const res = await fetch("/api/teacher/students", { cache: "no-store", credentials: "include" });
         const data = await res.json();
         const arr: Student[] = Array.isArray(data) ? data : data.items || [];
         setStudents(arr);

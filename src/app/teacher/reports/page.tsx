@@ -99,7 +99,7 @@ export default function TeacherReportsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/admin/students");
+        const res = await fetch("/api/teacher/students", { cache: "no-store", credentials: "include" });
         const data = await res.json();
         const items = Array.isArray(data?.items) ? data.items : [];
         const enrolled = items.filter((s: any) => String(s.status) === "재원");

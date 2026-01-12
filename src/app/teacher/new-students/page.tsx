@@ -400,9 +400,10 @@ export default function TeacherNewStudentsPage() {
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 try {
-                                  const res = await fetch("/api/admin/new-students", {
+                                  const res = await fetch("/api/teacher/new-students", {
                                     method: "POST",
                                     headers: { "Content-Type": "application/json" },
+                                    credentials: "include",
                                     body: JSON.stringify({ action: "approve", studentId: student.id })
                                   });
                                   if (res.ok) {
