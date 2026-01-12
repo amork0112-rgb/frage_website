@@ -24,6 +24,7 @@ export default function AdmissionSurveyPage({
 
   const [lead, setLead] = useState<string[]>([]);
   const [leadEtc, setLeadEtc] = useState("");
+  const [leadReferralName, setLeadReferralName] = useState("");
   const [reasons, setReasons] = useState<string[]>([]);
   const [reasonsEtc, setReasonsEtc] = useState("");
   const [expectations, setExpectations] = useState("");
@@ -129,8 +130,11 @@ export default function AdmissionSurveyPage({
               const payload = {
                 student_id: studentId,
                 lead_source: [
-                  ...lead.filter((v) => v !== "기타"),
+                  ...lead.filter((v) => v !== "기타" && v !== "형제·지인 재원"),
                   ...(lead.includes("기타") && leadEtc.trim() ? [leadEtc.trim()] : []),
+                  ...(lead.includes("형제·지인 재원")
+                    ? [leadReferralName.trim() ? `형제·지인 재원: ${leadReferralName.trim()}` : "형제·지인 재원"]
+                    : []),
                 ],
                 interest_reasons: [
                   ...reasons.filter((v) => v !== "기타"),
@@ -266,6 +270,15 @@ export default function AdmissionSurveyPage({
                 value={leadEtc}
                 onChange={(e) => setLeadEtc(e.target.value)}
                 placeholder="기타 내용 입력"
+                className="mt-2 w-full px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
+              />
+            )}
+            {lead.includes("형제·지인 재원") && (
+              <input
+                type="text"
+                value={leadReferralName}
+                onChange={(e) => setLeadReferralName(e.target.value)}
+                placeholder="형제/지인 이름 입력"
                 className="mt-2 w-full px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-slate-900"
               />
             )}
