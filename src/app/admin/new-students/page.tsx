@@ -136,6 +136,7 @@ export default function AdminNewStudentsPage() {
   const [memoEditingId, setMemoEditingId] = useState<string | null>(null);
   const [memoText, setMemoText] = useState("");
   const [extrasExists, setExtrasExists] = useState<Record<string, boolean>>({});
+  const [extrasData, setExtrasData] = useState<Record<string, any>>({});
   
   // Reservation Management State
   const [showReservationModal, setShowReservationModal] = useState(false);
@@ -187,6 +188,7 @@ export default function AdminNewStudentsPage() {
         setChecklists(data?.checklists || {});
         setStudentReservations(data?.reservations || {});
         setExtrasExists(data?.extrasExists || {});
+        setExtrasData(data?.extrasData || {});
       } catch (e) {}
     };
     load();
@@ -221,6 +223,7 @@ export default function AdminNewStudentsPage() {
       setChecklists(data?.checklists || {});
       setStudentReservations(data?.reservations || {});
       setExtrasExists(data?.extrasExists || {});
+      setExtrasData(data?.extrasData || {});
     } catch {}
   };
 
@@ -742,22 +745,57 @@ export default function AdminNewStudentsPage() {
                 {isExpanded && (
                   <div className="p-6 pt-0 border-t border-slate-100 bg-slate-50/50">
                     <div className="mb-4">
-                      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full ${extrasExists[student.id] ? "bg-green-500" : "bg-slate-300"}`}></div>
-                          <div>
-                            <div className="text-sm font-bold text-slate-900">상담 전 설문</div>
-                            <div className="text-[11px] font-bold text-slate-500 mt-0.5">
-                              작성 상태: {extrasExists[student.id] ? "완료" : "미작성"}
+                      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-2 h-2 rounded-full ${extrasExists[student.id] ? "bg-green-500" : "bg-slate-300"}`}></div>
+                            <div>
+                              <div className="text-sm font-bold text-slate-900">상담 전 설문</div>
+                              <div className="text-[11px] font-bold text-slate-500 mt-0.5">
+                                작성 상태: {extrasExists[student.id] ? "완료" : "미작성"}
+                              </div>
                             </div>
                           </div>
+                          <Link
+                            href={`/admin/new-students/${student.id}/survey`}
+                            className="text-[11px] px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100"
+                          >
+                            전체 보기
+                          </Link>
                         </div>
-                        <Link
-                          href={`/admin/new-students/${student.id}/survey`}
-                          className="text-[11px] px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100"
-                        >
-                          자세히 보기
-                        </Link>
+                        
+                        {extrasExists[student.id] && extrasData[student.id] && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-100 text-xs">
+                             <div className="col-span-1 md:col-span-2">
+                               <span className="font-bold text-slate-500 block mb-1">영어 학습 이력 (English History)</span>
+                               <p className="text-slate-800 bg-slate-50 p-2.5 rounded-lg leading-relaxed whitespace-pre-wrap">{extrasData[student.id].englishHistory || "-"}</p>
+                             </div>
+                             <div className="col-span-1 md:col-span-2">
+                               <span className="font-bold text-slate-500 block mb-1">학부모 고민사항 (Concerns)</span>
+                               <p className="text-slate-800 bg-slate-50 p-2.5 rounded-lg leading-relaxed whitespace-pre-wrap">{extrasData[student.id].concerns || "-"}</p>
+                             </div>
+                             <div>
+                               <span className="font-bold text-slate-500 block mb-1">현재 학교 / 학년</span>
+                               <p className="text-slate-800">{extrasData[student.id].currentSchool || "-"} / {extrasData[student.id].grade || "-"}</p>
+                             </div>
+                             <div>
+                               <span className="font-bold text-slate-500 block mb-1">공인 점수 / SR 점수</span>
+                               <p className="text-slate-800">{extrasData[student.id].officialScore || "-"} / {extrasData[student.id].srScore || "-"}</p>
+                             </div>
+                             <div className="col-span-1 md:col-span-2">
+                               <span className="font-bold text-slate-500 block mb-1">관심 이유 / 기대사항</span>
+                               <p className="text-slate-800">{extrasData[student.id].interestReasons || "-"} / {extrasData[student.id].expectations || "-"}</p>
+                             </div>
+                             <div className="col-span-1 md:col-span-2">
+                               <span className="font-bold text-slate-500 block mb-1">유입 경로</span>
+                               <p className="text-slate-800">{extrasData[student.id].leadSources || "-"}</p>
+                             </div>
+                             <div className="col-span-1 md:col-span-2">
+                               <span className="font-bold text-slate-500 block mb-1">수강 가능 요일</span>
+                               <p className="text-slate-800">{extrasData[student.id].availableDays || "-"}</p>
+                             </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 py-6">

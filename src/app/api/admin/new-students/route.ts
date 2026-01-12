@@ -78,13 +78,26 @@ export async function GET() {
 
     const { data: extrasRows, error: e4 } = await supabaseService
       .from("admission_extras")
-      .select("new_student_id");
+      .select("*");
     if (e4) return json({ error: "extras_fetch_failed" }, 500);
+    const extrasData: Record<string, any> = {};
     const extrasExists: Record<string, boolean> = {};
     (extrasRows || []).forEach((row: any) => {
       const sid = String(row.new_student_id ?? "");
       if (!sid) return;
       extrasExists[sid] = true;
+      extrasData[sid] = {
+        grade: String(row.grade ?? ""),
+        currentSchool: String(row.current_school ?? ""),
+        englishHistory: String(row.english_history ?? ""),
+        officialScore: row.official_score ? String(row.official_score) : null,
+        srScore: row.sr_score ? String(row.sr_score) : null,
+        availableDays: row.available_days ? String(row.available_days) : null,
+        leadSources: row.lead_sources ? String(row.lead_sources) : null,
+        interestReasons: row.interest_reasons ? String(row.interest_reasons) : null,
+        expectations: String(row.expectations ?? ""),
+        concerns: row.concerns ? String(row.concerns) : null,
+      };
     });
 
     const list = Array.isArray(students) ? students : [];
@@ -100,6 +113,7 @@ export async function GET() {
       checklists,
       reservations: reservationsMap,
       extrasExists,
+      extrasData,
     });
   } catch {
     return json({ error: "unexpected" }, 500);
