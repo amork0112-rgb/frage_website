@@ -576,7 +576,7 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => setShowPrivacyDetail(true)}
-                    className="text-xs font-bold text-frage-blue underline hover:text-frage-navy"
+                    className="text-xs font-bold text-frage-blue underline hover:text-frage-navy whitespace-nowrap"
                   >
                     전문 보기
                   </button>
@@ -604,7 +604,7 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => setShowMarketingDetail(true)}
-                    className="text-xs font-bold text-frage-blue underline hover:text-frage-navy"
+                    className="text-xs font-bold text-frage-blue underline hover:text-frage-navy whitespace-nowrap"
                   >
                     전문 보기
                   </button>
