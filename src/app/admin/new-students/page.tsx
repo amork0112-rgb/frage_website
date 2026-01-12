@@ -775,6 +775,14 @@ export default function AdminNewStudentsPage() {
                                <span className="font-bold text-slate-500 block mb-1">학부모 고민사항 (Concerns)</span>
                                <p className="text-slate-800 bg-slate-50 p-2.5 rounded-lg leading-relaxed whitespace-pre-wrap">{extrasData[student.id].concerns || "-"}</p>
                              </div>
+                             <div className="col-span-1 md:col-span-2">
+                               <span className="font-bold text-slate-500 block mb-1">관심 이유 (Interest Reasons)</span>
+                               <p className="text-slate-800 bg-slate-50 p-2.5 rounded-lg leading-relaxed whitespace-pre-wrap">{extrasData[student.id].interestReasons || "-"}</p>
+                             </div>
+                             <div className="col-span-1 md:col-span-2">
+                               <span className="font-bold text-slate-500 block mb-1">기대사항 (Expectations)</span>
+                               <p className="text-slate-800 bg-slate-50 p-2.5 rounded-lg leading-relaxed whitespace-pre-wrap">{extrasData[student.id].expectations || "-"}</p>
+                             </div>
                              <div>
                                <span className="font-bold text-slate-500 block mb-1">현재 학교 / 학년</span>
                                <p className="text-slate-800">{extrasData[student.id].currentSchool || "-"} / {extrasData[student.id].grade || "-"}</p>
@@ -784,12 +792,16 @@ export default function AdminNewStudentsPage() {
                                <p className="text-slate-800">{extrasData[student.id].officialScore || "-"} / {extrasData[student.id].srScore || "-"}</p>
                              </div>
                              <div className="col-span-1 md:col-span-2">
-                               <span className="font-bold text-slate-500 block mb-1">관심 이유 / 기대사항</span>
-                               <p className="text-slate-800">{extrasData[student.id].interestReasons || "-"} / {extrasData[student.id].expectations || "-"}</p>
-                             </div>
-                             <div className="col-span-1 md:col-span-2">
-                               <span className="font-bold text-slate-500 block mb-1">유입 경로</span>
+                               <span className="font-bold text-slate-500 block mb-1">유입 경로 (Lead Sources)</span>
                                <p className="text-slate-800">{extrasData[student.id].leadSources || "-"}</p>
+                             </div>
+                             <div>
+                               <span className="font-bold text-slate-500 block mb-1">유입 경로 기타 (Lead Etc)</span>
+                               <p className="text-slate-800">{extrasData[student.id].leadEtc || "-"}</p>
+                             </div>
+                             <div>
+                               <span className="font-bold text-slate-500 block mb-1">지인 추천인 (Referral Name)</span>
+                               <p className="text-slate-800">{extrasData[student.id].referralName || "-"}</p>
                              </div>
                              <div className="col-span-1 md:col-span-2">
                                <span className="font-bold text-slate-500 block mb-1">수강 가능 요일</span>

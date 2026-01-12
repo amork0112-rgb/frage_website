@@ -94,6 +94,8 @@ export async function GET() {
         srScore: row.sr_score ? String(row.sr_score) : null,
         availableDays: row.available_days ? String(row.available_days) : null,
         leadSources: row.lead_sources ? String(row.lead_sources) : null,
+        leadEtc: row.lead_etc ? String(row.lead_etc) : null,
+        referralName: row.referral_name ? String(row.referral_name) : null,
         interestReasons: row.interest_reasons ? String(row.interest_reasons) : null,
         expectations: String(row.expectations ?? ""),
         concerns: row.concerns ? String(row.concerns) : null,
