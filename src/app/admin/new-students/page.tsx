@@ -162,7 +162,7 @@ export default function AdminNewStudentsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/admin/new-students", { cache: "no-store" });
+        const res = await fetch("/api/admin/new-students", { cache: "no-store", credentials: "include" });
         const data = await res.json();
         const rows = Array.isArray(data?.items) ? data.items : [];
         const mapped: StudentProfile[] = rows.map((r: any) => ({
@@ -271,6 +271,7 @@ export default function AdminNewStudentsPage() {
       await fetch("/api/admin/new-students", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           studentId,
           key: stepKey,

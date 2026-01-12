@@ -118,7 +118,7 @@ export async function PUT(req: Request) {
       teacher_id: SYSTEM_TEACHER_ID,
     };
 
-    const { error } = await supabaseAuth
+    const { error } = await supabaseService
       .from("new_student_checklists")
       .upsert(payload, { onConflict: "student_id,step_key" });
     if (error) {
@@ -127,7 +127,7 @@ export async function PUT(req: Request) {
     }
 
     if (checked && key === "admission_confirmed") {
-      const { error: stepError } = await supabaseAuth
+      const { error: stepError } = await supabaseService
         .from("new_students")
         .update({ current_step: 2, status: "step2" })
         .eq("id", studentId);
