@@ -17,6 +17,8 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    console.log("SURVEY BODY", body);
+
     const {
       studentId,
       grade,
@@ -33,8 +35,14 @@ export async function POST(request: Request) {
       concerns,
     } = body;
 
-    // studentId 필수 체크
-    if (!studentId) {
+    // 필수 필드 체크 (빈 문자열 or undefined)
+    if (
+      !studentId?.trim() ||
+      !grade?.trim() ||
+      !currentSchool?.trim() ||
+      !englishHistory?.trim() ||
+      !expectations?.trim()
+    ) {
       return NextResponse.json(
         { ok: false, error: "Missing required fields" },
         { status: 400 }

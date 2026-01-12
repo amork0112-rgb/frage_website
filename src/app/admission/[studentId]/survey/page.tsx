@@ -110,16 +110,23 @@ export default function AdmissionSurveyPage({
           (async () => {
             try {
               const payload = {
-                new_student_id: studentId,
+                studentId,
                 grade: grade.trim(),
-                current_school: currentSchool.trim(),
-                english_history: englishHistory.trim(),
-                official_score: officialScore.trim() ? officialScore.trim() : null,
-                sr_score: srScore.trim() ? srScore.trim() : null,
-                available_days: null,
+                currentSchool: currentSchool.trim(),
+                englishHistory: englishHistory.trim(),
+                officialScore: officialScore.trim() || null,
+                srScore: srScore.trim() || null,
+                availableDays: null,
+
+                leadSources: lead,
+                leadEtc: leadEtc.trim() || null,
+                referralName: leadReferralName.trim() || null,
+
+                interestReasons: reasons,
                 expectations: expectations.trim(),
-                concerns: concerns.trim() ? concerns.trim() : null,
+                concerns: concerns.trim() || null,
               };
+
               const res = await fetch("/api/admission/survey", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
