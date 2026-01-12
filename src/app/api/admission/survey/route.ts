@@ -26,7 +26,6 @@ export async function POST(request: Request) {
       englishHistory,
       officialScore,
       srScore,
-      availableDays,
       leadSources,
       leadEtc,
       referralName,
@@ -50,7 +49,6 @@ export async function POST(request: Request) {
     }
 
     // 변수 매핑 및 안전한 값 처리
-    const safeAvailableDays = typeof availableDays === "string" ? availableDays : null;
     const safeLeadSources = Array.isArray(leadSources) ? leadSources : [];
     const safeInterestReasons = Array.isArray(interestReasons) ? interestReasons : [];
 
@@ -61,7 +59,6 @@ export async function POST(request: Request) {
       english_history: englishHistory,
       official_score: officialScore || null,
       sr_score: srScore || null,
-      available_days: safeAvailableDays,
       lead_sources: safeLeadSources,
       lead_etc: leadEtc || null,
       referral_name: referralName || null,
@@ -81,7 +78,6 @@ export async function POST(request: Request) {
           english_history: englishHistory,
           official_score: officialScore || null,
           sr_score: srScore || null,
-          available_days: safeAvailableDays,
 
           lead_sources: safeLeadSources,
           lead_etc: leadEtc || null,
