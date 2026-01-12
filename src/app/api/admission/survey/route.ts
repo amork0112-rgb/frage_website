@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function POST(request: Request) {
   try {
@@ -42,55 +43,39 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
-    
-    // 3️⃣ available_days 타입 보완 (string 아니면 null)
-    const safeAvailableDays = typeof available_days === "string" ? available_days : null;
 
-    // 공통 Payload (updated_at 포함)
-    const basePayload = {
-      grade,
-      current_school,
-      english_history,
-      official_score: official_score || null,
-      sr_score: sr_score || null,
-      available_days: safeAvailableDays,
-      expectations,
-      concerns: concerns || null,
-      updated_at: now,
-    };
+    // 변수 매핑 및 안전한 값 처리
+    const stu = { id: new_student_id };
+    const currentSchool = current_school;
+    const englishHistory = english_history;
+    const officialScore = official_score || null;
+    const srScore = sr_score || null;
+    const availableDays = typeof available_days === "string" ? available_days : null;
 
-    // 2️⃣ insert/update 분리 (created_by 덮어쓰기 방지)
-    const { data: existing } = await supabase
+    // payload (이대로 써)
+    const { error: upErr } = await supabaseService
       .from("admission_extras")
-      .select("id")
-      .eq("new_student_id", new_student_id)
-      .maybeSingle();
+      .upsert(
+        {
+          new_student_id: String(stu.id),
+          grade,
+          current_school: currentSchool,
+          english_history: englishHistory, // ❗ 컬럼명 정확히
+          official_score: officialScore,
+          sr_score: srScore,
+          available_days: availableDays,
+          expectations,
+          concerns: concerns || null,
+          created_at: now,      // ✅ 필수
+          updated_at: now,      // ✅ 필수
+          created_by: user.id,  // ✅ 필수
+        },
+        { onConflict: "new_student_id" }
+      );
 
-    let error;
-
-    if (existing) {
-      // Update: created_at, created_by 제외
-      const { error: updateErr } = await supabase
-        .from("admission_extras")
-        .update(basePayload)
-        .eq("new_student_id", new_student_id);
-      error = updateErr;
-    } else {
-      // Insert: created_at, created_by 포함 (1️⃣ created_at 추가)
-      const { error: insertErr } = await supabase
-        .from("admission_extras")
-        .insert({
-          ...basePayload,
-          new_student_id,
-          created_by: user.id,
-          created_at: now,
-        });
-      error = insertErr;
-    }
-
-    if (error) {
+    if (upErr) {
       // 4️⃣ 에러 메시지 보안 처리 (서버 로그엔 상세히, 클라이언트엔 일반 메시지)
-      console.error("SURVEY_SUBMIT_ERROR:", error);
+      console.error("SURVEY_SUBMIT_ERROR:", upErr);
       return NextResponse.json(
         { ok: false, error: "Submission failed" },
         { status: 500 }
