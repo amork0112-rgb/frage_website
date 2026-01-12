@@ -66,7 +66,7 @@ const WORKFLOW_STEPS = [
     title: "STEP 3. 입학 서류 (전자서명 패키지)",
     color: "bg-indigo-500",
     items: [
-      { key: "documents_completed", label: "학부모 서류 제출 완료 확인", role: "행정" },
+      { key: "step3_completed", label: "학부모 서류 제출 완료 확인", role: "행정" },
       // Actual items are handled by parent, admin just sees "Complete"
     ]
   },
@@ -291,10 +291,27 @@ export default function AdminNewStudentsPage() {
           by: nextBy,
         }),
       });
-      if (stepKey === "documents_completed" && nextChecked) {
+      if (stepKey === "step3_completed" && nextChecked) {
         console.log("[CHECKLIST] STEP 3 completed", { studentId, stepKey, checked: nextChecked });
+        const res = await fetch("/api/admin/new-students", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ action: "finalize", studentId }),
+        });
+        if (res.ok) {
+          setStudents(prev => prev.filter(s => s.id !== studentId));
+        } else {
+          try {
+            const errText = await res.text();
+            console.error("FINALIZE FAILED", errText);
+          } catch {
+            console.error("FINALIZE FAILED");
+          }
+        }
+      } else {
+        await refetchNewStudents();
       }
-      await refetchNewStudents();
     } catch {}
 
     // Trigger Logic (Automations)
@@ -538,18 +555,30 @@ export default function AdminNewStudentsPage() {
                     const dateStr = `${y}-${m}-${dd}`;
                     const isToday = today.getFullYear() === y && today.getMonth() === currentMonth.getMonth() && today.getDate() === day;
                     const isSelected = selectedDate === dateStr;
+                    const dateObj = new Date(dateStr);
+                    const todayStart = new Date();
+                    todayStart.setHours(0, 0, 0, 0);
+                    const isPast = dateObj.getTime() < todayStart.getTime();
                     cells.push(
                       <button
                         key={dateStr}
                         role="gridcell"
                         aria-selected={isSelected}
+                        disabled={isPast}
                         onClick={() => {
+                          if (isPast) return;
                           setSelectedDate(dateStr);
                           setShowReservationModal(true);
                         }}
-                        className={`h-16 md:h-20 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                        className={`h-16 md:h-20 rounded-xl border flex flex-col items-center justify-center transition-all ${
+                          isPast
+                            ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                            : isSelected
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-slate-200 bg-white hover:bg-slate-50"
+                        } ${isToday && !isPast ? "ring-2 ring-blue-400" : ""}`}
                       >
-                        <div className={`text-xs md:text-sm font-bold ${isToday ? "text-blue-600" : "text-slate-700"}`}>
+                        <div className={`text-xs md:text-sm font-bold ${isToday && !isPast ? "text-blue-600" : "text-slate-700"}`}>
                           {day}
                         </div>
                         
@@ -580,18 +609,30 @@ export default function AdminNewStudentsPage() {
                     const dateStr = `${y}-${m}-${dd}`;
                     const isToday = today.getFullYear() === y && today.getMonth() === d.getMonth() && today.getDate() === d.getDate();
                     const isSelected = selectedDate === dateStr;
+                    const dateObj = new Date(dateStr);
+                    const todayStart = new Date();
+                    todayStart.setHours(0, 0, 0, 0);
+                    const isPast = dateObj.getTime() < todayStart.getTime();
                     cells.push(
                       <button
                         key={dateStr}
                         role="gridcell"
                         aria-selected={isSelected}
+                        disabled={isPast}
                         onClick={() => {
+                          if (isPast) return;
                           setSelectedDate(dateStr);
                           setShowReservationModal(true);
                         }}
-                        className={`h-16 md:h-20 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}
+                        className={`h-16 md:h-20 rounded-xl border flex flex-col items-center justify-center transition-all ${
+                          isPast
+                            ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                            : isSelected
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-slate-200 bg-white hover:bg-slate-50"
+                        } ${isToday && !isPast ? "ring-2 ring-blue-400" : ""}`}
                       >
-                        <div className={`text-xs md:text-sm font-bold ${isToday ? "text-blue-600" : "text-slate-700"}`}>
+                        <div className={`text-xs md:text-sm font-bold ${isToday && !isPast ? "text-blue-600" : "text-slate-700"}`}>
                           {d.getDate()}
                         </div>
                         

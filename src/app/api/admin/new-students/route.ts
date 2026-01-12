@@ -140,3 +140,29 @@ export async function PUT(req: Request) {
     return json({ error: "invalid" }, 400);
   }
 }
+
+export async function POST(req: Request) {
+  try {
+    const supabaseAuth = createSupabaseServer();
+    const guard = await requireAdmin(supabaseAuth);
+    if ((guard as any).error) return (guard as any).error;
+    const body = await req.json();
+    const action = String(body.action || "");
+    if (action === "finalize") {
+      const newStudentId = String(body.studentId || "");
+      if (!newStudentId) return json({ error: "missing_studentId" }, 400);
+      const { data, error } = await supabaseService.rpc("approve_enrollment", {
+        new_student_id: newStudentId,
+      });
+      if (error) {
+        console.error("FINALIZE_APPROVE_ERROR", error);
+        return json({ error: "finalize_failed", details: error.message }, 500);
+      }
+      return json({ ok: true, result: data || {} });
+    }
+    return json({ error: "unsupported" }, 400);
+  } catch (e: any) {
+    console.error("ADMIN_NEW_STUDENTS_POST_ERROR", e);
+    return json({ error: "invalid" }, 400);
+  }
+}

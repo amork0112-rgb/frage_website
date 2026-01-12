@@ -86,22 +86,6 @@ export default function HomePage() {
       <section className="py-32 bg-frage-cream">
         <div className="container mx-auto px-6 max-w-[1400px]">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-16 items-center">
-            <div className="md:col-span-5 relative">
-              <div className="relative z-10 overflow-hidden rounded-[2rem] shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-500">
-                <Image
-                  src="/images/home-classroom.jpg"
-                  alt="Students Studying in Classroom"
-                  width={1200}
-                  height={800}
-                  className="w-full h-auto object-cover"
-                  loading="lazy"
-                />
-              </div>
-              <div className="absolute top-10 -left-10 w-full h-full border-4 border-frage-yellow rounded-[2rem] -z-0 -rotate-2"></div>
-            </div>
-            
-            <div className="md:col-span-1"></div>
-
             <div className="md:col-span-6">
               <h2 className="font-serif text-3xl md:text-5xl text-frage-navy leading-tight mb-6 font-bold whitespace-pre-line">
                 {t.philosophy.title}
@@ -130,6 +114,22 @@ export default function HomePage() {
                   {t.philosophy.description}
                 </p>
               </div>
+            </div>
+            
+            <div className="md:col-span-1"></div>
+
+            <div className="md:col-span-5 relative">
+              <div className="relative z-10 overflow-hidden rounded-[2rem] shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-500">
+                <Image
+                  src="/images/home-classroom.jpg"
+                  alt="Students Studying in Classroom"
+                  width={1200}
+                  height={800}
+                  className="w-full h-auto object-cover"
+                  loading="lazy"
+                />
+              </div>
+              <div className="absolute top-10 -left-10 w-full h-full border-4 border-frage-yellow rounded-[2rem] -z-0 -rotate-2"></div>
             </div>
           </div>
         </div>
