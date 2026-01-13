@@ -4,16 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Check, X, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote } from "lucide-react";
 import { supabase, supabaseReady } from "@/lib/supabase";
-
-const PROGRESS_MAP: Record<string, number> = {
-  waiting: 10,
-  consultation_reserved: 30,
-  consult_done: 50,
-  approved: 70,
-  promoted: 100,
-  rejected: 0,
-  hold: 0,
-};
+import { toStatus, STATUS_LABEL, STATUS_BADGE_CLASS, STATUS_PROGRESS } from "@/lib/admissions/status";
 
 type StudentProfile = {
   id: string;
@@ -386,7 +377,8 @@ export default function TeacherNewStudentsPage() {
               const isExpanded = expandedId === student.id;
               
               // Progress calculation (Status based)
-              const progress = PROGRESS_MAP[student.status || "waiting"] || 10;
+              const statusKey = toStatus(student.status || "waiting");
+              const progress = STATUS_PROGRESS[statusKey] ?? 10;
 
               return (
                 <div key={student.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
