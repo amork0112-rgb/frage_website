@@ -71,7 +71,7 @@ export default function QuitReviewPage() {
         await supabase.from("student_status_logs").insert({
           student_id: Number(it.id),
           action: "restore_leave_review",
-          new_status: "휴원 검토중",
+          new_status: "hold",
           memo: "퇴원 검토에서 복구",
           created_at: new Date().toISOString(),
         });
@@ -80,7 +80,7 @@ export default function QuitReviewPage() {
           .update({ handled: true })
           .eq("id", Number(it.id));
         setItems(prev => prev.filter(x => x.id !== it.id));
-        alert("복구됨: 상태가 휴원 검토중으로 복귀되었습니다.");
+        alert("복구됨: 상태가 hold(보류)로 복귀되었습니다.");
       } catch {
       }
     })();

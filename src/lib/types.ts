@@ -23,3 +23,40 @@ export type PostRevision = {
   changed_by: string;
   created_at: string;
 };
+
+export type StudentFull = {
+  id: string;
+  student_name: string;
+  english_first_name?: string;
+  gender?: string;
+  birth_date?: string;
+  campus: string;
+  status: string;
+
+  parent_name?: string;
+  parent_phone?: string;
+
+  class_name?: string; // Academy Class (e.g. Kepler)
+  grade?: string; // School Grade (e.g. 1st Grade)
+  current_school?: string;
+  english_history?: string;
+
+  // Additional fields for Admin UI
+  address?: string;
+  address_detail?: string;
+  pickup_lat?: number | null;
+  pickup_lng?: number | null;
+  dropoff_lat?: number | null;
+  dropoff_lng?: number | null;
+  bus?: string;
+  departure_time?: string;
+  dajim_enabled?: boolean;
+  
+  // Class Management
+  main_class_name?: string;
+  program_classes?: {
+    id: string;
+    name: string;
+    program_name?: string;
+  }[];
+};

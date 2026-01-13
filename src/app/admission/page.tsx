@@ -7,6 +7,7 @@ import { CheckCircle, Calendar, FileCheck, AlertTriangle, UserPlus, ChevronDown,
 import { supabase } from "@/lib/supabase";
 import AdmissionHeader from "@/components/admission/AdmissionHeader";
 import StudentInfoCard from "@/components/admission/StudentInfoCard";
+import { STATUS_PROGRESS, toStatus } from "@/lib/admissions/status";
 
 export default function AdmissionPage() {
   const router = useRouter();
@@ -238,7 +239,7 @@ export default function AdmissionPage() {
                           ? "예약 확정"
                           : step === "consult_done"
                           ? "상담 완료"
-                          : "입학 승인 완료"}
+                          : "승인 완료"}
                       </span>
                       <ChevronDown
                         className={`w-4 h-4 text-slate-400 transition-transform ${
@@ -253,7 +254,7 @@ export default function AdmissionPage() {
                         studentName={it?.student_name || "신규 학생"}
                         englishFirstName={it?.english_first_name || ""}
                         birthDate={it?.child_birth_date || ""}
-                        status={String(it?.status || "waiting") as "waiting" | "consulting" | "consulted" | "approved"}
+                        status={toStatus(String(it?.status || "waiting"))}
                         campus={it?.campus || undefined}
                         address={it?.address || ""}
                         parentPhone={it?.phone || ""}
@@ -301,7 +302,7 @@ export default function AdmissionPage() {
             <div
               className="h-full bg-blue-500 transition-all duration-500"
               style={{
-                width: admissionOpen ? "70%" : currentStep.includes("상담") ? "40%" : "10%",
+                width: `${STATUS_PROGRESS[toStatus(String(items[0]?.status || "waiting"))] || 10}%`,
               }}
             ></div>
           </div>
@@ -598,7 +599,7 @@ export default function AdmissionPage() {
             </div>
           </section>
         )}
-        {admissionOpen ? (
+        {admissionOpen && (
           <section className="animate-fade-in-up">
             <div className="block group">
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-200 transform transition-all hover:scale-[1.02]">
@@ -629,15 +630,6 @@ export default function AdmissionPage() {
               </div>
             </div>
           </section>
-        ) : (
-          <div className="bg-slate-100 rounded-xl p-4 text-center text-slate-500 text-sm">
-            <AlertTriangle className="w-6 h-6 mx-auto mb-2 text-slate-400" />
-            <p>
-              입학이 확정되면
-              <br />
-              입학 서류 패키지가 이곳에 표시됩니다.
-            </p>
-          </div>
         )}
 
         <section>

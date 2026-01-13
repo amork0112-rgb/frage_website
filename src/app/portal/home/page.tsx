@@ -13,7 +13,8 @@ export default function ParentPortalHome() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
-  const [studentStatus, setStudentStatus] = useState<string | null>(null); // 'enrolled' or 'new', set by server only
+  const [studentStatus, setStudentStatus] = useState<string | null>(null);
+  const [studentType, setStudentType] = useState<"enrolled" | "applicant" | null>(null);
   const [newStudentProfile, setNewStudentProfile] = useState<any>(null);
   
   // For Enrolled Students
@@ -189,7 +190,7 @@ export default function ParentPortalHome() {
   }
 
   // --- NEW STUDENT VIEW ---
-  if (studentStatus === "new") {
+  if (studentType === "applicant") {
     return (
       <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
         <PortalHeader />

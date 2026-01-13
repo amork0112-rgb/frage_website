@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabase/service";
 
-type Status = "재원" | "휴원" | "퇴원";
+type Status = "waiting" | "consultation_reserved" | "consult_done" | "approved" | "promoted" | "rejected" | "hold";
 
 type Student = {
   id: string;
@@ -25,20 +25,29 @@ export async function GET(request: Request) {
   const pageSize = Math.max(parseInt(url.searchParams.get("pageSize") || "200", 10), 1);
   try {
     const { data, error } = await supabaseService
-      .from("students")
+      .from("v_students_full")
       .select(`
         id,
         student_name,
+        english_first_name,
         campus,
         status,
+        birth_date,
+        gender,
+        parent_name,
+        parent_phone,
+        grade,
+        current_school,
+        english_history,
         address,
         pickup_lat,
         pickup_lng,
         dropoff_lat,
         dropoff_lng,
-        parent_auth_user_id,
-        source_new_student_id,
-        created_at
+        dajim_enabled,
+        created_at,
+        main_class_name,
+        program_classes
       `)
       .order("student_name", { ascending: true });
     if (error) {
@@ -46,19 +55,29 @@ export async function GET(request: Request) {
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
     }
     const rows = Array.isArray(data) ? data : [];
-    const base: Student[] = rows.map((r: any) => ({
+    const base: any[] = rows.map((r: any) => ({
       id: String(r.id ?? ""),
       student_name: String(r.student_name ?? ""),
+      english_first_name: String(r.english_first_name ?? ""),
       campus: String(r.campus ?? ""),
-      status: (String(r.status ?? "재원") as Status),
+      status: (String(r.status ?? "promoted") as Status),
+      birth_date: String(r.birth_date ?? ""),
+      gender: String(r.gender ?? ""),
+      parent_name: String(r.parent_name ?? ""),
+      parent_phone: String(r.parent_phone ?? ""),
+      class_name: String(r.grade ?? ""), // Academy Class (e.g. Kepler) mapped from view's grade column
+      grade: "", // School Grade (read-only) - currently not available in view or ambiguous
+      current_school: String(r.current_school ?? ""),
+      english_history: String(r.english_history ?? ""),
       address: String(r.address ?? ""),
       pickup_lat: r.pickup_lat ?? null,
       pickup_lng: r.pickup_lng ?? null,
       dropoff_lat: r.dropoff_lat ?? null,
       dropoff_lng: r.dropoff_lng ?? null,
-      parent_auth_user_id: r.parent_auth_user_id ?? null,
-      source_new_student_id: r.source_new_student_id ?? null,
+      dajim_enabled: !!r.dajim_enabled,
       created_at: String(r.created_at ?? ""),
+      main_class_name: String(r.main_class_name ?? r.grade ?? ""), // Fallback to grade if main_class_name null
+      program_classes: Array.isArray(r.program_classes) ? r.program_classes : [],
     }));
     const total = base.length;
     const start = (page - 1) * pageSize;
@@ -88,6 +107,7 @@ export async function POST(request: Request) {
         pickup_lng: typeof s.pickup_lng === "number" ? s.pickup_lng : null,
         dropoff_lat: typeof s.dropoff_lat === "number" ? s.dropoff_lat : null,
         dropoff_lng: typeof s.dropoff_lng === "number" ? s.dropoff_lng : null,
+        dajim_enabled: typeof s.dajim_enabled === "boolean" ? s.dajim_enabled : false,
         parent_auth_user_id: s.parent_auth_user_id ?? null,
         source_new_student_id: s.source_new_student_id ?? null,
       }));
@@ -113,6 +133,7 @@ export async function POST(request: Request) {
         pickup_lng: typeof s.pickup_lng === "number" ? s.pickup_lng : null,
         dropoff_lat: typeof s.dropoff_lat === "number" ? s.dropoff_lat : null,
         dropoff_lng: typeof s.dropoff_lng === "number" ? s.dropoff_lng : null,
+        dajim_enabled: typeof s.dajim_enabled === "boolean" ? s.dajim_enabled : false,
         parent_auth_user_id: s.parent_auth_user_id ?? null,
         source_new_student_id: s.source_new_student_id ?? null,
       });

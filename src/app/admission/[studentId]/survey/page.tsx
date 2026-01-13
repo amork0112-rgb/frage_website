@@ -21,6 +21,7 @@ export default function AdmissionSurveyPage({
   const [authorized, setAuthorized] = useState(false);
   const [guardPassed, setGuardPassed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isCompleted, setIsCompleted] = useState(false);
 
   const [lead, setLead] = useState<string[]>([]);
   const [leadEtc, setLeadEtc] = useState("");
@@ -49,6 +50,9 @@ export default function AdmissionSurveyPage({
         if (!target) {
           router.replace("/admission");
           return;
+        }
+        if (target.survey_completed) {
+          setIsCompleted(true);
         }
         const step = String(target?.admissionStep || "not_reserved");
         if (step !== "reserved" && step !== "reserved_confirmed") {
@@ -349,6 +353,7 @@ export default function AdmissionSurveyPage({
           <button
             type="submit"
             disabled={
+              isCompleted ||
               lead.length === 0 ||
               reasons.length === 0 ||
               expectations.trim().length === 0 ||
@@ -358,7 +363,7 @@ export default function AdmissionSurveyPage({
             }
             className="px-4 py-2 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            저장하고 상담 준비하기
+            {isCompleted ? "설문 완료" : "저장하고 상담 준비하기"}
           </button>
         </div>
       </form>

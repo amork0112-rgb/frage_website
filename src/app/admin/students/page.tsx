@@ -1,4 +1,3 @@
-//src/app/admin/students/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
@@ -6,8 +5,12 @@ import { useRouter } from "next/navigation";
 import { Users, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-type Status = "재원" | "휴원 검토중" | "휴원" | "퇴원 검토중" | "퇴원";
+import { StudentFull } from "@/lib/types";
 
+// Unified Status type including both Admission statuses (for promoted/approved) and Enrollment statuses (재원 etc.)
+type Status = 
+  | "waiting" | "consultation_reserved" | "consult_done" | "approved" | "promoted" | "rejected" | "hold"
+  | "재원" | "휴원" | "퇴원" | "휴원 검토중" | "퇴원 검토중";
 const stripEmoji = (s: string) =>
   s.replace(/[\u{1F300}-\u{1FAFF}\u{1F900}-\u{1F9FF}\u{2600}-\u{27BF}]/gu, "");
 const previewText = (s: string) => {
@@ -16,74 +19,81 @@ const previewText = (s: string) => {
   return lines.length > 200 ? lines.slice(0, 200) + "…" : lines;
 };
 
-type Student = {
-  id: string;
-  childId?: string;
-  name: string;
-  englishName: string;
-  birthDate: string;
-  phone: string;
-  className: string;
-  campus: string;
-  status: Status;
-  parentName: string;
-  parentAccountId: string;
-  address: string;
-  bus: string;
-  departureTime: string;
-  arrivalMethod?: string;
-  arrivalPlace?: string;
-  departureMethod?: string;
-  departurePlace?: string;
-  pickupLat?: number;
-  pickupLng?: number;
-  dropoffLat?: number;
-  dropoffLng?: number;
-  pickupType?: "bus" | "self";
-  dropoffType?: "bus" | "self";
-};
-
-type AttendanceRecord = {
-  id: string;
-  childId: string;
-  date: string;
-  status: "present" | "absent" | "early";
-};
-
 export default function AdminStudentsPage() {
   const router = useRouter();
-  const KINDER = ["Kepler", "Platon", "Euclid", "Darwin", "Gauss", "Edison", "Thales"];
-  const JUNIOR = ["G1", "G2", "G3", "G4", "E1", "E2", "E3", "E4", "A1", "A2", "A3", "A4", "A5", "F1", "F2", "F3", "F4", "F5"];
   const [campusFilter, setCampusFilter] = useState<string>("All");
   const [classFilter, setClassFilter] = useState<string>("All");
   const [statusFilter, setStatusFilter] = useState<Status | "All">("All");
+  const [dajimFilter, setDajimFilter] = useState<"All" | "O" | "X">("All");
   const [showOnlyActive, setShowOnlyActive] = useState<boolean>(true);
-  const [statusToggle, setStatusToggle] = useState<{ 재원: boolean; "휴원 검토중": boolean; 휴원: boolean; "퇴원 검토중": boolean; 퇴원: boolean }>({
+  
+  const [statusToggle, setStatusToggle] = useState<Record<string, boolean>>({
+    promoted: true,
     재원: true,
+    휴원: true,
+    퇴원: false,
     "휴원 검토중": true,
-    휴원: false,
     "퇴원 검토중": true,
-    퇴원: false
+    hold: false,
+    rejected: false,
+    waiting: false,
+    consultation_reserved: false,
+    consult_done: false,
+    approved: false
   });
+
   const [query, setQuery] = useState<string>("");
   const [role, setRole] = useState<"admin" | "teacher">("admin");
   const [roleClass, setRoleClass] = useState<string | null>(null);
-  const [infoStudent, setInfoStudent] = useState<Student | null>(null);
-  const [memoOpenFor, setMemoOpenFor] = useState<Student | null>(null);
+  const [infoStudent, setInfoStudent] = useState<StudentFull | null>(null);
+  const [memoOpenFor, setMemoOpenFor] = useState<StudentFull | null>(null);
   const [newMemo, setNewMemo] = useState<string>("");
   const [memos, setMemos] = useState<Record<string, { text: string; author: string; at: string; tag?: "상담" | "결제" | "특이사항" | "기타" }[]>>({});
   const [busFilter, setBusFilter] = useState<string>("All");
   const [timeFilter, setTimeFilter] = useState<string>("All");
+  const [programFilter, setProgramFilter] = useState<string>("All");
   const [birthMonthFilter, setBirthMonthFilter] = useState<string>("All");
-  const [updates, setUpdates] = useState<Record<string, { className?: string; status?: Status; englishName?: string; bus?: string; departureTime?: string }>>({});
+  const [updates, setUpdates] = useState<Record<string, Partial<StudentFull>>>({});
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [selectedTargetClass, setSelectedTargetClass] = useState<string>("");
-  const [classCatalog, setClassCatalog] = useState<string[]>([]);
   const [newClassName, setNewClassName] = useState<string>("");
   const [studentLogs, setStudentLogs] = useState<Record<string, string[]>>({});
+
+  const [filters, setFilters] = useState<{
+    campuses: string[];
+    classes: { id: string; name: string }[];
+    regularClasses: { id: string; name: string }[];
+    programClasses: { id: string; name: string; program_name: string }[];
+    programNames: string[];
+    buses: { id: string; name: string }[];
+    timeSlots: string[];
+  }>({
+    campuses: [],
+    classes: [],
+    regularClasses: [],
+    programClasses: [],
+    programNames: [],
+    buses: [],
+    timeSlots: [],
+  });
+
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        const res = await fetch("/api/admin/student-filters");
+        if (!res.ok) return;
+        const data = await res.json();
+        setFilters(data);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchFilters();
+  }, []);
+
   const [memoPanelVisible, setMemoPanelVisible] = useState(false);
-  const [statusModalFor, setStatusModalFor] = useState<Student | null>(null);
+  const [statusModalFor, setStatusModalFor] = useState<StudentFull | null>(null);
   const [statusStep, setStatusStep] = useState<1 | 2>(1);
   const [nextStatus, setNextStatus] = useState<Status | null>(null);
   const [pickupTypeLocal, setPickupTypeLocal] = useState<"bus" | "self">("self");
@@ -95,27 +105,25 @@ export default function AdminStudentsPage() {
   const [quitReason, setQuitReason] = useState<string>("");
   const [confirmChecked, setConfirmChecked] = useState<boolean>(false);
   const memoInputRef = useRef<HTMLInputElement | null>(null);
-  const [consultModalFor, setConsultModalFor] = useState<Student | null>(null);
+  const [consultModalFor, setConsultModalFor] = useState<StudentFull | null>(null);
   const [consultDate, setConsultDate] = useState<string>("");
   const [consultMethod, setConsultMethod] = useState<"" | "전화" | "대면">("");
   const [consultContent, setConsultContent] = useState<string>("");
   const [consultResult, setConsultResult] = useState<"" | "계속 재원" | "휴원 확정" | "퇴원 검토로 전환">("");
-  const [leaveConfirmModalFor, setLeaveConfirmModalFor] = useState<Student | null>(null);
+  const [leaveConfirmModalFor, setLeaveConfirmModalFor] = useState<StudentFull | null>(null);
   const [leaveConfStart, setLeaveConfStart] = useState<string>("");
   const [leaveConfEnd, setLeaveConfEnd] = useState<string>("");
   const [leaveConfReason, setLeaveConfReason] = useState<string>("");
   const [refundOption, setRefundOption] = useState<"" | "환불 없음" | "부분 환불" | "다음 달 이월">("");
   const [refundMemo, setRefundMemo] = useState<string>("");
   const [newMemoType, setNewMemoType] = useState<"상담" | "결제" | "특이사항" | "기타">("기타");
-  const [busModalFor, setBusModalFor] = useState<Student | null>(null);
-  const [selectedBus, setSelectedBus] = useState<string>("");
-  const [timeModalFor, setTimeModalFor] = useState<Student | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string>("");
-  const [vehicleModalFor, setVehicleModalFor] = useState<Student | null>(null);
-  const [pickupLat, setPickupLat] = useState<string>("");
-  const [pickupLng, setPickupLng] = useState<string>("");
-  const [dropoffLat, setDropoffLat] = useState<string>("");
-  const [dropoffLng, setDropoffLng] = useState<string>("");
+
+  // Vehicle Modal State
+  const [vehicleModalFor, setVehicleModalFor] = useState<StudentFull | null>(null);
+  const [pickupLat, setPickupLat] = useState("");
+  const [pickupLng, setPickupLng] = useState("");
+  const [dropoffLat, setDropoffLat] = useState("");
+  const [dropoffLng, setDropoffLng] = useState("");
 
   useEffect(() => {
     const init = async () => {
@@ -124,7 +132,6 @@ export default function AdminStudentsPage() {
       const roleMeta = (user?.app_metadata as any)?.role;
       setRole(roleMeta === "teacher" ? "teacher" : "admin");
       setRoleClass(null);
-      setClassCatalog([...KINDER, ...JUNIOR]);
       const { data: memRows } = await supabase
         .from("student_memos")
         .select("*")
@@ -145,7 +152,7 @@ export default function AdminStudentsPage() {
     init();
   }, []);
 
-  const [students, setStudents] = useState<Student[]>([]);
+  const [students, setStudents] = useState<StudentFull[]>([]);
   useEffect(() => {
     const load = async () => {
       try {
@@ -175,13 +182,13 @@ export default function AdminStudentsPage() {
   const limitedByRole = useMemo(() => {
     return students.filter(s => {
       if (role === "admin") return true;
-      if (role === "teacher") return roleClass ? s.className === roleClass : true;
+      if (role === "teacher") return roleClass ? s.class_name === roleClass : true;
       return true;
     });
   }, [students, role, roleClass]);
 
   const classes = useMemo(() => {
-    const set = new Set(limitedByRole.map(s => s.className));
+    const set = new Set(limitedByRole.map(s => s.class_name));
     return ["All", ...Array.from(set)];
   }, [limitedByRole]);
 
@@ -191,6 +198,7 @@ export default function AdminStudentsPage() {
       return { ...s, ...u };
     });
   }, [limitedByRole, updates]);
+
   const getConsultCount = (id: string) => {
     const list = memos[id] || [];
     return list.filter(m => m.tag === "상담").length;
@@ -199,50 +207,88 @@ export default function AdminStudentsPage() {
   const filtered = useMemo(() => {
     const list = merged.filter(s => {
       const mCampus = campusFilter === "All" || s.campus === campusFilter;
-      const mClass = classFilter === "All" || s.className === classFilter;
+      const mClass = classFilter === "All" || s.class_name === classFilter;
       const mStatus = showOnlyActive
-        ? (s.status === "재원" || s.status === "휴원 검토중" || s.status === "퇴원 검토중")
+        ? (["promoted", "hold", "재원", "휴원", "휴원 검토중"].includes(s.status))
         : !!statusToggle[s.status as keyof typeof statusToggle];
-      const mBus = busFilter === "All" || s.bus === busFilter;
-      const mTime = timeFilter === "All" || s.departureTime === timeFilter;
+      const mDajim = dajimFilter === "All"
+        ? true
+        : dajimFilter === "O"
+        ? s.dajim_enabled
+        : !s.dajim_enabled;
       const mMonth =
         birthMonthFilter === "All" ||
-        (s.birthDate.split("-")[1] === birthMonthFilter.padStart(2, "0"));
+        (s.birth_date && s.birth_date.split("-")[1] === birthMonthFilter.padStart(2, "0"));
       const mQuery =
         query === "" ||
-        s.name.includes(query) ||
-        s.englishName.toLowerCase().includes(query.toLowerCase());
-      return mCampus && mClass && mStatus && mBus && mTime && mMonth && mQuery;
+        s.student_name.includes(query) ||
+        (s.english_first_name && s.english_first_name.toLowerCase().includes(query.toLowerCase()));
+      const mProgram =
+        programFilter === "All" ||
+        (s.program_classes && s.program_classes.some(p => p.program_name === programFilter));
+
+      return mCampus && mClass && mStatus && mDajim && mMonth && mQuery && mProgram;
     });
     return list;
-  }, [merged, campusFilter, classFilter, statusFilter, busFilter, timeFilter, birthMonthFilter, query]);
-
-  const campusForFilter = useMemo(() => {
-    if (campusFilter !== "All") return campusFilter;
-    return null;
-  }, [campusFilter]);
-
-  const campusClasses = useMemo(() => {
-    const source = limitedByRole.filter(s => !campusForFilter || s.campus === campusForFilter);
-    const set = new Set(source.map(s => s.className));
-    return Array.from(set);
-  }, [limitedByRole, campusForFilter]);
+  }, [merged, campusFilter, classFilter, statusFilter, birthMonthFilter, query, showOnlyActive, statusToggle, dajimFilter, programFilter]);
 
   const availableClasses = useMemo(() => {
-    const set = new Set<string>([...classCatalog, ...campusClasses]);
-    return Array.from(set);
-  }, [classCatalog, campusClasses]);
+    return filters.classes.map(c => c.name).sort();
+  }, [filters.classes]);
+
 
   useEffect(() => {}, [students]);
 
-  const saveUpdate = (id: string, next: Partial<{ className: string; status: Status; bus: string; departureTime: string; englishName: string }>) => {
+  const handleProgramChange = async (studentId: string, classId: string, checked: boolean) => {
+    // Logic to calculate next state
+    const cls = filters.programClasses.find(c => c.id === classId);
+    
+    const updatePrograms = (current: { id: string; name: string; program_name?: string }[]) => {
+      let next = [...current];
+      if (checked) {
+        if (cls && !next.some(p => p.id === classId)) {
+          next.push({ id: cls.id, name: cls.name, program_name: cls.program_name });
+        }
+      } else {
+        next = next.filter(p => p.id !== classId);
+      }
+      return next;
+    };
+
+    // Optimistic Update Students List
+    setStudents(prev => prev.map(s => {
+      if (s.id !== studentId) return s;
+      return { ...s, program_classes: updatePrograms(s.program_classes || []) };
+    }));
+
+    // Update infoStudent if currently viewing this student
+    if (infoStudent && infoStudent.id === studentId) {
+      setInfoStudent(prev => prev ? { ...prev, program_classes: updatePrograms(prev.program_classes || []) } : null);
+    }
+
+    try {
+      const res = await fetch("/api/admin/enrollments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId, classId, enabled: checked }),
+      });
+      if (!res.ok) throw new Error("Failed to update enrollment");
+    } catch (e) {
+      console.error(e);
+      alert("수업 변경 저장 실패");
+      // Optionally revert state here
+    }
+  };
+
+  const saveUpdate = (id: string, next: Partial<StudentFull>) => {
     const apply = async () => {
       const payload: any = {};
-      if (typeof next.className !== "undefined") payload.class_name = next.className;
+      if (typeof next.class_name !== "undefined") payload.class_name = next.class_name;
       if (typeof next.status !== "undefined") payload.status = next.status;
       if (typeof next.bus !== "undefined") payload.bus = next.bus;
-      if (typeof next.departureTime !== "undefined") payload.departure_time = next.departureTime;
-      if (typeof next.englishName !== "undefined") payload.english_name = next.englishName;
+      if (typeof next.departure_time !== "undefined") payload.departure_time = next.departure_time;
+      if (typeof next.english_first_name !== "undefined") payload.english_name = next.english_first_name;
+      if (typeof next.dajim_enabled !== "undefined") payload.dajim_enabled = next.dajim_enabled;
       if (Object.keys(payload).length === 0) return;
       await supabase.from("students").update(payload).eq("id", id);
       setStudents(prev => prev.map(s => (s.id === id ? { ...s, ...next } : s)));
@@ -278,7 +324,7 @@ export default function AdminStudentsPage() {
     if (!availableClasses.includes(selectedTargetClass)) return;
     const selectedStudents = merged.filter(s => selectedStudentIds.includes(s.id));
     if (!selectedStudents.length) return;
-    const hasSame = selectedStudents.some(s => s.className === selectedTargetClass);
+    const hasSame = selectedStudents.some(s => s.class_name === selectedTargetClass);
     if (hasSame) return;
     try {
       const newUpdates = { ...updates };
@@ -287,13 +333,13 @@ export default function AdminStudentsPage() {
       const admin = String(data?.user?.email ?? "관리자");
       const date = new Date().toISOString().split("T")[0];
       selectedStudents.forEach(s => {
-        const oldClass = s.className;
-        newUpdates[s.id] = { ...(newUpdates[s.id] || {}), className: selectedTargetClass };
+        const oldClass = s.class_name;
+        newUpdates[s.id] = { ...(newUpdates[s.id] || {}), class_name: selectedTargetClass };
         const entry = `${date} 반 변경: ${oldClass} → ${selectedTargetClass} 처리자: ${admin}`;
         const list = newLogs[s.id] || [];
         list.push(entry);
         newLogs[s.id] = list;
-        saveUpdate(s.id, { className: selectedTargetClass });
+        saveUpdate(s.id, { class_name: selectedTargetClass });
         supabase.from("student_status_logs").insert({
           student_id: s.id,
           type: "class_change",
@@ -311,12 +357,7 @@ export default function AdminStudentsPage() {
   };
 
   const addNewClassToCatalog = () => {
-    const name = (newClassName || "").trim();
-    if (!name) return;
-    const next = Array.from(new Set([...(classCatalog || []), name]));
-    setClassCatalog(next);
-    setNewClassName("");
-    setSelectedTargetClass(name);
+    // Deprecated: Classes should be managed via API
   };
 
   const [bulkBusOpen, setBulkBusOpen] = useState(false);
@@ -387,7 +428,7 @@ export default function AdminStudentsPage() {
     if (!selectedTargetTime) return;
     const selectedStudents = merged.filter(s => selectedStudentIds.includes(s.id));
     if (!selectedStudents.length) return;
-    const hasSame = selectedStudents.some(s => (updates[s.id]?.departureTime || s.departureTime) === selectedTargetTime);
+    const hasSame = selectedStudents.some(s => (updates[s.id]?.departure_time || s.departure_time) === selectedTargetTime);
     if (hasSame) return;
     try {
       const newUpdates = { ...updates };
@@ -396,13 +437,13 @@ export default function AdminStudentsPage() {
       const admin = String(data?.user?.email ?? "관리자");
       const date = new Date().toISOString().split("T")[0];
       selectedStudents.forEach(s => {
-        const oldTime = updates[s.id]?.departureTime || s.departureTime;
-        newUpdates[s.id] = { ...(newUpdates[s.id] || {}), departureTime: selectedTargetTime };
+        const oldTime = updates[s.id]?.departure_time || s.departure_time;
+        newUpdates[s.id] = { ...(newUpdates[s.id] || {}), departure_time: selectedTargetTime };
         const entry = `${date} 하원 시간대 변경: ${oldTime} → ${selectedTargetTime} 처리자: ${admin}`;
         const list = newLogs[s.id] || [];
         list.push(entry);
         newLogs[s.id] = list;
-        saveUpdate(s.id, { departureTime: selectedTargetTime });
+        saveUpdate(s.id, { departure_time: selectedTargetTime });
         supabase.from("student_status_logs").insert({
           student_id: s.id,
           type: "time_change",
@@ -418,12 +459,12 @@ export default function AdminStudentsPage() {
     } catch {}
   };
 
-  const openInfoPanel = (s: Student) => {
+  const openInfoPanel = (s: StudentFull) => {
     setInfoStudent(s);
     setMemoOpenFor(null);
   };
 
-  const openMemoPanel = (s: Student) => {
+  const openMemoPanel = (s: StudentFull) => {
     setMemoOpenFor(s);
     setInfoStudent(null);
   };
@@ -478,10 +519,10 @@ export default function AdminStudentsPage() {
         lines.forEach(line => {
           const [phoneRaw, engRaw] = line.split(",").map(s => s?.trim() || "");
           if (!phoneRaw || !engRaw) return;
-          const target = students.find(s => s.phone === phoneRaw);
+          const target = students.find(s => s.parent_phone === phoneRaw);
           if (target) {
-            next[target.id] = { ...(next[target.id] || {}), englishName: engRaw };
-            saveUpdate(target.id, { englishName: engRaw } as any);
+            next[target.id] = { ...(next[target.id] || {}), english_first_name: engRaw };
+            saveUpdate(target.id, { english_first_name: engRaw } as any);
           }
         });
         setUpdates(next);
@@ -526,7 +567,7 @@ export default function AdminStudentsPage() {
       "후문",
       "Kepler",
       "International",
-      "재원"
+      "promoted"
     ];
     const csv = `${headers.join(",")}\n${sample.join(",")}\n`;
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -557,7 +598,7 @@ export default function AdminStudentsPage() {
           return;
         }
         const rows = lines.slice(1);
-        const parsed: Student[] = rows.map(line => {
+        const parsed: Partial<StudentFull>[] = rows.map(line => {
           const cols = line.split(",").map(s => s?.trim() || "");
           const name = cols[idx("studentName")] || "";
           const englishFirst = cols[idx("englishFirstName")] || "";
@@ -574,28 +615,29 @@ export default function AdminStudentsPage() {
           const arrivalPlace = cols[idx("arrivalPlace")] || "";
           const departureMethod = cols[idx("departureMethod")] || "";
           const departurePlace = cols[idx("departurePlace")] || "";
-          const s: Student = {
+          
+          const dajimRaw = (cols[idx("dajim_enabled")] || "").trim().toLowerCase();
+          const isDajim = ["true", "1", "o", "✔", "yes", "y"].includes(dajimRaw);
+
+          const s: Partial<StudentFull> = {
             id: `bulk_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-            childId: undefined,
-            name,
-            englishName,
-            birthDate,
-            phone,
-            className,
-            campus,
+            student_name: name,
+            english_first_name: englishName,
+            birth_date: birthDate,
+            parent_phone: phone,
+            class_name: className,
+            campus: campus,
             status: statusVal,
-            parentName,
-            parentAccountId: "",
-            address,
+            parent_name: parentName,
+            address: address,
             bus: departureMethod || "없음",
-            departureTime: "",
-            arrivalMethod,
-            arrivalPlace,
-            departureMethod,
-            departurePlace
-          } as any;
+            departure_time: "",
+            dajim_enabled: isDajim,
+            // Additional fields logic if needed
+          };
           return s;
-        }).filter(s => s.name && s.phone);
+        }).filter(s => s.student_name && s.parent_phone);
+        
         fetch("/api/admin/students", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -603,11 +645,9 @@ export default function AdminStudentsPage() {
         }).then(async (res) => {
           if (!res.ok) throw new Error("upload_failed");
           alert(`학생 ${parsed.length}명이 업로드되었습니다.`);
-          setStudents(prev => {
-            const existingPhones = new Set(prev.map(s => s.phone));
-            const added = parsed.filter(s => !existingPhones.has(s.phone));
-            return [...prev, ...added];
-          });
+          // Optimistic update
+          // setStudents(prev => [...prev, ...parsed as StudentFull[]]); // Needs strict type
+          window.location.reload(); // Simple reload to fetch fresh data
         }).catch(() => {
           alert("업로드 중 오류가 발생했습니다.");
         });
@@ -618,12 +658,12 @@ export default function AdminStudentsPage() {
     reader.readAsText(file);
   };
 
-  const openVehicleModal = (s: Student) => {
+  const openVehicleModal = (s: StudentFull) => {
     setVehicleModalFor(s);
-    setPickupLat(String(s.pickupLat ?? ""));
-    setPickupLng(String(s.pickupLng ?? ""));
-    setDropoffLat(String(s.dropoffLat ?? ""));
-    setDropoffLng(String(s.dropoffLng ?? ""));
+    setPickupLat(String(s.pickup_lat ?? ""));
+    setPickupLng(String(s.pickup_lng ?? ""));
+    setDropoffLat(String(s.dropoff_lat ?? ""));
+    setDropoffLng(String(s.dropoff_lng ?? ""));
   };
 
   const saveVehicleInfo = async () => {
@@ -649,7 +689,7 @@ export default function AdminStudentsPage() {
     setStudents((prev) =>
       prev.map((s) =>
         s.id === vehicleModalFor.id
-          ? { ...s, pickupLat: a, pickupLng: b, dropoffLat: c, dropoffLng: d }
+          ? { ...s, pickup_lat: a, pickup_lng: b, dropoff_lat: c, dropoff_lng: d }
           : s
       )
     );
@@ -685,10 +725,9 @@ export default function AdminStudentsPage() {
           <span className="text-sm font-bold text-slate-700">캠퍼스</span>
           <select value={campusFilter} onChange={(e) => setCampusFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
             <option value="All">전체</option>
-            <option value="International">국제관</option>
-            <option value="Andover">앤도버</option>
-            <option value="Atheneum">아테네움</option>
-            <option value="Platz">플라츠</option>
+            {filters.campuses.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
           </select>
         </div>
         <div className="flex items-center gap-2">
@@ -700,6 +739,23 @@ export default function AdminStudentsPage() {
           </select>
         </div>
         <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-slate-700">프로그램</span>
+          <select value={programFilter} onChange={(e) => setProgramFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+            <option value="All">전체</option>
+            {filters.programNames.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-slate-700">다짐</span>
+          <select value={dajimFilter} onChange={(e) => setDajimFilter(e.target.value as any)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+            <option value="All">전체</option>
+            <option value="O">다짐 O</option>
+            <option value="X">다짐 X</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
           <label className="inline-flex items-center gap-2">
             <input
               type="checkbox"
@@ -708,7 +764,7 @@ export default function AdminStudentsPage() {
                 const on = e.target.checked;
                 setShowOnlyActive(on);
                 if (on) {
-                  setStatusToggle({ 재원: true, "휴원 검토중": true, "퇴원 검토중": true, 휴원: false, 퇴원: false });
+                  setStatusToggle({ promoted: true, hold: false, rejected: false, waiting: false, consultation_reserved: false, consult_done: false, approved: false });
                 }
               }}
               className="rounded border-slate-300"
@@ -786,23 +842,18 @@ export default function AdminStudentsPage() {
           <span className="text-sm font-bold text-slate-700">호차</span>
           <select value={busFilter} onChange={(e) => setBusFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
             <option value="All">전체</option>
-            <option value="1호차">1호차</option>
-            <option value="2호차">2호차</option>
-            <option value="3호차">3호차</option>
-            <option value="4호차">4호차</option>
-            <option value="5호차">5호차</option>
-            <option value="6호차">6호차</option>
-            <option value="7호차">7호차</option>
-            <option value="없음">없음</option>
+            {filters.buses.map(b => (
+              <option key={b.id} value={b.name}>{b.name}</option>
+            ))}
           </select>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-slate-700">하원 시간대</span>
           <select value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
             <option value="All">전체</option>
-            <option value="09:00">09:00</option>
-            <option value="13:30">13:30</option>
-            <option value="16:30">16:30</option>
+            {filters.timeSlots.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
           </select>
         </div>
         <div className="flex items-center gap-2">
@@ -835,6 +886,7 @@ export default function AdminStudentsPage() {
                 <th className="p-3 font-bold w-32">반</th>
                 <th className="p-3 font-bold w-28">재원상태</th>
                 <th className="p-3 font-bold w-32">생년월일</th>
+                <th className="p-3 font-bold w-12 text-center">다짐</th>
                 <th className="p-3 font-bold w-24 text-center">호차</th>
                 <th className="p-3 font-bold w-24 text-center">하원 시간대</th>
                 <th className="p-3 font-bold w-24 text-center">메모</th>
@@ -854,27 +906,30 @@ export default function AdminStudentsPage() {
                     />
                   </td>
                   <td className="p-3">
-                    <button onClick={() => openInfoPanel(s)} className="text-slate-900 font-bold hover:underline">{s.name}</button>
-                    <div className="text-xs text-slate-400">{s.phone}</div>
+                    <button onClick={() => openInfoPanel(s)} className="text-slate-900 font-bold hover:underline">{s.student_name}</button>
+                    <div className="text-xs text-slate-400">{s.parent_phone}</div>
                   </td>
-                  <td className="p-3 text-slate-700">{s.englishName}</td>
-                  <td className="p-3 text-slate-700">{s.className}</td>
+                  <td className="p-3 text-slate-700">{s.english_first_name}</td>
+                  <td className="p-3 text-slate-700">{s.class_name}</td>
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-1 rounded text-[11px] font-bold border ${
-                        s.status === "재원" ? "bg-green-50 text-green-700 border-green-100" :
-                        s.status === "휴원 검토중" ? "bg-blue-50 text-blue-700 border-blue-100" :
-                        s.status === "휴원" ? "bg-amber-50 text-amber-700 border-amber-100" :
-                        s.status === "퇴원 검토중" ? "bg-orange-50 text-orange-700 border-orange-100" :
-                        "bg-red-50 text-red-700 border-red-100"
+                        s.status === "promoted" ? "bg-green-50 text-green-700 border-green-100" :
+                        s.status === "approved" ? "bg-blue-50 text-blue-700 border-blue-100" :
+                        s.status === "hold" ? "bg-amber-50 text-amber-700 border-amber-100" :
+                        s.status === "rejected" ? "bg-red-50 text-red-700 border-red-100" :
+                        "bg-slate-50 text-slate-700 border-slate-100"
                       }`}>
                         {s.status}
                       </span>
                     </div>
                   </td>
-                  <td className="p-3 text-slate-700">{s.birthDate}</td>
+                  <td className="p-3 text-slate- text-slate-700 font-bold">
+                    {s.dajim_enabled ? <span className="text-green-600">✔</span> : <span className="text-slate-300">-</span>}
+                  </td>
+                  <td className="p-3 text-center700">{s.birth_date}</td>
                   <td className="p-3 text-center">{s.bus}</td>
-                  <td className="p-3 text-center">{s.departureTime}</td>
+                  <td className="p-3 text-center">{s.departure_time}</td>
                   <td className="p-3">
                     {Array.isArray(memos[s.id]) && memos[s.id].length > 0 ? (
                       <button
@@ -941,8 +996,8 @@ export default function AdminStudentsPage() {
                             setQuitDate("");
                             setQuitReason("");
                             setConfirmChecked(false);
-                            setPickupTypeLocal((s.pickupType ?? "self") as any);
-                            setDropoffTypeLocal((s.dropoffType ?? "self") as any);
+                            setPickupTypeLocal((s.pickup_lat ? "bus" : "self")); // Approximate inference
+                            setDropoffTypeLocal((s.dropoff_lat ? "bus" : "self"));
                           }}
                         >
                           상태 변경
@@ -950,8 +1005,7 @@ export default function AdminStudentsPage() {
                         <button
                           className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
                           onClick={() => setConsultModalFor(s)}
-                          disabled={s.status !== "휴원 검토중"}
-                          title={s.status !== "휴원 검토중" ? "휴원 검토중 상태에서만 상담 기록 가능" : ""}
+                          title="상담 기록"
                         >
                           상담 기록
                         </button>
@@ -966,1238 +1020,345 @@ export default function AdminStudentsPage() {
                         </button>
                         <button
                           className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
-                          onClick={() => openVehicleModal(s)}
+                          onClick={() => {
+                            openVehicleModal(s);
+                          }}
                         >
-                          위치 설정
-                        </button>
-                        <button
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
-                          onClick={() => setBusModalFor(s)}
-                        >
-                          호차 변경
-                        </button>
-                        <button
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
-                          onClick={() => setTimeModalFor(s)}
-                        >
-                          하원 시간대 변경
+                          등하원 정보 수정
                         </button>
                       </div>
                     </div>
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="p-6 text-center text-sm text-slate-500">조건에 맞는 학생이 없습니다.</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {selectedStudentIds.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 z-40 flex justify-between items-center">
-          <span className="text-sm font-bold text-slate-900">선택된 원생 {selectedStudentIds.length}명</span>
-          <button
-            onClick={openBulkModal}
-            className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-          >
-            반 변경
-          </button>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={openBulkBusModal}
-              className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-            >
-              호차 변경
-            </button>
-            <button
-              onClick={openBulkTimeModal}
-              className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-            >
-              하원 시간대 변경
-            </button>
-          </div>
-        </div>
-      )}
-
-      {statusModalFor && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setStatusModalFor(null)} />
-          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-[560px] max-w-[94vw] p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-black text-slate-900">재원 상태 변경</h3>
-              <button onClick={() => setStatusModalFor(null)} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">닫기</button>
+      {bulkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold mb-4">반 일괄 변경</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              선택한 학생 {selectedStudentIds.length}명의 반을 변경합니다.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-slate-700 mb-1">변경할 반</label>
+              <select
+                value={selectedTargetClass}
+                onChange={(e) => setSelectedTargetClass(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+              >
+                <option value="">선택하세요</option>
+                {availableClasses.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">학생 이름</span>
-                  <span className="text-sm font-bold text-slate-800">{statusModalFor.name}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">캠퍼스 / 반</span>
-                  <span className="text-sm font-bold text-slate-800">{statusModalFor.campus} / {statusModalFor.className}</span>
-                </div>
-                <div className="col-span-2 flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">현재 상태</span>
-                  <span className={`px-2 py-1 rounded text-[11px] font-bold border ${
-                    statusModalFor.status === "재원" ? "bg-green-50 text-green-700 border-green-100" :
-                    statusModalFor.status === "휴원 검토중" ? "bg-blue-50 text-blue-700 border-blue-100" :
-                    statusModalFor.status === "휴원" ? "bg-amber-50 text-amber-700 border-amber-100" :
-                    statusModalFor.status === "퇴원 검토중" ? "bg-orange-50 text-orange-700 border-orange-100" :
-                    "bg-red-50 text-red-700 border-red-100"
-                  }`}>
-                    {statusModalFor.status}
-                  </span>
-                </div>
-              </div>
-              <div className="border-t border-slate-200 pt-4">
-                {statusStep === 1 && (
-                    <div className="space-y-3">
-                      <div className="text-sm font-bold text-slate-900">변경할 상태 선택</div>
-                      <div className="flex items-center gap-4">
-                        <label className="inline-flex items-center gap-2 text-sm">
-                          <input
-                            type="radio"
-                            name="nextStatus"
-                            checked={nextStatus === "휴원"}
-                            onChange={() => {
-                              if (statusModalFor?.status === "재원") return;
-                              if (statusModalFor?.status === "휴원 검토중" && getConsultCount(statusModalFor.id) === 0) return;
-                              setNextStatus("휴원");
-                            }}
-                            className="rounded border-slate-300"
-                          />
-                          <span title={statusModalFor?.status === "휴원 검토중" && getConsultCount(statusModalFor!.id) === 0 ? "휴원 확정 전 최소 1회 상담 기록 필요" : ""}>휴원</span>
-                        </label>
-                        <label className="inline-flex items-center gap-2 text-sm">
-                          <input
-                            type="radio"
-                            name="nextStatus"
-                            checked={nextStatus === "퇴원"}
-                          onChange={() => {
-                            if (statusModalFor?.status === "재원") return;
-                            setNextStatus("퇴원");
-                          }}
-                            className="rounded border-slate-300"
-                          />
-                          퇴원
-                        </label>
-                        <label className="inline-flex items-center gap-2 text-sm">
-                          <input
-                            type="radio"
-                            name="nextStatus"
-                            checked={nextStatus === "휴원 검토중"}
-                            onChange={() => setNextStatus("휴원 검토중")}
-                            className="rounded border-slate-300"
-                          />
-                          휴원 검토중
-                        </label>
-                        <label className="inline-flex items-center gap-2 text-sm">
-                          <input
-                            type="radio"
-                            name="nextStatus"
-                            checked={nextStatus === "퇴원 검토중"}
-                            onChange={() => setNextStatus("퇴원 검토중")}
-                            className="rounded border-slate-300"
-                          />
-                          퇴원 검토중
-                        </label>
-                        {statusModalFor?.status === "퇴원 검토중" && (
-                          <label className="inline-flex items-center gap-2 text-sm">
-                            <input
-                              type="radio"
-                              name="nextStatus"
-                              checked={nextStatus === "재원"}
-                              onChange={() => setNextStatus("재원")}
-                              className="rounded border-slate-300"
-                            />
-                            재원
-                          </label>
-                        )}
-                        {statusModalFor?.status === "휴원 검토중" && (
-                          <label className="inline-flex items-center gap-2 text-sm">
-                            <input
-                              type="radio"
-                              name="nextStatus"
-                              checked={nextStatus === "재원"}
-                              onChange={() => setNextStatus("재원")}
-                              className="rounded border-slate-300"
-                            />
-                            재원
-                          </label>
-                        )}
-                      </div>
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          onClick={() => nextStatus ? setStatusStep(2) : null}
-                          disabled={!nextStatus}
-                          className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white disabled:opacity-50"
-                          title={!nextStatus ? "변경할 상태를 선택하세요" : ""}
-                        >
-                          다음
-                        </button>
-                      </div>
-                    </div>
-                )}
-                {statusStep === 2 && nextStatus === "휴원" && (
-                  <div className="space-y-3">
-                    <div className="text-sm font-bold text-slate-900">휴원 정보 입력</div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-700">휴원 시작일</span>
-                        <input
-                          type="date"
-                          value={leaveStart}
-                          onChange={(e) => setLeaveStart(e.target.value)}
-                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-700">휴원 종료일</span>
-                        <input
-                          type="date"
-                          value={leaveEnd}
-                          min={leaveStart || undefined}
-                          onChange={(e) => setLeaveEnd(e.target.value)}
-                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                        />
-                      </div>
-                      <div className="col-span-2 flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-700">휴원 사유</span>
-                        <textarea
-                          value={leaveReason}
-                          onChange={(e) => setLeaveReason(e.target.value)}
-                          minLength={5}
-                          rows={3}
-                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                          placeholder="5자 이상"
-                        />
-                      </div>
-                    </div>
-                    <div className="mt-4 flex justify-between">
-                      <button onClick={() => setStatusStep(1)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">이전</button>
-                      <button
-                        disabled={
-                          !leaveStart ||
-                          !leaveEnd ||
-                          new Date(leaveEnd) <= new Date(leaveStart) ||
-                          (leaveReason || "").trim().length < 5
-                        }
-                        onClick={async () => {
-                          if (!leaveStart || !leaveEnd) return;
-                          if (new Date(leaveEnd) <= new Date(leaveStart)) return;
-                          if ((leaveReason || "").trim().length < 5) return;
-                          const id = statusModalFor!.id;
-                          const { data } = await supabase.auth.getUser();
-                          const author = String(data?.user?.email ?? "관리자");
-                          await supabase.from("students").update({ status: "휴원" }).eq("id", id);
-                          await supabase.from("student_status_logs").insert({
-                            student_id: id,
-                            type: "status_change",
-                            message: `상태 변경: 재원 → 휴원 (기간: ${leaveStart}~${leaveEnd}, 사유: ${leaveReason.trim()}) 처리자: ${author}`,
-                            at: new Date().toISOString(),
-                          });
-                          setStatusModalFor(null);
-                        }}
-                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-                        title={
-                          !leaveStart
-                            ? "휴원 시작일을 입력하세요"
-                            : !leaveEnd
-                            ? "휴원 종료일을 입력하세요"
-                            : new Date(leaveEnd) <= new Date(leaveStart)
-                            ? "종료일은 시작일 이후여야 합니다"
-                            : (leaveReason || "").trim().length < 5
-                            ? "사유는 5자 이상 입력하세요"
-                            : ""
-                        }
-                      >
-                        변경 저장
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {statusStep === 2 && nextStatus === "휴원 검토중" && (
-                  <div className="space-y-3">
-                    <div className="text-sm font-bold text-slate-900">휴원 검토 상태로 전환</div>
-                    <div className="text-xs text-slate-600">내부 관리 상태입니다. 학부모 포털에는 노출되지 않습니다.</div>
-                    <div className="mt-4 flex justify-between">
-                      <button onClick={() => setStatusStep(1)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">이전</button>
-                      <button
-                        onClick={async () => {
-                          const id = statusModalFor!.id;
-                          const { data } = await supabase.auth.getUser();
-                          const author = String(data?.user?.email ?? "관리자");
-                          await supabase.from("students").update({ status: "휴원 검토중" }).eq("id", id);
-                          await supabase.from("student_status_logs").insert({
-                            student_id: id,
-                            type: "status_change",
-                            message: `재원상태 변경: ${statusModalFor!.status} → 휴원 검토중 처리자: ${author}`,
-                            at: new Date().toISOString(),
-                          });
-                          await supabase.from("alert_signals").insert({
-                            student_id: id,
-                            name: statusModalFor!.name,
-                            campus: statusModalFor!.campus,
-                            class_name: statusModalFor!.className,
-                            status: "휴원 검토중",
-                            signals: [],
-                            level: "주의",
-                            first_detected_at: new Date().toISOString().split("T")[0],
-                          });
-                          router.push("/admin/alerts");
-                          setStatusModalFor(null);
-                        }}
-                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-                        title=""
-                      >
-                        변경사항 저장
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {statusStep === 2 && nextStatus === "재원" && (
-                  <div className="space-y-3">
-                    <div className="text-sm font-bold text-slate-900">차량/자가 방식 선택 및 좌표 확인</div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-700">등원 방식</span>
-                        <select
-                          value={pickupTypeLocal}
-                          onChange={(e) => setPickupTypeLocal(e.target.value as any)}
-                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                        >
-                          <option value="bus">차량</option>
-                          <option value="self">자가</option>
-                        </select>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-700">하원 방식</span>
-                        <select
-                          value={dropoffTypeLocal}
-                          onChange={(e) => setDropoffTypeLocal(e.target.value as any)}
-                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                        >
-                          <option value="bus">차량</option>
-                          <option value="self">자가</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {pickupTypeLocal === "bus" && (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-bold text-slate-700">픽업 위도</span>
-                          <input
-                            value={pickupLat}
-                            onChange={(e) => setPickupLat(e.target.value)}
-                            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                          />
-                        </div>
-                      )}
-                      {pickupTypeLocal === "bus" && (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-bold text-slate-700">픽업 경도</span>
-                          <input
-                            value={pickupLng}
-                            onChange={(e) => setPickupLng(e.target.value)}
-                            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                          />
-                        </div>
-                      )}
-                      {dropoffTypeLocal === "bus" && (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-bold text-slate-700">드롭오프 위도</span>
-                          <input
-                            value={dropoffLat}
-                            onChange={(e) => setDropoffLat(e.target.value)}
-                            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                          />
-                        </div>
-                      )}
-                      {dropoffTypeLocal === "bus" && (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs font-bold text-slate-700">드롭오프 경도</span>
-                          <input
-                            value={dropoffLng}
-                            onChange={(e) => setDropoffLng(e.target.value)}
-                            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-4 flex justify-between">
-                      <button onClick={() => setStatusStep(1)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">이전</button>
-                      <button
-                        onClick={async () => {
-                          const needPickup = pickupTypeLocal === "bus";
-                          const needDropoff = dropoffTypeLocal === "bus";
-                          const a = needPickup ? parseFloat(pickupLat) : null;
-                          const b = needPickup ? parseFloat(pickupLng) : null;
-                          const c = needDropoff ? parseFloat(dropoffLat) : null;
-                          const d = needDropoff ? parseFloat(dropoffLng) : null;
-                          if (needPickup && ([a!, b!].some((x) => Number.isNaN(x)))) return;
-                          if (needDropoff && ([c!, d!].some((x) => Number.isNaN(x)))) return;
-                          const id = statusModalFor!.id;
-                          await supabase
-                            .from("students")
-                            .update({
-                              status: "재원",
-                              pickup_type: pickupTypeLocal,
-                              dropoff_type: dropoffTypeLocal,
-                              pickup_lat: needPickup ? a : null,
-                              pickup_lng: needPickup ? b : null,
-                              dropoff_lat: needDropoff ? c : null,
-                              dropoff_lng: needDropoff ? d : null,
-                              updated_at: new Date().toISOString(),
-                            })
-                            .eq("id", id);
-                          setStatusModalFor(null);
-                        }}
-                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-                        disabled={
-                          (pickupTypeLocal === "bus" && [pickupLat, pickupLng].some((v) => !v.trim())) ||
-                          (dropoffTypeLocal === "bus" && [dropoffLat, dropoffLng].some((v) => !v.trim()))
-                        }
-                        title={
-                          pickupTypeLocal === "bus" && [pickupLat, pickupLng].some((v) => !v.trim())
-                            ? "등원 차량 사용 시 픽업 좌표를 모두 입력하세요"
-                            : dropoffTypeLocal === "bus" && [dropoffLat, dropoffLng].some((v) => !v.trim())
-                            ? "하원 차량 사용 시 드롭오프 좌표를 모두 입력하세요"
-                            : ""
-                        }
-                      >
-                        재원 전환 및 위치 저장
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {statusStep === 2 && nextStatus === "퇴원 검토중" && (
-                  <div className="space-y-3">
-                    <div className="text-sm font-bold text-slate-900">퇴원 검토 상태로 전환</div>
-                    <div className="text-xs text-slate-600">내부 관리 상태입니다. 학부모 포털에는 노출되지 않습니다.</div>
-                    <div className="mt-4 flex justify-between">
-                      <button onClick={() => setStatusStep(1)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">이전</button>
-                      <button
-                        onClick={async () => {
-                          const id = statusModalFor!.id;
-                          const { data } = await supabase.auth.getUser();
-                          const admin = String(data?.user?.email ?? "관리자");
-                          const date = new Date().toISOString().split("T")[0];
-                          const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "퇴원 검토중" as Status } };
-                          const entry = `${date} 재원상태 변경: ${statusModalFor!.status} → 퇴원 검토중 처리자: ${admin}`;
-                          const newLogs = { ...studentLogs };
-                          const list = newLogs[id] || [];
-                          list.push(entry);
-                          newLogs[id] = list;
-                          setUpdates(newUpdates);
-                          setStudentLogs(newLogs);
-                          await supabase.from("students").update({ status: "퇴원 검토중" }).eq("id", id);
-                          await supabase.from("student_status_logs").insert({
-                            student_id: id,
-                            type: "status_change",
-                            message: entry,
-                            at: new Date().toISOString(),
-                          });
-                          await supabase.from("alert_signals").insert({
-                            student_id: id,
-                            name: statusModalFor!.name,
-                            campus: statusModalFor!.campus,
-                            class_name: statusModalFor!.className,
-                            status: "퇴원 검토중",
-                            signals: [],
-                            level: "경고",
-                            first_detected_at: date
-                          });
-                          alert("상태 변경 완료 • 이탈 시그널 페이지로 이동합니다.");
-                          router.push("/admin/alerts");
-                          setStatusModalFor(null);
-                        }}
-                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-                        title=""
-                      >
-                        변경사항 저장
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {statusStep === 2 && nextStatus === "퇴원" && (
-                  <div className="space-y-3">
-                    <div className="text-sm font-bold text-slate-900">퇴원 정보 입력</div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-700">퇴원일</span>
-                        <input
-                          type="date"
-                          value={quitDate}
-                          onChange={(e) => setQuitDate(e.target.value)}
-                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                        />
-                      </div>
-                      <div className="col-span-2 flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-700">퇴원 사유</span>
-                        <textarea
-                          value={quitReason}
-                          onChange={(e) => setQuitReason(e.target.value)}
-                          minLength={5}
-                          rows={3}
-                          className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                          placeholder="5자 이상"
-                        />
-                      </div>
-                      <label className="col-span-2 inline-flex items-center gap-2 text-xs text-slate-700">
-                        <input type="checkbox" checked={confirmChecked} onChange={(e) => setConfirmChecked(e.target.checked)} className="rounded border-slate-300" />
-                 t       안내 사항을 확인했습니다.
-                      </label>
-                    </div>
-                    <div className="mt-4 flex justify-between">
-                      <button onClick={() => setStatusStep(1)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">이전</button>
-                      <button
-                        disabled={
-                          !quitDate ||
-                          (quitReason || "").trim().length < 5 ||
-                          !confirmChecked
-                        }
-                        onClick={async () => {
-                          if (!quitDate) return;
-                          if ((quitReason || "").trim().length < 5) return;
-                          if (!confirmChecked) return;
-                          const id = statusModalFor!.id;
-                          const { data } = await supabase.auth.getUser();
-                          const admin = String(data?.user?.email ?? "관리자");
-                          const date = new Date().toISOString().split("T")[0];
-                          const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "퇴원" as Status } };
-                          const entry = `${date} 상태 변경: 재원/휴원 → 퇴원 (퇴원일: ${quitDate}, 사유: ${quitReason.trim()}) 처리자: ${admin}`;
-                          const newLogs = { ...studentLogs };
-                          const list = newLogs[id] || [];
-                          list.push(entry);
-                          newLogs[id] = list;
-                          setUpdates(newUpdates);
-                          setStudentLogs(newLogs);
-                          await supabase.from("students").update({ status: "퇴원" }).eq("id", id);
-                          await supabase.from("student_status_logs").insert({
-                            student_id: id,
-                            type: "status_change",
-                            message: entry,
-                            at: new Date().toISOString(),
-                          });
-                          setStatusModalFor(null);
-                        }}
-                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-                        title={
-                          !quitDate
-                            ? "퇴원일을 입력하세요"
-                            : (quitReason || "").trim().length < 5
-                            ? "사유는 5자 이상 입력하세요"
-                            : !confirmChecked
-                            ? "안내 사항을 확인하세요"
-                            : ""
-                        }
-                      >
-                        변경 저장
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {vehicleModalFor && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setVehicleModalFor(null)} />
-          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-[560px] max-w-[94vw] p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-black text-slate-900">픽업/드롭오프 좌표 설정</h3>
-              <button onClick={() => setVehicleModalFor(null)} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">닫기</button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-bold text-slate-700">픽업 위도</span>
-                <input value={pickupLat} onChange={(e) => setPickupLat(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-bold text-slate-700">픽업 경도</span>
-                <input value={pickupLng} onChange={(e) => setPickupLng(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-bold text-slate-700">드롭오프 위도</span>
-                <input value={dropoffLat} onChange={(e) => setDropoffLat(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-bold text-slate-700">드롭오프 경도</span>
-                <input value={dropoffLng} onChange={(e) => setDropoffLng(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
-              </div>
-            </div>
-            <div className="mt-4 flex justify-end">
-              <button onClick={saveVehicleInfo} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">좌표 저장</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {consultModalFor && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setConsultModalFor(null)} />
-          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-[560px] max-w-[94vw] p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-black text-slate-900">휴원 검토 상담 기록</h3>
-              <button onClick={() => setConsultModalFor(null)} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">닫기</button>
-            </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">학생 이름</span>
-                  <span className="text-sm font-bold text-slate-800">{consultModalFor.name}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">반</span>
-                  <span className="text-sm font-bold text-slate-800">{consultModalFor.className}</span>
-                </div>
-                <div className="col-span-2 flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">현재 상태</span>
-                  <span className="px-2 py-1 rounded text-[11px] font-bold border bg-blue-50 text-blue-700 border-blue-100">휴원 검토중</span>
-                </div>
-              </div>
-              <div className="border-t border-slate-200 pt-4 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-bold text-slate-700">상담 일자</span>
-                    <input type="date" value={consultDate} onChange={(e) => setConsultDate(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-bold text-slate-700">상담 방식</span>
-                    <select value={consultMethod} onChange={(e) => setConsultMethod(e.target.value as any)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
-                      <option value="">선택</option>
-                      <option value="전화">전화</option>
-                      <option value="대면">대면</option>
-                    </select>
-                  </div>
-                  <div className="col-span-2 flex flex-col gap-1">
-                    <span className="text-xs font-bold text-slate-700">상담 내용</span>
-                    <textarea value={consultContent} onChange={(e) => setConsultContent(e.target.value)} rows={4} placeholder="최소 10자" className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-700 mb-2">상담 결과</div>
-                  <div className="flex items-center gap-4">
-                    <label className="inline-flex items-center gap-2 text-sm">
-                      <input type="radio" name="consultResult" checked={consultResult === "계속 재원"} onChange={() => setConsultResult("계속 재원")} className="rounded border-slate-300" />
-                      계속 재원
-                    </label>
-                    <label className="inline-flex items-center gap-2 text-sm">
-                      <input type="radio" name="consultResult" checked={consultResult === "휴원 확정"} onChange={() => setConsultResult("휴원 확정")} className="rounded border-slate-300" />
-                      휴원 확정
-                    </label>
-                    <label className="inline-flex items-center gap-2 text-sm">
-                      <input type="radio" name="consultResult" checked={consultResult === "퇴원 검토로 전환"} onChange={() => setConsultResult("퇴원 검토로 전환")} className="rounded border-slate-300" />
-                      퇴원 검토로 전환
-                    </label>
-                  </div>
-                </div>
-                <div className="mt-4 flex justify-end">
-                  <button
-                    onClick={async () => {
-                      const ok =
-                        !!consultDate &&
-                        !!consultMethod &&
-                        (consultContent || "").trim().length >= 10 &&
-                        !!consultResult;
-                      if (!ok) return;
-                      const id = consultModalFor!.id;
-                      const { data } = await supabase.auth.getUser();
-                      const admin = String(data?.user?.email ?? "관리자");
-                      const date = new Date().toISOString().split("T")[0];
-                      await supabase.from("student_consults").insert({
-                        student_id: id,
-                        consult_date: consultDate,
-                        consult_method: consultMethod,
-                        consult_content: consultContent.trim(),
-                        consult_result: consultResult,
-                        actor: admin,
-                        at: date,
-                      });
-                      const logs = { ...studentLogs };
-                      const list = logs[id] || [];
-                      list.push(`${date} 휴원 검토 상담 완료 결과: ${consultResult} 처리자: ${admin}`);
-                      logs[id] = list;
-                      setStudentLogs(logs);
-                      if (consultResult === "계속 재원") {
-                        const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "재원" as Status } };
-                        setUpdates(newUpdates);
-                        await supabase.from("students").update({ status: "재원" }).eq("id", id);
-                        await supabase.from("student_status_logs").insert({
-                          student_id: id,
-                          type: "consult",
-                          message: `${date} 상담 결과: 계속 재원`,
-                          at: new Date().toISOString(),
-                        });
-                        setConsultModalFor(null);
-                      } else if (consultResult === "휴원 확정") {
-                        setConsultModalFor(null);
-                        setLeaveConfirmModalFor(merged.find(m => m.id === id) || null);
-                      } else {
-                        const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "퇴원 검토중" as Status } };
-                        setUpdates(newUpdates);
-                        await supabase.from("students").update({ status: "퇴원 검토중" }).eq("id", id);
-                        await supabase.from("alert_signals").insert({
-                          student_id: id,
-                          name: consultModalFor!.name,
-                          campus: consultModalFor!.campus,
-                          class_name: consultModalFor!.className,
-                          status: "퇴원 검토중",
-                          signals: [],
-                          level: "경고",
-                          first_detected_at: date
-                        });
-                        await supabase.from("student_status_logs").insert({
-                          student_id: id,
-                          type: "consult",
-                          message: `${date} 상담 결과: 퇴원 검토중`,
-                          at: new Date().toISOString(),
-                        });
-                        alert("상태 변경 완료 • 이탈 시그널 페이지로 이동합니다.");
-                        router.push("/admin/alerts");
-                        setConsultModalFor(null);
-                      }
-                    }}
-                    disabled={
-                      !consultDate ||
-                      !consultMethod ||
-                      (consultContent || "").trim().length < 10 ||
-                      !consultResult
-                    }
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white disabled:opacity-50"
-                    title={
-                      !consultDate
-                        ? "상담 일자를 입력하세요"
-                        : !consultMethod
-                        ? "상담 방식을 선택하세요"
-                        : (consultContent || "").trim().length < 10
-                        ? "상담 내용은 10자 이상 입력하세요"
-                        : !consultResult
-                        ? "상담 결과를 선택하세요"
-                        : ""
-                    }
-                  >
-                    상담 기록 저장
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {leaveConfirmModalFor && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setLeaveConfirmModalFor(null)} />
-          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-[560px] max-w-[94vw] p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-black text-slate-900">휴원 확정</h3>
-              <button onClick={() => setLeaveConfirmModalFor(null)} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">닫기</button>
-            </div>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-bold text-slate-700">휴원 시작일</span>
-                  <input type="date" value={leaveConfStart} onChange={(e) => setLeaveConfStart(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-bold text-slate-700">휴원 종료일</span>
-                  <input type="date" value={leaveConfEnd} min={leaveConfStart || undefined} onChange={(e) => setLeaveConfEnd(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
-                </div>
-                <div className="col-span-2 flex flex-col gap-1">
-                  <span className="text-xs font-bold text-slate-700">휴원 사유</span>
-                  <textarea value={leaveConfReason} onChange={(e) => setLeaveConfReason(e.target.value)} rows={3} placeholder="최소 10자" className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-bold text-slate-700 mb-2">환불 / 이월 확인</div>
-                <div className="flex items-center gap-4">
-                  <label className="inline-flex items-center gap-2 text-sm">
-                    <input type="radio" name="refundOption" checked={refundOption === "환불 없음"} onChange={() => setRefundOption("환불 없음")} className="rounded border-slate-300" />
-                    환불 없음
-                  </label>
-                  <label className="inline-flex items-center gap-2 text-sm">
-                    <input type="radio" name="refundOption" checked={refundOption === "부분 환불"} onChange={() => setRefundOption("부분 환불")} className="rounded border-slate-300" />
-                    부분 환불
-                  </label>
-                  <label className="inline-flex items-center gap-2 text-sm">
-                    <input type="radio" name="refundOption" checked={refundOption === "다음 달 이월"} onChange={() => setRefundOption("다음 달 이월")} className="rounded border-slate-300" />
-                    다음 달 이월
-                  </label>
-                </div>
-                <div className="mt-2">
-                  <input type="text" value={refundMemo} onChange={(e) => setRefundMemo(e.target.value)} placeholder="환불 메모" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
-                </div>
-              </div>
-              <div className="mt-4 flex justify-end">
+            <div className="mb-4 p-3 bg-slate-50 rounded-lg">
+              <label className="block text-xs font-bold text-slate-500 mb-1">새 반 추가</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newClassName}
+                  onChange={(e) => setNewClassName(e.target.value)}
+                  placeholder="예: Einstein"
+                  className="flex-1 px-2 py-1 text-sm border border-slate-200 rounded"
+                />
                 <button
-                  onClick={async () => {
-                    const ok =
-                      !!leaveConfStart &&
-                      !!leaveConfEnd &&
-                      new Date(leaveConfEnd) > new Date(leaveConfStart) &&
-                      (leaveConfReason || "").trim().length >= 10 &&
-                      !!refundOption &&
-                      (refundMemo || "").trim().length > 0;
-                    if (!ok) return;
-                    const id = leaveConfirmModalFor!.id;
-                    const { data } = await supabase.auth.getUser();
-                    const admin = String(data?.user?.email ?? "관리자");
-                    const date = new Date().toISOString().split("T")[0];
-                    const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), status: "휴원" as Status } };
-                    const newLogs = { ...studentLogs };
-                    const list = newLogs[id] || [];
-                    list.push(`${date} 휴원 확정 기간: ${leaveConfStart} ~ ${leaveConfEnd} 환불: ${refundOption} 처리자: ${admin}`);
-                    newLogs[id] = list;
-                    setUpdates(newUpdates);
-                    setStudentLogs(newLogs);
-                    await supabase.from("students").update({ status: "휴원" }).eq("id", id);
-                    await supabase.from("student_status_logs").insert({
-                      student_id: id,
-                      type: "leave_confirm",
-                      message: `${date} 휴원 확정 기간: ${leaveConfStart} ~ ${leaveConfEnd} 환불: ${refundOption} 메모: ${refundMemo} 처리자: ${admin}`,
-                      at: new Date().toISOString(),
-                    });
-                    setLeaveConfirmModalFor(null);
-                    setConsultModalFor(null);
-                    setLeaveConfStart("");
-                    setLeaveConfEnd("");
-                    setLeaveConfReason("");
-                    setRefundOption("");
-                    setRefundMemo("");
-                  }}
-                  disabled={
-                    !leaveConfStart ||
-                    !leaveConfEnd ||
-                    new Date(leaveConfEnd) <= new Date(leaveConfStart) ||
-                    (leaveConfReason || "").trim().length < 10 ||
-                    !refundOption ||
-                    (refundMemo || "").trim().length === 0
-                  }
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white disabled:opacity-50"
-                  title={
-                    !leaveConfStart
-                      ? "휴원 시작일을 입력하세요"
-                      : !leaveConfEnd
-                      ? "휴원 종료일을 입력하세요"
-                      : new Date(leaveConfEnd) <= new Date(leaveConfStart)
-                      ? "종료일은 시작일 이후여야 합니다"
-                      : (leaveConfReason || "").trim().length < 10
-                      ? "사유는 10자 이상 입력하세요"
-                      : !refundOption
-                      ? "환불/이월 옵션을 선택하세요"
-                      : (refundMemo || "").trim().length === 0
-                      ? "환불 메모를 입력하세요"
-                      : ""
-                  }
+                  onClick={addNewClassToCatalog}
+                  className="px-2 py-1 bg-slate-200 text-xs font-bold rounded hover:bg-slate-300"
                 >
-                  휴원 확정
+                  추가
                 </button>
               </div>
             </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={closeBulkModal} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg">취소</button>
+              <button onClick={handleBulkClassChange} className="px-4 py-2 text-sm font-bold text-white bg-frage-blue rounded-lg hover:bg-blue-700">변경하기</button>
+            </div>
           </div>
         </div>
       )}
-      {infoStudent && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setInfoStudent(null)} />
-          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-[520px] max-w-[90vw] p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-black text-slate-900">학생 정보</h3>
-              <button onClick={() => setInfoStudent(null)} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">닫기</button>
+
+      {bulkBusOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold mb-4">호차 일괄 변경</h2>
+            <div className="mb-4">
+              <select
+                value={selectedTargetBus}
+                onChange={(e) => setSelectedTargetBus(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+              >
+                <option value="">선택하세요</option>
+                <option value="1호차">1호차</option>
+                <option value="2호차">2호차</option>
+                <option value="3호차">3호차</option>
+                <option value="4호차">4호차</option>
+                <option value="5호차">5호차</option>
+                <option value="6호차">6호차</option>
+                <option value="7호차">7호차</option>
+                <option value="없음">없음</option>
+              </select>
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">학생 이름</span>
-                <span className="text-sm font-bold text-slate-800">{infoStudent.name}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">영문명</span>
-                <span className="text-sm font-bold text-slate-800">{infoStudent.englishName}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">생년월일</span>
-                <span className="text-sm font-bold text-slate-800">{infoStudent.birthDate}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">학부모 성함</span>
-                <span className="text-sm font-bold text-slate-800">{infoStudent.parentName}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">학부모 아이디</span>
-                <span className="text-sm font-bold text-slate-800">{infoStudent.parentAccountId}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">주소</span>
-                <span className="text-sm font-bold text-slate-800 text-right">{infoStudent.address}</span>
-              </div>
-              { (infoStudent.arrivalMethod || infoStudent.arrivalPlace) && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">등원</span>
-                  <span className="text-sm font-bold text-slate-800 text-right">{[infoStudent.arrivalMethod, infoStudent.arrivalPlace].filter(Boolean).join(" / ")}</span>
-                </div>
-              ) }
-              { (infoStudent.departureMethod || infoStudent.departurePlace) && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">하원</span>
-                  <span className="text-sm font-bold text-slate-800 text-right">{[infoStudent.departureMethod, infoStudent.departurePlace].filter(Boolean).join(" / ")}</span>
-                </div>
-              ) }
+            <div className="flex justify-end gap-2">
+              <button onClick={closeBulkBusModal} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg">취소</button>
+              <button onClick={handleBulkBusChange} className="px-4 py-2 text-sm font-bold text-white bg-frage-blue rounded-lg hover:bg-blue-700">변경하기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkTimeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold mb-4">하원 시간대 일괄 변경</h2>
+            <div className="mb-4">
+              <select
+                value={selectedTargetTime}
+                onChange={(e) => setSelectedTargetTime(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+              >
+                <option value="">선택하세요</option>
+                <option value="09:00">09:00</option>
+                <option value="13:30">13:30</option>
+                <option value="16:30">16:30</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={closeBulkTimeModal} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg">취소</button>
+              <button onClick={handleBulkTimeChange} className="px-4 py-2 text-sm font-bold text-white bg-frage-blue rounded-lg hover:bg-blue-700">변경하기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {memoPanelVisible && memoOpenFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-end pointer-events-none">
+          <div className="w-96 h-full bg-white shadow-2xl pointer-events-auto flex flex-col transform transition-transform duration-300">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <div>
-                <div className="text-xs font-bold text-slate-400 mb-1">변경 로그</div>
-                <div className="space-y-1 max-h-40 overflow-auto">
-                  {(studentLogs[infoStudent.id] || []).slice().reverse().map((entry, idx) => (
-                    <div key={idx} className="text-xs text-slate-600">{entry}</div>
-                  ))}
-                  {(studentLogs[infoStudent.id] || []).length === 0 && (
-                    <div className="text-xs text-slate-400">로그 없음</div>
-                  )}
-                </div>
+                <h3 className="font-bold text-slate-900">{memoOpenFor.student_name}</h3>
+                <p className="text-xs text-slate-500">메모 및 상담 기록</p>
               </div>
+              <button onClick={() => setMemoOpenFor(null)} className="p-2 text-slate-400 hover:text-slate-600">✕</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      
-
-      {memoOpenFor && (
-        <div className="fixed inset-0 z-30" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/30" aria-hidden="true" onClick={() => setMemoOpenFor(null)} />
-          <div
-            className={`absolute right-0 top-0 bottom-0 w-[420px] bg-white border-l border-slate-200 shadow-xl p-5 flex flex-col transition-transform duration-300 ease-out ${memoPanelVisible ? "translate-x-0" : "translate-x-full"}`}
-            tabIndex={0}
-          >
-            <h3 id="memo-panel-title" className="text-lg font-black text-slate-900 mb-4">메모</h3>
-            <div className="flex-1 overflow-auto space-y-2">
-              {(memos[memoOpenFor.id] || []).map((m, i) => (
-                <div key={i} className="rounded-lg border border-slate-200 px-3 py-2">
-                  <div className="text-xs font-bold text-slate-600 mb-1">[{m.tag || "기타"}]</div>
-                  <div className="text-sm text-slate-800 break-words whitespace-pre-line">{m.text}</div>
-                  <div className="text-xs text-slate-400 mt-0.5">{m.author} • {new Date(m.at).toLocaleString("ko-KR")}</div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {memos[memoOpenFor.id]?.map((m, i) => (
+                <div key={i} className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <div className="flex justify-between items-start mb-1">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                      m.tag === "상담" ? "bg-purple-100 text-purple-700" :
+                      m.tag === "결제" ? "bg-green-100 text-green-700" :
+                      m.tag === "특이사항" ? "bg-red-100 text-red-700" :
+                      "bg-slate-200 text-slate-600"
+                    }`}>{m.tag || "기타"}</span>
+                    <span className="text-[10px] text-slate-400">{m.at.split("T")[0]}</span>
+                  </div>
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap">{m.text}</p>
+                  <div className="text-[10px] text-slate-400 mt-2 text-right">by {m.author}</div>
                 </div>
               ))}
+              {(!memos[memoOpenFor.id] || memos[memoOpenFor.id].length === 0) && (
+                <div className="text-center py-10 text-slate-400 text-sm">기록된 메모가 없습니다.</div>
+              )}
             </div>
-            <div className="mt-4 flex items-center gap-2">
-              <select
-                value={newMemoType}
-                onChange={(e) => setNewMemoType(e.target.value as any)}
-                className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-              >
-                <option value="기타">기타</option>
-                <option value="상담">상담</option>
-                <option value="결제">결제</option>
-                <option value="특이사항">특이사항</option>
-              </select>
-              <input
-                type="text"
-                ref={memoInputRef}
+            <div className="p-4 border-t border-slate-100 bg-white">
+              <div className="flex gap-2 mb-2">
+                {(["상담", "결제", "특이사항", "기타"] as const).map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => setNewMemoType(tag)}
+                    className={`px-2 py-1 text-xs rounded border ${
+                      newMemoType === tag
+                        ? "bg-slate-800 text-white border-slate-800"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                ref={memoInputRef as any}
                 value={newMemo}
                 onChange={(e) => setNewMemo(e.target.value)}
-                placeholder="메모 한 줄"
-                aria-label="새 메모 입력"
-                className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
+                placeholder="메모를 입력하세요... (Shift+Enter 줄바꿈)"
+                className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-frage-blue outline-none resize-none h-24 mb-2"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    saveMemo();
+                  }
+                }}
               />
-              <button onClick={saveMemo} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">저장</button>
+              <button
+                onClick={saveMemo}
+                disabled={!newMemo.trim()}
+                className="w-full py-2 bg-frage-blue text-white font-bold rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+              >
+                등록
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {bulkModalOpen && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={closeBulkModal} />
-          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-[520px] max-w-[90vw] p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-black text-slate-900">반 변경</h3>
-              <button onClick={closeBulkModal} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">닫기</button>
+      {infoStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setInfoStudent(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-slate-900 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-white font-bold text-lg">{infoStudent.student_name} 학생 정보</h2>
+              <button onClick={() => setInfoStudent(null)} className="text-slate-400 hover:text-white">✕</button>
             </div>
-            <div className="space-y-3">
-              <div className="text-sm font-bold text-slate-900">선택된 원생: {selectedStudentIds.length}명</div>
-              <div className="flex flex-col space-y-2">
-                <span className="text-xs font-bold text-slate-700">변경할 반</span>
-                <select
-                  value={selectedTargetClass}
-                  onChange={(e) => setSelectedTargetClass(e.target.value)}
-                  disabled={!availableClasses.length}
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                >
-                  <option value="" disabled>반 선택</option>
-                  {availableClasses.map(c => {
-                    const disable = merged.some(s => selectedStudentIds.includes(s.id) && s.className === c);
-                    return (
-                      <option key={c} value={c} disabled={disable}>{c}</option>
-                    );
-                  })}
-                </select>
-                <div className="flex items-center gap-2">
-                  <input
-                    value={newClassName}
-                    onChange={(e) => setNewClassName(e.target.value)}
-                    placeholder="새 반 이름 입력"
-                    className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                  />
-                  <button
-                    onClick={addNewClassToCatalog}
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-                    aria-label="새 반 추가"
-                  >
-                    추가
-                  </button>
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-500">이름</label>
+                  <div className="text-slate-900 font-medium">{infoStudent.student_name}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500">영어이름</label>
+                  <div className="text-slate-900 font-medium">{infoStudent.english_first_name || "-"}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500">생년월일</label>
+                  <div className="text-slate-900 font-medium">{infoStudent.birth_date || "-"}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500">성별</label>
+                  <div className="text-slate-900 font-medium">{infoStudent.gender || "-"}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500">부모님 성함</label>
+                  <div className="text-slate-900 font-medium">{infoStudent.parent_name || "-"}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500">연락처</label>
+                  <div className="text-slate-900 font-medium">{infoStudent.parent_phone || "-"}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500">반</label>
+                  <div className="text-slate-900 font-medium">{infoStudent.class_name || "미배정"}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500">캠퍼스</label>
+                  <div className="text-slate-900 font-medium">{infoStudent.campus}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 mb-1 block">다짐 수업 여부</label>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={!!infoStudent.dajim_enabled}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setInfoStudent(prev => prev ? ({ ...prev, dajim_enabled: checked }) : null);
+                        saveUpdate(infoStudent.id, { dajim_enabled: checked });
+                      }}
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-frage-blue rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-frage-blue"></div>
+                    <span className="ml-2 text-sm font-medium text-slate-900">{infoStudent.dajim_enabled ? "수업 중" : "미수업"}</span>
+                  </label>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs font-bold text-slate-500">주소</label>
+                  <div className="text-slate-900 font-medium">{infoStudent.address || "-"}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500">호차</label>
+                  <div className="text-slate-900 font-medium">{infoStudent.bus || "-"}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500">하원시간</label>
+                  <div className="text-slate-900 font-medium">{infoStudent.departure_time || "-"}</div>
+                </div>
+
+                <div className="col-span-2 border-t border-slate-100 pt-4 mt-2">
+                  <label className="text-xs font-bold text-slate-500 mb-2 block">추가수업 (프로그램)</label>
+                  <div className="space-y-3">
+                    {filters.programNames.map(pName => {
+                      const pClasses = filters.programClasses.filter(c => c.program_name === pName);
+                      if (!pClasses.length) return null;
+                      return (
+                        <div key={pName} className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                          <div className="text-xs font-bold text-slate-700 mb-2">{pName}</div>
+                          <div className="flex flex-wrap gap-2">
+                            {pClasses.map(c => {
+                              const isActive = infoStudent.program_classes?.some(pc => pc.id === c.id);
+                              return (
+                                <label key={c.id} className={`inline-flex items-center gap-1.5 bg-white px-2 py-1 rounded border text-xs cursor-pointer transition-colors ${isActive ? 'border-frage-blue bg-blue-50 text-frage-blue' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isActive}
+                                    onChange={(e) => handleProgramChange(infoStudent.id, c.id, e.target.checked)}
+                                    className="rounded border-slate-300 text-frage-blue focus:ring-frage-blue"
+                                  />
+                                  <span>{c.name}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-              <div className="text-xs text-slate-400">반 변경 내역은 자동으로 기록됩니다.</div>
             </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={closeBulkModal} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">취소</button>
-              <button
-                onClick={handleBulkClassChange}
-                disabled={
-                  !selectedTargetClass ||
-                  selectedStudentIds.length === 0 ||
-                  merged.some(s => selectedStudentIds.includes(s.id) && s.className === selectedTargetClass)
-                }
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-              >
-                변경하기
-              </button>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button onClick={() => setInfoStudent(null)} className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-100">닫기</button>
             </div>
           </div>
         </div>
       )}
-      {bulkBusOpen && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={closeBulkBusModal} />
-          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-[520px] max-w-[90vw] p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-black text-slate-900">호차 변경</h3>
-              <button onClick={closeBulkBusModal} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">닫기</button>
-            </div>
+
+      {vehicleModalFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold mb-4">등하원 정보 수정</h2>
             <div className="space-y-3">
-              <div className="text-sm font-bold text-slate-900">선택된 원생: {selectedStudentIds.length}명</div>
-              <div className="flex flex-col space-y-2">
-                <span className="text-xs font-bold text-slate-700">변경할 호차</span>
-                <select
-                  value={selectedTargetBus}
-                  onChange={(e) => setSelectedTargetBus(e.target.value)}
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                >
-                  <option value="">선택</option>
-                  <option value="1호차">1호차</option>
-                  <option value="2호차">2호차</option>
-                  <option value="3호차">3호차</option>
-                  <option value="4호차">4호차</option>
-                  <option value="5호차">5호차</option>
-                  <option value="6호차">6호차</option>
-                  <option value="7호차">7호차</option>
-                  <option value="없음">없음</option>
-                </select>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">등원 위도 (Pickup Lat)</label>
+                <input
+                  type="text"
+                  value={pickupLat}
+                  onChange={(e) => setPickupLat(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
               </div>
-              <div className="text-xs text-slate-400">변경 내역은 자동으로 기록됩니다.</div>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={closeBulkBusModal} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">취소</button>
-              <button
-                onClick={handleBulkBusChange}
-                disabled={!selectedTargetBus || selectedStudentIds.length === 0}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white disabled:opacity-50"
-              >
-                변경하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {bulkTimeOpen && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={closeBulkTimeModal} />
-          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-[520px] max-w-[90vw] p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-black text-slate-900">하원 시간대 변경</h3>
-              <button onClick={closeBulkTimeModal} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">닫기</button>
-            </div>
-            <div className="space-y-3">
-              <div className="text-sm font-bold text-slate-900">선택된 원생: {selectedStudentIds.length}명</div>
-              <div className="flex flex-col space-y-2">
-                <span className="text-xs font-bold text-slate-700">변경할 시간대</span>
-                <select
-                  value={selectedTargetTime}
-                  onChange={(e) => setSelectedTargetTime(e.target.value)}
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                >
-                  <option value="">선택</option>
-                  <option value="09:00">09:00</option>
-                  <option value="13:30">13:30</option>
-                  <option value="16:30">16:30</option>
-                </select>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">등원 경도 (Pickup Lng)</label>
+                <input
+                  type="text"
+                  value={pickupLng}
+                  onChange={(e) => setPickupLng(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
               </div>
-              <div className="text-xs text-slate-400">변경 내역은 자동으로 기록됩니다.</div>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={closeBulkTimeModal} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">취소</button>
-              <button
-                onClick={handleBulkTimeChange}
-                disabled={!selectedTargetTime || selectedStudentIds.length === 0}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white disabled:opacity-50"
-              >
-                변경하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {busModalFor && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setBusModalFor(null)} />
-          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-[480px] max-w-[90vw] p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-black text-slate-900">호차 변경</h3>
-              <button onClick={() => setBusModalFor(null)} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">닫기</button>
-            </div>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">학생 이름</span>
-                  <span className="text-sm font-bold text-slate-800">{busModalFor.name}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">현재 호차</span>
-                  <span className="text-sm font-bold text-slate-800">{(updates[busModalFor.id]?.bus || busModalFor.bus)}</span>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">하원 위도 (Dropoff Lat)</label>
+                <input
+                  type="text"
+                  value={dropoffLat}
+                  onChange={(e) => setDropoffLat(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
               </div>
-              <div className="flex flex-col space-y-2">
-                <span className="text-xs font-bold text-slate-700">변경할 호차</span>
-                <select
-                  value={selectedBus}
-                  onChange={(e) => setSelectedBus(e.target.value)}
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                >
-                  <option value="">선택</option>
-                  <option value="1호차">1호차</option>
-                  <option value="2호차">2호차</option>
-                  <option value="3호차">3호차</option>
-                  <option value="4호차">4호차</option>
-                  <option value="5호차">5호차</option>
-                  <option value="6호차">6호차</option>
-                  <option value="7호차">7호차</option>
-                  <option value="없음">없음</option>
-                </select>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">하원 경도 (Dropoff Lng)</label>
+                <input
+                  type="text"
+                  value={dropoffLng}
+                  onChange={(e) => setDropoffLng(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
               </div>
-              <div className="text-xs text-slate-400">변경 내역은 자동으로 기록됩니다.</div>
             </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setBusModalFor(null)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">취소</button>
-              <button
-                onClick={async () => {
-                  if (!selectedBus) return;
-                  const id = busModalFor.id;
-                  const { data } = await supabase.auth.getUser();
-                  const admin = String(data?.user?.email ?? "관리자");
-                  const date = new Date().toISOString().split("T")[0];
-                  const oldBus = (updates[id]?.bus || busModalFor.bus);
-                  if (oldBus === selectedBus) return;
-                  const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), bus: selectedBus } };
-                  const entry = `${date} 호차 변경: ${oldBus} → ${selectedBus} 처리자: ${admin}`;
-                  const newLogs = { ...studentLogs };
-                  const list = newLogs[id] || [];
-                  list.push(entry);
-                  newLogs[id] = list;
-                  setUpdates(newUpdates);
-                  setStudentLogs(newLogs);
-                  await supabase.from("students").update({ bus: selectedBus }).eq("id", id);
-                  await supabase.from("student_status_logs").insert({
-                    student_id: id,
-                    type: "bus_change",
-                    message: entry,
-                    at: new Date().toISOString(),
-                  });
-                  setBusModalFor(null);
-                  setSelectedBus("");
-                }}
-                disabled={!selectedBus}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white disabled:opacity-50"
-              >
-                변경하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {timeModalFor && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setTimeModalFor(null)} />
-          <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-[480px] max-w-[90vw] p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-black text-slate-900">하원 시간대 변경</h3>
-              <button onClick={() => setTimeModalFor(null)} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">닫기</button>
-            </div>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">학생 이름</span>
-                  <span className="text-sm font-bold text-slate-800">{timeModalFor.name}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">현재 시간대</span>
-                  <span className="text-sm font-bold text-slate-800">{(updates[timeModalFor.id]?.departureTime || timeModalFor.departureTime)}</span>
-                </div>
-              </div>
-              <div className="flex flex-col space-y-2">
-                <span className="text-xs font-bold text-slate-700">변경할 시간대</span>
-                <select
-                  value={selectedTime}
-                  onChange={(e) => setSelectedTime(e.target.value)}
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
-                >
-                  <option value="">선택</option>
-                  <option value="09:00">09:00</option>
-                  <option value="13:30">13:30</option>
-                  <option value="16:30">16:30</option>
-                </select>
-              </div>
-              <div className="text-xs text-slate-400">변경 내역은 자동으로 기록됩니다.</div>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setTimeModalFor(null)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">취소</button>
-              <button
-                onClick={async () => {
-                  if (!selectedTime) return;
-                  const id = timeModalFor.id;
-                  const { data } = await supabase.auth.getUser();
-                  const admin = String(data?.user?.email ?? "관리자");
-                  const date = new Date().toISOString().split("T")[0];
-                  const oldTime = (updates[id]?.departureTime || timeModalFor.departureTime);
-                  if (oldTime === selectedTime) return;
-                  const newUpdates = { ...updates, [id]: { ...(updates[id] || {}), departureTime: selectedTime } };
-                  const entry = `${date} 하원 시간대 변경: ${oldTime} → ${selectedTime} 처리자: ${admin}`;
-                  const newLogs = { ...studentLogs };
-                  const list = newLogs[id] || [];
-                  list.push(entry);
-                  newLogs[id] = list;
-                  setUpdates(newUpdates);
-                  setStudentLogs(newLogs);
-                  await supabase.from("students").update({ departure_time: selectedTime }).eq("id", id);
-                  await supabase.from("student_status_logs").insert({
-                    student_id: id,
-                    type: "time_change",
-                    message: entry,
-                    at: new Date().toISOString(),
-                  });
-                  setTimeModalFor(null);
-                  setSelectedTime("");
-                }}
-                disabled={!selectedTime}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white disabled:opacity-50"
-              >
-                변경하기
-              </button>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setVehicleModalFor(null)} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg">취소</button>
+              <button onClick={saveVehicleInfo} className="px-4 py-2 text-sm font-bold text-white bg-frage-blue rounded-lg hover:bg-blue-700">저장</button>
             </div>
           </div>
         </div>

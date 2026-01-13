@@ -87,6 +87,7 @@ export async function GET() {
       if (!sid) return;
       extrasExists[sid] = true;
       extrasData[sid] = {
+        ...row,
         grade: String(row.grade ?? ""),
         currentSchool: String(row.current_school ?? ""),
         englishHistory: String(row.english_history ?? ""),
@@ -99,6 +100,7 @@ export async function GET() {
         interestReasons: row.interest_reasons ? String(row.interest_reasons) : null,
         expectations: String(row.expectations ?? ""),
         concerns: row.concerns ? String(row.concerns) : null,
+        updatedAt: row.updated_at ? String(row.updated_at) : null,
       };
     });
 

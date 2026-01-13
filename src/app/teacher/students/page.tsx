@@ -6,7 +6,7 @@ import { Users, Search } from "lucide-react";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 
-type Status = "재원" | "휴원 검토중" | "휴원" | "퇴원 검토중" | "퇴원";
+type Status = "waiting" | "consultation_reserved" | "consult_done" | "approved" | "promoted" | "rejected" | "hold";
 
 type Student = {
   id: string;
@@ -99,7 +99,7 @@ export default function TeacherStudentsPage() {
 
   const filtered = useMemo(() => {
     return merged
-      .filter(s => s.status === "재원")
+      .filter(s => s.status === "promoted")
       .filter(s => !teacherClass || s.className === teacherClass)
       .filter(s => query === "" || s.name.includes(query) || s.englishName.toLowerCase().includes(query.toLowerCase()));
   }, [merged, teacherClass, query]);
@@ -214,11 +214,10 @@ export default function TeacherStudentsPage() {
                   <td className="p-3 text-slate-700">{s.englishName}</td>
                   <td className="p-3">
                     <span className={`px-2 py-1 rounded text-[11px] font-bold border ${
-                      s.status === "재원" ? "bg-green-50 text-green-700 border-green-100" :
-                      s.status === "휴원 검토중" ? "bg-blue-50 text-blue-700 border-blue-100" :
-                      s.status === "휴원" ? "bg-amber-50 text-amber-700 border-amber-100" :
-                      s.status === "퇴원 검토중" ? "bg-orange-50 text-orange-700 border-orange-100" :
-                      "bg-red-50 text-red-700 border-red-100"
+                      s.status === "promoted" ? "bg-green-50 text-green-700 border-green-100" :
+                      s.status === "hold" ? "bg-amber-50 text-amber-700 border-amber-100" :
+                      s.status === "rejected" ? "bg-red-50 text-red-700 border-red-100" :
+                      "bg-slate-50 text-slate-700 border-slate-100"
                     }`}>
                       {s.status}
                     </span>

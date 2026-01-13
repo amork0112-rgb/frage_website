@@ -10,27 +10,50 @@ function json(data: any, status = 200) {
   });
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const campus = searchParams.get("campus");
     const supabase = createSupabaseServer();
     const guard = await requireAdmin(supabase);
     if ("error" in guard) return guard.error;
 
-    const { data: latestRequests } = await supabase
+    // 1. Portal Requests (New Requests)
+    let requestsQuery = supabase
       .from("portal_requests")
-      .select("id,created_at")
+      .select("id,created_at,campus")
       .order("created_at", { ascending: false })
       .limit(50);
+    
+    if (campus && campus !== "All") {
+      requestsQuery = requestsQuery.eq("campus", campus);
+    }
+    
+    const { data: latestRequests } = await requestsQuery;
     const newRequestsCount = Array.isArray(latestRequests) ? latestRequests.length : 0;
 
-    const { data: posts } = await supabase
+    // 2. Notices (Posts)
+    let postsQuery = supabase
       .from("posts")
-      .select("is_pinned");
+      .select("is_pinned,campus");
+    
+    if (campus && campus !== "All") {
+      postsQuery = postsQuery.or(`campus.eq.All,campus.eq.${campus}`);
+    }
+
+    const { data: posts } = await postsQuery;
     const noticesCount = Array.isArray(posts) ? posts.filter((p: any) => !!p.is_pinned).length : 0;
 
-    const { data: newStudents } = await supabase
+    // 3. New Students (Guest Inquiries)
+    let newStudentsQuery = supabase
       .from("new_students")
-      .select("id,status");
+      .select("id,status,campus");
+    
+    if (campus && campus !== "All") {
+      newStudentsQuery = newStudentsQuery.eq("campus", campus);
+    }
+
+    const { data: newStudents } = await newStudentsQuery;
 
     const { data: reservations } = await supabase
       .from("student_reservations")
@@ -46,9 +69,16 @@ export async function GET() {
         }).length
       : 0;
 
-    const { data: students } = await supabase
+    // 4. Enrolled Students (Total Enrolled)
+    let studentsQuery = supabase
       .from("students")
-      .select("id,status");
+      .select("id,status,campus");
+
+    if (campus && campus !== "All") {
+      studentsQuery = studentsQuery.eq("campus", campus);
+    }
+
+    const { data: students } = await studentsQuery;
     const totalEnrolled = Array.isArray(students) ? students.filter((s: any) => String(s.status || "재원") === "재원").length : 0;
 
     const today = new Date();
@@ -64,12 +94,19 @@ export async function GET() {
       return todayStr === start;
     };
 
-    const { data: absences } = await supabase
+    // 5. Absences (Today's Attendance)
+    let absencesQuery = supabase
       .from("portal_requests")
-      .select("type,payload")
+      .select("type,payload,campus")
       .eq("type", "absence")
       .order("created_at", { ascending: false })
       .limit(1000);
+    
+    if (campus && campus !== "All") {
+      absencesQuery = absencesQuery.eq("campus", campus);
+    }
+
+    const { data: absences } = await absencesQuery;
     const todaysAbsences = Array.isArray(absences)
       ? absences.filter((r: any) => {
           const payload = r?.payload || {};

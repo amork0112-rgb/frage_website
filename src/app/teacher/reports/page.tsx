@@ -102,7 +102,7 @@ export default function TeacherReportsPage() {
         const res = await fetch("/api/teacher/students", { cache: "no-store", credentials: "include" });
         const data = await res.json();
         const items = Array.isArray(data?.items) ? data.items : [];
-        const enrolled = items.filter((s: any) => String(s.status) === "재원");
+        const enrolled = items.filter((s: any) => String(s.status) === "promoted");
         const mapped: Student[] = enrolled.map((s: any) => ({
           id: String(s.id || ""),
           name: String(s.name || ""),

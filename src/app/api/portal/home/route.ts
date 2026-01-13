@@ -26,22 +26,47 @@ export async function GET() {
 
     const parentId = String(parent.id);
 
-    const { data: students } = await supabase
-      .from("students")
-      .select("id,name,english_name,status,class_name,campus,parent_account_id")
+    // 1. Fetch Enrolled Students (Promoted)
+    const { data: enrolledStudents } = await supabase
+      .from("v_students_full")
+      .select("id,student_name,english_first_name,status,grade,campus,parent_user_id")
       .eq("parent_id", parentId);
 
-    const items = Array.isArray(students)
-      ? students.map((s: any) => ({
+    // 2. Fetch New Students (Applicants, excluding promoted)
+    const { data: newStudents } = await supabase
+      .from("new_students")
+      .select("id,student_name,english_first_name,status,campus,created_at")
+      .eq("parent_id", parentId)
+      .neq("status", "promoted");
+
+    const enrolledItems = Array.isArray(enrolledStudents)
+      ? enrolledStudents.map((s: any) => ({
           id: String(s.id || ""),
-          name: String(s.name || ""),
-          englishName: String(s.english_name || ""),
-          status: String(s.status || ""),
-          className: String(s.class_name || ""),
+          name: String(s.student_name || ""),
+          englishName: String(s.english_first_name || ""),
+          status: String(s.status || "promoted"), // Should be promoted
+          className: String(s.grade || ""),
           campus: String(s.campus || ""),
-          parentAccountId: String(s.parent_account_id || ""),
+          parentAccountId: String(s.parent_user_id || ""),
+          type: "enrolled"
         }))
       : [];
+
+    const newItems = Array.isArray(newStudents)
+      ? newStudents.map((s: any) => ({
+          id: String(s.id || ""),
+          name: String(s.student_name || ""),
+          englishName: String(s.english_first_name || ""),
+          status: String(s.status || "waiting"),
+          className: "",
+          campus: String(s.campus || ""),
+          parentAccountId: user.id,
+          type: "applicant"
+        }))
+      : [];
+
+    const items = [...enrolledItems, ...newItems];
+
     return NextResponse.json({ ok: true, students: items }, { status: 200 });
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 });

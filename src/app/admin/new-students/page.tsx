@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Check, AlertCircle, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote, ChevronLeft, ChevronRight } from "lucide-react";
 import { CAMPUS_CONFIG } from "@/config/campus";
 import { supabase } from "@/lib/supabase";
+import { Status, STATUS_LABEL, STATUS_BADGE_CLASS, STATUS_PROGRESS, toStatus } from "@/lib/admissions/status";
 
 type StudentProfile = {
   id: string;
@@ -13,7 +14,7 @@ type StudentProfile = {
   phone: string;
   campus?: string;
   createdAt: string;
-  status?: string; // 'waiting', 'consultation', 'admitted', etc.
+  status?: Status; // 'waiting', 'consultation', 'admitted', etc.
   memo?: string; // New memo field
   englishFirstName?: string;
   passportEnglishName?: string;
@@ -175,7 +176,7 @@ export default function AdminNewStudentsPage() {
           phone: String(r.phone ?? ""),
           campus: String(r.campus ?? ""),
           createdAt: String(r.createdAt ?? r.created_at ?? ""),
-          status: String(r.status ?? "waiting"),
+          status: toStatus(String(r.status ?? "waiting")),
           memo: String(r.memo ?? ""),
           englishFirstName: String(r.englishFirstName ?? r.english_first_name ?? ""),
           passportEnglishName: String(r.passportEnglishName ?? r.passport_english_name ?? ""),
@@ -210,7 +211,7 @@ export default function AdminNewStudentsPage() {
         phone: String(r.phone ?? ""),
         campus: String(r.campus ?? ""),
         createdAt: String(r.createdAt ?? r.created_at ?? ""),
-        status: String(r.status ?? "waiting"),
+        status: toStatus(String(r.status ?? "waiting")),
         memo: String(r.memo ?? ""),
         englishFirstName: String(r.englishFirstName ?? r.english_first_name ?? ""),
         passportEnglishName: String(r.passportEnglishName ?? r.passport_english_name ?? ""),
@@ -677,11 +678,9 @@ export default function AdminNewStudentsPage() {
               const reservation = studentReservations[student.id];
               const reservedText = reservation && reservation.date && reservation.time ? `${reservation.date} ${reservation.time}` : null;
               
-              // Progress calculation (Total items across all steps)
-              const allItems = WORKFLOW_STEPS.flatMap(s => s.items);
-              const totalSteps = allItems.length;
-              const completedSteps = Object.values(studentChecklist).filter(i => i.checked).length;
-              const progress = Math.round((completedSteps / totalSteps) * 100);
+              // Status-based Progress calculation
+              const statusKey = student.status || "waiting";
+              const progress = STATUS_PROGRESS[statusKey] ?? 10;
 
               return (
                 <div key={student.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
@@ -700,12 +699,13 @@ export default function AdminNewStudentsPage() {
                         {student.campus || "미지정"}
                       </span>
                       {(() => {
-                        const st = student.status || (student.id.startsWith("manual_") ? "대기" : "대기");
-                        const enrolled = st === "enrolled" || st === "재원";
+                        const st = student.status || "waiting";
+                        if (st === "consultation_reserved") return null;
+                        
                         return (
                           <div className="flex items-center gap-2">
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${enrolled ? "text-white bg-green-600" : "text-white bg-slate-400"}`}>
-                              {st}
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${STATUS_BADGE_CLASS[st]}`}>
+                              {STATUS_LABEL[st]}
                             </span>
                             
                           </div>
@@ -806,6 +806,10 @@ export default function AdminNewStudentsPage() {
                              <div className="col-span-1 md:col-span-2">
                                <span className="font-bold text-slate-500 block mb-1">수강 가능 요일</span>
                                <p className="text-slate-800">{extrasData[student.id].availableDays || "-"}</p>
+                             </div>
+                             <div>
+                               <span className="font-bold text-slate-500 block mb-1">작성 일시</span>
+                               <p className="text-slate-800">{extrasData[student.id].updatedAt ? new Date(extrasData[student.id].updatedAt).toLocaleString() : "-"}</p>
                              </div>
                           </div>
                         )}

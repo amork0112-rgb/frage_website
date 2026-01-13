@@ -5,6 +5,16 @@ import Link from "next/link";
 import { Check, X, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote } from "lucide-react";
 import { supabase, supabaseReady } from "@/lib/supabase";
 
+const PROGRESS_MAP: Record<string, number> = {
+  waiting: 10,
+  consultation_reserved: 30,
+  consult_done: 50,
+  approved: 70,
+  promoted: 100,
+  rejected: 0,
+  hold: 0,
+};
+
 type StudentProfile = {
   id: string;
   studentName: string;
@@ -375,11 +385,8 @@ export default function TeacherNewStudentsPage() {
               const studentChecklist = checklists[student.id] || {};
               const isExpanded = expandedId === student.id;
               
-              // Progress calculation (Total items across all steps)
-              const allItems = WORKFLOW_STEPS.flatMap(s => s.items);
-              const totalSteps = allItems.length;
-              const completedSteps = Object.values(studentChecklist).filter(i => i.checked).length;
-              const progress = Math.round((completedSteps / totalSteps) * 100);
+              // Progress calculation (Status based)
+              const progress = PROGRESS_MAP[student.status || "waiting"] || 10;
 
               return (
                 <div key={student.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
@@ -398,12 +405,15 @@ export default function TeacherNewStudentsPage() {
                             {student.campus || "미지정"}
                           </span>
                           {(() => {
-                            const st = student.status || "waiting";
-                            const enrolled = st === "enrolled" || st === "재원";
+                            const st = toStatus(student.status || "waiting");
+                            if (st === "consultation_reserved") return null;
+                            
                             return (
-                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${enrolled ? "text-white bg-green-600" : "text-white bg-slate-400"}`}>
-                                {st}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${STATUS_BADGE_CLASS[st]}`}>
+                                  {STATUS_LABEL[st]}
+                                </span>
+                              </div>
                             );
                           })()}
                           

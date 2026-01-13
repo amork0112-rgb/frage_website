@@ -70,9 +70,9 @@ export default function LeaveReviewPage() {
       try {
         await supabase.from("student_status_logs").insert({
           student_id: Number(it.id),
-          action: "restore_enrolled",
-          new_status: "재원",
-          memo: "휴원 검토에서 복구",
+          action: "restore_promoted",
+          new_status: "promoted",
+          memo: "보류(Hold) 상태에서 복구",
           created_at: new Date().toISOString(),
         });
         await supabase
@@ -80,7 +80,7 @@ export default function LeaveReviewPage() {
           .update({ handled: true })
           .eq("id", Number(it.id));
         setItems(prev => prev.filter(x => x.id !== it.id));
-        alert("복구됨: 상태가 재원으로 복귀되었습니다.");
+        alert("복구됨: 상태가 promoted로 복귀되었습니다.");
       } catch {
       }
     })();
@@ -95,7 +95,7 @@ export default function LeaveReviewPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-black text-slate-900">휴원 검토 상담 Inbox</h1>
-          <p className="text-slate-500 mt-1 text-sm">‘휴원 검토중’ 전환된 상담기록이 자동으로 여기에 모입니다.</p>
+          <p className="text-slate-500 mt-1 text-sm">‘보류(Hold)’ 상태로 전환된 상담기록이 자동으로 여기에 모입니다.</p>
         </div>
         <Link href="/admin/students" className="text-sm font-bold text-frage-blue">원생 관리</Link>
       </div>

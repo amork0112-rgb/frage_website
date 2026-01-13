@@ -1,5 +1,6 @@
 import React from "react";
-type Status = "waiting" | "consulting" | "consulted" | "approved";
+import { Status, STATUS_LABEL, STATUS_BADGE_CLASS } from "@/lib/admissions/status";
+
 type Props = {
   studentName: string;
   englishFirstName?: string;
@@ -9,12 +10,7 @@ type Props = {
   address?: string;
   parentPhone?: string;
 };
-const STATUS_LABELS: Record<Status, string> = {
-  waiting: "",
-  consulting: "상담 예약 대기",
-  consulted: "상담 완료",
-  approved: "입학 승인 완료",
-};
+
 export default function StudentInfoCard({
   studentName,
   englishFirstName,
@@ -24,7 +20,6 @@ export default function StudentInfoCard({
   address,
   parentPhone,
 }: Props) {
-  const statusLabel = STATUS_LABELS[status];
   return (
     <div className="w-full bg-white border border-slate-200 rounded-2xl shadow-sm">
       <div className="p-5">
@@ -55,11 +50,9 @@ export default function StudentInfoCard({
               <div className="text-slate-400 text-sm">학부모 전화 미입력</div>
             )}
           </div>
-          {statusLabel && (
-            <div className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">
-              {statusLabel}
-            </div>
-          )}
+          <div className={`px-3 py-1 rounded-lg text-xs font-bold border ${STATUS_BADGE_CLASS[status]}`}>
+            {STATUS_LABEL[status]}
+          </div>
         </div>
       </div>
     </div>

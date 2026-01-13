@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 
-type Status = "재원" | "휴원" | "퇴원";
+type Status = "waiting" | "consultation_reserved" | "consult_done" | "approved" | "promoted" | "rejected" | "hold";
 
 type Student = {
   id: string;
@@ -41,9 +41,30 @@ export async function GET(request: Request) {
     }
 
     const { data, error } = await supabaseService
-      .from("students")
-      .select("*")
-      .order("name", { ascending: true });
+      .from("v_students_full")
+      .select(`
+        id,
+        student_name,
+        english_first_name,
+        birth_date,
+        parent_phone,
+        class_name,
+        grade,
+        campus,
+        status,
+        parent_name,
+        parent_user_id,
+        address,
+        bus,
+        departure_time,
+        pickup_lat,
+        pickup_lng,
+        dropoff_lat,
+        dropoff_lng,
+        pickup_type,
+        dropoff_type
+      `)
+      .order("student_name", { ascending: true });
     if (error) {
       console.error("TEACHER/STUDENTS SELECT ERROR:", error);
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
@@ -52,15 +73,15 @@ export async function GET(request: Request) {
     const base: Student[] = rows.map((r: any) => ({
       id: String(r.id ?? ""),
       childId: r.child_id ?? undefined,
-      name: String(r.name ?? ""),
-      englishName: String(r.english_name ?? ""),
+      name: String(r.student_name ?? ""),
+      englishName: String(r.english_first_name ?? ""),
       birthDate: String(r.birth_date ?? ""),
-      phone: String(r.phone ?? ""),
+      phone: String(r.parent_phone ?? ""),
       className: String(r.class_name ?? "미배정"),
       campus: String(r.campus ?? "미지정"),
-      status: (String(r.status ?? "재원") as Status),
+      status: (String(r.status ?? "promoted") as Status),
       parentName: String(r.parent_name ?? ""),
-      parentAccountId: String(r.parent_account_id ?? ""),
+      parentAccountId: String(r.parent_user_id ?? ""),
       address: String(r.address ?? ""),
       bus: String(r.bus ?? ""),
       departureTime: String(r.departure_time ?? ""),

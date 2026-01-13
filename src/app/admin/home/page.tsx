@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Bell, MessageSquare, Users, AlertCircle, ArrowRight, CheckCircle2, ChevronDown, Settings } from "lucide-react";
 import { CampusType } from "@/data/notices";
@@ -17,21 +17,23 @@ export default function AdminHome() {
   const [role, setRole] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/admin/home", { cache: "no-store" });
-        const data = await res.json();
-        if (res.ok) {
-          setDashboard(data);
-        } else {
-          setDashboard({ newRequestsCount: 0, noticesCount: 0, guestInquiriesCount: 0, todayAttendanceCount: 0 });
-        }
-      } catch {
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/home?campus=${selectedCampus}`, { cache: "no-store" });
+      const data = await res.json();
+      if (res.ok) {
+        setDashboard(data);
+      } else {
         setDashboard({ newRequestsCount: 0, noticesCount: 0, guestInquiriesCount: 0, todayAttendanceCount: 0 });
       }
-    })();
-  }, []);
+    } catch {
+      setDashboard({ newRequestsCount: 0, noticesCount: 0, guestInquiriesCount: 0, todayAttendanceCount: 0 });
+    }
+  }, [selectedCampus]);
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
 
   if (!dashboard) {
     return (
