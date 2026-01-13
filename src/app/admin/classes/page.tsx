@@ -75,15 +75,14 @@ export default function AdminClassesPage() {
         const json = await res.json();
         const rows = Array.isArray(json?.items) ? json.items : [];
         const mapped: ClassRow[] = rows.map((c: any) => {
-          const s = Array.isArray(c.schedules) && c.schedules.length > 0 ? c.schedules[0] : null;
           return {
             id: String(c.id),
             campus: String(c.campus || ""),
-            class_name: String(c.name || ""),
-            weekdays: s?.weekdays ? String(s.weekdays) : null,
-            start_time: s?.start_time ? String(s.start_time).slice(0, 5) : null,
-            end_time: s?.end_time ? String(s.end_time).slice(0, 5) : null,
-            dajim_end_time: s?.dajim_end_time ? String(s.dajim_end_time).slice(0, 5) : null,
+            class_name: String(c.name || c.class_name || ""),
+            weekdays: c.weekdays ? String(c.weekdays) : null,
+            start_time: (c.start_time || c.class_start_time) ? String(c.start_time || c.class_start_time).slice(0, 5) : null,
+            end_time: (c.end_time || c.class_end_time) ? String(c.end_time || c.class_end_time).slice(0, 5) : null,
+            dajim_end_time: c.dajim_end_time ? String(c.dajim_end_time).slice(0, 5) : null,
           };
         });
         setItems(mapped);
@@ -161,17 +160,16 @@ export default function AdminClassesPage() {
       const json = await res.json();
       const rows = Array.isArray(json?.items) ? json.items : [];
       const mapped: ClassRow[] = rows.map((c: any) => {
-        const s = Array.isArray(c.schedules) && c.schedules.length > 0 ? c.schedules[0] : null;
-        return {
-          id: String(c.id),
-          campus: String(c.campus || ""),
-          class_name: String(c.name || ""),
-          weekdays: s?.weekdays ? String(s.weekdays) : null,
-          start_time: s?.start_time ? String(s.start_time).slice(0, 5) : null,
-          end_time: s?.end_time ? String(s.end_time).slice(0, 5) : null,
-          dajim_end_time: s?.dajim_end_time ? String(s.dajim_end_time).slice(0, 5) : null,
-        };
-      });
+          return {
+            id: String(c.id),
+            campus: String(c.campus || ""),
+            class_name: String(c.name || c.class_name || ""),
+            weekdays: c.weekdays ? String(c.weekdays) : null,
+            start_time: (c.start_time || c.class_start_time) ? String(c.start_time || c.class_start_time).slice(0, 5) : null,
+            end_time: (c.end_time || c.class_end_time) ? String(c.end_time || c.class_end_time).slice(0, 5) : null,
+            dajim_end_time: c.dajim_end_time ? String(c.dajim_end_time).slice(0, 5) : null,
+          };
+        });
       setItems(mapped);
       setCsvPreview([]);
       setCsvConfirmOpen(false);
@@ -212,17 +210,16 @@ export default function AdminClassesPage() {
     const json = await res.json();
     const rows = Array.isArray(json?.items) ? json.items : [];
     const mapped: ClassRow[] = rows.map((c: any) => {
-      const s = Array.isArray(c.schedules) && c.schedules.length > 0 ? c.schedules[0] : null;
-      return {
-        id: String(c.id),
-        campus: String(c.campus || ""),
-        class_name: String(c.name || ""),
-        weekdays: s?.weekdays ? String(s.weekdays) : null,
-        start_time: s?.start_time ? String(s.start_time).slice(0, 5) : null,
-        end_time: s?.end_time ? String(s.end_time).slice(0, 5) : null,
-        dajim_end_time: s?.dajim_end_time ? String(s.dajim_end_time).slice(0, 5) : null,
-      };
-    });
+          return {
+            id: String(c.id),
+            campus: String(c.campus || ""),
+            class_name: String(c.name || c.class_name || ""),
+            weekdays: c.weekdays ? String(c.weekdays) : null,
+            start_time: (c.start_time || c.class_start_time) ? String(c.start_time || c.class_start_time).slice(0, 5) : null,
+            end_time: (c.end_time || c.class_end_time) ? String(c.end_time || c.class_end_time).slice(0, 5) : null,
+            dajim_end_time: c.dajim_end_time ? String(c.dajim_end_time).slice(0, 5) : null,
+          };
+        });
     setItems(mapped);
     setEditFor(null);
   };
@@ -248,17 +245,16 @@ export default function AdminClassesPage() {
     const json = await res.json();
     const rows = Array.isArray(json?.items) ? json.items : [];
     const mapped: ClassRow[] = rows.map((c: any) => {
-      const s = Array.isArray(c.schedules) && c.schedules.length > 0 ? c.schedules[0] : null;
-      return {
-        id: String(c.id),
-        campus: String(c.campus || ""),
-        class_name: String(c.name || ""),
-        weekdays: s?.weekdays ? String(s.weekdays) : null,
-        start_time: s?.start_time ? String(s.start_time).slice(0, 5) : null,
-        end_time: s?.end_time ? String(s.end_time).slice(0, 5) : null,
-        dajim_end_time: s?.dajim_end_time ? String(s.dajim_end_time).slice(0, 5) : null,
-      };
-    });
+          return {
+            id: String(c.id),
+            campus: String(c.campus || ""),
+            class_name: String(c.name || c.class_name || ""),
+            weekdays: c.weekdays ? String(c.weekdays) : null,
+            start_time: (c.start_time || c.class_start_time) ? String(c.start_time || c.class_start_time).slice(0, 5) : null,
+            end_time: (c.end_time || c.class_end_time) ? String(c.end_time || c.class_end_time).slice(0, 5) : null,
+            dajim_end_time: c.dajim_end_time ? String(c.dajim_end_time).slice(0, 5) : null,
+          };
+        });
     setItems(mapped);
     setNewOpen(false);
     setNewCampus("");

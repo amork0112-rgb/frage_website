@@ -36,39 +36,17 @@ export async function GET(req: Request) {
     const guard = await requireAdmin(supabaseAuth);
     if (guard.error) return guard.error;
 
-    const { data: classesData, error: classesErr } = await supabaseAuth
-      .from("classes")
+    const { data, error } = await supabaseAuth
+      .from("v_classes_with_schedules")
       .select("*")
-      .order("name", { ascending: true });
-    if (classesErr) return json({ items: [] }, 500);
-    const classes = Array.isArray(classesData) ? classesData : [];
+      .order("sort_order", { ascending: true });
 
-    const { data: schedData, error: schedErr } = await supabaseAuth
-      .from("class_schedules")
-      .select("*");
-    if (schedErr) return json({ items: [] }, 500);
-    const schedules = Array.isArray(schedData) ? schedData : [];
+    if (error) {
+      console.error(error);
+      return json({ items: [] }, 500);
+    }
 
-    const items = classes.map((c: any) => {
-      const sched = schedules.filter((s: any) => String(s.class_id) === String(c.id));
-      return {
-        id: String(c.id),
-        name: String(c.name ?? ""),
-        campus: String(c.campus ?? "All"),
-        default_pickup_slot: c.default_pickup_slot ?? null,
-        default_dropoff_slot: c.default_dropoff_slot ?? null,
-        has_transport: Boolean(c.has_transport ?? false),
-        schedules: sched.map((s: any) => ({
-          id: String(s.id),
-          class_id: String(s.class_id),
-          start_time: String((s as any).class_start_time ?? s.start_time ?? ""),
-          end_time: String((s as any).class_end_time ?? s.end_time ?? ""),
-          dajim_end_time: s.dajim_end_time ?? null,
-          weekdays: s.weekdays ?? null,
-          created_at: s.created_at ? String(s.created_at) : undefined,
-        })),
-      };
-    });
+    const items = data || [];
 
     return json({ items }, 200);
   } catch (e) {
