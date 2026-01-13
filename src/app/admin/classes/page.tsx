@@ -13,21 +13,25 @@ type ClassRow = {
   dajim_end_time: string | null;
 };
 
-const addMinutes = (hhmm: string, minutesToAdd: number) => {
-  const [h, m] = hhmm.split(":").map((x) => parseInt(x, 10));
-  if (Number.isNaN(h) || Number.isNaN(m)) return "";
-  const d = new Date();
-  d.setHours(h, m + minutesToAdd, 0, 0);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
+const WEEKDAY_KR: Record<string, string> = {
+  mon: "월",
+  tue: "화",
+  wed: "수",
+  thu: "목",
+  fri: "금",
+  sat: "토",
+  sun: "일",
 };
 
-const getDajimEndTime = (classEnd: string | null, override?: string | null) => {
-  if (override && override.trim()) return override;
-  if (!classEnd) return "";
-  return addMinutes(classEnd, 45);
-};
+function formatWeekdaysToKorean(weekdays?: string | null) {
+  if (!weekdays) return "-";
+
+  return weekdays
+    .split(",")
+    .map((d) => WEEKDAY_KR[d] ?? d)
+    .join("·");
+}
+
 
 export default function AdminClassesPage() {
   const [role, setRole] = useState<string | null>(null);
@@ -184,7 +188,7 @@ export default function AdminClassesPage() {
     setEditStart(row.start_time || "");
     setEditEnd(row.end_time || "");
     setEditWeekdays(row.weekdays ? row.weekdays.split(",") : []);
-    const hasOverride = !!(row.dajim_end_time && row.dajim_end_time !== getDajimEndTime(row.end_time, null));
+    const hasOverride = !!row.dajim_end_time;
     setEditOverrideOn(hasOverride);
     setEditOverrideDajim(row.dajim_end_time || "");
   };
@@ -333,18 +337,15 @@ export default function AdminClassesPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map((r) => {
-                const auto = getDajimEndTime(r.end_time, null);
-                const isAuto = !r.dajim_end_time || r.dajim_end_time === auto;
                 return (
                   <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-3 text-slate-700">{r.campus}</td>
                     <td className="p-3 text-slate-900 font-bold">{r.class_name}</td>
-                    <td className="p-3 text-center text-sm">{r.weekdays || ""}</td>
+                    <td className="p-3 text-center text-sm">{formatWeekdaysToKorean(r.weekdays)}</td>
                     <td className="p-3 text-center">{r.start_time || ""}</td>
                     <td className="p-3 text-center">{r.end_time || ""}</td>
                     <td className="p-3 text-center">
-                      <span className="text-slate-900 font-bold">{getDajimEndTime(r.end_time, r.dajim_end_time)}</span>{" "}
-                      <span className={`text-xs ${isAuto ? "text-slate-400" : "text-amber-600"}`}>{isAuto ? "(자동)" : "(수정됨)"}</span>
+                      <span className="text-slate-900 font-bold">{r.dajim_end_time || "-"}</span>
                     </td>
                     <td className="p-3 text-center">
                       <button onClick={() => openEdit(r)} className="px-2 py-1 rounded border border-slate-200 text-xs bg-white hover:bg-slate-50 inline-flex items-center gap-1">
@@ -394,7 +395,7 @@ export default function AdminClassesPage() {
                           <td className="p-2">{r.class_name}</td>
                           <td className="p-2 text-center">{r.start_time || ""}</td>
                           <td className="p-2 text-center">{r.end_time || ""}</td>
-                          <td className="p-2 text-center">{getDajimEndTime(r.end_time, r.dajim_end_time)}</td>
+                          <td className="p-2 text-center">{r.dajim_end_time || "-"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -464,11 +465,11 @@ export default function AdminClassesPage() {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-700">다짐 종료 시각</span>
-                  {!editOverrideOn && <span className="text-xs text-slate-500">{getDajimEndTime(editEnd || null, null)} (자동)</span>}
+                  {!editOverrideOn && <span className="text-xs text-slate-500">(설정 안함)</span>}
                 </div>
                 <label className="inline-flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={editOverrideOn} onChange={(e) => setEditOverrideOn(e.target.checked)} className="rounded border-slate-300" />
-                  <span>다짐 종료 시각 직접 지정</span>
+                  <span>다짐 종료 시각 설정</span>
                 </label>
                 {editOverrideOn && (
                   <input type="time" value={editOverrideDajim} onChange={(e) => setEditOverrideDajim(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
@@ -543,11 +544,11 @@ export default function AdminClassesPage() {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-700">다짐 종료 시각</span>
-                  {!newOverrideOn && <span className="text-xs text-slate-500">{getDajimEndTime(newEnd || null, null)} (자동)</span>}
+                  {!newOverrideOn && <span className="text-xs text-slate-500">(설정 안함)</span>}
                 </div>
                 <label className="inline-flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={newOverrideOn} onChange={(e) => setNewOverrideOn(e.target.checked)} className="rounded border-slate-300" />
-                  <span>다짐 종료 시각 직접 지정</span>
+                  <span>다짐 종료 시각 설정</span>
                 </label>
                 {newOverrideOn && (
                   <input type="time" value={newOverrideDajim} onChange={(e) => setNewOverrideDajim(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
