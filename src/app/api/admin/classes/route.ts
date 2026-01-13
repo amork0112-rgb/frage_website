@@ -64,6 +64,7 @@ export async function GET(req: Request) {
           start_time: String((s as any).class_start_time ?? s.start_time ?? ""),
           end_time: String((s as any).class_end_time ?? s.end_time ?? ""),
           dajim_end_time: s.dajim_end_time ?? null,
+          weekdays: s.weekdays ?? null,
           created_at: s.created_at ? String(s.created_at) : undefined,
         })),
       };
@@ -141,6 +142,7 @@ export async function POST(req: Request) {
             class_start_time: String(schedule.start_time),
             class_end_time: String(schedule.end_time),
             dajim_end_time: schedule.dajim_end_time ?? null,
+            weekdays: schedule.weekdays ?? null,
           })
           .eq("id", existingSched.id)
           .select()
@@ -155,6 +157,7 @@ export async function POST(req: Request) {
             class_start_time: String(schedule.start_time),
             class_end_time: String(schedule.end_time),
             dajim_end_time: schedule.dajim_end_time ?? null,
+            weekdays: schedule.weekdays ?? null,
             created_at: now,
           })
           .select()

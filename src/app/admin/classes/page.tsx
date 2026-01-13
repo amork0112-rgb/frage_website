@@ -7,6 +7,7 @@ type ClassRow = {
   id: string;
   campus: string;
   class_name: string;
+  weekdays: string | null;
   start_time: string | null;
   end_time: string | null;
   dajim_end_time: string | null;
@@ -37,6 +38,7 @@ export default function AdminClassesPage() {
   const [editFor, setEditFor] = useState<ClassRow | null>(null);
   const [editStart, setEditStart] = useState<string>("");
   const [editEnd, setEditEnd] = useState<string>("");
+  const [editWeekdays, setEditWeekdays] = useState<string[]>([]);
   const [editOverrideOn, setEditOverrideOn] = useState<boolean>(false);
   const [editOverrideDajim, setEditOverrideDajim] = useState<string>("");
   const [newOpen, setNewOpen] = useState(false);
@@ -44,8 +46,19 @@ export default function AdminClassesPage() {
   const [newClassName, setNewClassName] = useState<string>("");
   const [newStart, setNewStart] = useState<string>("");
   const [newEnd, setNewEnd] = useState<string>("");
+  const [newWeekdays, setNewWeekdays] = useState<string[]>([]);
   const [newOverrideOn, setNewOverrideOn] = useState<boolean>(false);
   const [newOverrideDajim, setNewOverrideDajim] = useState<string>("");
+
+  const WEEKDAYS_OPT = [
+    { value: "mon", label: "월" },
+    { value: "tue", label: "화" },
+    { value: "wed", label: "수" },
+    { value: "thu", label: "목" },
+    { value: "fri", label: "금" },
+    { value: "sat", label: "토" },
+    { value: "sun", label: "일" },
+  ];
 
   useEffect(() => {
     setRole(null);
@@ -67,6 +80,7 @@ export default function AdminClassesPage() {
             id: String(c.id),
             campus: String(c.campus || ""),
             class_name: String(c.name || ""),
+            weekdays: s?.weekdays ? String(s.weekdays) : null,
             start_time: s?.start_time ? String(s.start_time).slice(0, 5) : null,
             end_time: s?.end_time ? String(s.end_time).slice(0, 5) : null,
             dajim_end_time: s?.dajim_end_time ? String(s.dajim_end_time).slice(0, 5) : null,
@@ -94,7 +108,7 @@ export default function AdminClassesPage() {
         }
         const headers = lines[0].split(",").map((h) => h.trim());
         const idx = (name: string) => headers.indexOf(name);
-        const required = ["campus", "class_name", "start_time", "end_time", "dajim_end_time"];
+        const required = ["campus", "class_name", "weekdays", "start_time", "end_time", "dajim_end_time"];
         const hasAll = required.every((h) => idx(h) >= 0);
         if (!hasAll) {
           alert("필수 헤더가 누락되었습니다.");
@@ -106,11 +120,12 @@ export default function AdminClassesPage() {
             const cols = line.split(",").map((s) => s?.trim() || "");
             const campus = cols[idx("campus")] || "";
             const class_name = cols[idx("class_name")] || "";
+            const weekdays = cols[idx("weekdays")] || null;
             const start_time = (cols[idx("start_time")] || "").slice(0, 5) || null;
             const end_time = (cols[idx("end_time")] || "").slice(0, 5) || null;
             const dajim_end_time = (cols[idx("dajim_end_time")] || "").slice(0, 5) || null;
             const id = `csv_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-            const row: ClassRow = { id, campus, class_name, start_time, end_time, dajim_end_time };
+            const row: ClassRow = { id, campus, class_name, weekdays, start_time, end_time, dajim_end_time };
             return row;
           })
           .filter((r) => r.campus && r.class_name);
@@ -132,6 +147,7 @@ export default function AdminClassesPage() {
           schedule: {
             start_time: r.start_time || "",
             end_time: r.end_time || "",
+            weekdays: r.weekdays || null,
             dajim_end_time: r.dajim_end_time || null,
           },
         };
@@ -150,6 +166,7 @@ export default function AdminClassesPage() {
           id: String(c.id),
           campus: String(c.campus || ""),
           class_name: String(c.name || ""),
+          weekdays: s?.weekdays ? String(s.weekdays) : null,
           start_time: s?.start_time ? String(s.start_time).slice(0, 5) : null,
           end_time: s?.end_time ? String(s.end_time).slice(0, 5) : null,
           dajim_end_time: s?.dajim_end_time ? String(s.dajim_end_time).slice(0, 5) : null,
@@ -168,6 +185,7 @@ export default function AdminClassesPage() {
     setEditFor(row);
     setEditStart(row.start_time || "");
     setEditEnd(row.end_time || "");
+    setEditWeekdays(row.weekdays ? row.weekdays.split(",") : []);
     const hasOverride = !!(row.dajim_end_time && row.dajim_end_time !== getDajimEndTime(row.end_time, null));
     setEditOverrideOn(hasOverride);
     setEditOverrideDajim(row.dajim_end_time || "");
@@ -181,6 +199,7 @@ export default function AdminClassesPage() {
       schedule: {
         start_time: editStart || "",
         end_time: editEnd || "",
+        weekdays: editWeekdays.join(",") || null,
         dajim_end_time: editOverrideOn ? editOverrideDajim || null : null,
       },
     };
@@ -198,6 +217,7 @@ export default function AdminClassesPage() {
         id: String(c.id),
         campus: String(c.campus || ""),
         class_name: String(c.name || ""),
+        weekdays: s?.weekdays ? String(s.weekdays) : null,
         start_time: s?.start_time ? String(s.start_time).slice(0, 5) : null,
         end_time: s?.end_time ? String(s.end_time).slice(0, 5) : null,
         dajim_end_time: s?.dajim_end_time ? String(s.dajim_end_time).slice(0, 5) : null,
@@ -215,6 +235,7 @@ export default function AdminClassesPage() {
       schedule: {
         start_time: newStart || "",
         end_time: newEnd || "",
+        weekdays: newWeekdays.join(",") || null,
         dajim_end_time: newOverrideOn ? newOverrideDajim || null : null,
       },
     };
@@ -232,6 +253,7 @@ export default function AdminClassesPage() {
         id: String(c.id),
         campus: String(c.campus || ""),
         class_name: String(c.name || ""),
+        weekdays: s?.weekdays ? String(s.weekdays) : null,
         start_time: s?.start_time ? String(s.start_time).slice(0, 5) : null,
         end_time: s?.end_time ? String(s.end_time).slice(0, 5) : null,
         dajim_end_time: s?.dajim_end_time ? String(s.dajim_end_time).slice(0, 5) : null,
@@ -243,6 +265,7 @@ export default function AdminClassesPage() {
     setNewClassName("");
     setNewStart("");
     setNewEnd("");
+    setNewWeekdays([]);
     setNewOverrideOn(false);
     setNewOverrideDajim("");
   };
@@ -305,6 +328,7 @@ export default function AdminClassesPage() {
               <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
                 <th className="p-3 font-bold w-28">캠퍼스</th>
                 <th className="p-3 font-bold w-40">반 이름</th>
+                <th className="p-3 font-bold w-32 text-center">요일</th>
                 <th className="p-3 font-bold w-24 text-center">시작</th>
                 <th className="p-3 font-bold w-24 text-center">종료</th>
                 <th className="p-3 font-bold w-36 text-center">다짐 종료</th>
@@ -319,6 +343,7 @@ export default function AdminClassesPage() {
                   <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-3 text-slate-700">{r.campus}</td>
                     <td className="p-3 text-slate-900 font-bold">{r.class_name}</td>
+                    <td className="p-3 text-center text-sm">{r.weekdays || ""}</td>
                     <td className="p-3 text-center">{r.start_time || ""}</td>
                     <td className="p-3 text-center">{r.end_time || ""}</td>
                     <td className="p-3 text-center">
@@ -408,6 +433,28 @@ export default function AdminClassesPage() {
                   <span className="text-sm font-bold text-slate-800">{editFor.class_name}</span>
                 </div>
               </div>
+              <div className="flex flex-col gap-1 mb-2">
+                <span className="text-xs font-bold text-slate-700">요일</span>
+                <div className="flex flex-wrap gap-2">
+                  {WEEKDAYS_OPT.map((opt) => (
+                    <label key={opt.value} className="flex items-center gap-1 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editWeekdays.includes(opt.value)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setEditWeekdays([...editWeekdays, opt.value]);
+                          } else {
+                            setEditWeekdays(editWeekdays.filter((d) => d !== opt.value));
+                          }
+                        }}
+                        className="rounded border-slate-300"
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-bold text-slate-700">수업 시작 시각</span>
@@ -463,6 +510,28 @@ export default function AdminClassesPage() {
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-bold text-slate-700">반 이름</span>
                   <input value={newClassName} onChange={(e) => setNewClassName(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1 mb-2">
+                <span className="text-xs font-bold text-slate-700">요일</span>
+                <div className="flex flex-wrap gap-2">
+                  {WEEKDAYS_OPT.map((opt) => (
+                    <label key={opt.value} className="flex items-center gap-1 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newWeekdays.includes(opt.value)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewWeekdays([...newWeekdays, opt.value]);
+                          } else {
+                            setNewWeekdays(newWeekdays.filter((d) => d !== opt.value));
+                          }
+                        }}
+                        className="rounded border-slate-300"
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
