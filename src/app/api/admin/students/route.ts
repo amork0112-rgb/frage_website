@@ -29,27 +29,22 @@ export async function GET(request: Request) {
   const birthMonth = url.searchParams.get("birthMonth");
 
   try {
-    let query = supabaseService.from("v_students_full").select("*");
-    let countQuery = supabaseService.from("v_students_full").select("*", { count: "exact", head: true });
+    let query = supabaseService.from("v_students_full");
 
     if (campus && campus !== "All") {
       query = query.eq("campus", campus);
-      countQuery = countQuery.eq("campus", campus);
     }
 
     if (classId && classId !== "All") {
       query = query.eq("class_name", classId);
-      countQuery = countQuery.eq("class_name", classId);
     }
 
     if (dajim && dajim !== "All") {
       query = query.eq("dajim_enabled", dajim === "O");
-      countQuery = countQuery.eq("dajim_enabled", dajim === "O");
     }
 
     if (name) {
       query = query.ilike("student_name", `%${name}%`);
-      countQuery = countQuery.ilike("student_name", `%${name}%`);
     }
 
     if (birthMonth && birthMonth !== "All") {
@@ -60,7 +55,6 @@ export async function GET(request: Request) {
       const to = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
       
       query = query.gte("birth_date", from).lt("birth_date", to);
-      countQuery = countQuery.gte("birth_date", from).lt("birth_date", to);
     }
 
     const page = Number(url.searchParams.get("page") ?? 1);
@@ -68,17 +62,14 @@ export async function GET(request: Request) {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    // 1. Data Query
-    const { data, error } = await query
+    const { data, error, count: totalCount } = await query
+      .select("*", { count: "exact" })
       .order("class_sort_order", { ascending: true })
       .order("student_name", { ascending: true })
       .range(from, to);
 
-    // 2. Count Query (Separate to avoid type errors)
-    const { count: totalCount, error: countError } = await countQuery;
-
-    if (error || countError) {
-      console.error(error || countError);
+    if (error) {
+      console.error(error);
       return NextResponse.json({ items: [], total: 0, page, pageSize, totalPages: 0 }, { status: 500 });
     }
     const rows = Array.isArray(data) ? data : [];
