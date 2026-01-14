@@ -6,6 +6,7 @@ import { Users, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 import { StudentFull } from "@/lib/types";
+import { StatusModal, ConsultModal, ClassModal } from "./StudentModals";
 
 // Unified Status type including both Admission statuses (for promoted/approved) and Enrollment statuses (재원 etc.)
 type Status = 
@@ -148,46 +149,38 @@ export default function AdminStudentsPage() {
     init();
   }, []);
 
+  // Modals
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [consultModalOpen, setConsultModalOpen] = useState(false);
+  const [classModalOpen, setClassModalOpen] = useState(false);
+  const [targetStudent, setTargetStudent] = useState<StudentFull | null>(null);
+
   const [students, setStudents] = useState<StudentFull[]>([]);
+
+  const refetch = async () => {
+    try {
+      const params = new URLSearchParams({
+        campus: campusFilter,
+        classId: classFilter,
+        dajim: dajimFilter,
+        name: query,
+        birthMonth,
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+      const res = await fetch(`/api/admin/students?${params.toString()}`);
+      const data = await res.json();
+      setStudents(data.items ?? []);
+      setTotalCount(data.totalCount ?? 0);
+    } catch {}
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const params = new URLSearchParams({
-          campus: campusFilter,
-          classId: classFilter,
-          dajim: dajimFilter,
-          name: query,
-          birthMonth,
-          page: String(page),
-          pageSize: String(pageSize),
-        });
-        const res = await fetch(`/api/admin/students?${params.toString()}`);
-        const data = await res.json();
-        setStudents(data.items ?? []);
-        setTotalCount(data.totalCount ?? 0);
-      } catch {}
-    };
-    load();
+    refetch();
   }, [campusFilter, classFilter, dajimFilter, query, birthMonth, page, pageSize]);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const params = new URLSearchParams({
-          campus: campusFilter,
-          classId: classFilter,
-          dajim: dajimFilter,
-          name: query,
-          birthMonth,
-          page: String(page),
-          pageSize: String(pageSize),
-        });
-        const res = await fetch(`/api/admin/students?${params.toString()}`);
-        const data = await res.json();
-        setStudents(data.items ?? []);
-        setTotalCount(data.totalCount ?? 0);
-      } catch {}
-    }, 30000);
+    const interval = setInterval(refetch, 30000);
     return () => clearInterval(interval);
   }, [campusFilter, classFilter, dajimFilter, query, birthMonth, page, pageSize]);
 
@@ -592,24 +585,18 @@ export default function AdminStudentsPage() {
                         <button
                           className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
                           onClick={() => {
-                            setStatusModalFor(s);
-                            setStatusStep(1);
-                            setNextStatus(null);
-                            setLeaveStart("");
-                            setLeaveEnd("");
-                            setLeaveReason("");
-                            setQuitDate("");
-                            setQuitReason("");
-                            setConfirmChecked(false);
-                            setPickupTypeLocal((s.pickup_lat ? "bus" : "self")); // Approximate inference
-                            setDropoffTypeLocal((s.dropoff_lat ? "bus" : "self"));
+                            setTargetStudent(s);
+                            setStatusModalOpen(true);
                           }}
                         >
                           상태 변경
                         </button>
                         <button
                           className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
-                          onClick={() => setConsultModalFor(s)}
+                          onClick={() => {
+                            setTargetStudent(s);
+                            setConsultModalOpen(true);
+                          }}
                           title="상담 기록"
                         >
                           상담 기록
@@ -617,8 +604,8 @@ export default function AdminStudentsPage() {
                         <button
                           className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
                           onClick={() => {
-                            setSelectedStudentIds([s.id]);
-                            openBulkModal();
+                            setTargetStudent(s);
+                            setClassModalOpen(true);
                           }}
                         >
                           반 변경
@@ -819,6 +806,26 @@ export default function AdminStudentsPage() {
           </div>
         </div>
       )}
+
+      <StatusModal
+        open={statusModalOpen}
+        onClose={() => setStatusModalOpen(false)}
+        student={targetStudent}
+        onSuccess={refetch}
+      />
+      <ConsultModal
+        open={consultModalOpen}
+        onClose={() => setConsultModalOpen(false)}
+        student={targetStudent}
+        onSuccess={refetch}
+      />
+      <ClassModal
+        open={classModalOpen}
+        onClose={() => setClassModalOpen(false)}
+        student={targetStudent}
+        onSuccess={refetch}
+        classes={availableClasses}
+      />
 
 
     </main>
