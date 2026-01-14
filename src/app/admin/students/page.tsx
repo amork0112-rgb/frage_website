@@ -28,6 +28,11 @@ export default function AdminStudentsPage() {
   const [dajimFilter, setDajimFilter] = useState<"All" | "O" | "X">("All");
   const [showOnlyActive, setShowOnlyActive] = useState<boolean>(true);
   
+  // Pagination State
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(50);
+  const [totalCount, setTotalCount] = useState<number>(0);
+
   const [statusToggle, setStatusToggle] = useState<Record<string, boolean>>({
     promoted: true,
     재원: true,
@@ -438,6 +443,49 @@ export default function AdminStudentsPage() {
       </div>
 
       {/* Status filters removed */}
+
+      <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+        <div className="text-sm text-slate-600 font-bold">
+          총 <span className="text-frage-blue">{totalCount}</span>명 중 {totalCount > 0 ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, totalCount)}명 표시
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-bold bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              이전
+            </button>
+            <span className="px-3 py-1.5 text-sm font-bold text-slate-700">
+              {page} / {Math.ceil(totalCount / pageSize) || 1}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(Math.ceil(totalCount / pageSize), p + 1))}
+              disabled={page >= Math.ceil(totalCount / pageSize)}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-bold bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              다음
+            </button>
+          </div>
+          
+          <div className="h-6 w-px bg-slate-200 mx-2"></div>
+
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white font-bold text-slate-700 cursor-pointer hover:border-slate-300"
+          >
+            <option value={50}>50명씩</option>
+            <option value={100}>100명씩</option>
+            <option value={200}>200명씩</option>
+          </select>
+        </div>
+      </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">

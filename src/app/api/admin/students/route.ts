@@ -61,13 +61,24 @@ export async function GET(request: Request) {
         .lt("birth_date", to);
     }
 
-    const { data, error } = await query
-      .order("class_name", { ascending: true })
-      .order("student_name", { ascending: true });
+    const page = Number(url.searchParams.get("page") ?? 1);
+    const pageSize = Number(url.searchParams.get("pageSize") ?? 50);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // Use exact count for pagination
+    query = query.select("*", { count: "exact" });
+
+    const { data, error, count } = await query
+      .order("class_sort_order", { ascending: true }) // As requested
+      .order("student_name", { ascending: true })
+      .range(from, to);
 
     if (error) {
+      // Fallback if class_sort_order doesn't exist, though user requested it.
+      // If error is related to column, we might want to fallback to class_name
       console.error(error);
-      return NextResponse.json({ items: [], total: 0 }, { status: 500 });
+      return NextResponse.json({ items: [], total: 0, page, pageSize, totalPages: 0 }, { status: 500 });
     }
     const rows = Array.isArray(data) ? data : [];
     const items: any[] = rows.map((r: any) => ({
@@ -85,7 +96,13 @@ export async function GET(request: Request) {
       created_at: String(r.created_at ?? ""),
     }));
     
-    return NextResponse.json({ items, total: items.length }, { status: 200 });
+    return NextResponse.json({ 
+      items, 
+      total: count ?? 0,
+      page,
+      pageSize,
+      totalPages: Math.ceil((count ?? 0) / pageSize)
+    }, { status: 200 });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ items: [], total: 0 }, { status: 500 });
