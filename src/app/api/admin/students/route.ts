@@ -38,7 +38,7 @@ export async function GET(request: Request) {
     }
 
     if (classId && classId !== "All") {
-      query = query.eq("main_class", classId);
+      query = query.eq("class_name", classId);
     }
 
     if (dajim && dajim !== "All") {
@@ -50,13 +50,20 @@ export async function GET(request: Request) {
     }
 
     if (birthMonth && birthMonth !== "All") {
-      const month = birthMonth.padStart(2, "0");
+      const month = parseInt(birthMonth, 10);
+      const from = `2000-${String(month).padStart(2, "0")}-01`;
+      const nextMonth = month === 12 ? 1 : month + 1;
+      const nextYear = month === 12 ? 2001 : 2000;
+      const to = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
+      
       query = query
-        .gte("birth_date", `2000-${month}-01`)
-        .lt("birth_date", `2000-${month}-32`);
+        .gte("birth_date", from)
+        .lt("birth_date", to);
     }
 
-    const { data, error } = await query.order("student_name", { ascending: true });
+    const { data, error } = await query
+      .order("class_name", { ascending: true })
+      .order("student_name", { ascending: true });
 
     if (error) {
       console.error(error);
