@@ -45,24 +45,10 @@ export async function GET(request: Request) {
       .select(`
         id,
         student_name,
-        english_first_name,
-        birth_date,
-        parent_phone,
         class_name,
-        grade,
         campus,
-        status,
-        parent_name,
-        parent_user_id,
-        address,
-        bus,
-        departure_time,
-        pickup_lat,
-        pickup_lng,
-        dropoff_lat,
-        dropoff_lng,
-        pickup_type,
-        dropoff_type
+        birth_date,
+        dajim_enabled
       `)
       .order("student_name", { ascending: true });
     if (error) {
