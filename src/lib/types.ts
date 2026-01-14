@@ -53,6 +53,7 @@ export type StudentFull = {
   dajim_enabled?: boolean;
   
   // Class Management
+  main_class?: string;
   main_class_name?: string;
   program_classes?: {
     id: string;

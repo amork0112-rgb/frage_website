@@ -50,7 +50,7 @@ export async function GET(request: Request) {
       student_name: String(r.student_name ?? ""),
       campus: String(r.campus ?? ""),
       status: (String(r.status ?? "promoted") as Status),
-      class_id: String(r.class_id ?? ""),
+      main_class: String(r.main_class ?? ""),
       class_name: String(r.class_name ?? ""),
       parent_phone: String(r.parent_phone ?? ""),
       parent_name: String(r.parent_name ?? ""),
