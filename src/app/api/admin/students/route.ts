@@ -32,15 +32,15 @@ export async function GET(request: Request) {
     let query = supabaseService.from("v_students_full");
 
     if (campus && campus !== "All") {
-      query = query.eq("campus", campus);
+      query = query.filter("campus", "eq", campus);
     }
 
     if (classId && classId !== "All") {
-      query = query.eq("class_name", classId);
+      query = query.filter("class_name", "eq", classId);
     }
 
     if (dajim && dajim !== "All") {
-      query = query.eq("dajim_enabled", dajim === "O");
+      query = query.filter("dajim_enabled", "eq", dajim === "O");
     }
 
     if (name) {
@@ -48,13 +48,7 @@ export async function GET(request: Request) {
     }
 
     if (birthMonth && birthMonth !== "All") {
-      const month = parseInt(birthMonth, 10);
-      const from = `2000-${String(month).padStart(2, "0")}-01`;
-      const nextMonth = month === 12 ? 1 : month + 1;
-      const nextYear = month === 12 ? 2001 : 2000;
-      const to = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
-      
-      query = query.gte("birth_date", from).lt("birth_date", to);
+      query = query.filter("birth_month", "eq", birthMonth);
     }
 
     const page = Number(url.searchParams.get("page") ?? 1);
@@ -63,9 +57,9 @@ export async function GET(request: Request) {
     const to = from + pageSize - 1;
 
     const { data, error, count: totalCount } = await query
-      .select("*", { count: "exact" })
       .order("class_sort_order", { ascending: true })
       .order("student_name", { ascending: true })
+      .select("*", { count: "exact" })
       .range(from, to);
 
     if (error) {
