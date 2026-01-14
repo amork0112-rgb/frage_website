@@ -29,7 +29,9 @@ export async function GET(request: Request) {
   const birthMonth = url.searchParams.get("birthMonth");
 
   try {
-    let query = supabaseService.from("v_students_full");
+    let query = supabaseService
+      .from("v_students_full")
+      .select("*", { count: "exact" });
 
     if (campus && campus !== "All") {
       query = query.eq("campus", campus);
@@ -59,7 +61,6 @@ export async function GET(request: Request) {
     const { data, error, count: totalCount } = await query
       .order("class_sort_order", { ascending: true })
       .order("student_name", { ascending: true })
-      .select("*", { count: "exact" })
       .range(from, to);
 
     if (error) {
