@@ -45,6 +45,7 @@ export async function GET(request: Request) {
       .select(`
         id,
         student_name,
+        english_first_name,
         class_name,
         campus,
         birth_date,
