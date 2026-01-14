@@ -37,7 +37,6 @@ export async function GET(request: Request) {
         gender,
         parent_name,
         parent_phone,
-        grade,
         current_school,
         english_history,
         address,
@@ -66,8 +65,7 @@ export async function GET(request: Request) {
       gender: String(r.gender ?? ""),
       parent_name: String(r.parent_name ?? ""),
       parent_phone: String(r.parent_phone ?? ""),
-      class_name: String(r.grade ?? ""), // Academy Class (e.g. Kepler) mapped from view's grade column
-      grade: "", // School Grade (read-only) - currently not available in view or ambiguous
+      class_name: String(r.main_class_name ?? ""), // Academy Class (e.g. Kepler) mapped from view's main_class_name column
       current_school: String(r.current_school ?? ""),
       english_history: String(r.english_history ?? ""),
       address: String(r.address ?? ""),
@@ -77,7 +75,7 @@ export async function GET(request: Request) {
       dropoff_lng: r.dropoff_lng ?? null,
       dajim_enabled: !!r.dajim_enabled,
       created_at: String(r.created_at ?? ""),
-      main_class_name: String(r.main_class_name ?? r.grade ?? ""), // Fallback to grade if main_class_name null
+      main_class_name: String(r.main_class_name ?? ""), // main_class_name only
       program_classes: Array.isArray(r.program_classes) ? r.program_classes : [],
     }));
     const total = base.length;
