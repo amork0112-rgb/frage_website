@@ -1,13 +1,16 @@
 export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 export async function GET() {
   try {
     const supabase = createSupabaseServer();
-    const { error: authError } = await requireAdmin(supabase);
-    if (authError) return authError;
+
+    const { data: user } = await supabase.auth.getUser();
+    if (!user || !user.user) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
 
     // 1. Fetch Classes (for classes list and campuses)
     const { data: classesData, error: classesError } = await supabase
