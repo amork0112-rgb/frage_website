@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { supabaseService } from "@/lib/supabase/service";
 
 function json(data: any, status = 200) {
   return new NextResponse(JSON.stringify(data), {
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
     if ("error" in guard) return guard.error;
 
     // 1. Portal Requests (New Requests)
-    let requestsQuery = supabase
+    let requestsQuery = supabaseService
       .from("portal_requests")
       .select("id,created_at,campus")
       .order("created_at", { ascending: false })
@@ -33,7 +34,7 @@ export async function GET(req: Request) {
     const newRequestsCount = Array.isArray(latestRequests) ? latestRequests.length : 0;
 
     // 2. Notices (Posts)
-    let postsQuery = supabase
+    let postsQuery = supabaseService
       .from("posts")
       .select("is_pinned,campus");
     
@@ -45,7 +46,7 @@ export async function GET(req: Request) {
     const noticesCount = Array.isArray(posts) ? posts.filter((p: any) => !!p.is_pinned).length : 0;
 
     // 3. New Students (Guest Inquiries)
-    let newStudentsQuery = supabase
+    let newStudentsQuery = supabaseService
       .from("new_students")
       .select("id,status,campus");
     
@@ -55,7 +56,7 @@ export async function GET(req: Request) {
 
     const { data: newStudents } = await newStudentsQuery;
 
-    const { data: reservations } = await supabase
+    const { data: reservations } = await supabaseService
       .from("student_reservations")
       .select("student_id");
     
@@ -70,7 +71,7 @@ export async function GET(req: Request) {
       : 0;
 
     // 4. Enrolled Students (Total Enrolled)
-    let studentsQuery = supabase
+    let studentsQuery = supabaseService
       .from("students")
       .select("id,status,campus");
 
@@ -95,7 +96,7 @@ export async function GET(req: Request) {
     };
 
     // 5. Absences (Today's Attendance)
-    let absencesQuery = supabase
+    let absencesQuery = supabaseService
       .from("portal_requests")
       .select("type,payload,campus")
       .eq("type", "absence")
