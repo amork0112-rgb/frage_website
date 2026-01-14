@@ -32,15 +32,15 @@ export async function GET(request: Request) {
     let query = supabaseService.from("v_students_full");
 
     if (campus && campus !== "All") {
-      query = query.filter("campus", "eq", campus);
+      query = query.eq("campus", campus);
     }
 
     if (classId && classId !== "All") {
-      query = query.filter("class_name", "eq", classId);
+      query = query.eq("class_name", classId);
     }
 
     if (dajim && dajim !== "All") {
-      query = query.filter("dajim_enabled", "eq", dajim === "O");
+      query = query.eq("dajim_enabled", dajim === "O");
     }
 
     if (name) {
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     }
 
     if (birthMonth && birthMonth !== "All") {
-      query = query.filter("birth_month", "eq", birthMonth);
+      query = query.eq("birth_month", birthMonth);
     }
 
     const page = Number(url.searchParams.get("page") ?? 1);
