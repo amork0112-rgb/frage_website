@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 // src/app/api/admin/students/route.ts
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { createSupabaseServer } from "@/lib/supabase/server";
 
 type Status = "waiting" | "consultation_reserved" | "consult_done" | "approved" | "promoted" | "rejected" | "hold";
 
@@ -20,80 +21,68 @@ type Student = {
   created_at: string;
 };
 
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const campus = url.searchParams.get("campus");
-  const classId = url.searchParams.get("classId");
-  const dajim = url.searchParams.get("dajim");
-  const name = url.searchParams.get("name");
-  const birthMonth = url.searchParams.get("birthMonth");
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
 
-  try {
-    let query = supabaseService
-      .from("v_students_full")
-      .select("*", { count: "exact" });
+  const campus = searchParams.get("campus");
+  const classId = searchParams.get("classId");
+  const dajim = searchParams.get("dajim");
+  const name = searchParams.get("name");
+  const birthMonth = searchParams.get("birthMonth");
 
-    if (campus && campus !== "All") {
-      query = query.eq("campus", campus);
-    }
+  const page = Number(searchParams.get("page") ?? 1);
+  const pageSize = Number(searchParams.get("pageSize") ?? 50);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
-    if (classId && classId !== "All") {
-      query = query.eq("class_name", classId);
-    }
+  const supabase = createSupabaseServer();
 
-    if (dajim && dajim !== "All") {
-      query = query.eq("dajim_enabled", dajim === "O");
-    }
+  let query = supabase
+    .from("v_students_full")
+    .select("*", { count: "exact" });
 
-    if (name) {
-      query = query.ilike("student_name", `%${name}%`);
-    }
-
-    if (birthMonth && birthMonth !== "All") {
-      query = query.eq("birth_month", birthMonth);
-    }
-
-    const page = Number(url.searchParams.get("page") ?? 1);
-    const pageSize = Number(url.searchParams.get("pageSize") ?? 50);
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-
-    const { data, error, count: totalCount } = await query
-      .order("class_sort_order", { ascending: true })
-      .order("student_name", { ascending: true })
-      .range(from, to);
-
-    if (error) {
-      console.error(error);
-      return NextResponse.json({ items: [], total: 0, page, pageSize, totalPages: 0 }, { status: 500 });
-    }
-    const rows = Array.isArray(data) ? data : [];
-    const items: any[] = rows.map((r: any) => ({
-      id: String(r.id ?? ""),
-      student_name: String(r.student_name ?? ""),
-      campus: String(r.campus ?? ""),
-      // status: (String(r.status ?? "promoted") as Status), // Removed as requested for UI
-      birth_date: String(r.birth_date ?? ""),
-      main_class: String(r.main_class ?? ""),
-      class_name: String(r.class_name ?? ""),
-      parent_phone: String(r.parent_phone ?? ""),
-      parent_name: String(r.parent_name ?? ""),
-      dajim_enabled: !!r.dajim_enabled,
-      has_transport: !!r.bus, // Infer transport from bus field existence
-      created_at: String(r.created_at ?? ""),
-    }));
-    
-    return NextResponse.json({ 
-      items, 
-      total: totalCount ?? 0,
-      page,
-      pageSize,
-      totalPages: Math.ceil((totalCount ?? 0) / pageSize)
-    }, { status: 200 });
-  } catch (e) {
-    console.error(e);
-    return NextResponse.json({ items: [], total: 0 }, { status: 500 });
+  if (campus && campus !== "All") {
+    query = query.eq("campus", campus);
   }
+
+  if (classId && classId !== "All") {
+    query = query.eq("main_class", classId);
+  }
+
+  if (dajim && dajim !== "All") {
+    query = query.eq("dajim_enabled", dajim === "O");
+  }
+
+  if (name) {
+    query = query.ilike("student_name", `%${name}%`);
+  }
+
+  if (birthMonth && birthMonth !== "All") {
+    query = query.gte(
+      "birth_date",
+      `2000-${birthMonth.padStart(2, "0")}-01`
+    ).lte(
+      "birth_date",
+      `2000-${birthMonth.padStart(2, "0")}-31`
+    );
+  }
+
+  query = query
+    .order("class_sort_order", { ascending: true })
+    .order("student_name", { ascending: true })
+    .range(from, to);
+
+  const { data, count, error } = await query;
+
+  if (error) {
+    console.error(error);
+    return NextResponse.json({ error }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    items: data ?? [],
+    totalCount: count ?? 0,
+  });
 }
 
 export async function POST(request: Request) {

@@ -158,15 +158,17 @@ export default function AdminStudentsPage() {
           dajim: dajimFilter,
           name: query,
           birthMonth,
+          page: String(page),
+          pageSize: String(pageSize),
         });
         const res = await fetch(`/api/admin/students?${params.toString()}`);
         const data = await res.json();
-        const items = Array.isArray(data) ? data : data.items || [];
-        setStudents(items);
+        setStudents(data.items ?? []);
+        setTotalCount(data.totalCount ?? 0);
       } catch {}
     };
     load();
-  }, [campusFilter, classFilter, dajimFilter, query, birthMonth]);
+  }, [campusFilter, classFilter, dajimFilter, query, birthMonth, page, pageSize]);
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -177,15 +179,17 @@ export default function AdminStudentsPage() {
           dajim: dajimFilter,
           name: query,
           birthMonth,
+          page: String(page),
+          pageSize: String(pageSize),
         });
         const res = await fetch(`/api/admin/students?${params.toString()}`);
         const data = await res.json();
-        const items = Array.isArray(data) ? data : data.items || [];
-        setStudents(items);
+        setStudents(data.items ?? []);
+        setTotalCount(data.totalCount ?? 0);
       } catch {}
     }, 30000);
     return () => clearInterval(interval);
-  }, [campusFilter, classFilter, dajimFilter, query, birthMonth]);
+  }, [campusFilter, classFilter, dajimFilter, query, birthMonth, page, pageSize]);
 
   useEffect(() => {}, []);
 
@@ -219,10 +223,7 @@ export default function AdminStudentsPage() {
       const mCampus = campusFilter === "All" || s.campus === campusFilter;
       const mClass = classFilter === "All" || s.class_name === classFilter;
       const mStatus = true; // Status filtering disabled
-      const mBirth =
-        birthMonth === "All" ||
-        !s.birth_date ||
-        s.birth_date.split("-")[1] === birthMonth.padStart(2, "0");
+      const mBirth = true; // 생일 필터는 서버에서 처리
       const mDajim = dajimFilter === "All"
         ? true
         : dajimFilter === "O"
@@ -512,7 +513,7 @@ export default function AdminStudentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.slice(0, 50).map(s => (
+              {filtered.map(s => (
                 <tr key={s.id} className="hover:bg-slate-50 transition-colors">
                   <td className="p-3">
                     <input
