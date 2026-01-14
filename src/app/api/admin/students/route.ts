@@ -22,48 +22,58 @@ type Student = {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
-  const pageSize = Math.max(parseInt(url.searchParams.get("pageSize") || "200", 10), 1);
+  const campus = url.searchParams.get("campus");
+  const classId = url.searchParams.get("classId");
+  const dajim = url.searchParams.get("dajim");
+  const name = url.searchParams.get("name");
+
   try {
-    const { data, error } = await supabaseService
+    let query = supabaseService
       .from("v_students_full")
-      .select(`
-        id,
-        student_name,
-        campus,
-        status,
-        main_class,
-        class_name,
-        parent_phone,
-        parent_name,
-        dajim_enabled,
-        created_at
-      `)
-      .order("student_name", { ascending: true });
+      .select("*");
+
+    if (campus && campus !== "All") {
+      query = query.eq("campus", campus);
+    }
+
+    if (classId && classId !== "All") {
+      query = query.eq("main_class", classId);
+    }
+
+    if (dajim && dajim !== "All") {
+      query = query.eq("dajim_enabled", dajim === "O");
+    }
+
+    if (name) {
+      query = query.ilike("student_name", `%${name}%`);
+    }
+
+    const { data, error } = await query.order("student_name", { ascending: true });
+
     if (error) {
       console.error(error);
-      return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
+      return NextResponse.json({ items: [], total: 0 }, { status: 500 });
     }
     const rows = Array.isArray(data) ? data : [];
-    const base: any[] = rows.map((r: any) => ({
+    const items: any[] = rows.map((r: any) => ({
       id: String(r.id ?? ""),
       student_name: String(r.student_name ?? ""),
       campus: String(r.campus ?? ""),
-      status: (String(r.status ?? "promoted") as Status),
+      // status: (String(r.status ?? "promoted") as Status), // Removed as requested for UI
+      birth_date: String(r.birth_date ?? ""),
       main_class: String(r.main_class ?? ""),
       class_name: String(r.class_name ?? ""),
       parent_phone: String(r.parent_phone ?? ""),
       parent_name: String(r.parent_name ?? ""),
       dajim_enabled: !!r.dajim_enabled,
+      has_transport: !!r.bus, // Infer transport from bus field existence
       created_at: String(r.created_at ?? ""),
     }));
-    const total = base.length;
-    const start = (page - 1) * pageSize;
-    const items = base.slice(start, start + pageSize);
-    return NextResponse.json({ items, total, page, pageSize }, { status: 200 });
+    
+    return NextResponse.json({ items, total: items.length }, { status: 200 });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
+    return NextResponse.json({ items: [], total: 0 }, { status: 500 });
   }
 }
 

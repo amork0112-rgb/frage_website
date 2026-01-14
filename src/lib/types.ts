@@ -51,6 +51,7 @@ export type StudentFull = {
   bus?: string;
   departure_time?: string;
   dajim_enabled?: boolean;
+  has_transport?: boolean;
   
   // Class Management
   main_class?: string;

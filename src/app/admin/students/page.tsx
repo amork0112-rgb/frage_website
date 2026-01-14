@@ -199,9 +199,7 @@ export default function AdminStudentsPage() {
     const list = merged.filter(s => {
       const mCampus = campusFilter === "All" || s.campus === campusFilter;
       const mClass = classFilter === "All" || s.class_name === classFilter;
-      const mStatus = showOnlyActive
-        ? (["promoted", "hold", "재원", "휴원", "휴원 검토중"].includes(s.status))
-        : !!statusToggle[s.status as keyof typeof statusToggle];
+      const mStatus = true; // Status filtering disabled
       const mDajim = dajimFilter === "All"
         ? true
         : dajimFilter === "O"
@@ -393,23 +391,7 @@ export default function AdminStudentsPage() {
             <option value="X">다짐 X</option>
           </select>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={showOnlyActive}
-              onChange={(e) => {
-                const on = e.target.checked;
-                setShowOnlyActive(on);
-                if (on) {
-                  setStatusToggle({ promoted: true, hold: false, rejected: false, waiting: false, consultation_reserved: false, consult_done: false, approved: false });
-                }
-              }}
-              className="rounded border-slate-300"
-            />
-            <span className="text-sm font-bold text-slate-700">재원만 보기</span>
-          </label>
-        </div>
+        {/* Active only filter removed */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -422,58 +404,7 @@ export default function AdminStudentsPage() {
         </div>
       </div>
 
-      {!showOnlyActive && (
-        <div className="mb-4">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-bold text-slate-700">재원상태</span>
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={statusToggle["재원"]}
-                onChange={(e) => setStatusToggle((m) => ({ ...m, 재원: e.target.checked }))}
-                className="rounded border-slate-300"
-              />
-              재원
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={statusToggle["휴원 검토중"]}
-                onChange={(e) => setStatusToggle((m) => ({ ...m, "휴원 검토중": e.target.checked }))}
-                className="rounded border-slate-300"
-              />
-              휴원 검토중
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={statusToggle["휴원"]}
-                onChange={(e) => setStatusToggle((m) => ({ ...m, 휴원: e.target.checked }))}
-                className="rounded border-slate-300"
-              />
-              휴원
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={statusToggle["퇴원 검토중"]}
-                onChange={(e) => setStatusToggle((m) => ({ ...m, "퇴원 검토중": e.target.checked }))}
-                className="rounded border-slate-300"
-              />
-              퇴원 검토중
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={statusToggle["퇴원"]}
-                onChange={(e) => setStatusToggle((m) => ({ ...m, 퇴원: e.target.checked }))}
-                className="rounded border-slate-300"
-              />
-              퇴원
-            </label>
-          </div>
-        </div>
-      )}
+      {/* Status filters removed */}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -491,7 +422,9 @@ export default function AdminStudentsPage() {
                 </th>
                 <th className="p-3 font-bold">이름</th>
                 <th className="p-3 font-bold w-32">반</th>
-                <th className="p-3 font-bold w-28">재원상태</th>
+                <th className="p-3 font-bold w-32">생년월일</th>
+                <th className="p-3 font-bold w-24">캠퍼스</th>
+                <th className="p-3 font-bold w-16 text-center">차량</th>
                 <th className="p-3 font-bold w-12 text-center">다짐</th>
                 <th className="p-3 font-bold w-24 text-center">메모</th>
                 <th className="p-3 font-bold w-16 text-center">액션</th>
@@ -514,19 +447,9 @@ export default function AdminStudentsPage() {
                     <div className="text-xs text-slate-400">{s.parent_phone}</div>
                   </td>
                   <td className="p-3 text-slate-700">{s.class_name}</td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-[11px] font-bold border ${
-                        s.status === "promoted" ? "bg-green-50 text-green-700 border-green-100" :
-                        s.status === "approved" ? "bg-blue-50 text-blue-700 border-blue-100" :
-                        s.status === "hold" ? "bg-amber-50 text-amber-700 border-amber-100" :
-                        s.status === "rejected" ? "bg-red-50 text-red-700 border-red-100" :
-                        "bg-slate-50 text-slate-700 border-slate-100"
-                      }`}>
-                        {s.status}
-                      </span>
-                    </div>
-                  </td>
+                  <td className="p-3 text-sm text-slate-600">{s.birth_date}</td>
+                  <td className="p-3 text-sm text-slate-600">{s.campus}</td>
+                  <td className="p-3 text-center text-sm text-slate-600">{s.has_transport ? "O" : "-"}</td>
                   <td className="p-3 text-slate- text-slate-700 font-bold">
                     {s.dajim_enabled ? <span className="text-green-600">✔</span> : <span className="text-slate-300">-</span>}
                   </td>
