@@ -26,6 +26,7 @@ export async function GET(request: Request) {
   const classId = url.searchParams.get("classId");
   const dajim = url.searchParams.get("dajim");
   const name = url.searchParams.get("name");
+  const birthMonth = url.searchParams.get("birthMonth");
 
   try {
     let query = supabaseService
@@ -46,6 +47,13 @@ export async function GET(request: Request) {
 
     if (name) {
       query = query.ilike("student_name", `%${name}%`);
+    }
+
+    if (birthMonth && birthMonth !== "All") {
+      const month = birthMonth.padStart(2, "0");
+      query = query
+        .gte("birth_date", `2000-${month}-01`)
+        .lt("birth_date", `2000-${month}-32`);
     }
 
     const { data, error } = await query.order("student_name", { ascending: true });

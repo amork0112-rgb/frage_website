@@ -23,6 +23,7 @@ export default function AdminStudentsPage() {
   const router = useRouter();
   const [campusFilter, setCampusFilter] = useState<string>("All");
   const [classFilter, setClassFilter] = useState<string>("All");
+  const [birthMonth, setBirthMonth] = useState<string>("All");
   const [statusFilter, setStatusFilter] = useState<Status | "All">("All");
   const [dajimFilter, setDajimFilter] = useState<"All" | "O" | "X">("All");
   const [showOnlyActive, setShowOnlyActive] = useState<boolean>(true);
@@ -115,7 +116,6 @@ export default function AdminStudentsPage() {
   const [newMemoType, setNewMemoType] = useState<"상담" | "결제" | "특이사항" | "기타">("기타");
 
 
-
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getUser();
@@ -147,26 +147,40 @@ export default function AdminStudentsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/admin/students");
+        const params = new URLSearchParams({
+          campus: campusFilter,
+          classId: classFilter,
+          dajim: dajimFilter,
+          name: query,
+          birthMonth,
+        });
+        const res = await fetch(`/api/admin/students?${params.toString()}`);
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.items || [];
         setStudents(items);
       } catch {}
     };
     load();
-  }, []);
+  }, [campusFilter, classFilter, dajimFilter, query, birthMonth]);
 
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch("/api/admin/students");
+        const params = new URLSearchParams({
+          campus: campusFilter,
+          classId: classFilter,
+          dajim: dajimFilter,
+          name: query,
+          birthMonth,
+        });
+        const res = await fetch(`/api/admin/students?${params.toString()}`);
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.items || [];
         setStudents(items);
       } catch {}
     }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [campusFilter, classFilter, dajimFilter, query, birthMonth]);
 
   useEffect(() => {}, []);
 
@@ -200,6 +214,10 @@ export default function AdminStudentsPage() {
       const mCampus = campusFilter === "All" || s.campus === campusFilter;
       const mClass = classFilter === "All" || s.class_name === classFilter;
       const mStatus = true; // Status filtering disabled
+      const mBirth =
+        birthMonth === "All" ||
+        !s.birth_date ||
+        s.birth_date.split("-")[1] === birthMonth.padStart(2, "0");
       const mDajim = dajimFilter === "All"
         ? true
         : dajimFilter === "O"
@@ -209,10 +227,10 @@ export default function AdminStudentsPage() {
         query === "" ||
         s.student_name.includes(query);
 
-      return mCampus && mClass && mStatus && mDajim && mQuery;
+      return mCampus && mClass && mStatus && mBirth && mDajim && mQuery;
     });
     return list;
-  }, [merged, campusFilter, classFilter, query, showOnlyActive, statusToggle, dajimFilter]);
+  }, [merged, campusFilter, classFilter, birthMonth, query, showOnlyActive, statusToggle, dajimFilter]);
 
   const availableClasses = useMemo(() => {
     return filters.classes.map(c => c.name).sort();
@@ -365,7 +383,7 @@ export default function AdminStudentsPage() {
 
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end mb-6">
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-slate-700">캠퍼스</span>
           <select value={campusFilter} onChange={(e) => setCampusFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
@@ -380,6 +398,21 @@ export default function AdminStudentsPage() {
           <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
             {["All", ...availableClasses].map((c) => (
               <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-slate-700">생일</span>
+          <select
+            value={birthMonth}
+            onChange={(e) => setBirthMonth(e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white w-[120px]"
+          >
+            <option value="All">전체</option>
+            {Array.from({ length: 12 }).map((_, i) => (
+              <option key={i + 1} value={String(i + 1)}>
+                {i + 1}월
+              </option>
             ))}
           </select>
         </div>
