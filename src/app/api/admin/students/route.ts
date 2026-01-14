@@ -30,24 +30,14 @@ export async function GET(request: Request) {
       .select(`
         id,
         student_name,
-        english_first_name,
         campus,
         status,
-        birth_date,
-        gender,
-        parent_name,
+        class_id,
+        class_name,
         parent_phone,
-        current_school,
-        english_history,
-        address,
-        pickup_lat,
-        pickup_lng,
-        dropoff_lat,
-        dropoff_lng,
+        parent_name,
         dajim_enabled,
-        created_at,
-        main_class_name,
-        program_classes
+        created_at
       `)
       .order("student_name", { ascending: true });
     if (error) {
@@ -58,25 +48,14 @@ export async function GET(request: Request) {
     const base: any[] = rows.map((r: any) => ({
       id: String(r.id ?? ""),
       student_name: String(r.student_name ?? ""),
-      english_first_name: String(r.english_first_name ?? ""),
       campus: String(r.campus ?? ""),
       status: (String(r.status ?? "promoted") as Status),
-      birth_date: String(r.birth_date ?? ""),
-      gender: String(r.gender ?? ""),
-      parent_name: String(r.parent_name ?? ""),
+      class_id: String(r.class_id ?? ""),
+      class_name: String(r.class_name ?? ""),
       parent_phone: String(r.parent_phone ?? ""),
-      class_name: String(r.main_class_name ?? ""), // Academy Class (e.g. Kepler) mapped from view's main_class_name column
-      current_school: String(r.current_school ?? ""),
-      english_history: String(r.english_history ?? ""),
-      address: String(r.address ?? ""),
-      pickup_lat: r.pickup_lat ?? null,
-      pickup_lng: r.pickup_lng ?? null,
-      dropoff_lat: r.dropoff_lat ?? null,
-      dropoff_lng: r.dropoff_lng ?? null,
+      parent_name: String(r.parent_name ?? ""),
       dajim_enabled: !!r.dajim_enabled,
       created_at: String(r.created_at ?? ""),
-      main_class_name: String(r.main_class_name ?? ""), // main_class_name only
-      program_classes: Array.isArray(r.program_classes) ? r.program_classes : [],
     }));
     const total = base.length;
     const start = (page - 1) * pageSize;

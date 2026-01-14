@@ -49,10 +49,6 @@ export default function AdminStudentsPage() {
   const [memoOpenFor, setMemoOpenFor] = useState<StudentFull | null>(null);
   const [newMemo, setNewMemo] = useState<string>("");
   const [memos, setMemos] = useState<Record<string, { text: string; author: string; at: string; tag?: "상담" | "결제" | "특이사항" | "기타" }[]>>({});
-  const [busFilter, setBusFilter] = useState<string>("All");
-  const [timeFilter, setTimeFilter] = useState<string>("All");
-  const [programFilter, setProgramFilter] = useState<string>("All");
-  const [birthMonthFilter, setBirthMonthFilter] = useState<string>("All");
   const [updates, setUpdates] = useState<Record<string, Partial<StudentFull>>>({});
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
@@ -118,12 +114,7 @@ export default function AdminStudentsPage() {
   const [refundMemo, setRefundMemo] = useState<string>("");
   const [newMemoType, setNewMemoType] = useState<"상담" | "결제" | "특이사항" | "기타">("기타");
 
-  // Vehicle Modal State
-  const [vehicleModalFor, setVehicleModalFor] = useState<StudentFull | null>(null);
-  const [pickupLat, setPickupLat] = useState("");
-  const [pickupLng, setPickupLng] = useState("");
-  const [dropoffLat, setDropoffLat] = useState("");
-  const [dropoffLng, setDropoffLng] = useState("");
+
 
   useEffect(() => {
     const init = async () => {
@@ -216,21 +207,14 @@ export default function AdminStudentsPage() {
         : dajimFilter === "O"
         ? s.dajim_enabled
         : !s.dajim_enabled;
-      const mMonth =
-        birthMonthFilter === "All" ||
-        (s.birth_date && s.birth_date.split("-")[1] === birthMonthFilter.padStart(2, "0"));
       const mQuery =
         query === "" ||
-        s.student_name.includes(query) ||
-        (s.english_first_name && s.english_first_name.toLowerCase().includes(query.toLowerCase()));
-      const mProgram =
-        programFilter === "All" ||
-        (s.program_classes && s.program_classes.some(p => p.program_name === programFilter));
+        s.student_name.includes(query);
 
-      return mCampus && mClass && mStatus && mDajim && mMonth && mQuery && mProgram;
+      return mCampus && mClass && mStatus && mDajim && mQuery;
     });
     return list;
-  }, [merged, campusFilter, classFilter, statusFilter, birthMonthFilter, query, showOnlyActive, statusToggle, dajimFilter, programFilter]);
+  }, [merged, campusFilter, classFilter, query, showOnlyActive, statusToggle, dajimFilter]);
 
   const availableClasses = useMemo(() => {
     return filters.classes.map(c => c.name).sort();
@@ -238,47 +222,6 @@ export default function AdminStudentsPage() {
 
 
   useEffect(() => {}, [students]);
-
-  const handleProgramChange = async (studentId: string, classId: string, checked: boolean) => {
-    // Logic to calculate next state
-    const cls = filters.programClasses.find(c => c.id === classId);
-    
-    const updatePrograms = (current: { id: string; name: string; program_name?: string }[]) => {
-      let next = [...current];
-      if (checked) {
-        if (cls && !next.some(p => p.id === classId)) {
-          next.push({ id: cls.id, name: cls.name, program_name: cls.program_name });
-        }
-      } else {
-        next = next.filter(p => p.id !== classId);
-      }
-      return next;
-    };
-
-    // Optimistic Update Students List
-    setStudents(prev => prev.map(s => {
-      if (s.id !== studentId) return s;
-      return { ...s, program_classes: updatePrograms(s.program_classes || []) };
-    }));
-
-    // Update infoStudent if currently viewing this student
-    if (infoStudent && infoStudent.id === studentId) {
-      setInfoStudent(prev => prev ? { ...prev, program_classes: updatePrograms(prev.program_classes || []) } : null);
-    }
-
-    try {
-      const res = await fetch("/api/admin/enrollments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentId, classId, enabled: checked }),
-      });
-      if (!res.ok) throw new Error("Failed to update enrollment");
-    } catch (e) {
-      console.error(e);
-      alert("수업 변경 저장 실패");
-      // Optionally revert state here
-    }
-  };
 
   const saveUpdate = (id: string, next: Partial<StudentFull>) => {
     const apply = async () => {
@@ -360,105 +303,6 @@ export default function AdminStudentsPage() {
     // Deprecated: Classes should be managed via API
   };
 
-  const [bulkBusOpen, setBulkBusOpen] = useState(false);
-  const [bulkTimeOpen, setBulkTimeOpen] = useState(false);
-  const [selectedTargetBus, setSelectedTargetBus] = useState<string>("");
-  const [selectedTargetTime, setSelectedTargetTime] = useState<string>("");
-
-  const openBulkBusModal = () => {
-    if (!selectedStudentIds.length) return;
-    setBulkBusOpen(true);
-    setSelectedTargetBus("");
-  };
-
-  const closeBulkBusModal = () => {
-    setBulkBusOpen(false);
-  };
-
-  const openBulkTimeModal = () => {
-    if (!selectedStudentIds.length) return;
-    setBulkTimeOpen(true);
-    setSelectedTargetTime("");
-  };
-
-  const closeBulkTimeModal = () => {
-    setBulkTimeOpen(false);
-  };
-
-  const handleBulkBusChange = async () => {
-    if (role === "teacher") return;
-    if (!selectedStudentIds.length) return;
-    if (!selectedTargetBus) return;
-    const selectedStudents = merged.filter(s => selectedStudentIds.includes(s.id));
-    if (!selectedStudents.length) return;
-    const hasSame = selectedStudents.some(s => (updates[s.id]?.bus || s.bus) === selectedTargetBus);
-    if (hasSame) return;
-    try {
-      const newUpdates = { ...updates };
-      const newLogs = { ...studentLogs };
-      const { data } = await supabase.auth.getUser();
-      const admin = String(data?.user?.email ?? "관리자");
-      const date = new Date().toISOString().split("T")[0];
-      selectedStudents.forEach(s => {
-        const oldBus = updates[s.id]?.bus || s.bus;
-        newUpdates[s.id] = { ...(newUpdates[s.id] || {}), bus: selectedTargetBus };
-        const entry = `${date} 호차 변경: ${oldBus} → ${selectedTargetBus} 처리자: ${admin}`;
-        const list = newLogs[s.id] || [];
-        list.push(entry);
-        newLogs[s.id] = list;
-        saveUpdate(s.id, { bus: selectedTargetBus });
-        supabase.from("student_status_logs").insert({
-          student_id: s.id,
-          type: "bus_change",
-          message: entry,
-          at: new Date().toISOString(),
-        });
-      });
-      setUpdates(newUpdates);
-      setStudentLogs(newLogs);
-      setSelectedStudentIds([]);
-      setSelectedTargetBus("");
-      closeBulkBusModal();
-    } catch {}
-  };
-
-  const handleBulkTimeChange = async () => {
-    if (role === "teacher") return;
-    if (!selectedStudentIds.length) return;
-    if (!selectedTargetTime) return;
-    const selectedStudents = merged.filter(s => selectedStudentIds.includes(s.id));
-    if (!selectedStudents.length) return;
-    const hasSame = selectedStudents.some(s => (updates[s.id]?.departure_time || s.departure_time) === selectedTargetTime);
-    if (hasSame) return;
-    try {
-      const newUpdates = { ...updates };
-      const newLogs = { ...studentLogs };
-      const { data } = await supabase.auth.getUser();
-      const admin = String(data?.user?.email ?? "관리자");
-      const date = new Date().toISOString().split("T")[0];
-      selectedStudents.forEach(s => {
-        const oldTime = updates[s.id]?.departure_time || s.departure_time;
-        newUpdates[s.id] = { ...(newUpdates[s.id] || {}), departure_time: selectedTargetTime };
-        const entry = `${date} 하원 시간대 변경: ${oldTime} → ${selectedTargetTime} 처리자: ${admin}`;
-        const list = newLogs[s.id] || [];
-        list.push(entry);
-        newLogs[s.id] = list;
-        saveUpdate(s.id, { departure_time: selectedTargetTime });
-        supabase.from("student_status_logs").insert({
-          student_id: s.id,
-          type: "time_change",
-          message: entry,
-          at: new Date().toISOString(),
-        });
-      });
-      setUpdates(newUpdates);
-      setStudentLogs(newLogs);
-      setSelectedStudentIds([]);
-      setSelectedTargetTime("");
-      closeBulkTimeModal();
-    } catch {}
-  };
-
   const openInfoPanel = (s: StudentFull) => {
     setInfoStudent(s);
     setMemoOpenFor(null);
@@ -511,43 +355,7 @@ export default function AdminStudentsPage() {
 
 
 
-  const openVehicleModal = (s: StudentFull) => {
-    setVehicleModalFor(s);
-    setPickupLat(String(s.pickup_lat ?? ""));
-    setPickupLng(String(s.pickup_lng ?? ""));
-    setDropoffLat(String(s.dropoff_lat ?? ""));
-    setDropoffLng(String(s.dropoff_lng ?? ""));
-  };
 
-  const saveVehicleInfo = async () => {
-    if (!vehicleModalFor) return;
-    const a = parseFloat(pickupLat);
-    const b = parseFloat(pickupLng);
-    const c = parseFloat(dropoffLat);
-    const d = parseFloat(dropoffLng);
-    if ([a, b, c, d].some((x) => Number.isNaN(x))) {
-      alert("좌표를 올바르게 입력하세요.");
-      return;
-    }
-    await supabase
-      .from("students")
-      .update({
-        pickup_lat: a,
-        pickup_lng: b,
-        dropoff_lat: c,
-        dropoff_lng: d,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", vehicleModalFor.id);
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === vehicleModalFor.id
-          ? { ...s, pickup_lat: a, pickup_lng: b, dropoff_lat: c, dropoff_lng: d }
-          : s
-      )
-    );
-    setVehicleModalFor(null);
-  };
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
@@ -574,15 +382,6 @@ export default function AdminStudentsPage() {
           <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
             {["All", ...availableClasses].map((c) => (
               <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-700">프로그램</span>
-          <select value={programFilter} onChange={(e) => setProgramFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
-            <option value="All">전체</option>
-            {filters.programNames.map((p) => (
-              <option key={p} value={p}>{p}</option>
             ))}
           </select>
         </div>
@@ -676,36 +475,6 @@ export default function AdminStudentsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end mb-6">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-700">호차</span>
-          <select value={busFilter} onChange={(e) => setBusFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
-            <option value="All">전체</option>
-            {filters.buses.map(b => (
-              <option key={b.id} value={b.name}>{b.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-700">하원 시간대</span>
-          <select value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
-            <option value="All">전체</option>
-            {filters.timeSlots.map(t => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-700">생일(월)</span>
-          <select value={birthMonthFilter} onChange={(e) => setBirthMonthFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
-            <option value="All">전체</option>
-            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-              <option key={m} value={String(m)}>{m}월</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -721,13 +490,9 @@ export default function AdminStudentsPage() {
                   />
                 </th>
                 <th className="p-3 font-bold">이름</th>
-                <th className="p-3 font-bold w-40">영어이름</th>
                 <th className="p-3 font-bold w-32">반</th>
                 <th className="p-3 font-bold w-28">재원상태</th>
-                <th className="p-3 font-bold w-32">생년월일</th>
                 <th className="p-3 font-bold w-12 text-center">다짐</th>
-                <th className="p-3 font-bold w-24 text-center">호차</th>
-                <th className="p-3 font-bold w-24 text-center">하원 시간대</th>
                 <th className="p-3 font-bold w-24 text-center">메모</th>
                 <th className="p-3 font-bold w-16 text-center">액션</th>
               </tr>
@@ -748,7 +513,6 @@ export default function AdminStudentsPage() {
                     <button onClick={() => openInfoPanel(s)} className="text-slate-900 font-bold hover:underline">{s.student_name}</button>
                     <div className="text-xs text-slate-400">{s.parent_phone}</div>
                   </td>
-                  <td className="p-3 text-slate-700">{s.english_first_name}</td>
                   <td className="p-3 text-slate-700">{s.class_name}</td>
                   <td className="p-3">
                     <div className="flex items-center gap-2">
@@ -766,9 +530,6 @@ export default function AdminStudentsPage() {
                   <td className="p-3 text-slate- text-slate-700 font-bold">
                     {s.dajim_enabled ? <span className="text-green-600">✔</span> : <span className="text-slate-300">-</span>}
                   </td>
-                  <td className="p-3 text-center700">{s.birth_date}</td>
-                  <td className="p-3 text-center">{s.bus}</td>
-                  <td className="p-3 text-center">{s.departure_time}</td>
                   <td className="p-3">
                     {Array.isArray(memos[s.id]) && memos[s.id].length > 0 ? (
                       <button
@@ -857,14 +618,7 @@ export default function AdminStudentsPage() {
                         >
                           반 변경
                         </button>
-                        <button
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
-                          onClick={() => {
-                            openVehicleModal(s);
-                          }}
-                        >
-                          등하원 정보 수정
-                        </button>
+
                       </div>
                     </div>
                   </td>
@@ -919,58 +673,7 @@ export default function AdminStudentsPage() {
         </div>
       )}
 
-      {bulkBusOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6">
-            <h2 className="text-lg font-bold mb-4">호차 일괄 변경</h2>
-            <div className="mb-4">
-              <select
-                value={selectedTargetBus}
-                onChange={(e) => setSelectedTargetBus(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-              >
-                <option value="">선택하세요</option>
-                <option value="1호차">1호차</option>
-                <option value="2호차">2호차</option>
-                <option value="3호차">3호차</option>
-                <option value="4호차">4호차</option>
-                <option value="5호차">5호차</option>
-                <option value="6호차">6호차</option>
-                <option value="7호차">7호차</option>
-                <option value="없음">없음</option>
-              </select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={closeBulkBusModal} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg">취소</button>
-              <button onClick={handleBulkBusChange} className="px-4 py-2 text-sm font-bold text-white bg-frage-blue rounded-lg hover:bg-blue-700">변경하기</button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {bulkTimeOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6">
-            <h2 className="text-lg font-bold mb-4">하원 시간대 일괄 변경</h2>
-            <div className="mb-4">
-              <select
-                value={selectedTargetTime}
-                onChange={(e) => setSelectedTargetTime(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-              >
-                <option value="">선택하세요</option>
-                <option value="09:00">09:00</option>
-                <option value="13:30">13:30</option>
-                <option value="16:30">16:30</option>
-              </select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={closeBulkTimeModal} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg">취소</button>
-              <button onClick={handleBulkTimeChange} className="px-4 py-2 text-sm font-bold text-white bg-frage-blue rounded-lg hover:bg-blue-700">변경하기</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {memoPanelVisible && memoOpenFor && (
         <div className="fixed inset-0 z-50 flex items-center justify-end pointer-events-none">
@@ -1057,18 +760,6 @@ export default function AdminStudentsPage() {
                   <div className="text-slate-900 font-medium">{infoStudent.student_name}</div>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500">영어이름</label>
-                  <div className="text-slate-900 font-medium">{infoStudent.english_first_name || "-"}</div>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500">생년월일</label>
-                  <div className="text-slate-900 font-medium">{infoStudent.birth_date || "-"}</div>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500">성별</label>
-                  <div className="text-slate-900 font-medium">{infoStudent.gender || "-"}</div>
-                </div>
-                <div>
                   <label className="text-xs font-bold text-slate-500">부모님 성함</label>
                   <div className="text-slate-900 font-medium">{infoStudent.parent_name || "-"}</div>
                 </div>
@@ -1114,36 +805,7 @@ export default function AdminStudentsPage() {
                   <div className="text-slate-900 font-medium">{infoStudent.departure_time || "-"}</div>
                 </div>
 
-                <div className="col-span-2 border-t border-slate-100 pt-4 mt-2">
-                  <label className="text-xs font-bold text-slate-500 mb-2 block">추가수업 (프로그램)</label>
-                  <div className="space-y-3">
-                    {filters.programNames.map(pName => {
-                      const pClasses = filters.programClasses.filter(c => c.program_name === pName);
-                      if (!pClasses.length) return null;
-                      return (
-                        <div key={pName} className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                          <div className="text-xs font-bold text-slate-700 mb-2">{pName}</div>
-                          <div className="flex flex-wrap gap-2">
-                            {pClasses.map(c => {
-                              const isActive = infoStudent.program_classes?.some(pc => pc.id === c.id);
-                              return (
-                                <label key={c.id} className={`inline-flex items-center gap-1.5 bg-white px-2 py-1 rounded border text-xs cursor-pointer transition-colors ${isActive ? 'border-frage-blue bg-blue-50 text-frage-blue' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
-                                  <input
-                                    type="checkbox"
-                                    checked={isActive}
-                                    onChange={(e) => handleProgramChange(infoStudent.id, c.id, e.target.checked)}
-                                    className="rounded border-slate-300 text-frage-blue focus:ring-frage-blue"
-                                  />
-                                  <span>{c.name}</span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+
               </div>
             </div>
             <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
@@ -1153,55 +815,7 @@ export default function AdminStudentsPage() {
         </div>
       )}
 
-      {vehicleModalFor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6">
-            <h2 className="text-lg font-bold mb-4">등하원 정보 수정</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">등원 위도 (Pickup Lat)</label>
-                <input
-                  type="text"
-                  value={pickupLat}
-                  onChange={(e) => setPickupLat(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">등원 경도 (Pickup Lng)</label>
-                <input
-                  type="text"
-                  value={pickupLng}
-                  onChange={(e) => setPickupLng(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">하원 위도 (Dropoff Lat)</label>
-                <input
-                  type="text"
-                  value={dropoffLat}
-                  onChange={(e) => setDropoffLat(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">하원 경도 (Dropoff Lng)</label>
-                <input
-                  type="text"
-                  value={dropoffLng}
-                  onChange={(e) => setDropoffLng(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setVehicleModalFor(null)} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg">취소</button>
-              <button onClick={saveVehicleInfo} className="px-4 py-2 text-sm font-bold text-white bg-frage-blue rounded-lg hover:bg-blue-700">저장</button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </main>
   );
 }
