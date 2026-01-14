@@ -29,24 +29,27 @@ export async function GET(request: Request) {
   const birthMonth = url.searchParams.get("birthMonth");
 
   try {
-    let query = supabaseService
-      .from("v_students_full")
-      .select("*");
+    let query = supabaseService.from("v_students_full").select("*");
+    let countQuery = supabaseService.from("v_students_full").select("*", { count: "exact", head: true });
 
     if (campus && campus !== "All") {
       query = query.eq("campus", campus);
+      countQuery = countQuery.eq("campus", campus);
     }
 
     if (classId && classId !== "All") {
       query = query.eq("class_name", classId);
+      countQuery = countQuery.eq("class_name", classId);
     }
 
     if (dajim && dajim !== "All") {
       query = query.eq("dajim_enabled", dajim === "O");
+      countQuery = countQuery.eq("dajim_enabled", dajim === "O");
     }
 
     if (name) {
       query = query.ilike("student_name", `%${name}%`);
+      countQuery = countQuery.ilike("student_name", `%${name}%`);
     }
 
     if (birthMonth && birthMonth !== "All") {
@@ -56,9 +59,8 @@ export async function GET(request: Request) {
       const nextYear = month === 12 ? 2001 : 2000;
       const to = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
       
-      query = query
-        .gte("birth_date", from)
-        .lt("birth_date", to);
+      query = query.gte("birth_date", from).lt("birth_date", to);
+      countQuery = countQuery.gte("birth_date", from).lt("birth_date", to);
     }
 
     const page = Number(url.searchParams.get("page") ?? 1);
@@ -66,18 +68,17 @@ export async function GET(request: Request) {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    // Use exact count for pagination
-    query = query.select("*", { count: "exact" });
-
-    const { data, error, count } = await query
-      .order("class_sort_order", { ascending: true }) // As requested
+    // 1. Data Query
+    const { data, error } = await query
+      .order("class_sort_order", { ascending: true })
       .order("student_name", { ascending: true })
       .range(from, to);
 
-    if (error) {
-      // Fallback if class_sort_order doesn't exist, though user requested it.
-      // If error is related to column, we might want to fallback to class_name
-      console.error(error);
+    // 2. Count Query (Separate to avoid type errors)
+    const { count: totalCount, error: countError } = await countQuery;
+
+    if (error || countError) {
+      console.error(error || countError);
       return NextResponse.json({ items: [], total: 0, page, pageSize, totalPages: 0 }, { status: 500 });
     }
     const rows = Array.isArray(data) ? data : [];
@@ -98,10 +99,10 @@ export async function GET(request: Request) {
     
     return NextResponse.json({ 
       items, 
-      total: count ?? 0,
+      total: totalCount ?? 0,
       page,
       pageSize,
-      totalPages: Math.ceil((count ?? 0) / pageSize)
+      totalPages: Math.ceil((totalCount ?? 0) / pageSize)
     }, { status: 200 });
   } catch (e) {
     console.error(e);
