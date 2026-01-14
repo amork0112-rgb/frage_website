@@ -32,7 +32,7 @@ export async function GET(request: Request) {
         student_name,
         campus,
         status,
-        class_id,
+        main_class,
         class_name,
         parent_phone,
         parent_name,
