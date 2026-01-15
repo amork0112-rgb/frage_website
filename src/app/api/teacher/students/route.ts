@@ -65,6 +65,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
+    const { data: teacher, error: teacherError } = await supabaseService
+      .from("teachers")
+      .select("id,campus,role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (teacherError) {
+      console.error("TEACHER_FETCH_ERROR", teacherError);
+      return NextResponse.json({ error: "teacher_fetch_failed" }, { status: 500 });
+    }
+
+    if (!teacher) {
+      return NextResponse.json({ error: "teacher_not_found" }, { status: 400 });
+    }
+
     let query = supabaseService
       .from("v_students_full")
       .select(`

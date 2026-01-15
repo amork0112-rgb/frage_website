@@ -45,12 +45,12 @@ export default function TeacherStudentsPage() {
       const user = data?.user;
       const roleMeta = (user?.app_metadata as any)?.role;
       if (roleMeta === "teacher") {
-        const { data: teacherRow } = await supabase
-          .from("teachers")
+        const { data: teacherClassRow } = await supabase
+          .from("teacher_classes")
           .select("class_name")
-          .eq("auth_user_id", user?.id)
-          .single();
-        setTeacherClass(teacherRow?.class_name || null);
+          .eq("teacher_id", user?.id)
+          .maybeSingle();
+        setTeacherClass((teacherClassRow as any)?.class_name || null);
       } else {
         setTeacherClass(null);
       }
