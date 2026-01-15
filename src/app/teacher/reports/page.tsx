@@ -9,14 +9,11 @@ import { supabase } from "@/lib/supabase";
 
 type Status = "미작성" | "작성중" | "저장완료" | "발송요청" | "발송완료";
 type Gender = "M" | "F";
-type Student = { id: string; name: string; englishName: string; className: string; campus: string };
+type Student = { id: string; name: string; englishName: string; className: string; campus: string; classId: string };
 type Scores = { Reading: number; Listening: number; Speaking: number; Writing: number };
 type VideoScores = { fluency: number; volume: number; speed: number; pronunciation: number; performance: number };
 
 export default function TeacherReportsPage() {
-  const KINDER = ["Kepler", "Platon", "Euclid", "Darwin", "Gauss", "Edison", "Thales"];
-  const JUNIOR = ["G1", "G2", "G3", "G4", "E1", "E2", "E3", "E4", "A1", "A2", "A3", "A4", "A5", "F1", "F2", "F3", "F4", "F5"];
-  const BASE_CAMPUSES = ["International", "Andover", "Atheneum", "Platz"];
   const [students, setStudents] = useState<Student[]>([]);
   const [month, setMonth] = useState<string>(() => {
     const now = new Date();
@@ -41,7 +38,7 @@ export default function TeacherReportsPage() {
   const [classOverall, setClassOverall] = useState<string>("");
   const [participation, setParticipation] = useState<string>("");
   const [selectedBulk, setSelectedBulk] = useState<Record<string, boolean>>({});
-  const [classCatalog, setClassCatalog] = useState<string[]>([]);
+  const [classOptions, setClassOptions] = useState<{ id: string; name: string; campus: string }[]>([]);
   const videoCats = [
     { key: "fluency", label: "Fluency" },
     { key: "volume", label: "Volume" },
@@ -109,6 +106,7 @@ export default function TeacherReportsPage() {
           englishName: String(s.englishName || ""),
           className: String(s.className || "미배정"),
           campus: String(s.campus || "미지정"),
+          classId: String(s.classId || ""),
         }));
         setStudents(mapped);
       } catch {
@@ -119,9 +117,28 @@ export default function TeacherReportsPage() {
   }, []);
 
   useEffect(() => {
-    const list = [...KINDER, ...JUNIOR];
-    setClassCatalog(list);
-  }, []);
+    const loadClasses = async () => {
+      try {
+        const query =
+          campusFilter && campusFilter !== "All"
+            ? `/api/teacher/classes?campus=${encodeURIComponent(campusFilter)}`
+            : "/api/teacher/classes";
+        const res = await fetch(query, { cache: "no-store", credentials: "include" });
+        const data = await res.json();
+        const list: { id: string; name: string; campus: string }[] = Array.isArray(data)
+          ? data.map((r: any) => ({
+              id: String(r.id || ""),
+              name: String(r.name || ""),
+              campus: String(r.campus || ""),
+            }))
+          : [];
+        setClassOptions(list);
+      } catch {
+        setClassOptions([]);
+      }
+    };
+    loadClasses();
+  }, [campusFilter]);
 
   useEffect(() => {
     if (!selected) return;
@@ -247,18 +264,25 @@ export default function TeacherReportsPage() {
   }, [selected, month, gender, scores, comments, videoScores, overall, classOverall, videoSummary]);
 
   const classes = useMemo(() => {
-    const set = new Set<string>([...classCatalog, ...students.map(s => s.className)]);
-    return ["All", ...Array.from(set)];
-  }, [students, classCatalog]);
+    const set = new Map<string, string>();
+    classOptions.forEach((c) => {
+      if (!c.id) return;
+      if (!set.has(c.id)) set.set(c.id, c.name);
+    });
+    return [{ id: "All", name: "All" }, ...Array.from(set.entries()).map(([id, name]) => ({ id, name }))];
+  }, [classOptions]);
   const campuses = useMemo(() => {
-    const set = new Set<string>([...BASE_CAMPUSES, ...students.map(s => s.campus)]);
+    const set = new Set<string>();
+    students.forEach((s) => {
+      if (s.campus) set.add(s.campus);
+    });
     return ["All", ...Array.from(set)];
   }, [students]);
 
   const filtered = useMemo(() => {
     return students
       .filter(s => (campusFilter === "All" ? true : s.campus === campusFilter))
-      .filter(s => (classFilter === "All" ? true : s.className === classFilter))
+      .filter(s => (classFilter === "All" ? true : s.classId === classFilter))
       .filter(s => (statusFilter === "All" ? true : statusMap[s.id] === statusFilter))
       .filter(s => (query.trim() === "" ? true : s.name.includes(query) || s.englishName.toLowerCase().includes(query.toLowerCase())));
   }, [students, campusFilter, classFilter, statusFilter, query, statusMap]);

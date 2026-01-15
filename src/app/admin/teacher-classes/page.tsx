@@ -39,7 +39,12 @@ export default function AdminTeacherClassesPage() {
       try {
         const { data } = await supabase.auth.getUser();
         const appRole = (data?.user?.app_metadata as any)?.role ?? null;
-        const mapped = appRole === "admin" ? "admin" : appRole === "teacher" ? "teacher" : null;
+        const mapped =
+          appRole === "admin" || appRole === "master_admin"
+            ? "admin"
+            : appRole === "teacher"
+            ? "teacher"
+            : null;
         setRole(mapped);
       } catch {
         setRole(null);
@@ -84,8 +89,15 @@ export default function AdminTeacherClassesPage() {
       try {
         const res = await fetch("/api/admin/students");
         const data = await res.json();
-        const arr: Student[] = Array.isArray(data) ? data : data.items || [];
-        setStudents(arr);
+        const rows = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+        const mapped: Student[] = rows.map((r: any) => ({
+          id: String(r.student_id ?? r.id ?? ""),
+          name: String(r.student_name ?? ""),
+          englishName: String(r.english_first_name ?? ""),
+          className: String(r.class_name ?? ""),
+          campus: String(r.campus ?? ""),
+        }));
+        setStudents(mapped);
       } catch {
         setStudents([]);
       }
