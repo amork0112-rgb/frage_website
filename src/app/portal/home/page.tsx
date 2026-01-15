@@ -16,6 +16,14 @@ export default function ParentPortalHome() {
   const [studentStatus, setStudentStatus] = useState<string | null>(null);
   const [studentType, setStudentType] = useState<"enrolled" | "applicant" | null>(null);
   const [newStudentProfile, setNewStudentProfile] = useState<any>(null);
+  const [needOnboarding, setNeedOnboarding] = useState(false);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3 | 4>(1);
+  const [onboardingUseBus, setOnboardingUseBus] = useState<boolean | null>(null);
+  const [onboardingCommuteType, setOnboardingCommuteType] = useState<"bus" | "pickup" | "walk" | "">("");
+  const [onboardingAddress, setOnboardingAddress] = useState("");
+  const [onboardingSaving, setOnboardingSaving] = useState(false);
+  const [onboardingError, setOnboardingError] = useState<string | null>(null);
   
   // For Enrolled Students
   const [monthlyReports, setMonthlyReports] = useState<{ id: string; title: string; date: string; status: string }[]>([]);
@@ -75,6 +83,7 @@ export default function ParentPortalHome() {
         }
         setAuthorized(true);
         setAuthChecked(true);
+        setAuthUserId(user.id);
       } catch {}
     })();
     const today = new Date();
@@ -101,9 +110,51 @@ export default function ParentPortalHome() {
           router.replace("/admission");
           return;
         }
-        setStudentStatus("enrolled");
         const first = students[0] || null;
-        setStudentId(first?.id ? String(first.id) : null);
+        if (first && first.type === "applicant") {
+          setStudentType("applicant");
+          setNewStudentProfile(first);
+          setStudentStatus(null);
+        } else {
+          setStudentStatus("enrolled");
+          setStudentType("enrolled");
+        }
+        if (first && first.id) {
+          setStudentId(String(first.id));
+        } else {
+          setStudentId(null);
+        }
+        if (first && first.type === "enrolled") {
+          const profileCompleted = first.profile_completed === true;
+          const parentAuthUserId = first.parent_auth_user_id ?? null;
+          const useBus =
+            typeof first.use_bus === "boolean" ? first.use_bus : null;
+          const address =
+            typeof first.address === "string" && first.address.trim().length > 0
+              ? first.address
+              : "";
+          const need =
+            profileCompleted !== true ||
+            parentAuthUserId == null ||
+            useBus == null ||
+            (useBus === true && !address);
+          setNeedOnboarding(need);
+          if (useBus !== null) {
+            setOnboardingUseBus(useBus);
+          } else {
+            setOnboardingUseBus(null);
+          }
+          if (useBus === true) {
+            setOnboardingCommuteType("bus");
+          } else {
+            setOnboardingCommuteType("");
+          }
+          setOnboardingAddress(address);
+          setOnboardingStep(1);
+          setOnboardingError(null);
+        } else {
+          setNeedOnboarding(false);
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -539,6 +590,351 @@ export default function ParentPortalHome() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
       <PortalHeader />
+
+      {needOnboarding && studentId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-6 mx-4 relative">
+            <div className="mb-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    차량 배정 및 학습 안내를 위해{" "}
+                    <br className="hidden sm:block" />
+                    처음 한 번만 정보를 확인해 주세요.
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    입력하신 정보는 언제든지 수정할 수 있습니다.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-[11px] font-bold">
+                    {onboardingStep}
+                  </span>
+                  <span className="font-bold">
+                    {onboardingStep === 1
+                      ? "Step 1. 보호자 계정 연결"
+                      : onboardingStep === 2
+                      ? "Step 2. 등·하원 / 차량 정보"
+                      : onboardingStep === 3
+                      ? "Step 3. 주소 입력"
+                      : "Step 4. 완료"}
+                  </span>
+                </div>
+                <span className="font-bold">
+                  {onboardingStep}/4
+                </span>
+              </div>
+            </div>
+
+            {onboardingStep === 1 && (
+              <div className="space-y-4">
+                <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">
+                    1
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">
+                      현재 로그인한 계정을 자녀 정보와 연결합니다.
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      계정 연결 중입니다. 다음 버튼을 눌러 계속 진행해 주세요.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setOnboardingStep(2)}
+                    className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
+                  >
+                    다음
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {onboardingStep === 2 && (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900 mb-2">
+                      차량을 이용하시나요?
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOnboardingUseBus(true);
+                          setOnboardingCommuteType("bus");
+                        }}
+                        className={`px-4 py-3 rounded-xl border text-sm font-bold ${
+                          onboardingUseBus === true
+                            ? "bg-frage-blue text-white border-frage-blue"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        Yes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOnboardingUseBus(false);
+                          if (
+                            onboardingCommuteType === "" ||
+                            onboardingCommuteType === "bus"
+                          ) {
+                            setOnboardingCommuteType("pickup");
+                          }
+                        }}
+                        className={`px-4 py-3 rounded-xl border text-sm font-bold ${
+                          onboardingUseBus === false
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        No
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900 mb-2">
+                      귀가 방식 선택
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        disabled={onboardingUseBus === false}
+                        onClick={() => {
+                          if (onboardingUseBus !== false) {
+                            setOnboardingCommuteType("bus");
+                          }
+                        }}
+                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
+                          onboardingCommuteType === "bus"
+                            ? "bg-frage-blue text-white border-frage-blue"
+                            : "bg-white text-slate-700 border-slate-200"
+                        } ${
+                          onboardingUseBus === false
+                            ? "opacity-40 cursor-not-allowed"
+                            : ""
+                        }`}
+                      >
+                        Bus
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOnboardingCommuteType("pickup")}
+                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
+                          onboardingCommuteType === "pickup"
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        Pickup
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOnboardingCommuteType("walk")}
+                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
+                          onboardingCommuteType === "walk"
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        Walk
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      차량 미이용 시에도 귀가 방식을 선택해 주세요.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setOnboardingStep(1)}
+                    className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50"
+                  >
+                    이전
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      onboardingUseBus === null ||
+                      onboardingCommuteType === ""
+                    }
+                    onClick={() => setOnboardingStep(3)}
+                    className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    다음
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {onboardingStep === 3 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-bold text-slate-900">
+                    주소 입력
+                    {onboardingUseBus === true && (
+                      <span className="text-xs text-red-500 ml-1">(필수)</span>
+                    )}
+                  </p>
+                  <input
+                    type="text"
+                    value={onboardingAddress}
+                    onChange={(e) => setOnboardingAddress(e.target.value)}
+                    placeholder="예: 대구 수성구 ○○아파트 ○동 ○○호"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    셔틀 버스를 이용하시는 경우 등·하원 기준 주소를 입력해 주세요.
+                  </p>
+                  {onboardingUseBus === false && (
+                    <p className="text-[11px] text-slate-400">
+                      버스를 이용하지 않는 경우 주소 입력은 선택입니다.
+                    </p>
+                  )}
+                </div>
+                <div className="flex justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setOnboardingStep(2)}
+                    className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50"
+                  >
+                    이전
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      onboardingUseBus === true &&
+                      onboardingAddress.trim().length === 0
+                    }
+                    onClick={() => setOnboardingStep(4)}
+                    className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    다음
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {onboardingStep === 4 && (
+              <div className="space-y-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                  <p className="text-sm font-bold text-slate-900">
+                    입력 내용 확인
+                  </p>
+                  <div className="text-xs text-slate-600 space-y-1">
+                    <p>
+                      • 차량 이용 여부:{" "}
+                      <span className="font-bold">
+                        {onboardingUseBus ? "Yes (버스 이용)" : "No (버스 미이용)"}
+                      </span>
+                    </p>
+                    <p>
+                      • 귀가 방식:{" "}
+                      <span className="font-bold">
+                        {onboardingCommuteType === "bus"
+                          ? "Bus"
+                          : onboardingCommuteType === "pickup"
+                          ? "Pickup"
+                          : onboardingCommuteType === "walk"
+                          ? "Walk"
+                          : "-"}
+                      </span>
+                    </p>
+                    <p>
+                      • 주소:{" "}
+                      <span className="font-bold">
+                        {onboardingAddress.trim() || "입력 없음"}
+                      </span>
+                    </p>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    저장 후에도 내 자녀 메뉴에서 언제든지 수정할 수 있습니다.
+                  </p>
+                  {onboardingError && (
+                    <p className="text-[11px] text-red-500">
+                      {onboardingError}
+                    </p>
+                  )}
+                </div>
+                <div className="flex justify-between gap-2">
+                  <button
+                    type="button"
+                    disabled={onboardingSaving}
+                    onClick={() => setOnboardingStep(3)}
+                    className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                  >
+                    이전
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      onboardingSaving ||
+                      onboardingUseBus === null ||
+                      onboardingCommuteType === "" ||
+                      (onboardingUseBus === true &&
+                        onboardingAddress.trim().length === 0)
+                    }
+                    onClick={async () => {
+                      if (!studentId || !authUserId) return;
+                      setOnboardingSaving(true);
+                      setOnboardingError(null);
+                      try {
+                        const payload: any = {
+                          use_bus: onboardingUseBus,
+                          commute_type:
+                            onboardingCommuteType === "walk"
+                              ? "self"
+                              : onboardingCommuteType === "pickup"
+                              ? "self"
+                              : "bus",
+                          address:
+                            onboardingAddress.trim().length > 0
+                              ? onboardingAddress.trim()
+                              : null,
+                          parent_auth_user_id: authUserId,
+                          profile_completed: true,
+                        };
+                        const res = await fetch(
+                          `/api/students/${studentId}/onboarding`,
+                          {
+                            method: "PATCH",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify(payload),
+                          }
+                        );
+                        if (!res.ok) {
+                          setOnboardingError("저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+                          setOnboardingSaving(false);
+                          return;
+                        }
+                        setNeedOnboarding(false);
+                      } catch {
+                        setOnboardingError("저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+                        setOnboardingSaving(false);
+                      }
+                    }}
+                    className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {onboardingSaving ? "저장 중..." : "저장하고 시작하기"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <main className="px-4 py-6 max-w-2xl mx-auto space-y-8">
         <section>

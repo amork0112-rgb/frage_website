@@ -32,6 +32,48 @@ export async function GET() {
       .select("id,student_name,english_first_name,status,grade,campus,parent_user_id")
       .eq("parent_id", parentId);
 
+    const enrolledIds = Array.isArray(enrolledStudents)
+      ? enrolledStudents.map((s: any) => s.id).filter((v: any) => v)
+      : [];
+
+    let onboardingMap: Record<
+      string,
+      {
+        profile_completed: boolean | null;
+        use_bus: boolean | null;
+        address: string | null;
+        parent_auth_user_id: string | null;
+      }
+    > = {};
+
+    if (enrolledIds.length > 0) {
+      const { data: onboardingRows } = await supabase
+        .from("students")
+        .select("id,profile_completed,use_bus,address,parent_auth_user_id")
+        .in("id", enrolledIds as any);
+
+      onboardingMap =
+        Array.isArray(onboardingRows)
+          ? onboardingRows.reduce((acc: typeof onboardingMap, row: any) => {
+              const key = String(row.id || "");
+              if (!key) return acc;
+              acc[key] = {
+                profile_completed:
+                  typeof row.profile_completed === "boolean"
+                    ? row.profile_completed
+                    : null,
+                use_bus:
+                  typeof row.use_bus === "boolean" ? row.use_bus : null,
+                address: row.address ? String(row.address) : null,
+                parent_auth_user_id: row.parent_auth_user_id
+                  ? String(row.parent_auth_user_id)
+                  : null,
+              };
+              return acc;
+            }, {} as typeof onboardingMap)
+          : {};
+    }
+
     // 2. Fetch New Students (Applicants, excluding promoted)
     const { data: newStudents } = await supabase
       .from("new_students")
@@ -40,16 +82,28 @@ export async function GET() {
       .neq("status", "promoted");
 
     const enrolledItems = Array.isArray(enrolledStudents)
-      ? enrolledStudents.map((s: any) => ({
-          id: String(s.id || ""),
-          name: String(s.student_name || ""),
-          englishName: String(s.english_first_name || ""),
-          status: String(s.status || "promoted"), // Should be promoted
-          className: String(s.grade || ""),
-          campus: String(s.campus || ""),
-          parentAccountId: String(s.parent_user_id || ""),
-          type: "enrolled"
-        }))
+      ? enrolledStudents.map((s: any) => {
+          const key = String(s.id || "");
+          const onboarding = key ? onboardingMap[key] : undefined;
+          return {
+            id: key,
+            name: String(s.student_name || ""),
+            englishName: String(s.english_first_name || ""),
+            status: String(s.status || "promoted"),
+            className: String(s.grade || ""),
+            campus: String(s.campus || ""),
+            parentAccountId: String(s.parent_user_id || ""),
+            profile_completed: onboarding
+              ? onboarding.profile_completed === true
+              : null,
+            parent_auth_user_id: onboarding
+              ? onboarding.parent_auth_user_id
+              : null,
+            use_bus: onboarding ? onboarding.use_bus : null,
+            address: onboarding ? onboarding.address : null,
+            type: "enrolled",
+          };
+        })
       : [];
 
     const newItems = Array.isArray(newStudents)

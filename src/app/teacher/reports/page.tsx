@@ -464,11 +464,15 @@ export default function TeacherReportsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Class</label>
-              <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                {classes.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
+          <label className="block text-xs font-bold text-slate-500 mb-1">Class</label>
+          <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+          </select>
+        </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">Status</label>
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">

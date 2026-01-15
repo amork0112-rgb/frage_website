@@ -15,7 +15,7 @@ type Student = {
   englishName: string;
   birthDate: string;
   phone: string;
-  className: string;
+  className: string; 
   campus: string;
   status: Status;
   parentName: string;
