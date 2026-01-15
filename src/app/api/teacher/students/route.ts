@@ -128,19 +128,15 @@ export async function GET(request: Request) {
       return formatResponse(rows, page, pageSize);
     }
 
-    // 2. Regular Teacher -> View only assigned classes
+    // 2. Regular Teacher -> View only assigned classes (or all if none assigned)
     if (role === "teacher") {
       const { data: teacherClasses } = await supabaseService
         .from("teacher_classes")
         .select("class_name")
         .eq("teacher_id", user.id);
 
-      // If no classes assigned, return empty list (not error)
-      if (!teacherClasses || teacherClasses.length === 0) {
-        return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 200 });
-      }
-
-      const classNames = teacherClasses.map(c => c.class_name);
+      const hasClasses = !!teacherClasses && teacherClasses.length > 0;
+      const classNames = hasClasses ? teacherClasses.map((c: any) => c.class_name) : [];
 
       let query = supabaseService
         .from("v_students_full")
@@ -162,8 +158,11 @@ export async function GET(request: Request) {
           main_class,
           pickup_type,
           dropoff_type
-        `)
-        .in("class_name", classNames);
+        `);
+
+      if (hasClasses) {
+        query = query.in("class_name", classNames);
+      }
 
       if (
         normalizedClassId &&
