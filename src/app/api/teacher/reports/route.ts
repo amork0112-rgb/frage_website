@@ -55,12 +55,10 @@ export async function POST(req: Request) {
     const role = user.app_metadata?.role ?? "parent";
     if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const body = await req.json();
-    const { studentId, month, className, gender, scores, comments, videoScores, overall } = body || {};
+    const { studentId, month, gender, scores, comments, videoScores, overall } = body || {};
     if (
       !studentId ||
       !month ||
-      !className ||
-      (gender !== "M" && gender !== "F") ||
       !scores ||
       !comments ||
       !videoScores ||
@@ -68,11 +66,31 @@ export async function POST(req: Request) {
     ) {
       return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
     }
+
+    const { data: student, error: studentError } = await supabaseAuth
+      .from("v_students_full")
+      .select("student_name,english_first_name,campus,class_name,main_class,student_id")
+      .eq("student_id", studentId)
+      .maybeSingle();
+
+    if (studentError) {
+      console.error("TEACHER_REPORTS_FETCH_STUDENT_ERROR", studentError);
+      return NextResponse.json({ ok: false }, { status: 500 });
+    }
+
+    if (!student) {
+      return NextResponse.json({ ok: false, error: "student_not_found" }, { status: 404 });
+    }
+
     const now = new Date().toISOString();
     const payload = {
       student_id: studentId,
       month,
-      class_name: className,
+      campus: student.campus ?? null,
+      class_id: student.main_class ?? null,
+      class_name: student.class_name ?? null,
+      student_name: student.student_name ?? null,
+      english_first_name: student.english_first_name ?? null,
       gender,
       scores,
       comments,

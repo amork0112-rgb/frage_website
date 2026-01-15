@@ -46,38 +46,32 @@ export async function GET(request: Request) {
         id,
         student_name,
         english_first_name,
-        class_name,
-        campus,
         birth_date,
-        dajim_enabled
+        parent_phone,
+        campus,
+        status,
+        class_name
       `)
       .order("student_name", { ascending: true });
+
+    console.log("RAW DATA", data?.[0]);
+
     if (error) {
       console.error("TEACHER/STUDENTS SELECT ERROR:", error);
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
     }
-    const rows = Array.isArray(data) ? data : [];
-    const base: Student[] = rows.map((r: any) => ({
-      id: String(r.id ?? ""),
-      childId: r.child_id ?? undefined,
-      name: String(r.student_name ?? ""),
-      englishName: String(r.english_first_name ?? ""),
-      birthDate: String(r.birth_date ?? ""),
-      phone: String(r.parent_phone ?? ""),
-      className: String(r.class_name ?? "미배정"),
-      campus: String(r.campus ?? "미지정"),
-      status: (String(r.status ?? "promoted") as Status),
-      parentName: String(r.parent_name ?? ""),
-      parentAccountId: String(r.parent_user_id ?? ""),
-      address: String(r.address ?? ""),
-      bus: String(r.bus ?? ""),
-      departureTime: String(r.departure_time ?? ""),
-      pickupLat: typeof r.pickup_lat === "number" ? r.pickup_lat : undefined,
-      pickupLng: typeof r.pickup_lng === "number" ? r.pickup_lng : undefined,
-      dropoffLat: typeof r.dropoff_lat === "number" ? r.dropoff_lat : undefined,
-      dropoffLng: typeof r.dropoff_lng === "number" ? r.dropoff_lng : undefined,
-      pickupType: (r.pickup_type as any) ?? "self",
-      dropoffType: (r.dropoff_type as any) ?? "self",
+    
+    const base = (data ?? []).map((r: any) => ({
+      id: r.id,
+      name: r.student_name ?? "",
+      englishName: r.english_first_name ?? "",
+      birthDate: r.birth_date ?? "",
+      phone: r.parent_phone ?? "",
+      className: r.class_name ?? "",
+      campus: r.campus ?? "",
+      status: (r.status as Status) ?? "waiting",
+      pickupType: r.pickup_type ?? "self",
+      dropoffType: r.dropoff_type ?? "self",
     }));
     const total = base.length;
     const start = (page - 1) * pageSize;
