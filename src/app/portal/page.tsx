@@ -233,6 +233,7 @@ export default function PortalPage() {
                     </p>
                     <button
                       type="button"
+                      onClick={() => router.push("/portal/verify")}
                       className="w-full mt-3 py-3 rounded-xl border-2 border-frage-navy text-frage-navy font-bold text-sm bg-white hover:bg-frage-navy/5 active:bg-frage-navy/10 transition-all"
                     >
                       {language === "ko" ? "재원생 최초 인증 시작" : "Start First-Time Verification"}
