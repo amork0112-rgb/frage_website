@@ -44,6 +44,7 @@ export default function TeacherHome() {
   const [teacherId, setTeacherId] = useState<string | null>(null);
   const [teacherName, setTeacherName] = useState<string>("");
   const [rememberItems, setRememberItems] = useState<string[]>([]);
+  const [rememberSaving, setRememberSaving] = useState(false);
   const [teacherClass, setTeacherClass] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [todayReservations, setTodayReservations] = useState<number>(0);
@@ -86,7 +87,31 @@ export default function TeacherHome() {
   const ym = `${y}-${String(m + 1).padStart(2, "0")}`;
 
   useEffect(() => {
-    setRememberItems([]);
+    if (!supabaseReady) return;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("teacher_home_remember")
+          .select("id, items")
+          .eq("ym", ym)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        const row = Array.isArray(data) && data.length > 0 ? data[0] as any : null;
+        if (row) {
+          const items = Array.isArray(row.items)
+            ? row.items
+            : String(row.items ?? "")
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean);
+          setRememberItems(items);
+        } else {
+          setRememberItems([]);
+        }
+      } catch {
+        setRememberItems([]);
+      }
+    })();
   }, [ym]);
 
   useEffect(() => {
@@ -182,6 +207,35 @@ export default function TeacherHome() {
     return filtered.slice(0, 8);
   }, [events, ym, y, m]);
 
+  const saveRemember = () => {
+    if (!supabaseReady) return;
+    const run = async () => {
+      try {
+        setRememberSaving(true);
+        const { data } = await supabase
+          .from("teacher_home_remember")
+          .select("id")
+          .eq("ym", ym)
+          .limit(1);
+        const row = Array.isArray(data) && data.length > 0 ? data[0] as any : null;
+        if (row?.id) {
+          await supabase
+            .from("teacher_home_remember")
+            .update({ items: rememberItems })
+            .eq("id", row.id);
+        } else {
+          await supabase.from("teacher_home_remember").insert({
+            ym,
+            items: rememberItems,
+          });
+        }
+      } finally {
+        setRememberSaving(false);
+      }
+    };
+    run();
+  };
+
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
@@ -231,10 +285,11 @@ export default function TeacherHome() {
                 placeholder="Enter one item per line"
               />
               <button
-                disabled
+                onClick={saveRemember}
+                disabled={rememberSaving}
                 className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
               >
-                Save Remember
+                {rememberSaving ? "Saving..." : "Save Remember"}
               </button>
             </div>
           ) : (

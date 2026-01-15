@@ -31,16 +31,17 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
   const pageSize = Math.max(parseInt(url.searchParams.get("pageSize") || "200", 10), 1);
+  const classId = url.searchParams.get("classId");
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 401 });
     const role = user.app_metadata?.role ?? "parent";
-    if (role !== "teacher" && role !== "admin" && role !== "master_admin") {
+    if (role !== "teacher" && role !== "master_teacher" && role !== "admin" && role !== "master_admin") {
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 403 });
     }
 
-    const { data, error } = await supabaseService
+    let query = supabaseService
       .from("v_students_full")
       .select(`
         id,
@@ -51,8 +52,13 @@ export async function GET(request: Request) {
         campus,
         status,
         class_name
-      `)
-      .order("student_name", { ascending: true });
+      `);
+
+    if (classId && classId !== "All") {
+      query = query.eq("main_class", classId);
+    }
+
+    const { data, error } = await query.order("student_name", { ascending: true });
 
     console.log("RAW DATA", data?.[0]);
 
@@ -82,4 +88,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
   }
 }
-
