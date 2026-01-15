@@ -11,7 +11,7 @@ import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
 
 export default function PortalPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const router = useRouter();
   
   const [id, setId] = useState("");
@@ -36,7 +36,7 @@ export default function PortalPage() {
         if (error) {
           const msg = error.message;
           if (msg === "Invalid login credentials") {
-            setError("등록되지 않은 휴대폰 번호이거나 비밀번호가 올바르지 않습니다.");
+            setError("등록되지 않은 이메일이거나 비밀번호가 올바르지 않습니다.");
           } else {
             setError("로그인 중 문제가 발생했습니다.");
           }
@@ -138,6 +138,16 @@ export default function PortalPage() {
               <div className="md:w-1/2 w-full max-w-md bg-white p-8 md:p-10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 relative">
                 <form onSubmit={handleLogin} autoComplete="off" className="flex flex-col gap-5">
                   <div>
+                    <h3 className="text-xl font-black text-frage-navy">
+                      {language === "ko" ? "FRAGE 학습 포털 로그인" : "FRAGE Learning Portal Login"}
+                    </h3>
+                    <p className="mt-2 text-sm text-frage-gray leading-relaxed">
+                      {language === "ko"
+                        ? "신규 학부모 및 인증을 완료한 재원생 학부모는 이메일과 비밀번호로 로그인해 주세요."
+                        : "New parents and verified existing parents, please log in with your email and password."}
+                    </p>
+                  </div>
+                  <div>
                     <label htmlFor="id" className="sr-only">Email</label>
                     <input 
                       type="email" 
@@ -207,22 +217,40 @@ export default function PortalPage() {
                     disabled={loading}
                     className="w-full py-4 mt-2 bg-frage-navy text-white rounded-xl font-bold text-lg hover:bg-frage-blue hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-frage-navy/20 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? "..." : "재원생 학부모 로그인 (휴대폰 인증)"}
+                    {loading ? "..." : t.portal.login_btn}
                   </button>
-                  <p className="mt-2 text-xs text-frage-gray text-center">
-                    아이디·비밀번호 없이 휴대폰 번호로 바로 로그인합니다.
-                  </p>
                   
-                  <div className="mt-6 text-center border-t border-gray-100 pt-6">
-                     <p className="text-frage-gray text-sm mb-3">{t.portal.signup_desc}</p>
-                     <Link 
-                       href="/signup"
-                       prefetch={false}
-                       className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-frage-blue text-frage-blue font-bold hover:bg-frage-blue hover:text-white transition-colors w-full"
-                     >
-                       <UserPlus className="w-5 h-5" />
-                       {t.portal.signup}
-                     </Link>
+                  <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <h4 className="text-sm font-bold text-frage-navy">
+                      {language === "ko"
+                        ? "재원생 학부모 최초 인증 (1회)"
+                        : "First-Time Verification for Existing Parents (One-Time)"}
+                    </h4>
+                    <p className="mt-2 text-xs text-frage-gray leading-relaxed">
+                      {language === "ko"
+                        ? "FRAGE 재원생 학부모는 처음 한 번만 휴대폰 인증을 진행해 주세요. 인증 후에는 비밀번호로 로그인하실 수 있습니다."
+                        : "If your child is already enrolled at FRAGE, please complete phone verification once. After that, you can log in with your password."}
+                    </p>
+                    <button
+                      type="button"
+                      className="w-full mt-3 py-3 rounded-xl border-2 border-frage-navy text-frage-navy font-bold text-sm bg-white hover:bg-frage-navy/5 active:bg-frage-navy/10 transition-all"
+                    >
+                      {language === "ko" ? "재원생 최초 인증 시작" : "Start First-Time Verification"}
+                    </button>
+                  </div>
+
+                  <div className="mt-6 text-center">
+                    <p className="text-frage-gray text-sm mb-3">
+                      {language === "ko" ? "계정이 없으신가요?" : t.portal.signup_desc}
+                    </p>
+                    <Link 
+                      href="/signup"
+                      prefetch={false}
+                      className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-frage-blue text-frage-blue font-bold hover:bg-frage-blue hover:text-white transition-colors w-full"
+                    >
+                      <UserPlus className="w-5 h-5" />
+                      {language === "ko" ? "회원가입 (신규 학부모)" : "Sign Up (New Parent)"}
+                    </Link>
                   </div>
                 </form>
                 

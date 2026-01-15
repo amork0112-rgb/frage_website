@@ -33,17 +33,18 @@ export async function GET(req: Request) {
     const { data: latestRequests } = await requestsQuery;
     const newRequestsCount = Array.isArray(latestRequests) ? latestRequests.length : 0;
 
-    // 2. Notices (Posts)
     let postsQuery = supabaseService
       .from("posts")
-      .select("is_pinned,campus");
+      .select("category,is_archived,campus");
     
     if (campus && campus !== "All") {
       postsQuery = postsQuery.or(`campus.eq.All,campus.eq.${campus}`);
     }
 
     const { data: posts } = await postsQuery;
-    const noticesCount = Array.isArray(posts) ? posts.filter((p: any) => !!p.is_pinned).length : 0;
+    const noticesCount = Array.isArray(posts)
+      ? posts.filter((p: any) => String(p.category || "") === "notice" && !p.is_archived).length
+      : 0;
 
     // 3. New Students (Guest Inquiries)
     let newStudentsQuery = supabaseService
