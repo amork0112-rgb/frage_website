@@ -192,7 +192,7 @@ export default function TeacherStudentsPage() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-slate-700">담임 반</span>
-          <div className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">{teacherClass || "-"}</div>
+          <div className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">{teacherClass || "전체"}</div>
         </div>
       </div>
 

@@ -101,7 +101,9 @@ export async function GET(request: Request) {
         normalizedClassId &&
         normalizedClassId !== "All" &&
         normalizedClassId !== "all" &&
-        normalizedClassId !== "-"
+        normalizedClassId !== "-" &&
+        normalizedClassId !== "undefined" &&
+        normalizedClassId !== "null"
       ) {
         query = query.eq("main_class", normalizedClassId);
       }
