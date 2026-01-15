@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { mockAIGrading } from "@/lib/ai/grading";
 // RLS enforced: use SSR client only
 
 export async function GET() {
@@ -9,6 +10,9 @@ export async function GET() {
     if (!user) return NextResponse.json({ assignments: [] }, { status: 401 });
     const role = user.app_metadata?.role ?? "parent";
     if (role !== "teacher") return NextResponse.json({ assignments: [] }, { status: 403 });
+
+    const isDev = process.env.NODE_ENV !== "production";
+
     const { data: assignments } = await supabase
       .from("video_assignments")
       .select("*")
@@ -26,6 +30,47 @@ export async function GET() {
       .from("students")
       .select("*");
 
+    let { data: aiEvals } = await supabase
+      .from("ai_video_evaluations")
+      .select("*");
+
+    if (isDev && submissions && students) {
+      const existingBySub: Record<string, boolean> = {};
+      (aiEvals || []).forEach((ai: any) => {
+        if (ai?.submission_id) existingBySub[String(ai.submission_id)] = true;
+      });
+
+      const inserts: any[] = [];
+      submissions.forEach((sub: any) => {
+        const subId = String(sub.id ?? "");
+        if (!subId || existingBySub[subId]) return;
+        const studentId = String(sub.student_id ?? "");
+        const assignmentId = String(sub.assignment_id ?? "");
+        if (!studentId || !assignmentId) return;
+        const student = (students || []).find((st: any) => String(st.id ?? st.student_id ?? "") === studentId);
+        const name = String(student?.english_name ?? student?.student_name ?? "Student");
+        const mock = mockAIGrading(name, "");
+        inserts.push({
+          submission_id: subId,
+          assignment_id: assignmentId,
+          student_id: studentId,
+          scores: mock.scores,
+          average: mock.average,
+          pronunciation_flags: mock.pronunciation_flags,
+          teacher_feedback_draft: mock.teacher_feedback_draft,
+          parent_report_message: mock.parent_report_message,
+          needs_teacher_review: mock.needs_teacher_review,
+          ai_confidence: mock.ai_confidence
+        });
+      });
+
+      if (inserts.length > 0) {
+        await supabase.from("ai_video_evaluations").insert(inserts);
+        const refreshed = await supabase.from("ai_video_evaluations").select("*");
+        aiEvals = refreshed.data || aiEvals;
+      }
+    }
+
     const subByAssign: Record<string, any[]> = {};
     (submissions || []).forEach((s: any) => {
       const aid = String(s.assignment_id ?? s.assignmentId ?? "");
@@ -40,6 +85,11 @@ export async function GET() {
       if (!prev || new Date(f.updated_at ?? f.updatedAt ?? 0).getTime() > new Date(prev.updated_at ?? prev.updatedAt ?? 0).getTime()) {
         fbByKey[key] = f;
       }
+    });
+
+    const aiBySub: Record<string, any> = {};
+    (aiEvals || []).forEach((ai: any) => {
+      if (ai?.submission_id) aiBySub[String(ai.submission_id)] = ai;
     });
 
     const studentsByClassCampus: Record<string, any[]> = {};
@@ -68,6 +118,9 @@ export async function GET() {
         const sub = subByStudent[sid];
         const fbKey = `${aid}_${sid}`;
         const fb = fbByKey[fbKey];
+
+        const ai = sub ? aiBySub[String(sub.id)] : null;
+
         return {
           student_id: sid,
           student_name: String(st.student_name ?? st.name ?? ""),
@@ -86,6 +139,17 @@ export async function GET() {
                 updated_at: String(fb.updated_at ?? fb.updatedAt ?? ""),
               }
             : null,
+          ai_evaluation: ai
+            ? {
+                scores: ai.scores,
+                average: ai.average,
+                pronunciation_flags: ai.pronunciation_flags,
+                teacher_feedback_draft: ai.teacher_feedback_draft,
+                parent_report_message: ai.parent_report_message,
+                needs_teacher_review: ai.needs_teacher_review,
+                ai_confidence: ai.ai_confidence
+              }
+            : null
         };
       });
       return {

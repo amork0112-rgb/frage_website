@@ -316,15 +316,26 @@ export default function TeacherHome() {
             </h2>
             <p className="text-sm text-slate-500 mb-4">Check your class schedule and room assignments.</p>
           </div>
-          <a
-            href="https://docs.google.com/spreadsheets/d/1KNS4HFPrh0nOxRaOeyKX3tMulEth8ozk/edit?gid=1147891973#gid=1147891973"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center justify-center gap-2 w-full py-2.5 bg-slate-50 text-slate-700 font-bold text-sm rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" />
-            View Google Sheet
-          </a>
+          <div className="flex flex-col gap-2">
+            <a
+              href="https://docs.google.com/spreadsheets/d/1KNS4HFPrh0nOxRaOeyKX3tMulEth8ozk/edit?gid=1147891973#gid=1147891973"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 w-full py-2.5 bg-slate-50 text-slate-700 font-bold text-sm rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              View Kinder Schedule
+            </a>
+            <a
+              href="https://docs.google.com/spreadsheets/d/1Kk0ik1vo8dhFmczVjTEUQgx_WtomeJV8vtCeP1QC0xk/edit?usp=sharing"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 w-full py-2.5 bg-slate-50 text-slate-700 font-bold text-sm rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              View Primary Schedule
+            </a>
+          </div>
         </section>
       </div>
 

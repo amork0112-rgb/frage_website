@@ -2,8 +2,29 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Video, CheckCircle, Search, X } from "lucide-react";
+import { Video, CheckCircle, Search, X, Bot, AlertCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+
+type AIEvaluation = {
+  scores: {
+    fluency: number;
+    volume: number;
+    speed: number;
+    pronunciation: number;
+    performance: number;
+  };
+  average: number;
+  pronunciation_flags: { word: string; time: number }[];
+  teacher_feedback_draft: {
+    overall_message: string;
+    strengths: string[];
+    focus_point: string;
+    next_try_guide: string;
+  };
+  parent_report_message: string;
+  needs_teacher_review: boolean;
+  ai_confidence: number;
+};
 
 type Student = { id: string; name: string; englishName: string; className: string; campus: string; parentAccountId?: string };
 type Status = "미제출" | "제출 완료" | "피드백 완료";
@@ -19,6 +40,7 @@ type Homework = {
   dueDate: string;
   status: Status;
   videoUrl?: string | null;
+  aiEval?: AIEvaluation | null;
 };
 
 type Feedback = {
@@ -31,6 +53,7 @@ type Feedback = {
   strengths: string[];
   focus_point: string;
   next_try_guide: string;
+  parent_report_message: string;
   average: number;
   updatedAt: string;
 };
@@ -43,7 +66,7 @@ const strengthOptions = [
   "Consistent eye tracking",
   "Well-managed punctuation pauses"
 ];
-const scoreDesc: Record<keyof Omit<Feedback, "overall_message" | "strengths" | "focus_point" | "next_try_guide" | "average" | "updatedAt">, Record<number, string>> = {
+const scoreDesc: Record<keyof Omit<Feedback, "overall_message" | "strengths" | "focus_point" | "next_try_guide" | "parent_report_message" | "average" | "updatedAt">, Record<number, string>> = {
   fluency: {
     1: "Reads with frequent pauses",
     2: "Developing flow with some pauses",
@@ -102,6 +125,7 @@ export default function TeacherVideoPage() {
     strengths: [],
     focus_point: "",
     next_try_guide: "",
+    parent_report_message: "",
     average: 0,
     updatedAt: ""
   });
@@ -137,6 +161,7 @@ export default function TeacherVideoPage() {
             const eng = String(s.english_name || "");
             const submission = s.submission || null;
             const feedback = s.feedback || null;
+            const ai = s.ai_evaluation || null;
             let status: Status = "미제출";
             if (submission && !feedback) status = "제출 완료";
             if (submission && feedback) status = "피드백 완료";
@@ -157,7 +182,23 @@ export default function TeacherVideoPage() {
               title,
               dueDate: due,
               status,
-              videoUrl
+              videoUrl,
+              aiEval: ai
+                ? {
+                    scores: ai.scores,
+                    average: ai.average,
+                    pronunciation_flags: ai.pronunciation_flags || [],
+                    teacher_feedback_draft: ai.teacher_feedback_draft || {
+                      overall_message: "",
+                      strengths: [],
+                      focus_point: "",
+                      next_try_guide: ""
+                    },
+                    parent_report_message: ai.parent_report_message || "",
+                    needs_teacher_review: !!ai.needs_teacher_review,
+                    ai_confidence: typeof ai.ai_confidence === "number" ? ai.ai_confidence : 0
+                  }
+                : null
             };
           });
         });
@@ -217,12 +258,28 @@ export default function TeacherVideoPage() {
           : i.name.includes(query) ||
             i.englishName.toLowerCase().includes(query.toLowerCase()) ||
             i.title.toLowerCase().includes(query.toLowerCase())
-      ));
+      ))
+      .sort((a, b) => {
+        // Priority 1: Needs teacher review
+        const aNeedsReview = a.aiEval?.needs_teacher_review ? 1 : 0;
+        const bNeedsReview = b.aiEval?.needs_teacher_review ? 1 : 0;
+        if (aNeedsReview !== bNeedsReview) return bNeedsReview - aNeedsReview;
+
+        // Priority 2: Submitted but no feedback yet
+        const aSubmitted = a.status === "제출 완료" ? 1 : 0;
+        const bSubmitted = b.status === "제출 완료" ? 1 : 0;
+        if (aSubmitted !== bSubmitted) return bSubmitted - aSubmitted;
+
+        // Priority 3: Date (newest first)
+        return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+      });
   }, [items, classFilter, campusFilter, dateFilter, statusFilter, query]);
 
   const startFeedback = async (hw: Homework) => {
     setOpenVideoFor(hw);
-    setFb({
+    
+    // Default empty state
+    const emptyState: Feedback = {
       overall_message: "",
       fluency: 0,
       volume: 0,
@@ -232,16 +289,37 @@ export default function TeacherVideoPage() {
       strengths: [],
       focus_point: "",
       next_try_guide: "",
+      parent_report_message: "",
       average: 0,
       updatedAt: ""
-    });
+    };
+
+    // If AI evaluation exists, pre-fill from AI draft
+    if (hw.aiEval) {
+      emptyState.fluency = hw.aiEval.scores.fluency;
+      emptyState.volume = hw.aiEval.scores.volume;
+      emptyState.speed = hw.aiEval.scores.speed;
+      emptyState.pronunciation = hw.aiEval.scores.pronunciation;
+      emptyState.performance = hw.aiEval.scores.performance;
+      emptyState.average = hw.aiEval.average;
+      
+      emptyState.overall_message = hw.aiEval.teacher_feedback_draft.overall_message;
+      emptyState.strengths = hw.aiEval.teacher_feedback_draft.strengths;
+      emptyState.focus_point = hw.aiEval.teacher_feedback_draft.focus_point;
+      emptyState.next_try_guide = hw.aiEval.teacher_feedback_draft.next_try_guide;
+      emptyState.parent_report_message = hw.aiEval.parent_report_message;
+    }
+
+    setFb(emptyState);
     setAttachments([]);
+    
     try {
       const url = `/api/teacher/video/feedback?studentId=${encodeURIComponent(hw.studentId)}&assignmentId=${encodeURIComponent(hw.assignmentId)}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         if (data && data.item) {
+          // If previous human feedback exists, it overrides AI draft
           setFb(data.item);
         }
       }
@@ -254,7 +332,8 @@ export default function TeacherVideoPage() {
     const okOverall = fb.overall_message.trim().length > 0;
     const okFocus = fb.focus_point.trim().length > 0;
     const okGuide = fb.next_try_guide.trim().length > 0;
-    return okScores && okOverall && okFocus && okGuide;
+    const okParent = fb.parent_report_message.trim().length > 0;
+    return okScores && okOverall && okFocus && okGuide && okParent;
   }, [fb]);
 
   const saveFeedback = async () => {
@@ -353,6 +432,13 @@ export default function TeacherVideoPage() {
     if (el.requestFullscreen) el.requestFullscreen();
   };
 
+  const jumpTo = (t: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = t;
+      videoRef.current.play();
+    }
+  };
+
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -442,14 +528,35 @@ export default function TeacherVideoPage() {
                   </div>
                   <div className="text-xs font-bold text-slate-500">{hw.className} • {hw.campus}</div>
                 </div>
-                <div className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                  hw.status === "미제출"
-                    ? "bg-slate-100 text-slate-600 border-slate-200"
-                    : hw.status === "제출 완료"
-                    ? "bg-blue-100 text-blue-700 border-blue-200"
-                    : "bg-green-100 text-green-700 border-green-200"
-                }`}>
-                  {hw.status}
+                <div className="flex gap-2">
+                  {hw.aiEval && (
+                    <div className={`px-2.5 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1 ${
+                      hw.aiEval.needs_teacher_review
+                        ? "bg-orange-100 text-orange-700 border-orange-200"
+                        : "bg-indigo-100 text-indigo-700 border-indigo-200"
+                    }`}>
+                      {hw.aiEval.needs_teacher_review ? (
+                        <>
+                          <AlertCircle className="w-3 h-3" />
+                          교사 확인 필요
+                        </>
+                      ) : (
+                        <>
+                          <Bot className="w-3 h-3" />
+                          AI 완료
+                        </>
+                      )}
+                    </div>
+                  )}
+                  <div className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                    hw.status === "미제출"
+                      ? "bg-slate-100 text-slate-600 border-slate-200"
+                      : hw.status === "제출 완료"
+                      ? "bg-blue-100 text-blue-700 border-blue-200"
+                      : "bg-green-100 text-green-700 border-green-200"
+                  }`}>
+                    {hw.status}
+                  </div>
                 </div>
               </div>
               <div className="mt-2 text-sm text-slate-700">{hw.title}</div>
@@ -489,6 +596,28 @@ export default function TeacherVideoPage() {
                   <div className="text-white text-sm flex items-center justify-center h-full">No video submitted</div>
                 )}
               </div>
+              
+              {openVideoFor.aiEval?.pronunciation_flags && openVideoFor.aiEval.pronunciation_flags.length > 0 && (
+                <div className="bg-orange-50 rounded-xl p-3 border border-orange-100">
+                  <div className="text-xs font-bold text-orange-800 mb-2 flex items-center gap-2">
+                    <AlertCircle className="w-3 h-3" />
+                    Pronunciation Check
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {openVideoFor.aiEval.pronunciation_flags.map((flag, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => jumpTo(flag.time)}
+                        className="px-2 py-1 bg-white border border-orange-200 rounded-lg text-xs font-medium text-orange-700 hover:bg-orange-100 transition-colors flex items-center gap-1"
+                      >
+                        <span>{flag.word}</span>
+                        <span className="opacity-60 text-[10px]">{Math.floor(flag.time / 60)}:{String(Math.floor(flag.time % 60)).padStart(2, "0")}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-4">
                 <div>
                   <div className="text-[11px] font-bold text-slate-500 mb-1">[1] Overall Message</div>
@@ -577,6 +706,15 @@ export default function TeacherVideoPage() {
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
                   />
                   <div className="text-[11px] text-slate-400 mt-1">{fb.next_try_guide.length}/{guideMax}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-slate-500 mb-1">[6] Parent Report Message</div>
+                  <textarea
+                    value={fb.parent_report_message}
+                    onChange={(e) => setFb(prev => ({ ...prev, parent_report_message: e.target.value }))}
+                    placeholder="Message for parents (no AI mentions)"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white h-24 resize-none"
+                  />
                 </div>
                 <div>
                   <div className="text-[11px] font-bold text-slate-500 mb-1">Attachments (optional)</div>

@@ -12,6 +12,7 @@ type FeedbackPayload = {
   strengths: string[];
   focus_point: string;
   next_try_guide: string;
+  parent_report_message: string;
   average: number;
   updatedAt: string;
 };
@@ -50,6 +51,7 @@ export async function GET(req: Request) {
       strengths: Array.isArray(item.strengths) ? item.strengths : [],
       focus_point: String(item.focus_point ?? ""),
       next_try_guide: String(item.next_try_guide ?? ""),
+      parent_report_message: String(item.parent_report_message ?? ""),
       average: Number(item.average ?? 0),
       updatedAt: String(item.updated_at ?? item.updatedAt ?? ""),
     };
@@ -67,7 +69,7 @@ export async function POST(req: Request) {
     const role = user.app_metadata?.role ?? "parent";
     if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const body = await req.json();
-    const { studentId, assignmentId, teacherId, feedback, attachments } = body || {};
+    const { studentId, assignmentId, feedback, attachments } = body || {};
     if (
       !studentId ||
       !assignmentId ||
@@ -80,7 +82,7 @@ export async function POST(req: Request) {
     const row = {
       assignment_id: assignmentId,
       student_id: studentId,
-      teacher_id: teacherId ?? null,
+      teacher_id: String(user.id),
       overall_message: feedback.overall_message,
       fluency: feedback.fluency,
       volume: feedback.volume,
@@ -90,6 +92,7 @@ export async function POST(req: Request) {
       strengths: feedback.strengths,
       focus_point: feedback.focus_point,
       next_try_guide: feedback.next_try_guide,
+      parent_report_message: feedback.parent_report_message ?? "",
       average: feedback.average,
       updated_at: feedback.updatedAt,
       attachments: Array.isArray(attachments) ? attachments : ([] as AttachMeta),

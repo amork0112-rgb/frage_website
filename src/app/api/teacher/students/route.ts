@@ -34,11 +34,15 @@ export async function GET(request: Request) {
   const classId = url.searchParams.get("classId");
   try {
     const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
-    if (!user) return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 401 });
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
     const role = user.app_metadata?.role ?? "parent";
-    if (role !== "teacher" && role !== "master_teacher" && role !== "admin" && role !== "master_admin") {
-      return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 403 });
+    if (role !== "teacher" && role !== "master_teacher") {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
     let query = supabaseService
@@ -48,7 +52,12 @@ export async function GET(request: Request) {
         student_name,
         english_first_name,
         birth_date,
+        parent_name,
         parent_phone,
+        parent_user_id,
+        address,
+        bus,
+        departure_time,
         campus,
         status,
         class_name
@@ -64,18 +73,23 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error("TEACHER/STUDENTS SELECT ERROR:", error);
-      return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
+      return NextResponse.json({ error: "internal_error" }, { status: 500 });
     }
     
     const base = (data ?? []).map((r: any) => ({
       id: r.id,
-      name: r.student_name ?? "",
-      englishName: r.english_first_name ?? "",
-      birthDate: r.birth_date ?? "",
-      phone: r.parent_phone ?? "",
-      className: r.class_name ?? "",
-      campus: r.campus ?? "",
+      name: String(r.student_name ?? ""),
+      englishName: String(r.english_first_name ?? ""),
+      birthDate: String(r.birth_date ?? ""),
+      phone: String(r.parent_phone ?? ""),
+      className: String(r.class_name ?? ""),
+      campus: String(r.campus ?? ""),
       status: (r.status as Status) ?? "waiting",
+      parentName: String(r.parent_name ?? ""),
+      parentAccountId: String(r.parent_user_id ?? ""),
+      address: String(r.address ?? ""),
+      bus: String(r.bus ?? ""),
+      departureTime: String(r.departure_time ?? ""),
       pickupType: r.pickup_type ?? "self",
       dropoffType: r.dropoff_type ?? "self",
     }));

@@ -203,6 +203,8 @@ export default function TeacherStudentsPage() {
               <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
                 <th className="p-3 font-bold">이름</th>
                 <th className="p-3 font-bold w-40">영어이름</th>
+                <th className="p-3 font-bold w-28">캠퍼스</th>
+                <th className="p-3 font-bold w-28">반</th>
                 <th className="p-3 font-bold w-28">재원상태</th>
                 <th className="p-3 font-bold w-24 text-center">호차</th>
                 <th className="p-3 font-bold w-24 text-center">하원 시간대</th>
@@ -217,6 +219,8 @@ export default function TeacherStudentsPage() {
                     <div className="text-xs text-slate-400">{s.phone}</div>
                   </td>
                   <td className="p-3 text-slate-700">{s.englishName}</td>
+                  <td className="p-3 text-slate-700">{s.campus}</td>
+                  <td className="p-3 text-slate-700">{s.className}</td>
                   <td className="p-3">
                     <span className={`px-2 py-1 rounded text-[11px] font-bold border ${
                       s.status === "promoted" ? "bg-green-50 text-green-700 border-green-100" :
@@ -252,7 +256,7 @@ export default function TeacherStudentsPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-sm text-slate-500">표시할 학생이 없습니다.</td>
+                  <td colSpan={8} className="p-6 text-center text-sm text-slate-500">표시할 학생이 없습니다.</td>
                 </tr>
               )}
             </tbody>
