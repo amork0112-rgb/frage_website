@@ -207,10 +207,13 @@ export default function PortalPage() {
                     disabled={loading}
                     className="w-full py-4 mt-2 bg-frage-navy text-white rounded-xl font-bold text-lg hover:bg-frage-blue hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-frage-navy/20 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? "..." : t.portal.login_btn}
+                    {loading ? "..." : "재원생 학부모 로그인 (휴대폰 인증)"}
                   </button>
+                  <p className="mt-2 text-xs text-frage-gray text-center">
+                    아이디·비밀번호 없이 휴대폰 번호로 바로 로그인합니다.
+                  </p>
                   
-                  <div className="mt-4 text-center border-t border-gray-100 pt-6">
+                  <div className="mt-6 text-center border-t border-gray-100 pt-6">
                      <p className="text-frage-gray text-sm mb-3">{t.portal.signup_desc}</p>
                      <Link 
                        href="/signup"

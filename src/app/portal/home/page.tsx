@@ -932,6 +932,20 @@ export default function ParentPortalHome() {
                 </div>
               </div>
             )}
+
+            {needOnboarding && (
+              <details className="mt-4 text-sm text-gray-500 border-t border-slate-100 pt-4">
+                <summary className="cursor-pointer font-medium select-none flex items-center gap-2 text-slate-600">
+                  <HelpCircle className="w-4 h-4" />
+                  자주 묻는 질문
+                </summary>
+                <ul className="mt-2 space-y-1 text-xs text-slate-500 pl-6 list-disc">
+                  <li>아이디/비밀번호를 등록해주세요</li>
+                  <li>재원생의 경우 회원가입 없이 휴대폰 인증만 합니다.</li>
+                  <li>차량·학습 안내를 위한 정보로 처음 한 번만 입력합니다.</li>
+                </ul>
+              </details>
+            )}
           </div>
         </div>
       )}
