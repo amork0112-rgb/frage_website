@@ -18,10 +18,11 @@ type StudentRow = {
   parent_auth_user_id: string | null;
   address: string | null;
   use_bus?: boolean | null;
-  departure_time: string | null;
   main_class?: string | null;
-  pickup_type?: "bus" | "self" | null;
-  dropoff_type?: "bus" | "self" | null;
+  parent_id?: string | null;
+  gender?: string | null;
+  dajim_enabled?: boolean | null;
+  class_sort_order?: number | null;
 };
 
 type Student = {
@@ -87,14 +88,15 @@ export async function GET(request: Request) {
         parent_auth_user_id,
         address,
         use_bus,
-        departure_time,
         campus,
         status,
         class_name,
         class_id,
         main_class,
-        pickup_type,
-        dropoff_type
+        parent_id,
+        gender,
+        dajim_enabled,
+        class_sort_order
       `);
 
       if (
@@ -150,14 +152,15 @@ export async function GET(request: Request) {
           parent_auth_user_id,
           address,
           use_bus,
-          departure_time,
           campus,
           status,
           class_name,
           class_id,
           main_class,
-          pickup_type,
-          dropoff_type
+          parent_id,
+          gender,
+          dajim_enabled,
+          class_sort_order
         `);
 
       if (hasClasses) {
@@ -217,9 +220,9 @@ function formatResponse(rows: StudentRow[], page: number, pageSize: number) {
     parentAccountId: String(r.parent_auth_user_id ?? ""),
     address: String(r.address ?? ""),
     bus: r.use_bus ? "버스" : "",
-    departureTime: String(r.departure_time ?? ""),
-    pickupType: (r.pickup_type as any) ?? "self",
-    dropoffType: (r.dropoff_type as any) ?? "self",
+    departureTime: "",
+    pickupType: "self",
+    dropoffType: "self",
   }));
   const total = base.length;
   const start = (page - 1) * pageSize;
