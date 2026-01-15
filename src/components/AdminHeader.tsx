@@ -29,7 +29,7 @@ export default function AdminHeader() {
     })();
   }, []);
 
-  const isTeacherOnly = role === "teacher" || role === "master_teacher";
+  const isTeacherOnly = role === "teacher";
   if (isTeacherOnly) return null;
 
   const menuItems = [
