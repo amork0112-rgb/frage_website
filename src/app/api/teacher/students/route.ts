@@ -52,6 +52,7 @@ export async function GET(request: Request) {
   const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
   const pageSize = Math.max(parseInt(url.searchParams.get("pageSize") || "200", 10), 1);
   const classId = url.searchParams.get("classId");
+  const campus = url.searchParams.get("campus");
   try {
     const supabaseAuth = createSupabaseServer();
     const {
@@ -62,6 +63,14 @@ export async function GET(request: Request) {
     }
 
     const role = user.app_metadata?.role;
+    console.log("TEACHER_STUDENTS_PARAMS", {
+      role,
+      classId,
+      campus,
+    });
+
+    const normalizedClassId = classId?.trim();
+    const normalizedCampus = campus?.trim();
 
     // 1. Master/Admin roles -> View all students
     if (["master_teacher", "admin", "master_admin"].includes(role)) {
@@ -87,8 +96,22 @@ export async function GET(request: Request) {
         dropoff_type
       `);
 
-      if (classId && classId !== "All") {
-        query = query.eq("main_class", classId);
+      if (
+        normalizedClassId &&
+        normalizedClassId !== "All" &&
+        normalizedClassId !== "all" &&
+        normalizedClassId !== "-"
+      ) {
+        query = query.eq("main_class", normalizedClassId);
+      }
+
+      if (
+        normalizedCampus &&
+        normalizedCampus !== "All" &&
+        normalizedCampus !== "all" &&
+        normalizedCampus !== "-"
+      ) {
+        query = query.eq("campus", normalizedCampus);
       }
 
       const { data, error } = await query.order("student_name", { ascending: true });
@@ -119,28 +142,42 @@ export async function GET(request: Request) {
       let query = supabaseService
         .from("v_students_full")
         .select(`
-        student_id,
-        student_name,
-        english_first_name,
-        birth_date,
-        parent_name,
-        parent_phone,
-        parent_auth_user_id,
-        address,
-        bus,
-        departure_time,
-        campus,
-        status,
-        class_name,
-        class_id,
-        main_class,
-        pickup_type,
-        dropoff_type
-      `)
-      .in("class_name", classNames);
+          student_id,
+          student_name,
+          english_first_name,
+          birth_date,
+          parent_name,
+          parent_phone,
+          parent_auth_user_id,
+          address,
+          bus,
+          departure_time,
+          campus,
+          status,
+          class_name,
+          class_id,
+          main_class,
+          pickup_type,
+          dropoff_type
+        `)
+        .in("class_name", classNames);
 
-      if (classId && classId !== "All") {
-        query = query.eq("main_class", classId);
+      if (
+        normalizedClassId &&
+        normalizedClassId !== "All" &&
+        normalizedClassId !== "all" &&
+        normalizedClassId !== "-"
+      ) {
+        query = query.eq("main_class", normalizedClassId);
+      }
+
+      if (
+        normalizedCampus &&
+        normalizedCampus !== "All" &&
+        normalizedCampus !== "all" &&
+        normalizedCampus !== "-"
+      ) {
+        query = query.eq("campus", normalizedCampus);
       }
 
       const { data, error } = await query.order("student_name", { ascending: true });
