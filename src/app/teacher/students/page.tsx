@@ -62,6 +62,11 @@ export default function TeacherStudentsPage() {
     const load = async () => {
       try {
         const res = await fetch("/api/teacher/students", { cache: "no-store", credentials: "include" });
+        if (!res.ok) {
+          console.error("Failed to load students", res.status);
+          setStudents([]);
+          return;
+        }
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.items || [];
         setStudents(items);
@@ -99,7 +104,7 @@ export default function TeacherStudentsPage() {
 
   const filtered = useMemo(() => {
     return merged
-      .filter(s => s.status === "promoted")
+      .filter(s => !["rejected"].includes(s.status))
       .filter(s => !teacherClass || s.className === teacherClass)
       .filter(s => query === "" || s.name.includes(query) || s.englishName.toLowerCase().includes(query.toLowerCase()));
   }, [merged, teacherClass, query]);
