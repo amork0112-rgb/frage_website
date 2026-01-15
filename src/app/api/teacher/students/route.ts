@@ -17,7 +17,7 @@ type StudentRow = {
   parent_phone: string | null;
   parent_auth_user_id: string | null;
   address: string | null;
-  bus: string | null;
+  use_bus?: boolean | null;
   departure_time: string | null;
   main_class?: string | null;
   pickup_type?: "bus" | "self" | null;
@@ -86,7 +86,7 @@ export async function GET(request: Request) {
         parent_phone,
         parent_auth_user_id,
         address,
-        bus,
+        use_bus,
         departure_time,
         campus,
         status,
@@ -149,7 +149,7 @@ export async function GET(request: Request) {
           parent_phone,
           parent_auth_user_id,
           address,
-          bus,
+          use_bus,
           departure_time,
           campus,
           status,
@@ -216,7 +216,7 @@ function formatResponse(rows: StudentRow[], page: number, pageSize: number) {
     parentName: String(r.parent_name ?? ""),
     parentAccountId: String(r.parent_auth_user_id ?? ""),
     address: String(r.address ?? ""),
-    bus: String(r.bus ?? ""),
+    bus: r.use_bus ? "버스" : "",
     departureTime: String(r.departure_time ?? ""),
     pickupType: (r.pickup_type as any) ?? "self",
     dropoffType: (r.dropoff_type as any) ?? "self",
