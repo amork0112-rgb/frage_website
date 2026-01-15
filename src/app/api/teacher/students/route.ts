@@ -92,15 +92,20 @@ export async function GET(request: Request) {
     }
 
     const { data, error } = await query.order("student_name", { ascending: true });
+    const rows = (data ?? []) as StudentRow[];
 
-    console.log("RAW DATA", data?.[0]);
+    console.log("STUDENTS ROWS", rows);
+    console.log("STUDENTS ERROR", error);
 
     if (error) {
-      console.error("TEACHER/STUDENTS SELECT ERROR:", error);
-      return NextResponse.json({ error: "internal_error" }, { status: 500 });
+      console.error("STUDENTS SELECT ERROR", error);
+      return NextResponse.json({ error }, { status: 500 });
     }
 
-    const rows = (data ?? []) as StudentRow[];
+    if (!rows) {
+      return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 200 });
+    }
+
     const base: Student[] = rows.map((r) => ({
       id: String(r.student_id),
       name: String(r.student_name ?? ""),
