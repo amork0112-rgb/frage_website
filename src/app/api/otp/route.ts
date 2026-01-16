@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       return json({ ok: false, error: "invalid_mode" }, 400);
     }
 
-    if (mode === "request") {
+  if (mode === "request") {
       const rawPhone = String((body as any).phone || "");
       const rawDigits = rawPhone.replace(/\D/g, "");
       const phoneNorm = normalizePhone(rawPhone);
@@ -56,11 +56,28 @@ export async function POST(request: Request) {
 
       const last8 = rawDigits.slice(-8);
 
-      const { data: parent } = await supabaseService
+      console.log("[OTP][input]", {
+        rawPhone,
+        rawDigits,
+        last8,
+      });
+
+      const { data: parents, error: parentErr } = await supabaseService
         .from("parents")
-        .select("id,parent_name,phone,auth_user_id,onboarding_completed")
-        .like("phone_digits", `%${last8}%`)
-        .maybeSingle();
+        .select(
+          "id,parent_name,phone,phone_digits,auth_user_id,onboarding_completed"
+        )
+        .filter("phone_digits", "ilike", `%${last8}%`)
+        .limit(5);
+
+      console.log("[OTP][parents query]", {
+        error: parentErr,
+        count: parents?.length ?? 0,
+        parents,
+      });
+
+      const parent = parents?.[0] ?? null;
+
       console.log("OTP lookup", {
         rawDigits,
         last8,
@@ -81,14 +98,25 @@ export async function POST(request: Request) {
         );
       }
 
-      const { data: anyStudent } = await supabaseService
-        .from("v_students_full")
-        .select("id")
-        .eq("parent_id", String(parent.id))
-        .limit(1)
-        .maybeSingle();
+      const parentId = parent ? String(parent.id) : null;
 
-      if (!anyStudent) {
+      const { data: students, error: studentErr } = await supabaseService
+        .from("v_students_full")
+        .select("id,parent_id")
+        .eq("parent_id", parentId)
+        .limit(5);
+
+      console.log("[OTP][students query]", {
+        parentId,
+        error: studentErr,
+        count: students?.length ?? 0,
+        students,
+      });
+
+      const hasStudent =
+        Array.isArray(students) && students.length > 0;
+
+      if (!hasStudent) {
         return json(
           { ok: false, error: "no_registered_student" },
           404
@@ -97,6 +125,12 @@ export async function POST(request: Request) {
 
       const code = generateOtpCode();
       const expiresAt = new Date(Date.now() + 3 * 60 * 1000).toISOString();
+
+      console.log("[OTP][issue]", {
+        parentId,
+        phoneNorm,
+        expiresAt,
+      });
 
       await supabaseService
         .from("parent_otps")
