@@ -169,6 +169,12 @@ export async function POST(request: Request) {
       const parentId = String(parent.id);
       const nowIso = new Date().toISOString();
 
+      console.log("[OTP][verify input]", {
+        phone: rawPhone,
+        code: rawCode,
+        parentId,
+      });
+
       const { data: otpRow, error: otpErr } = await supabaseService
         .from("parent_otps")
         .select("id,parent_id,code,expires_at,used")
@@ -177,6 +183,11 @@ export async function POST(request: Request) {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      console.log("[OTP][verify result]", {
+        otpRow,
+        error: otpErr,
+      });
 
       if (otpErr || !otpRow) {
         return json({ ok: false, error: "invalid_otp" }, 400);
