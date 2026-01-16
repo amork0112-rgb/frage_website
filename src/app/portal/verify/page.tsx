@@ -78,7 +78,7 @@ export default function ParentFirstVerificationPage() {
 
     (async () => {
       try {
-        const res = await fetch("api/portal/otp", {
+        const res = await fetch("api/otp", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -158,7 +158,7 @@ export default function ParentFirstVerificationPage() {
 
     (async () => {
       try {
-        const res = await fetch("api/portal/otp", {
+        const res = await fetch("api/otp", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -275,7 +275,7 @@ export default function ParentFirstVerificationPage() {
           return;
         }
 
-        const res = await fetch("api/portal/otp", {
+        const res = await fetch("api/otp", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
