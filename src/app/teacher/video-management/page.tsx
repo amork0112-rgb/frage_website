@@ -24,12 +24,17 @@ export default function TeacherVideoManagementPage() {
   const [query, setQuery] = useState("");
   const [filterClass, setFilterClass] = useState<string>("All");
   const [filterCampus, setFilterCampus] = useState<string>("All");
+  const [filterDivision, setFilterDivision] = useState<"kinder" | "primary">("kinder");
 
   const [newTitle, setNewTitle] = useState("");
   const [newModule, setNewModule] = useState("");
   const [newDue, setNewDue] = useState("");
   const [newClass, setNewClass] = useState<string>("All");
   const [newCampus, setNewCampus] = useState<string>("All");
+  const [newDivision, setNewDivision] = useState<"kinder" | "primary">("kinder");
+
+  const [intlKinderClasses, setIntlKinderClasses] = useState<string[]>([]);
+  const [intlPrimaryClasses, setIntlPrimaryClasses] = useState<string[]>([]);
 
   const [editId, setEditId] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<Assignment | null>(null);
@@ -65,6 +70,28 @@ export default function TeacherVideoManagementPage() {
       }
       setClassCatalog([]);
       setTeacherClassMap({});
+
+      try {
+        const { data: intlClasses } = await supabase
+          .from("classes")
+          .select("name, campus, division")
+          .eq("campus", "International")
+          .order("name", { ascending: true });
+        const kinder: string[] = [];
+        const primary: string[] = [];
+        (intlClasses || []).forEach((row: any) => {
+          const name = String(row.name || row.class_name || "").trim();
+          const division = String(row.division || "").toLowerCase();
+          if (!name) return;
+          if (division === "primary") {
+            if (!primary.includes(name)) primary.push(name);
+          } else if (division === "kinder") {
+            if (!kinder.includes(name)) kinder.push(name);
+          }
+        });
+        setIntlKinderClasses(kinder);
+        setIntlPrimaryClasses(primary);
+      } catch {}
     };
     load();
   }, []);
@@ -140,21 +167,57 @@ export default function TeacherVideoManagementPage() {
   const campuses = useMemo(() => CAMPUS_VALUES.slice(), []);
 
   const newClassOptions = useMemo(() => {
+    if (newCampus === "International") {
+      if (newDivision === "primary") return intlPrimaryClasses.map((name) => ({ name, sort: null }));
+      return intlKinderClasses.map((name) => ({ name, sort: null }));
+    }
     if (newCampus === "All") return classOptionsAll;
     return classOptionsByCampus[newCampus] || classOptionsAll;
-  }, [newCampus, classOptionsAll, classOptionsByCampus]);
+  }, [newCampus, newDivision, classOptionsAll, classOptionsByCampus, intlKinderClasses, intlPrimaryClasses]);
 
   const filterClassOptions = useMemo(() => {
+    if (filterCampus === "International") {
+      const base = filterDivision === "primary" ? intlPrimaryClasses : intlKinderClasses;
+      return base.map((name) => ({ name, sort: null }));
+    }
     if (filterCampus === "All") return classOptionsAll;
     return classOptionsByCampus[filterCampus] || classOptionsAll;
-  }, [filterCampus, classOptionsAll, classOptionsByCampus]);
+  }, [filterCampus, filterDivision, classOptionsAll, classOptionsByCampus, intlKinderClasses, intlPrimaryClasses]);
 
   const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const intlKinderSet = new Set(intlKinderClasses);
+    const intlPrimarySet = new Set(intlPrimaryClasses);
     return assignments
-      .filter(a => (filterClass === "All" ? true : a.className === filterClass))
-      .filter(a => (filterCampus === "All" ? true : (a.campus || "All") === filterCampus))
-      .filter(a => (query.trim() === "" ? true : a.title.toLowerCase().includes(query.toLowerCase()) || a.module.toLowerCase().includes(query.toLowerCase())));
-  }, [assignments, filterClass, filterCampus, query]);
+      .filter((a) => {
+        if (filterCampus === "All") return true;
+        const camp = a.campus || "All";
+        return camp === filterCampus;
+      })
+      .filter((a) => {
+        if (filterCampus !== "International") return true;
+        if (filterDivision === "primary") {
+          return filterClass === "All"
+            ? intlPrimarySet.has(a.className)
+            : a.className === filterClass;
+        }
+        return filterClass === "All"
+          ? intlKinderSet.has(a.className)
+          : a.className === filterClass;
+      })
+      .filter((a) => {
+        if (filterCampus === "International") return true;
+        if (filterClass === "All") return true;
+        return a.className === filterClass;
+      })
+      .filter((a) => {
+        if (!q) return true;
+        return (
+          a.title.toLowerCase().includes(q) ||
+          a.module.toLowerCase().includes(q)
+        );
+      });
+  }, [assignments, filterClass, filterCampus, filterDivision, query, intlKinderClasses, intlPrimaryClasses]);
 
   const refreshAssignments = async () => {
     const { data } = await supabase
@@ -181,7 +244,16 @@ export default function TeacherVideoManagementPage() {
     setFilterClass("All");
   }, [filterCampus]);
 
+  useEffect(() => {
+    setNewClass("All");
+  }, [newDivision]);
+
+  useEffect(() => {
+    setFilterClass("All");
+  }, [filterDivision]);
+
   const createAssignment = () => {
+    if (newCampus === "International" && newDivision === "primary") return;
     if (!newTitle.trim() || !newModule.trim() || !newDue || newClass === "All") return;
     (async () => {
       await supabase.from("video_assignments").insert({
@@ -252,6 +324,19 @@ export default function TeacherVideoManagementPage() {
               {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
             </select>
           </div>
+          {newCampus === "International" && (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">Division</label>
+              <select
+                value={newDivision}
+                onChange={(e) => setNewDivision(e.target.value as "kinder" | "primary")}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              >
+                <option value="kinder">Kinder</option>
+                <option value="primary">Primary</option>
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
             <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
@@ -273,9 +358,15 @@ export default function TeacherVideoManagementPage() {
           </div>
         </div>
         <div className="mt-3">
-          <button onClick={createAssignment} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white">
-            <Plus className="w-4 h-4" /> 생성
-          </button>
+          {!(newCampus === "International" && newDivision === "primary") ? (
+            <button onClick={createAssignment} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white">
+              <Plus className="w-4 h-4" /> 생성
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+              Weekly auto assignment enabled
+            </span>
+          )}
         </div>
       </div>
 
@@ -287,6 +378,19 @@ export default function TeacherVideoManagementPage() {
               {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
             </select>
           </div>
+          {filterCampus === "International" && (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">Division</label>
+              <select
+                value={filterDivision}
+                onChange={(e) => setFilterDivision(e.target.value as "kinder" | "primary")}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              >
+                <option value="kinder">Kinder</option>
+                <option value="primary">Primary</option>
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">반 필터</label>
             <select value={filterClass} onChange={(e) => setFilterClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
