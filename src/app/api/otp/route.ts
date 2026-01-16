@@ -87,25 +87,20 @@ export async function POST(request: Request) {
         );
       }
 
-      const parentId = parent ? String(parent.id) : null;
+      const parentId = String(parent.id);
 
-      const { data: students, error: studentErr } = await supabaseService
+      const { count: studentCount, error: studentErr } = await supabaseService
         .from("v_students_full")
-        .select("id,parent_id")
-        .eq("parent_id", parentId)
-        .limit(5);
+        .select("*", { count: "exact", head: true })
+        .eq("parent_id", parentId);
 
-      console.log("[OTP][students query]", {
+      console.log("[OTP][students count]", {
         parentId,
         error: studentErr,
-        count: students?.length ?? 0,
-        students,
+        count: studentCount ?? 0,
       });
 
-      const hasStudent =
-        Array.isArray(students) && students.length > 0;
-
-      if (!hasStudent) {
+      if (!studentCount || studentCount === 0) {
         return json(
           { ok: false, error: "no_registered_student" },
           404
