@@ -46,26 +46,24 @@ export async function POST(request: Request) {
       return json({ ok: false, error: "invalid_mode" }, 400);
     }
 
-  if (mode === "request") {
+    if (mode === "request") {
       const rawPhone = String((body as any).phone || "");
       const rawDigits = rawPhone.replace(/\D/g, "");
       const phoneNorm = normalizePhone(rawPhone);
+
       if (!rawDigits) {
         return json({ ok: false, error: "phone_required" }, 400);
       }
 
-      const last8 = rawDigits.slice(-8);
-
       console.log("[OTP][input]", {
         rawPhone,
         rawDigits,
-        last8,
       });
 
       const { data: parent, error: parentErr } = await supabaseService
         .from("parents")
         .select("id,parent_name,phone,phone_digits,auth_user_id")
-        .like("phone_digits", `%${last8}%`)
+        .eq("phone_digits", rawDigits)
         .maybeSingle();
 
       console.log("[OTP][parents]", {
@@ -118,17 +116,18 @@ export async function POST(request: Request) {
 
       const DEBUG_PHONES = ["01064227116"];
 
-      if (process.env.NODE_ENV !== "production" || DEBUG_PHONES.includes(rawDigits)) {
+      if (
+        process.env.NODE_ENV !== "production" ||
+        DEBUG_PHONES.includes(rawDigits)
+      ) {
         console.log("[OTP DEBUG CODE]", code);
         await supabaseService
           .from("parent_otps")
           .insert({
             parent_id: parent.id,
-            phone: phoneNorm,
             code,
             expires_at: expiresAt,
             used: false,
-            created_at: new Date().toISOString(),
           });
         return json({ ok: true, debugCode: code });
       }
@@ -137,11 +136,9 @@ export async function POST(request: Request) {
         .from("parent_otps")
         .insert({
           parent_id: parent.id,
-          phone: phoneNorm,
           code,
           expires_at: expiresAt,
           used: false,
-          created_at: new Date().toISOString(),
         });
 
       return json({ ok: true });
@@ -149,21 +146,35 @@ export async function POST(request: Request) {
 
     if (mode === "verify") {
       const rawPhone = String((body as any).phone || "");
-      const phoneNorm = normalizePhone(rawPhone);
+      const rawDigits = rawPhone.replace(/\D/g, "");
       const rawCode = String((body as any).code || "").trim();
 
-      if (!phoneNorm || !rawCode) {
+      if (!rawDigits || !rawCode) {
         return json({ ok: false, error: "phone_or_code_missing" }, 400);
       }
 
+      const { data: parent, error: parentErr } = await supabaseService
+        .from("parents")
+        .select("id,parent_name,phone")
+        .eq("phone_digits", rawDigits)
+        .maybeSingle();
+
+      if (parentErr || !parent) {
+        return json(
+          { ok: false, error: "no_registered_student" },
+          404
+        );
+      }
+
+      const parentId = String(parent.id);
       const nowIso = new Date().toISOString();
 
       const { data: otpRow, error: otpErr } = await supabaseService
         .from("parent_otps")
-        .select("id,parent_id,phone,code,expires_at,used")
-        .eq("phone", phoneNorm)
+        .select("id,parent_id,code,expires_at,used")
+        .eq("parent_id", parentId)
         .eq("code", rawCode)
-        .order("created_at", { ascending: false })
+        .order("expires_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -184,25 +195,10 @@ export async function POST(request: Request) {
         .update({ used: true, verified_at: new Date().toISOString() })
         .eq("id", otpRow.id);
 
-      const parentId = otpRow.parent_id;
-
-      const { data: parent } = await supabaseService
-        .from("parents")
-        .select("id,parent_name,phone")
-        .eq("id", parentId)
-        .maybeSingle();
-
-      if (!parent) {
-        return json(
-          { ok: false, error: "no_registered_student" },
-          404
-        );
-      }
-
       const { data: students } = await supabaseService
         .from("v_students_full")
         .select("id,student_name,english_first_name,grade,campus,status")
-        .eq("parent_id", parent.id);
+        .eq("parent_id", parentId);
 
       const children = Array.isArray(students)
         ? students.map((s: any) => ({
@@ -224,7 +220,7 @@ export async function POST(request: Request) {
 
       return json({
         ok: true,
-        parentId: String(parent.id),
+        parentId: String(parentId),
         parentName: String((parent as any).parent_name || ""),
         children,
       });
