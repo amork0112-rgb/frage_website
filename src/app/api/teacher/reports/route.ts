@@ -4,8 +4,8 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 
 export async function GET(req: Request) {
   try {
-    const supabase = createSupabaseServer();
-    const { data: { user } } = await supabase.auth.getUser();
+    const supabaseAuth = createSupabaseServer();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
     const role = user.app_metadata?.role ?? "parent";
     const teacherRoles = ["teacher", "master_teacher"];
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     if (!studentId || !month) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAuth
       .from("teacher_reports")
       .select("*")
       .eq("student_id", studentId)

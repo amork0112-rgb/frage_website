@@ -14,7 +14,8 @@ export async function GET() {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
     const role = user.app_metadata?.role ?? "parent";
-    if (role !== "teacher" && role !== "admin" && role !== "master_admin") {
+    const teacherRoles = ["teacher", "master_teacher", "admin", "master_admin"];
+    if (!teacherRoles.includes(role)) {
       return json({ error: "forbidden" }, 403);
     }
 
@@ -92,8 +93,21 @@ export async function PUT(req: Request) {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
     const role = user.app_metadata?.role ?? "parent";
-    if (role !== "teacher" && role !== "admin" && role !== "master_admin") {
+    const teacherRoles = ["teacher", "master_teacher", "admin", "master_admin"];
+    if (!teacherRoles.includes(role)) {
       return json({ error: "forbidden" }, 403);
+    }
+    let teacherId: string | null = null;
+    if (role === "teacher" || role === "master_teacher") {
+      const { data: teacher } = await supabaseService
+        .from("teachers")
+        .select("id")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+      teacherId = teacher?.id ? String(teacher.id) : null;
+      if (!teacherId) {
+        return json({ error: "teacher_profile_not_found" }, 403);
+      }
     }
     const body = await req.json();
     const studentId = String(body.studentId ?? body.student_id ?? "");
@@ -110,7 +124,7 @@ export async function PUT(req: Request) {
       step_label: key,
       checked,
       checked_at: checked ? new Date().toISOString() : null,
-      teacher_id: String(user.id),
+      teacher_id: teacherId || String(user.id),
     };
 
     const { error } = await supabaseService
