@@ -174,7 +174,7 @@ export async function POST(request: Request) {
         .select("id,parent_id,code,expires_at,used")
         .eq("parent_id", parentId)
         .eq("code", rawCode)
-        .order("expires_at", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
