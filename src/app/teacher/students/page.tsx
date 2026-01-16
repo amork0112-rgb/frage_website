@@ -38,6 +38,8 @@ export default function TeacherStudentsPage() {
   const memoInputRef = useRef<HTMLInputElement | null>(null);
   const [memoPanelVisible, setMemoPanelVisible] = useState(false);
   const [parentPhotos, setParentPhotos] = useState<string[]>([]);
+  const [selectedCampus, setSelectedCampus] = useState<string>("All");
+  const CAMPUSES = ["All", "International", "Andover", "Platz", "Atheneum"];
 
   useEffect(() => {
     const init = async () => {
@@ -61,7 +63,8 @@ export default function TeacherStudentsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/teacher/students", { cache: "no-store", credentials: "include" });
+        const normalizedClassId = !teacherClass || teacherClass === "-" || teacherClass === "all" ? undefined : teacherClass;
+        const res = await fetch(`/api/teacher/students?classId=${normalizedClassId ?? ""}&campus=${selectedCampus}`, { cache: "no-store", credentials: "include" });
         if (!res.ok) {
           console.error("Failed to load students", res.status);
           setStudents([]);
@@ -73,7 +76,7 @@ export default function TeacherStudentsPage() {
       } catch {}
     };
     load();
-  }, []);
+  }, [teacherClass, selectedCampus]);
 
   useEffect(() => {
     const load = async () => {
@@ -179,8 +182,8 @@ export default function TeacherStudentsPage() {
         <Link href="/teacher/alerts" className="text-sm font-bold text-frage-blue">내부 알림</Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end mb-6">
-        <div className="relative">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end mb-6">
+        <div className="relative col-span-1 md:col-span-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -191,8 +194,24 @@ export default function TeacherStudentsPage() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-700">담임 반</span>
-          <div className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">{teacherClass || "전체"}</div>
+          <span className="text-sm font-bold text-slate-700 whitespace-nowrap">캠퍼스</span>
+          <select
+            value={selectedCampus}
+            onChange={(e) => setSelectedCampus(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm focus:ring-2 focus:ring-frage-blue outline-none"
+          >
+            {CAMPUSES.map((c) => (
+              <option key={c} value={c}>
+                {c === "All" ? "전체" : c === "International" ? "국제관" : c === "Andover" ? "앤도버" : c === "Platz" ? "플라츠" : "아테네움관"}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-slate-700 whitespace-nowrap">담임 반</span>
+          <div className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white whitespace-nowrap overflow-hidden text-ellipsis">
+            {teacherClass || "전체"}
+          </div>
         </div>
       </div>
 
