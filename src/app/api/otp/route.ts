@@ -54,12 +54,10 @@ export async function POST(request: Request) {
         return json({ ok: false, error: "phone_required" }, 400);
       }
 
-      const last8 = rawDigits.slice(-8);
-
       const { data: parent } = await supabaseService
         .from("parents")
         .select("id,parent_name,phone,auth_user_id,onboarding_completed")
-        .like("phone_digits", `%${last8}%`)
+        .eq("phone_digits", rawDigits)
         .maybeSingle();
 
       if (!parent) {
