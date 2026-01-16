@@ -144,6 +144,9 @@ export default function ParentFirstVerificationPage() {
   };
 
   const handleVerifyOtp = () => {
+    // 1. 이미 완료된 단계이거나 로딩 중이면 차단 (중복 실행 방지)
+    if (step !== "otp" || loading) return;
+
     if (!otp.trim() || otp.trim().length < 4) {
       setError("인증번호를 입력해 주세요.");
       return;
