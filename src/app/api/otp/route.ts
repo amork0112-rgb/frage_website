@@ -60,6 +60,13 @@ export async function POST(request: Request) {
         .eq("phone_digits", rawDigits)
         .maybeSingle();
 
+      const last8 = rawDigits.slice(-8);
+      console.log("OTP lookup", {
+        rawDigits,
+        last8,
+        parentId: parent?.id,
+      });
+
       if (!parent) {
         return json(
           { ok: false, error: "no_registered_student" },
