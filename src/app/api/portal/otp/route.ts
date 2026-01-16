@@ -53,10 +53,12 @@ export async function POST(request: Request) {
         return json({ ok: false, error: "phone_required" }, 400);
       }
 
+      const last8 = rawDigits.slice(-8);
+
       const { data: parent } = await supabaseService
         .from("parents")
-        .select("id,name,phone,auth_user_id,onboarding_completed")
-        .filter("phone", "ilike", `%${rawDigits.slice(-8)}%`)
+        .select("id,parent_name,phone,auth_user_id,onboarding_completed")
+        .filter("phone_digits", "like", `%${last8}%`)
         .maybeSingle();
 
       if (!parent) {
@@ -149,7 +151,7 @@ export async function POST(request: Request) {
 
       const { data: parent } = await supabaseService
         .from("parents")
-        .select("id,name,phone")
+        .select("id,parent_name,phone")
         .eq("id", parentId)
         .maybeSingle();
 
@@ -186,7 +188,7 @@ export async function POST(request: Request) {
       return json({
         ok: true,
         parentId: String(parent.id),
-        parentName: String(parent.name || ""),
+        parentName: String((parent as any).parent_name || ""),
         children,
       });
     }
