@@ -116,7 +116,9 @@ export async function POST(request: Request) {
         expiresAt,
       });
 
-      if (process.env.NODE_ENV !== "production") {
+      const DEBUG_PHONES = ["01064227116"];
+
+      if (process.env.NODE_ENV !== "production" || DEBUG_PHONES.includes(rawDigits)) {
         console.log("[OTP DEBUG CODE]", code);
         await supabaseService
           .from("parent_otps")
