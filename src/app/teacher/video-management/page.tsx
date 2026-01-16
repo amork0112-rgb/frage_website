@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Video, Plus, Trash2, PencilLine, Save, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-type Student = { id: string; name: string; englishName: string; className: string; campus: string };
+type Student = { id: string; name: string; englishName: string; className: string; campus: string; classSortOrder?: number | null };
 type Assignment = { id: string; title: string; module: string; dueDate: string; className: string; campus?: string };
 
 const CAMPUS_VALUES = ["All", "International", "Andover", "Atheneum", "Platz"] as const;
@@ -69,13 +69,85 @@ export default function TeacherVideoManagementPage() {
     load();
   }, []);
 
-  const classes = useMemo(() => {
-    const fromTeachers = Object.values(teacherClassMap).flat();
-    const set = new Set<string>([...students.map(s => s.className), ...classCatalog, ...fromTeachers]);
-    return ["All", ...Array.from(set)];
+  const classOptionsAll = useMemo(() => {
+    const map = new Map<string, number | null>();
+    students.forEach((s) => {
+      const name = (s.className || "").trim();
+      if (!name) return;
+      const sort = typeof s.classSortOrder === "number" ? s.classSortOrder : null;
+      const existing = map.get(name);
+      if (existing === undefined) {
+        map.set(name, sort);
+      } else if (sort !== null && (existing === null || sort < existing)) {
+        map.set(name, sort);
+      }
+    });
+    classCatalog.forEach((name) => {
+      const trimmed = (name || "").trim();
+      if (!trimmed) return;
+      if (!map.has(trimmed)) {
+        map.set(trimmed, null);
+      }
+    });
+    Object.values(teacherClassMap).flat().forEach((name) => {
+      const trimmed = (name || "").trim();
+      if (!trimmed) return;
+      if (!map.has(trimmed)) {
+        map.set(trimmed, null);
+      }
+    });
+    const arr = Array.from(map.entries()).map(([name, sort]) => ({ name, sort }));
+    arr.sort((a, b) => {
+      if (a.sort == null && b.sort == null) return a.name.localeCompare(b.name);
+      if (a.sort == null) return 1;
+      if (b.sort == null) return -1;
+      return a.sort - b.sort || a.name.localeCompare(b.name);
+    });
+    return arr;
   }, [students, classCatalog, teacherClassMap]);
 
+  const classOptionsByCampus = useMemo(() => {
+    const map: Record<string, { name: string; sort: number | null }[]> = {};
+    const seen: Record<string, Set<string>> = {};
+    students.forEach((s) => {
+      const campus = (s.campus || "").trim();
+      const name = (s.className || "").trim();
+      if (!campus || !name) return;
+      if (!map[campus]) {
+        map[campus] = [];
+        seen[campus] = new Set();
+      }
+      if (seen[campus].has(name)) return;
+      const sort = typeof s.classSortOrder === "number" ? s.classSortOrder : null;
+      map[campus].push({ name, sort });
+      seen[campus].add(name);
+    });
+    Object.keys(map).forEach((campus) => {
+      map[campus].sort((a, b) => {
+        if (a.sort == null && b.sort == null) return a.name.localeCompare(b.name);
+        if (a.sort == null) return 1;
+        if (b.sort == null) return -1;
+        return a.sort - b.sort || a.name.localeCompare(b.name);
+      });
+    });
+    return map;
+  }, [students]);
+
+  const classes = useMemo(() => {
+    return ["All", ...classOptionsAll.map((c) => c.name)];
+  }, [classOptionsAll]);
+
   const campuses = useMemo(() => CAMPUS_VALUES.slice(), []);
+
+  const newClassOptions = useMemo(() => {
+    if (newCampus === "All") return classOptionsAll;
+    return classOptionsByCampus[newCampus] || classOptionsAll;
+  }, [newCampus, classOptionsAll, classOptionsByCampus]);
+
+  const filterClassOptions = useMemo(() => {
+    if (filterCampus === "All") return classOptionsAll;
+    return classOptionsByCampus[filterCampus] || classOptionsAll;
+  }, [filterCampus, classOptionsAll, classOptionsByCampus]);
 
   const filtered = useMemo(() => {
     return assignments
@@ -175,15 +247,16 @@ export default function TeacherVideoManagementPage() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
-            <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              {classes.map(c => (<option key={c} value={c}>{c}</option>))}
-            </select>
-          </div>
-          <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">캠퍼스(선택)</label>
             <select value={newCampus} onChange={(e) => setNewCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
               {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
+            <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+              <option value="All">전체</option>
+              {newClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
             </select>
           </div>
           <div>
@@ -209,15 +282,16 @@ export default function TeacherVideoManagementPage() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">반 필터</label>
-            <select value={filterClass} onChange={(e) => setFilterClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              {classes.map(c => (<option key={c} value={c}>{c}</option>))}
-            </select>
-          </div>
-          <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">캠퍼스 필터</label>
             <select value={filterCampus} onChange={(e) => setFilterCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
               {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">반 필터</label>
+            <select value={filterClass} onChange={(e) => setFilterClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+              <option value="All">전체</option>
+              {filterClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
             </select>
           </div>
           <div className="md:col-span-3">

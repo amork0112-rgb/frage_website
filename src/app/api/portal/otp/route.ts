@@ -1,3 +1,4 @@
+//src/app/api/portal/otp/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -46,15 +47,16 @@ export async function POST(request: Request) {
 
     if (mode === "request") {
       const rawPhone = String((body as any).phone || "");
+      const rawDigits = rawPhone.replace(/\D/g, "");
       const phoneNorm = normalizePhone(rawPhone);
-      if (!phoneNorm) {
+      if (!rawDigits) {
         return json({ ok: false, error: "phone_required" }, 400);
       }
 
       const { data: parent } = await supabaseService
         .from("parents")
         .select("id,name,phone,auth_user_id,onboarding_completed")
-        .eq("phone", phoneNorm)
+        .filter("phone", "ilike", `%${rawDigits.slice(-8)}%`)
         .maybeSingle();
 
       if (!parent) {
@@ -241,4 +243,3 @@ export async function POST(request: Request) {
     return json({ ok: false, error: "server_error" }, 500);
   }
 }
-
