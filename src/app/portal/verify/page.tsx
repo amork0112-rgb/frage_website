@@ -88,8 +88,30 @@ export default function ParentFirstVerificationPage() {
             phone,
           }),
         });
-        const data = await res.json();
-        if (!res.ok || data.ok === false) {
+        let data: any = null;
+        try {
+          data = await res.json();
+        } catch {
+          data = null;
+        }
+
+        if (!res.ok) {
+          const code = data?.error;
+          if (res.status === 404 && code === "no_registered_student") {
+            setError("등록된 재원생 정보가 없습니다. 상담실로 문의해 주세요.");
+          } else if (res.status === 409 && code === "already_has_account") {
+            setError(
+              "이미 포털 계정이 있습니다. 로그인 화면에서 이메일과 비밀번호로 로그인해 주세요."
+            );
+          } else if (res.status === 400 && code === "phone_required") {
+            setError("휴대폰 번호를 입력해 주세요.");
+          } else {
+            setError("인증 시스템 오류입니다. 잠시 후 다시 시도해 주세요.");
+          }
+          return;
+        }
+
+        if (data && data.ok === false) {
           const code = data?.error;
           if (code === "no_registered_student") {
             setError("등록된 재원생 정보가 없습니다. 상담실로 문의해 주세요.");
@@ -100,7 +122,7 @@ export default function ParentFirstVerificationPage() {
           } else if (code === "phone_required") {
             setError("휴대폰 번호를 입력해 주세요.");
           } else {
-            setError("인증번호 발송 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+            setError("인증 시스템 오류입니다. 잠시 후 다시 시도해 주세요.");
           }
           return;
         }
@@ -147,8 +169,30 @@ export default function ParentFirstVerificationPage() {
             code: otp.trim(),
           }),
         });
-        const data = await res.json();
-        if (!res.ok || data.ok === false) {
+        let data: any = null;
+        try {
+          data = await res.json();
+        } catch {
+          data = null;
+        }
+
+        if (!res.ok) {
+          const code = data?.error;
+          if (res.status === 400 && code === "invalid_otp") {
+            setError("인증번호가 올바르지 않습니다.");
+          } else if (res.status === 400 && code === "expired") {
+            setError("인증번호가 만료되었습니다. 다시 요청해 주세요.");
+            setTimerActive(false);
+            setTimer(0);
+          } else if (res.status === 404 && code === "no_registered_student") {
+            setError("등록된 재원생 정보가 없습니다. 상담실로 문의해 주세요.");
+          } else {
+            setError("인증 시스템 오류입니다. 잠시 후 다시 시도해 주세요.");
+          }
+          return;
+        }
+
+        if (data && data.ok === false) {
           const code = data?.error;
           if (code === "invalid_otp") {
             setError("인증번호가 올바르지 않습니다.");
@@ -159,7 +203,7 @@ export default function ParentFirstVerificationPage() {
           } else if (code === "no_registered_student") {
             setError("등록된 재원생 정보가 없습니다. 상담실로 문의해 주세요.");
           } else {
-            setError("인증번호 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+            setError("인증 시스템 오류입니다. 잠시 후 다시 시도해 주세요.");
           }
           return;
         }
@@ -550,4 +594,3 @@ export default function ParentFirstVerificationPage() {
     </div>
   );
 }
-
