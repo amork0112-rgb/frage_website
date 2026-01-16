@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       const { data: parent } = await supabaseService
         .from("parents")
         .select("id,parent_name,phone,auth_user_id,onboarding_completed")
-        .like("phone_digits", `%${last8}`)
+        .like("phone_digits", `%${last8}%`)
         .maybeSingle();
       console.log("OTP lookup", {
         rawDigits,
