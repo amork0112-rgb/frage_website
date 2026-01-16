@@ -9,7 +9,18 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ assignments: [] }, { status: 401 });
     const role = user.app_metadata?.role ?? "parent";
-    if (role !== "teacher") return NextResponse.json({ assignments: [] }, { status: 403 });
+    const teacherRoles = ["teacher", "master_teacher"];
+    if (!teacherRoles.includes(role)) return NextResponse.json({ assignments: [] }, { status: 403 });
+
+    const { data: teacher } = await supabase
+      .from("teachers")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .single();
+
+    if (!teacher?.id) {
+      return NextResponse.json({ assignments: [] }, { status: 403 });
+    }
 
     const isDev = process.env.NODE_ENV !== "production";
 

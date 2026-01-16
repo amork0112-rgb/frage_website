@@ -201,15 +201,17 @@ export async function POST(request: Request) {
         return json({ ok: false, error: "expired" }, 400);
       }
 
-      await supabaseService
-        .from("parent_otps")
-        .update({ used: true, verified_at: new Date().toISOString() })
-        .eq("id", otpRow.id);
-
-      const { data: students } = await supabaseService
+      // 1. 먼저 학생 정보 조회 (검증)
+      const { data: students, error: studentsErr } = await supabaseService
         .from("v_students_full")
-        .select("id,student_name,english_first_name,grade,campus,status")
+        .select("*")
         .eq("parent_id", parentId);
+
+      console.log("[OTP][students check]", {
+        parentId,
+        count: students?.length,
+        error: studentsErr,
+      });
 
       const children = Array.isArray(students)
         ? students.map((s: any) => ({
@@ -223,11 +225,19 @@ export async function POST(request: Request) {
         : [];
 
       if (children.length === 0) {
+        // 학생이 없으면 OTP를 사용 처리하지 않음 (그래야 상담실 문의 후 다시 시도 가능 or 데이터 오류 수정 후 재시도 가능)
+        console.log("[OTP][error] no students found for parent", parentId);
         return json(
           { ok: false, error: "no_registered_student" },
           404
         );
       }
+
+      // 2. 모든 검증 통과 후 used 처리
+      await supabaseService
+        .from("parent_otps")
+        .update({ used: true, verified_at: new Date().toISOString() })
+        .eq("id", otpRow.id);
 
       return json({
         ok: true,

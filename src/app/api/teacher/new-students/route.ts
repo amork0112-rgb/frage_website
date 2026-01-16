@@ -124,7 +124,7 @@ export async function PUT(req: Request) {
     
 
     console.log("[TEACHER_NEW_STUDENT_PROGRESS]", {
-      teacherId: String(user.id),
+      teacherId: teacherId || String(user.id),
       studentId,
       stepKey: key,
       checked,

@@ -8,7 +8,18 @@ export async function GET(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
     const role = user.app_metadata?.role ?? "parent";
-    if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
+    const teacherRoles = ["teacher", "master_teacher"];
+    if (!teacherRoles.includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
+
+    const { data: teacher } = await supabaseAuth
+      .from("teachers")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .single();
+
+    if (!teacher?.id) {
+      return NextResponse.json({ ok: false, error: "teacher_profile_not_found" }, { status: 403 });
+    }
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId") || "";
     const month = searchParams.get("month") || "";
@@ -53,7 +64,19 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
     const role = user.app_metadata?.role ?? "parent";
-    if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
+    const teacherRoles = ["teacher", "master_teacher"];
+    if (!teacherRoles.includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
+
+    const { data: teacher } = await supabaseAuth
+      .from("teachers")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .single();
+
+    if (!teacher?.id) {
+      return NextResponse.json({ ok: false, error: "teacher_profile_not_found" }, { status: 403 });
+    }
+
     const body = await req.json();
     const { studentId, month, gender, scores, comments, videoScores, overall } = body || {};
     if (

@@ -24,6 +24,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .single();
+
+    if (!teacher?.id && role === "teacher") {
+       return NextResponse.json({ error: "teacher_profile_not_found" }, { status: 403 });
+    }
+    const teacherId = teacher?.id;
+
     const url = new URL(request.url);
     const campus = url.searchParams.get("campus");
     const normalizedCampus = campus?.trim();
@@ -32,7 +43,7 @@ export async function GET(request: Request) {
       const { data: teacherClasses, error: tcError } = await supabaseService
         .from("teacher_classes")
         .select("class_name")
-        .eq("teacher_id", user.id);
+        .eq("teacher_id", teacherId);
 
       if (tcError) {
         return NextResponse.json({ error: "teacher_classes_error" }, { status: 500 });

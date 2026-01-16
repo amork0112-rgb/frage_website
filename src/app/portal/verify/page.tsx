@@ -23,6 +23,7 @@ export default function ParentFirstVerificationPage() {
   const [step, setStep] = useState<Step>("phone");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [verified, setVerified] = useState(false);
 
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -245,10 +246,12 @@ export default function ParentFirstVerificationPage() {
             const payload2 = await res2.json().catch(() => ({}));
             if (!res2.ok || payload2.ok === false) {
               setError("계정 연결 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+              setVerified(false); // 실패 시 재시도 허용
               return;
             }
           } catch {
             setError("계정 연결 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+            setVerified(false); // 실패 시 재시도 허용
             return;
           }
           setParentId(verifiedParentId || null);
@@ -263,8 +266,10 @@ export default function ParentFirstVerificationPage() {
         setChildren(verifiedChildren);
 
         setStep("confirm");
+        return;
       } catch {
         setError("인증번호 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+        setVerified(false); // 실패 시 재시도 허용
       } finally {
         setLoading(false);
       }
