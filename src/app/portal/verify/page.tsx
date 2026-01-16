@@ -185,7 +185,7 @@ export default function ParentFirstVerificationPage() {
             setTimerActive(false);
             setTimer(0);
           } else if (res.status === 404 && code === "no_registered_student") {
-            setError("등록된 재원생 정보가 없습니다. 상담실로 문의해 주세요.");
+            setError("등록된 재원생 정보가 없습니다.");
           } else {
             setError("인증 시스템 오류입니다. 잠시 후 다시 시도해 주세요.");
           }
@@ -201,18 +201,20 @@ export default function ParentFirstVerificationPage() {
             setTimerActive(false);
             setTimer(0);
           } else if (code === "no_registered_student") {
-            setError("등록된 재원생 정보가 없습니다. 상담실로 문의해 주세요.");
+            setError("등록된 재원생 정보가 없습니다.");
           } else {
             setError("인증 시스템 오류입니다. 잠시 후 다시 시도해 주세요.");
           }
           return;
         }
 
+        // 성공 시 즉시 UI 전환 및 상태 정리
+        setTimerActive(false);
         setParentId(data.parentId || null);
         setParentName(data.parentName || null);
         setChildren(Array.isArray(data.children) ? data.children : []);
         setStep("confirm");
-        setTimerActive(false);
+        // 이 시점에서 재요청/재검증 불가능하도록 로직 처리됨 (step 변경)
       } catch {
         setError("인증번호 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
       } finally {
