@@ -116,6 +116,21 @@ export async function POST(request: Request) {
         expiresAt,
       });
 
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[OTP DEBUG CODE]", code);
+        await supabaseService
+          .from("parent_otps")
+          .insert({
+            parent_id: parent.id,
+            phone: phoneNorm,
+            code,
+            expires_at: expiresAt,
+            used: false,
+            created_at: new Date().toISOString(),
+          });
+        return json({ ok: true, debugCode: code });
+      }
+
       await supabaseService
         .from("parent_otps")
         .insert({
@@ -126,10 +141,6 @@ export async function POST(request: Request) {
           used: false,
           created_at: new Date().toISOString(),
         });
-
-      if (process.env.NODE_ENV !== "production") {
-        return json({ ok: true, debugCode: code });
-      }
 
       return json({ ok: true });
     }
