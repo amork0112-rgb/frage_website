@@ -62,26 +62,15 @@ export async function POST(request: Request) {
         last8,
       });
 
-      const { data: parents, error: parentErr } = await supabaseService
+      const { data: parent, error: parentErr } = await supabaseService
         .from("parents")
-        .select(
-          "id,parent_name,phone,phone_digits,auth_user_id,onboarding_completed"
-        )
-        .filter("phone_digits", "ilike", `%${last8}%`)
-        .limit(5);
+        .select("id,parent_name,phone,phone_digits,auth_user_id")
+        .like("phone_digits", `%${last8}%`)
+        .maybeSingle();
 
-      console.log("[OTP][parents query]", {
+      console.log("[OTP][parents]", {
         error: parentErr,
-        count: parents?.length ?? 0,
-        parents,
-      });
-
-      const parent = parents?.[0] ?? null;
-
-      console.log("OTP lookup", {
-        rawDigits,
-        last8,
-        parentId: parent?.id,
+        parent,
       });
 
       if (!parent) {
@@ -91,7 +80,7 @@ export async function POST(request: Request) {
         );
       }
 
-      if (parent.auth_user_id || parent.onboarding_completed) {
+      if (parent.auth_user_id) {
         return json(
           { ok: false, error: "already_has_account" },
           409
