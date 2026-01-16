@@ -37,6 +37,19 @@ export default function ParentFirstVerificationPage() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
 
+  const [hasAuthUser, setHasAuthUser] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        setHasAuthUser(!!data?.user);
+      } catch {
+        setHasAuthUser(false);
+      }
+    })();
+  }, []);
+
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (step === "otp" && timerActive) {
@@ -211,13 +224,45 @@ export default function ParentFirstVerificationPage() {
           return;
         }
 
-        // 성공 시 즉시 UI 전환 및 상태 정리
         setTimerActive(false);
-        setParentId(data.parentId || null);
-        setParentName(data.parentName || null);
-        setChildren(Array.isArray(data.children) ? data.children : []);
+
+        const verifiedParentId = data.parentId ? String(data.parentId) : "";
+        const verifiedParentName = data.parentName || null;
+        const verifiedChildren = Array.isArray(data.children) ? data.children : [];
+
+        if (hasAuthUser && verifiedParentId) {
+          try {
+            const res2 = await fetch("/api/otp", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                mode: "complete",
+                parentId: verifiedParentId,
+              }),
+            });
+            const payload2 = await res2.json().catch(() => ({}));
+            if (!res2.ok || payload2.ok === false) {
+              setError("계정 연결 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+              return;
+            }
+          } catch {
+            setError("계정 연결 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+            return;
+          }
+          setParentId(verifiedParentId || null);
+          setParentName(verifiedParentName);
+          setChildren(verifiedChildren);
+          router.replace("/portal/home");
+          return;
+        }
+
+        setParentId(verifiedParentId || null);
+        setParentName(verifiedParentName);
+        setChildren(verifiedChildren);
+
         setStep("confirm");
-        // 이 시점에서 재요청/재검증 불가능하도록 로직 처리됨 (step 변경)
       } catch {
         setError("인증번호 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
       } finally {
