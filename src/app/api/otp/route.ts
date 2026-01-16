@@ -54,13 +54,13 @@ export async function POST(request: Request) {
         return json({ ok: false, error: "phone_required" }, 400);
       }
 
+      const last8 = rawDigits.slice(-8);
+
       const { data: parent } = await supabaseService
         .from("parents")
         .select("id,parent_name,phone,auth_user_id,onboarding_completed")
-        .eq("phone_digits", rawDigits)
+        .like("phone_digits", `%${last8}`)
         .maybeSingle();
-
-      const last8 = rawDigits.slice(-8);
       console.log("OTP lookup", {
         rawDigits,
         last8,
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       const { data: anyStudent } = await supabaseService
         .from("v_students_full")
         .select("id")
-        .eq("parent_id", parent.id)
+        .eq("parent_id", String(parent.id))
         .limit(1)
         .maybeSingle();
 
@@ -251,4 +251,3 @@ export async function POST(request: Request) {
     return json({ ok: false, error: "server_error" }, 500);
   }
 }
-
