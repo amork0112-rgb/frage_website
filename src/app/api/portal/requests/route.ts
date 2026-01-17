@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -19,7 +18,6 @@ export async function GET(req: Request) {
       return json({ ok: false, items: [] }, 401);
     }
 
-    // Role check - optional if RLS handles it, but good for fail-fast
     const role = user.app_metadata?.role ?? "parent";
     if (role !== "parent") {
       return json({ ok: false, items: [] }, 403);
@@ -32,7 +30,6 @@ export async function GET(req: Request) {
       return json({ ok: true, items: [] }, 200);
     }
 
-    // 1. Get Parent ID
     const { data: parent } = await supabase
       .from("parents")
       .select("id")
@@ -43,7 +40,6 @@ export async function GET(req: Request) {
       return json({ ok: true, items: [] }, 200);
     }
 
-    // 2. Validate Student Ownership (Parent -> Student)
     const { data: student } = await supabase
       .from("students")
       .select("id")
@@ -55,7 +51,6 @@ export async function GET(req: Request) {
       return json({ ok: true, items: [] }, 200);
     }
 
-    // 3. Fetch Requests
     const { data, error } = await supabase
       .from("portal_requests")
       .select("id,type,payload,created_at")
@@ -111,7 +106,6 @@ export async function POST(req: Request) {
       return json({ ok: false, error: "invalid_type" }, 400);
     }
 
-    // 1. Get Parent ID
     const { data: parent } = await supabase
       .from("parents")
       .select("id")
@@ -122,7 +116,6 @@ export async function POST(req: Request) {
       return json({ ok: false, error: "parent_not_found" }, 403);
     }
 
-    // 2. Validate Student Ownership (Parent -> Student)
     const { data: student } = await supabase
       .from("students")
       .select("id,campus,parent_id,teacher_id")
@@ -151,10 +144,7 @@ export async function POST(req: Request) {
       row.teacher_id = teacherId;
     }
 
-    // Insert Request
-    // Use supabase (auth) if RLS permits, otherwise fallback to service if needed.
-    // Assuming portal_requests has RLS for parents to insert.
-    const { error } = await supabaseService.from("portal_requests").insert(row);
+    const { error } = await supabase.from("portal_requests").insert(row);
     if (error) {
       return json({ ok: false, error: "db_error" }, 500);
     }
@@ -164,4 +154,3 @@ export async function POST(req: Request) {
     return json({ ok: false, error: "server_error" }, 500);
   }
 }
-
