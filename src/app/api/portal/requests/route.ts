@@ -105,7 +105,10 @@ export async function POST(req: Request) {
     const rawType = String(body?.type || "");
     const payload = body?.payload ?? null;
 
-    if (!studentId || !rawType || !payload) {
+    if (!studentId) {
+      return json({ ok: false, error: "student_id_missing" }, 400);
+    }
+    if (!rawType || !payload) {
       return json({ ok: false, error: "invalid_payload" }, 400);
     }
 
@@ -126,6 +129,9 @@ export async function POST(req: Request) {
     }
 
     // 2️⃣ INSERT (Admin 권한)
+    console.log("INSERT studentId", studentId);
+    console.log("INSERT payload", payload);
+
     const dateStart = payload.dateStart || payload.date_start;
     const dateEnd = payload.dateEnd || payload.date_end;
     const time = payload.time;
