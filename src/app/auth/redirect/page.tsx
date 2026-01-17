@@ -17,7 +17,7 @@ export default async function AuthRedirectPage() {
     redirect("/admin/home");
   }
   
-  if (role === "teacher") {
+  if (role === "teacher" || role === "master_teacher") {
     redirect("/teacher/home");
   }
 

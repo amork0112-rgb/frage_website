@@ -11,8 +11,11 @@ export async function GET() {
       return NextResponse.json({ redirect: "/portal" }, { status: 200 });
     }
     const role = (user.app_metadata as any)?.role ?? "parent";
-    if (role !== "parent") {
-      return NextResponse.json({ redirect: "/portal" }, { status: 200 });
+    if (role === "master_admin" || role === "admin") {
+      return NextResponse.json({ redirect: "/admin/home" }, { status: 200 });
+    }
+    if (role === "teacher" || role === "master_teacher") {
+      return NextResponse.json({ redirect: "/teacher/home" }, { status: 200 });
     }
     const { data: parent } = await supabase
       .from("parents")
