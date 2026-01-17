@@ -15,34 +15,27 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Invalid ID" }, { status: 400 });
     }
 
-    // 1. Get counts from view
-    const { data: countsData, error: countsError } = await supabaseService
-      .from("notice_reactions_count_view")
-      .select("reaction_type, count")
-      .eq("notice_id", postId);
+    // 1. Get counts from materialized view v_notice_reaction_counts
+    const { data: countsRows, error: countsError } = await supabaseService
+      .from("v_notice_reaction_counts")
+      .select("notice_id,check_count,heart_count,smile_count")
+      .eq("notice_id", postId)
+      .maybeSingle();
+
+    let counts = {
+      check: 0,
+      heart: 0,
+      smile: 0,
+    };
 
     if (countsError) {
       console.error("Fetch counts error:", countsError);
-      // Fallback to zeros if view missing or error
-      return NextResponse.json({ 
-        ok: true, 
-        counts: { check: 0, heart: 0, smile: 0 }, 
-        myReactions: [] 
-      });
-    }
-
-    const counts = {
-      check: 0,
-      heart: 0,
-      smile: 0
-    };
-
-    if (Array.isArray(countsData)) {
-      countsData.forEach((row: any) => {
-        if (row.reaction_type === 'check') counts.check = Number(row.count);
-        if (row.reaction_type === 'heart') counts.heart = Number(row.count);
-        if (row.reaction_type === 'smile') counts.smile = Number(row.count);
-      });
+    } else if (countsRows) {
+      counts = {
+        check: Number((countsRows as any).check_count ?? 0),
+        heart: Number((countsRows as any).heart_count ?? 0),
+        smile: Number((countsRows as any).smile_count ?? 0),
+      };
     }
 
     // 2. Get user's reactions if logged in
