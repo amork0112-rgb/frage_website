@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import PortalHeader from "@/components/PortalHeader";
 import { Calendar, Clock, Bus, Pill, Send } from "lucide-react";
+import { supabase, supabaseReady } from "@/lib/supabase";
 
 type RequestType = "absence" | "early_pickup" | "bus_change" | "medication";
 
@@ -20,21 +21,48 @@ export default function RequestsPage() {
 
   useEffect(() => {
     (async () => {
+      if (!supabaseReady) return;
       try {
-        const res = await fetch("/api/portal/home", { cache: "no-store" });
-        const payload = await res.json().catch(() => ({}));
-        const students = Array.isArray(payload?.students) ? payload.students : [];
-        const enrolled = students.filter((s: any) => s.type === "enrolled");
+        const { data: userData } = await supabase.auth.getUser();
+        const user = userData?.user;
+        if (!user) {
+          setChildren([]);
+          setSelectedChildId("");
+          return;
+        }
+
+        const { data: parent } = await supabase
+          .from("parents")
+          .select("id")
+          .eq("auth_user_id", user.id)
+          .maybeSingle();
+
+        if (!parent?.id) {
+          setChildren([]);
+          setSelectedChildId("");
+          return;
+        }
+
+        const { data: rows } = await supabase
+          .from("students")
+          .select("id,student_name,english_first_name,name")
+          .eq("parent_id", parent.id);
+
+        const students = Array.isArray(rows) ? rows : [];
         const list =
-          enrolled.length > 0
-            ? enrolled.map((s: any) => ({
+          students.length > 0
+            ? students.map((s: any) => ({
                 id: String(s.id),
-                name: String(s.englishName || s.name || "자녀"),
+                name: String(s.english_first_name || s.student_name || s.name || "자녀"),
               }))
             : [];
+
         setChildren(list);
         setSelectedChildId(list[0]?.id ?? "");
-      } catch {}
+      } catch {
+        setChildren([]);
+        setSelectedChildId("");
+      }
     })();
   }, []);
 
