@@ -137,7 +137,7 @@ export default function ChildPage() {
         const { data: studentRows } = await supabase
           .from("v_students_full")
           .select(
-            "student_id,student_name,english_first_name,class_name,campus,birth_date,gender,address,student_phone,photo_url"
+            "student_id,student_name,english_first_name,class_name,campus,birth_date,gender,address"
           )
           .eq("parent_id", parentId)
           .limit(1);
@@ -155,25 +155,25 @@ export default function ChildPage() {
           setStudentId(studentIdStr);
           setStudentProfile({
             name: { en: String(s.english_first_name || ""), ko: String(s.student_name || "") },
-            photoUrl: String(s.photo_url || ""),
+            photoUrl: "",
             class: String(s.class_name || ""),
             campus: String(s.campus || ""),
             teacher: "",
             birthDate: String(s.birth_date || ""),
             gender: String(s.gender || ""),
             address: String(s.address || ""),
-            studentPhone: String(s.student_phone || ""),
+            studentPhone: "",
           });
           setEditForm({
             name: { en: String(s.english_first_name || ""), ko: String(s.student_name || "") },
-            photoUrl: String(s.photo_url || ""),
+            photoUrl: "",
             class: String(s.class_name || ""),
             campus: String(s.campus || ""),
             teacher: "",
             birthDate: String(s.birth_date || ""),
             gender: String(s.gender || ""),
             address: String(s.address || ""),
-            studentPhone: String(s.student_phone || ""),
+            studentPhone: "",
           });
           const { data: loc } = await supabase
             .from("students")

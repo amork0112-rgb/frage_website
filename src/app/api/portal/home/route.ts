@@ -29,11 +29,11 @@ export async function GET() {
     // 1. Fetch Enrolled Students (Promoted)
     const { data: enrolledStudents } = await supabase
       .from("v_students_full")
-      .select("id,student_name,english_first_name,status,grade,campus,parent_user_id")
+      .select("student_id,student_name,english_first_name,status,campus,parent_auth_user_id,class_name")
       .eq("parent_id", parentId);
 
     const enrolledIds = Array.isArray(enrolledStudents)
-      ? enrolledStudents.map((s: any) => s.id).filter((v: any) => v)
+      ? enrolledStudents.map((s: any) => s.student_id).filter((v: any) => v)
       : [];
 
     let onboardingMap: Record<
@@ -129,16 +129,16 @@ export async function GET() {
 
     const enrolledItems = Array.isArray(enrolledStudents)
       ? enrolledStudents.map((s: any) => {
-          const key = String(s.id || "");
+          const key = String(s.student_id || "");
           const onboarding = key ? onboardingMap[key] : undefined;
           return {
             id: key,
             name: String(s.student_name || ""),
             englishName: String(s.english_first_name || ""),
             status: String(s.status || "promoted"),
-            className: String(s.grade || ""),
+            className: String(s.class_name || ""),
             campus: String(s.campus || ""),
-            parentAccountId: String(s.parent_user_id || ""),
+            parentAccountId: String(s.parent_auth_user_id || ""),
             profile_completed: onboarding
               ? onboarding.profile_completed === true
               : null,

@@ -230,7 +230,7 @@ export async function POST(request: Request) {
 
       const children = Array.isArray(students)
         ? students.map((s: any) => ({
-            id: String(s.id || s.student_id || ""),
+            id: String(s.student_id || ""),
             name: String(s.student_name || ""),
             englishName: String(s.english_first_name || ""),
             campus: String(s.campus || ""),
