@@ -472,6 +472,9 @@ export default function RequestsPage() {
             {recentRequests.slice(0, 5).map((r, idx) => (
               <div key={`${r.date}-${r.type}-${idx}`} className="text-sm text-slate-700">
                 {formatRecentLabel(r.date, r.type)}
+                {r.studentName && (
+                  <span className="text-slate-400 ml-1">· {r.studentName}</span>
+                )}
               </div>
             ))}
           </div>

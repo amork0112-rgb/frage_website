@@ -38,21 +38,20 @@ export async function GET(req: Request) {
     }
 
     const { data, error } = await supabase
-      .from("portal_requests")
-      .select(`
+      .from("v_portal_requests_with_student")
+      .select(
+        `
         id,
+        student_id,
+        student_name,
+        campus,
         type,
-        payload,
         date_start,
         date_end,
-        time,
-        created_at,
-        students (
-          id,
-          student_name,
-          campus
-        )
-      `)
+        note,
+        created_at
+      `
+      )
       .eq("student_id", studentId)
       .order("created_at", { ascending: false })
       .limit(5);
@@ -63,22 +62,18 @@ export async function GET(req: Request) {
     }
 
     const rows = Array.isArray(data) ? data : [];
-    const items = rows.map((row: any) => {
-      const p = row.payload || {};
-      const student = row.students;
-      return {
-        id: String(row.id ?? ""),
-        type: String(row.type || "absence"),
-        payload: p,
-        date_start: row.date_start ?? p.dateStart ?? p.date_start ?? null,
-        date_end: row.date_end ?? p.dateEnd ?? p.date_end ?? null,
-        time: row.time ?? p.time ?? null,
-        created_at: row.created_at,
-        student_id: student?.id || "",
-        student_name: student?.student_name || "자녀",
-        campus: student?.campus || null,
-      };
-    });
+    const items = rows.map((row: any) => ({
+      id: String(row.id ?? ""),
+      type: String(row.type || "absence"),
+      payload: row.note ?? null,
+      date_start: row.date_start ?? null,
+      date_end: row.date_end ?? null,
+      time: null,
+      created_at: row.created_at,
+      student_id: row.student_id || "",
+      student_name: row.student_name || "자녀",
+      campus: row.campus || null,
+    }));
 
     return json({ ok: true, items }, 200);
   } catch {
