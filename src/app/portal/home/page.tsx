@@ -125,6 +125,10 @@ export default function ParentPortalHome() {
           setStudentId(null);
         }
         if (first && first.type === "enrolled") {
+          if (first.onboarding_step === "transport" && first.id) {
+            router.replace(`/portal/onboarding/transport?studentId=${first.id}`);
+            return;
+          }
           const profileCompleted = first.profile_completed === true;
           const parentAuthUserId = first.parent_auth_user_id ?? null;
           const useBus =

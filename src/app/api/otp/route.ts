@@ -303,7 +303,7 @@ export async function POST(request: Request) {
 
       await supabaseService
         .from("students")
-        .update({ parent_auth_user_id: user.id })
+        .update({ parent_auth_user_id: user.id, onboarding_step: "transport" })
         .eq("parent_id", parentId);
 
       return json({ ok: true });

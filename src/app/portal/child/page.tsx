@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import PortalHeader from "@/components/PortalHeader";
 import { User, MapPin, School, Bus, Clock, Shield, Bell, Info, Camera, Calendar, Phone, Home, Smile, Edit2, Check, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+
+declare global {
+  interface Window {
+    kakao: any;
+  }
+}
+
+const KAKAO_MAP_KEY = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
 
 export default function ChildPage() {
   // Mock Data
@@ -91,6 +99,9 @@ export default function ChildPage() {
   });
   const [pickupCoord, setPickupCoord] = useState<{ lat: string; lng: string }>({ lat: "", lng: "" });
   const [dropoffCoord, setDropoffCoord] = useState<{ lat: string; lng: string }>({ lat: "", lng: "" });
+
+  const [mapOpen, setMapOpen] = useState(false);
+  const [mapTarget, setMapTarget] = useState<"pickup" | "dropoff">("pickup");
 
   const [guardianInfo, setGuardianInfo] = useState({
     name: "보호자",
@@ -212,6 +223,28 @@ export default function ChildPage() {
       },
       () => alert("현재 위치를 가져오지 못했습니다. 위치 권한을 확인하세요.")
     );
+  };
+
+  const openMap = (target: "pickup" | "dropoff") => {
+    setMapTarget(target);
+    setMapOpen(true);
+  };
+
+  const handleMapSelect = (lat: number, lng: number, address: string) => {
+    if (mapTarget === "pickup") {
+      setPickupCoord({ lat: String(lat), lng: String(lng) });
+      setTransportForm(prev => ({
+        ...prev,
+        pickupPlace: prev.pickupPlace || address,
+      }));
+    } else {
+      setDropoffCoord({ lat: String(lat), lng: String(lng) });
+      setTransportForm(prev => ({
+        ...prev,
+        dropoffPlace: prev.dropoffPlace || address,
+      }));
+    }
+    setMapOpen(false);
   };
 
   const savePickupDropoff = async () => {
@@ -524,11 +557,11 @@ export default function ChildPage() {
                정보 저장 및 다음 단계로 이동
              </button>
            </form>
-           <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-5">
-             <h3 className="text-sm font-bold text-slate-700">픽업/드롭오프 좌표 설정</h3>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div className="space-y-2">
-                 <div className="text-xs font-bold text-slate-500">픽업 좌표</div>
+          <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-5">
+            <h3 className="text-sm font-bold text-slate-700">픽업/드롭오프 좌표 설정</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-slate-500">픽업 좌표</div>
                  <div className="flex gap-2">
                    <input
                      placeholder="위도"
@@ -539,11 +572,26 @@ export default function ChildPage() {
                    <input
                      placeholder="경도"
                      value={pickupCoord.lng}
-                     onChange={(e) => setPickupCoord({ ...pickupCoord, lng: e.target.value })}
-                     className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                       onChange={(e) => setPickupCoord({ ...pickupCoord, lng: e.target.value })}
+                      className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
                    />
                  </div>
-                 <button onClick={setPickupCurrentLocation} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold bg-white">현재 위치로 설정</button>
+                 <div className="flex gap-2">
+                   <button
+                     type="button"
+                     onClick={setPickupCurrentLocation}
+                     className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold bg-white"
+                   >
+                     현재 위치로 설정
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => openMap("pickup")}
+                     className="px-3 py-2 rounded-lg border border-frage-blue text-xs font-bold text-frage-blue bg-white"
+                   >
+                     지도에서 선택
+                   </button>
+                 </div>
                  {pickupCoord.lat && pickupCoord.lng && (
                    <iframe
                      title="pickup-map"
@@ -564,11 +612,26 @@ export default function ChildPage() {
                    <input
                      placeholder="경도"
                      value={dropoffCoord.lng}
-                     onChange={(e) => setDropoffCoord({ ...dropoffCoord, lng: e.target.value })}
-                     className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                       onChange={(e) => setDropoffCoord({ ...dropoffCoord, lng: e.target.value })}
+                      className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
                    />
                  </div>
-                 <button onClick={setDropoffCurrentLocation} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold bg-white">현재 위치로 설정</button>
+                 <div className="flex gap-2">
+                   <button
+                     type="button"
+                     onClick={setDropoffCurrentLocation}
+                     className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold bg-white"
+                   >
+                     현재 위치로 설정
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => openMap("dropoff")}
+                     className="px-3 py-2 rounded-lg border border-frage-blue text-xs font-bold text-frage-blue bg-white"
+                   >
+                     지도에서 선택
+                   </button>
+                 </div>
                  {dropoffCoord.lat && dropoffCoord.lng && (
                    <iframe
                      title="dropoff-map"
@@ -578,11 +641,11 @@ export default function ChildPage() {
                  )}
                </div>
              </div>
-             <div className="flex justify-end">
-               <button onClick={savePickupDropoff} className="px-4 py-2 bg-frage-navy text-white rounded-xl font-bold">좌표 저장</button>
-             </div>
-           </div>
-        </section>
+            <div className="flex justify-end">
+              <button onClick={savePickupDropoff} className="px-4 py-2 bg-frage-navy text-white rounded-xl font-bold">좌표 저장</button>
+            </div>
+          </div>
+       </section>
 
         {/* 3. Guardian Info */}
         <section>
@@ -629,8 +692,171 @@ export default function ChildPage() {
               If you notice anything incorrect, please contact the office.
            </p>
         </div>
-
+      
       </main>
+      {mapOpen && (
+        <ChildMapModal
+          target={mapTarget}
+          initialLat={
+            mapTarget === "pickup"
+              ? pickupCoord.lat
+                ? parseFloat(pickupCoord.lat)
+                : dropoffCoord.lat
+                ? parseFloat(dropoffCoord.lat)
+                : null
+              : dropoffCoord.lat
+              ? parseFloat(dropoffCoord.lat)
+              : pickupCoord.lat
+              ? parseFloat(pickupCoord.lat)
+              : null
+          }
+          initialLng={
+            mapTarget === "pickup"
+              ? pickupCoord.lng
+                ? parseFloat(pickupCoord.lng)
+                : dropoffCoord.lng
+                ? parseFloat(dropoffCoord.lng)
+                : null
+              : dropoffCoord.lng
+              ? parseFloat(dropoffCoord.lng)
+              : pickupCoord.lng
+              ? parseFloat(pickupCoord.lng)
+              : null
+          }
+          onSelect={handleMapSelect}
+          onClose={() => setMapOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+type ChildMapModalProps = {
+  target: "pickup" | "dropoff";
+  initialLat: number | null;
+  initialLng: number | null;
+  onSelect: (lat: number, lng: number, address: string) => void;
+  onClose: () => void;
+};
+
+function ChildMapModal({ target, initialLat, initialLng, onSelect, onClose }: ChildMapModalProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [ready, setReady] = useState(false);
+  const [currentLat, setCurrentLat] = useState<number | null>(initialLat);
+  const [currentLng, setCurrentLng] = useState<number | null>(initialLng);
+  const [currentAddress, setCurrentAddress] = useState<string>("");
+
+  useEffect(() => {
+    const ensureScript = () =>
+      new Promise<void>((resolve, reject) => {
+        if (typeof window === "undefined") {
+          reject();
+          return;
+        }
+        if (window.kakao && window.kakao.maps) {
+          resolve();
+          return;
+        }
+        if (!KAKAO_MAP_KEY) {
+          reject();
+          return;
+        }
+        const existing = document.querySelector<HTMLScriptElement>('script[data-kakao-map="true"]');
+        if (existing) {
+          existing.addEventListener("load", () => resolve());
+          existing.addEventListener("error", () => reject());
+          return;
+        }
+        const script = document.createElement("script");
+        script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_KEY}&libraries=services&autoload=false`;
+        script.async = true;
+        script.defer = true;
+        script.dataset.kakaoMap = "true";
+        script.onload = () => resolve();
+        script.onerror = () => reject();
+        document.head.appendChild(script);
+      });
+
+    ensureScript()
+      .then(() => {
+        if (!window.kakao || !window.kakao.maps) {
+          return;
+        }
+        window.kakao.maps.load(() => {
+          if (!containerRef.current) return;
+          const centerLat = initialLat ?? 35.857;
+          const centerLng = initialLng ?? 128.626;
+          const center = new window.kakao.maps.LatLng(centerLat, centerLng);
+          const options = {
+            center,
+            level: 3,
+          };
+          const map = new window.kakao.maps.Map(containerRef.current, options);
+          const geocoder = new window.kakao.maps.services.Geocoder();
+
+          const updateCenter = () => {
+            const c = map.getCenter();
+            const lat = c.getLat();
+            const lng = c.getLng();
+            setCurrentLat(lat);
+            setCurrentLng(lng);
+            geocoder.coord2Address(lng, lat, (result: any, status: any) => {
+              if (status === window.kakao.maps.services.Status.OK && result[0]?.address) {
+                setCurrentAddress(result[0].address.address_name);
+              }
+            });
+          };
+
+          updateCenter();
+          window.kakao.maps.event.addListener(map, "center_changed", updateCenter);
+          setReady(true);
+        });
+      })
+      .catch(() => {
+        setReady(false);
+      });
+  }, [initialLat, initialLng]);
+
+  const handleConfirm = useCallback(() => {
+    if (!currentLat || !currentLng || !currentAddress) return;
+    onSelect(currentLat, currentLng, currentAddress);
+  }, [currentLat, currentLng, currentAddress, onSelect]);
+
+  const title = target === "pickup" ? "픽업 위치 설정" : "하원 위치 설정";
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-stretch justify-center">
+      <div className="relative bg-white w-full h-full max-w-md mx-auto flex flex-col">
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+          <div className="text-sm font-bold text-slate-900">{title}</div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-xs font-bold text-slate-500 px-2 py-1 rounded-lg hover:bg-slate-100"
+          >
+            닫기
+          </button>
+        </div>
+        <div className="flex-1 relative">
+          <div ref={containerRef} className="w-full h-full" />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-full border-2 border-red-500 bg-red-500/80 shadow-lg -translate-y-4" />
+          </div>
+        </div>
+        <div className="border-t border-slate-200 p-4 space-y-2 bg-white">
+          <div className="text-xs text-slate-600 min-h-[32px]">
+            {ready ? currentAddress || "지도를 움직여 위치를 선택해 주세요." : "지도를 불러오는 중입니다..."}
+          </div>
+          <button
+            type="button"
+            disabled={!ready || !currentLat || !currentLng || !currentAddress}
+            onClick={handleConfirm}
+            className="w-full px-4 py-3 rounded-xl bg-frage-navy text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            이 위치로 설정
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
