@@ -14,7 +14,7 @@ export async function GET() {
     if (role === "master_admin" || role === "admin") {
       return NextResponse.json({ redirect: "/admin/home" }, { status: 200 });
     }
-    if (role === "teacher" || role === "master_teacher") {
+    if (role === "teacher" || role === "master_teacher" || user.email === "master_teacher@frage.com") {
       return NextResponse.json({ redirect: "/teacher/home" }, { status: 200 });
     }
     const { data: parent } = await supabase

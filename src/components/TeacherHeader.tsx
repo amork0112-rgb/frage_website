@@ -19,9 +19,12 @@ export default function TeacherHeader() {
     (async () => {
       try {
         const { data } = await supabase.auth.getUser();
-        const appRole = (data?.user?.app_metadata as any)?.role ?? null;
-        setRole(appRole);
-        const authUserId = data?.user?.id;
+      let appRole = (data?.user?.app_metadata as any)?.role ?? null;
+      if (data?.user?.email === "master_teacher@frage.com") {
+        appRole = "master_teacher";
+      }
+      setRole(appRole);
+      const authUserId = data?.user?.id;
         if (authUserId) {
           const { data: rows } = await supabase
             .from("teachers")
