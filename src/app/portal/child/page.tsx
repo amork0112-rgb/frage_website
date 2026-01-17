@@ -562,21 +562,21 @@ export default function ChildPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div className="text-xs font-bold text-slate-500">픽업 좌표</div>
-                 <div className="flex gap-2">
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                    <input
                      placeholder="위도"
                      value={pickupCoord.lat}
                      onChange={(e) => setPickupCoord({ ...pickupCoord, lat: e.target.value })}
-                     className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                     className="border border-slate-200 rounded px-2 py-2 text-sm bg-white w-full"
                    />
                    <input
                      placeholder="경도"
                      value={pickupCoord.lng}
-                       onChange={(e) => setPickupCoord({ ...pickupCoord, lng: e.target.value })}
-                      className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                     onChange={(e) => setPickupCoord({ ...pickupCoord, lng: e.target.value })}
+                     className="border border-slate-200 rounded px-2 py-2 text-sm bg-white w-full"
                    />
                  </div>
-                 <div className="flex gap-2">
+                 <div className="flex flex-wrap gap-2">
                    <button
                      type="button"
                      onClick={setPickupCurrentLocation}
@@ -600,23 +600,23 @@ export default function ChildPage() {
                    />
                  )}
                </div>
-               <div className="space-y-2">
+              <div className="space-y-2">
                  <div className="text-xs font-bold text-slate-500">드롭오프 좌표</div>
-                 <div className="flex gap-2">
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                    <input
                      placeholder="위도"
                      value={dropoffCoord.lat}
                      onChange={(e) => setDropoffCoord({ ...dropoffCoord, lat: e.target.value })}
-                     className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                     className="border border-slate-200 rounded px-2 py-2 text-sm bg-white w-full"
                    />
                    <input
                      placeholder="경도"
                      value={dropoffCoord.lng}
-                       onChange={(e) => setDropoffCoord({ ...dropoffCoord, lng: e.target.value })}
-                      className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                     onChange={(e) => setDropoffCoord({ ...dropoffCoord, lng: e.target.value })}
+                     className="border border-slate-200 rounded px-2 py-2 text-sm bg-white w-full"
                    />
                  </div>
-                 <div className="flex gap-2">
+                 <div className="flex flex-wrap gap-2">
                    <button
                      type="button"
                      onClick={setDropoffCurrentLocation}

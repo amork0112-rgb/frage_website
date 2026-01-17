@@ -47,9 +47,15 @@ export default function VideoListPage() {
   useEffect(() => {
     (async () => {
       try {
-        const { data: userData } = await (await import("@/lib/supabase")).supabase.auth.getUser();
-        const userId = userData?.user?.id || "";
-        const studentId = userId || "s8";
+        const homeRes = await fetch("/api/portal/home", { cache: "no-store" });
+        const homePayload = await homeRes.json();
+        const students = Array.isArray(homePayload?.students) ? homePayload.students : [];
+        const firstEnrolled = students.find((s: any) => s.type === "enrolled") || students[0] || null;
+        const studentId = firstEnrolled && firstEnrolled.id ? String(firstEnrolled.id) : "";
+        if (!studentId) {
+          setHomeworkList([]);
+          return;
+        }
         const res = await fetch(`/api/portal/video?studentId=${encodeURIComponent(studentId)}`);
         const data = await res.json();
         const list = Array.isArray(data?.items) ? data.items : [];
