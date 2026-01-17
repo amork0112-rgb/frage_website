@@ -146,6 +146,25 @@ export default function TeacherVideoPage() {
   useEffect(() => {
     const load = async () => {
       try {
+        // 1. Teacher Profile Check
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: teacher } = await supabase
+          .from("teachers")
+          .select("id")
+          .eq("auth_user_id", user.id)
+          .single();
+        
+        const tid = teacher?.id ? String(teacher.id) : null;
+        setTeacherId(tid);
+
+        if (!tid) {
+          console.error("Teacher profile not found");
+          return;
+        }
+
+        // 2. Fetch Dashboard Data
         const res = await fetch("/api/teacher/video-dashboard", { cache: "no-store" });
         const data = await res.json();
         const assigns: any[] = Array.isArray(data?.assignments) ? data.assignments : [];

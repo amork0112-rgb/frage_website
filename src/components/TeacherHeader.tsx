@@ -40,7 +40,7 @@ export default function TeacherHeader() {
     })();
   }, []);
 
-  const isTeacher = !!role && ["teacher", "교사"].some((k) => role!.toLowerCase().includes(k));
+  const isTeacher = !!role && ["teacher", "master_teacher", "교사"].some((k) => role!.toLowerCase().includes(k));
   if (!isTeacher) return null;
 
   const menuGroups: {

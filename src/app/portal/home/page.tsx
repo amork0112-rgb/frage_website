@@ -106,10 +106,10 @@ export default function ParentPortalHome() {
         const res = await fetch("/api/portal/home", { cache: "no-store" });
         const payload = await res.json();
         const students = Array.isArray(payload?.students) ? payload.students : [];
-        if (students.length === 0) {
-          router.replace("/admission");
-          return;
-        }
+        // if (students.length === 0) {
+        //   router.replace("/admission");
+        //   return;
+        // }
         const first = students[0] || null;
         if (first && first.type === "applicant") {
           setStudentType("applicant");
