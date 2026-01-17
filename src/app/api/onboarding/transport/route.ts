@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { isValidUUID } from "@/lib/uuid";
 
 export async function POST(req: Request) {
   try {
@@ -27,6 +28,10 @@ export async function POST(req: Request) {
 
     if (!studentId) {
       return NextResponse.json({ ok: false, error: "student_id_required" }, { status: 400 });
+    }
+
+    if (!isValidUUID(studentId)) {
+      return NextResponse.json({ ok: false, error: "invalid_student_id" }, { status: 400 });
     }
 
     const allowedMethods = ["shuttle", "academy", "self"];
@@ -118,4 +123,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
   }
 }
-

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PortalHeader from "@/components/PortalHeader";
+import { isValidUUID } from "@/lib/uuid";
 
 declare global {
   interface Window {
@@ -32,6 +33,7 @@ export default function TransportOnboardingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const studentId = searchParams.get("studentId");
+  const hasValidStudentId = isValidUUID(studentId);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -101,7 +103,7 @@ export default function TransportOnboardingPage() {
   }, [studentId]);
 
   const canSubmit = useMemo(() => {
-    if (!studentId) return false;
+    if (!studentId || !hasValidStudentId) return false;
     if (!form.pickupMethod || !form.dropoffMethod) return false;
     if (form.defaultDropoffTime.trim().length === 0) return false;
     if (
@@ -117,7 +119,7 @@ export default function TransportOnboardingPage() {
       return false;
     }
     return true;
-  }, [form, studentId]);
+  }, [form, studentId, hasValidStudentId]);
 
   const openMap = (target: MapTarget) => {
     setMapTarget(target);
@@ -145,7 +147,7 @@ export default function TransportOnboardingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentId || !canSubmit || saving) return;
+    if (!studentId || !hasValidStudentId || !canSubmit || saving) return;
     setSaving(true);
     setError(null);
     try {
@@ -188,7 +190,7 @@ export default function TransportOnboardingPage() {
     );
   }
 
-  if (!studentId) {
+  if (!studentId || !hasValidStudentId) {
     return (
       <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10 flex items-center justify-center">
         <div className="text-sm text-slate-500">학생 정보를 찾을 수 없습니다.</div>
@@ -535,4 +537,3 @@ function MapModal({ target, initialLat, initialLng, onSelect, onClose }: MapModa
     </div>
   );
 }
-

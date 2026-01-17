@@ -6,6 +6,7 @@ import Image from "next/image";
 import PortalHeader from "@/components/PortalHeader";
 import { User, MapPin, School, Bus, Clock, Shield, Bell, Info, Camera, Calendar, Phone, Home, Smile, Edit2, Check, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { isValidUUID } from "@/lib/uuid";
 
 declare global {
   interface Window {
@@ -60,7 +61,7 @@ export default function ChildPage() {
       setEditForm(prev => ({ ...prev, photoUrl: url }));
       (async () => {
         try {
-          if (studentId) {
+          if (isValidUUID(studentId)) {
             await supabase
               .from("students")
               .update({ photo_url: url })
@@ -144,7 +145,8 @@ export default function ChildPage() {
         const s = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
         if (s) {
           const rawStudentId = String((s as any).student_id || "");
-          if (!rawStudentId) {
+          if (!isValidUUID(rawStudentId)) {
+            console.warn("유효하지 않은 studentId", rawStudentId);
             return;
           }
           setStudentId(rawStudentId);
@@ -204,7 +206,7 @@ export default function ChildPage() {
 
   const handleTransportSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmitTransport || !studentId) return;
+    if (!canSubmitTransport || !isValidUUID(studentId)) return;
     (async () => {
       try {
         const payload = {
@@ -288,7 +290,7 @@ export default function ChildPage() {
   };
 
   const savePickupDropoff = async () => {
-    if (!studentId) return;
+    if (!isValidUUID(studentId)) return;
     const latP = parseFloat(pickupCoord.lat);
     const lngP = parseFloat(pickupCoord.lng);
     const latD = parseFloat(dropoffCoord.lat);
