@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 
-type Mode = "request" | "verify" | "complete";
+type Mode = "request" | "verify" | "complete" | "onboarding";
 
 type RequestBody =
   | {
@@ -19,6 +19,13 @@ type RequestBody =
   | {
       mode: "complete";
       parentId: string;
+    }
+  | {
+      mode: "onboarding";
+      parentId: string;
+      use_bus: boolean;
+      commute_type: string;
+      address?: string | null;
     };
 
 function json(data: unknown, status = 200) {
@@ -290,6 +297,74 @@ export async function POST(request: Request) {
         .from("students")
         .update({ parent_auth_user_id: user.id })
         .eq("parent_id", parentId);
+
+      return json({ ok: true });
+    }
+
+    if (mode === "onboarding") {
+      const parentId = String((body as any).parentId || "");
+      if (!parentId) {
+        return json({ ok: false, error: "parent_id_required" }, 400);
+      }
+
+      const useBus =
+        typeof (body as any).use_bus === "boolean" ? (body as any).use_bus : null;
+      const commuteRaw = String((body as any).commute_type || "").trim();
+      const address =
+        typeof (body as any).address === "string"
+          ? String((body as any).address)
+          : null;
+
+      if (useBus === null) {
+        return json({ ok: false, error: "use_bus_required" }, 400);
+      }
+
+      if (!commuteRaw) {
+        return json({ ok: false, error: "commute_type_required" }, 400);
+      }
+
+      if (useBus === true && (!address || address.trim().length === 0)) {
+        return json({ ok: false, error: "address_required" }, 400);
+      }
+
+      const commuteType =
+        commuteRaw === "bus" ? "bus" : "self";
+
+      const { data: students, error: studentsErr } = await supabaseService
+        .from("students")
+        .select("id,parent_id")
+        .eq("parent_id", parentId);
+
+      if (studentsErr) {
+        return json({ ok: false, error: "students_fetch_failed" }, 500);
+      }
+
+      if (!students || students.length === 0) {
+        return json(
+          { ok: false, error: "no_registered_student" },
+          404
+        );
+      }
+
+      const payload: Record<string, any> = {
+        use_bus: useBus,
+        address: address && address.trim().length > 0 ? address.trim() : null,
+        profile_completed: true,
+      };
+
+      if (commuteType === "bus" || commuteType === "self") {
+        payload.pickup_type = commuteType;
+        payload.dropoff_type = commuteType;
+      }
+
+      const { error: updateErr } = await supabaseService
+        .from("students")
+        .update(payload)
+        .eq("parent_id", parentId);
+
+      if (updateErr) {
+        return json({ ok: false, error: "update_failed" }, 500);
+      }
 
       return json({ ok: true });
     }

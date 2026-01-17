@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
 
-type Step = "phone" | "otp" | "confirm" | "account";
+type Step = "phone" | "otp" | "confirm" | "onboarding" | "account";
 
 type ChildInfo = {
   id: string;
@@ -33,6 +33,10 @@ export default function ParentFirstVerificationPage() {
   const [parentId, setParentId] = useState<string | null>(null);
   const [parentName, setParentName] = useState<string | null>(null);
   const [children, setChildren] = useState<ChildInfo[]>([]);
+
+  const [useBus, setUseBus] = useState<boolean | null>(null);
+  const [commuteType, setCommuteType] = useState<"bus" | "pickup" | "walk" | "">("");
+  const [address, setAddress] = useState("");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -265,12 +269,65 @@ export default function ParentFirstVerificationPage() {
         setParentId(verifiedParentId || null);
         setParentName(verifiedParentName);
         setChildren(verifiedChildren);
+        setUseBus(null);
+        setCommuteType("");
+        setAddress("");
 
         setStep("confirm");
         return;
       } catch {
         setError("인증번호 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
         setVerified(false); // 실패 시 재시도 허용
+      } finally {
+        setLoading(false);
+      }
+    })();
+  };
+
+  const handleOnboardingSubmit = () => {
+    if (!parentId) {
+      setError("인증 정보가 올바르지 않습니다. 처음부터 다시 진행해 주세요.");
+      return;
+    }
+    if (useBus === null) {
+      setError("셔틀 버스 이용 여부를 선택해 주세요.");
+      return;
+    }
+    if (commuteType === "") {
+      setError("귀가 방식을 선택해 주세요.");
+      return;
+    }
+    if (useBus === true && address.trim().length === 0) {
+      setError("버스를 이용하시는 경우 주소를 입력해 주세요.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    (async () => {
+      try {
+        const res = await fetch("/api/otp", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            mode: "onboarding",
+            parentId,
+            use_bus: useBus,
+            commute_type: commuteType,
+            address: address.trim().length > 0 ? address.trim() : null,
+          }),
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || payload.ok === false) {
+          setError("등·하원 정보를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+          return;
+        }
+        setStep("account");
+      } catch {
+        setError("등·하원 정보를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
       } finally {
         setLoading(false);
       }
@@ -513,7 +570,7 @@ export default function ParentFirstVerificationPage() {
                       {parentName || "학부모님"}
                     </span>
                   </div>
-                  {children.map((child) => (
+                {children.map((child) => (
                     <div
                       key={child.id}
                       className="rounded-xl bg-white border border-slate-200 p-3"
@@ -538,7 +595,7 @@ export default function ParentFirstVerificationPage() {
                 <div className="flex flex-col sm:flex-row gap-3 mt-2">
                   <button
                     type="button"
-                    onClick={() => setStep("account")}
+                    onClick={() => setStep("onboarding")}
                     className="flex-1 py-3 rounded-xl bg-frage-navy text-white font-bold text-sm hover:bg-frage-blue"
                   >
                     이 정보가 맞습니다
@@ -554,6 +611,148 @@ export default function ParentFirstVerificationPage() {
                     className="py-3 px-4 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 bg-white hover:bg-slate-50"
                   >
                     정보가 다릅니다
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === "onboarding" && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-lg font-bold text-frage-navy mb-1">
+                    등·하원 기본 정보 설정
+                  </h2>
+                  <p className="text-sm text-frage-gray">
+                    자녀의 기본 등·하원 방식과 주소를 설정해 주세요. 이후에도 내 자녀 메뉴에서 수정할 수 있습니다.
+                  </p>
+                </div>
+                <div className="space-y-4 bg-slate-50 rounded-2xl border border-slate-200 p-4">
+                  <div className="space-y-2">
+                    <div className="text-sm font-bold text-slate-900">
+                      셔틀 버스를 이용하시나요?
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUseBus(true);
+                          if (commuteType === "") {
+                            setCommuteType("bus");
+                          }
+                        }}
+                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
+                          useBus === true
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        네, 이용합니다
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUseBus(false)}
+                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
+                          useBus === false
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        아니요, 이용하지 않습니다
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      버스를 이용하지 않는 경우에도 귀가 방식을 선택해 주세요.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm font-bold text-slate-900">
+                      귀가 방식
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCommuteType("bus")}
+                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
+                          commuteType === "bus"
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        Bus
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCommuteType("pickup")}
+                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
+                          commuteType === "pickup"
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        Pickup
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCommuteType("walk")}
+                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
+                          commuteType === "walk"
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        Walk
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm font-bold text-slate-900">
+                      등·하원 기준 주소
+                    </div>
+                    <input
+                      type="text"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="예: 대구 수성구 ○○아파트 101동 101호"
+                      className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy text-sm"
+                    />
+                    {useBus === true && (
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        셔틀 버스를 이용하시는 경우 등·하원의 기준 주소로 사용됩니다.
+                      </p>
+                    )}
+                    {useBus === false && (
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        버스를 이용하지 않는 경우 주소 입력은 선택입니다.
+                      </p>
+                    )}
+                  </div>
+                  {error && (
+                    <div className="text-sm bg-rose-50 text-rose-700 border border-rose-200 rounded-xl px-4 py-3">
+                      {error}
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-between gap-2">
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => setStep("confirm")}
+                    className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-40"
+                  >
+                    이전
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      loading ||
+                      useBus === null ||
+                      commuteType === "" ||
+                      (useBus === true && address.trim().length === 0)
+                    }
+                    onClick={handleOnboardingSubmit}
+                    className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {loading ? "저장 중..." : "저장하고 계정 설정으로 이동"}
                   </button>
                 </div>
               </div>
