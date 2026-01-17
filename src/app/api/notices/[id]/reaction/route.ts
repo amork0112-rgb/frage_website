@@ -26,20 +26,47 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "Invalid reaction type" }, { status: 400 });
     }
 
-    // 2. Call RPC to toggle reaction
-    const { data, error } = await supabase.rpc("toggle_notice_reaction", {
-      p_post_id: postId,
-      p_user_id: user.id,
-      p_reaction_type: reactionType
-    });
+    // 2. Toggle reaction manually in notice_reactions table
+    const { data: existing, error: existingError } = await supabase
+      .from("notice_reactions")
+      .select("id")
+      .eq("post_id", postId)
+      .eq("user_id", user.id)
+      .eq("reaction_type", reactionType)
+      .maybeSingle();
 
-    if (error) {
-      console.error("Reaction toggle error:", error);
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (existingError) {
+      console.error("Reaction fetch error:", existingError);
+      return NextResponse.json({ ok: false, error: existingError.message }, { status: 500 });
     }
 
-    // Assuming RPC returns some info, but we just return ok: true and maybe the action result if available
-    return NextResponse.json({ ok: true, result: data });
+    if (existing && existing.id) {
+      const { error: deleteError } = await supabase
+        .from("notice_reactions")
+        .delete()
+        .eq("id", existing.id);
+
+      if (deleteError) {
+        console.error("Reaction delete error:", deleteError);
+        return NextResponse.json({ ok: false, error: deleteError.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ ok: true, result: { toggled: "off" } });
+    }
+
+    const { error: insertError } = await supabase.from("notice_reactions").insert({
+      post_id: postId,
+      user_id: user.id,
+      reaction_type: reactionType,
+      created_at: new Date().toISOString(),
+    });
+
+    if (insertError) {
+      console.error("Reaction insert error:", insertError);
+      return NextResponse.json({ ok: false, error: insertError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true, result: { toggled: "on" } });
   } catch (e) {
     console.error("Reaction toggle exception:", e);
     return NextResponse.json({ ok: false, error: "Internal Server Error" }, { status: 500 });
