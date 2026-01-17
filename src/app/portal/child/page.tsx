@@ -64,7 +64,7 @@ export default function ChildPage() {
             await supabase
               .from("students")
               .update({ photo_url: url })
-              .eq("id", Number(studentId));
+              .eq("id", studentId);
           }
         } catch (e) {}
       })();
@@ -143,16 +143,11 @@ export default function ChildPage() {
           .limit(1);
         const s = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
         if (s) {
-          const numericIdRaw = (s as any).student_id;
-          const numericId =
-            typeof numericIdRaw === "number"
-              ? numericIdRaw
-              : Number.parseInt(String(numericIdRaw), 10);
-          const studentIdStr = numericId && !Number.isNaN(numericId) ? String(numericId) : "";
-          if (!studentIdStr) {
+          const rawStudentId = String((s as any).student_id || "");
+          if (!rawStudentId) {
             return;
           }
-          setStudentId(studentIdStr);
+          setStudentId(rawStudentId);
           setStudentProfile({
             name: { en: String(s.english_first_name || ""), ko: String(s.student_name || "") },
             photoUrl: "",
@@ -180,7 +175,7 @@ export default function ChildPage() {
             .select(
               "pickup_method,pickup_lat,pickup_lng,pickup_address,dropoff_method,dropoff_lat,dropoff_lng,dropoff_address,default_dropoff_time"
             )
-            .eq("id", numericId)
+            .eq("id", rawStudentId)
             .maybeSingle();
           if (loc) {
             setPickupCoord({
@@ -311,7 +306,7 @@ export default function ChildPage() {
         dropoff_lng: lngD,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", Number(studentId));
+      .eq("id", studentId);
     alert("위치 정보가 저장되었습니다.");
   };
 
