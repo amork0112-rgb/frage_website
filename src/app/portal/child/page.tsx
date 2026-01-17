@@ -137,14 +137,17 @@ export default function ChildPage() {
         const { data: studentRows } = await supabase
           .from("v_students_full")
           .select(
-            "id,student_name,english_first_name,class_name,campus,birth_date,gender,address,student_phone,photo_url"
+            "student_id,student_name,english_first_name,class_name,campus,birth_date,gender,address,student_phone,photo_url"
           )
           .eq("parent_id", parentId)
           .limit(1);
         const s = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
         if (s) {
+          const numericIdRaw = (s as any).student_id;
           const numericId =
-            typeof s.id === "number" ? s.id : Number.parseInt(String(s.id), 10);
+            typeof numericIdRaw === "number"
+              ? numericIdRaw
+              : Number.parseInt(String(numericIdRaw), 10);
           const studentIdStr = numericId && !Number.isNaN(numericId) ? String(numericId) : "";
           if (!studentIdStr) {
             return;
