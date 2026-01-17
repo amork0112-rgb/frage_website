@@ -130,12 +130,16 @@ export default function ChildPage() {
           name: parentName,
           accountId: user.id,
         }));
+        const parentId = parent ? String(parent.id) : null;
+        if (!parentId) {
+          return;
+        }
         const { data: studentRows } = await supabase
           .from("v_students_full")
           .select(
-            "student_id,student_name,english_first_name,class_name,campus,teacher_name,birth_date,gender,address,student_phone,photo_url,pickup_lat,pickup_lng,dropoff_lat,dropoff_lng,parent_auth_user_id"
+            "student_id,student_name,english_first_name,class_name,campus,teacher_name,birth_date,gender,address,student_phone,photo_url,pickup_lat,pickup_lng,dropoff_lat,dropoff_lng"
           )
-          .eq("parent_auth_user_id", user.id)
+          .eq("parent_id", parentId)
           .limit(1);
         const s = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
         if (s) {
