@@ -34,16 +34,16 @@ export async function GET(req: Request) {
 
     let postsQuery = supabaseService
       .from("posts")
-      .select("category,is_archived,campus");
+      .select("category,is_archived,campus")
+      .eq("category", "notice")
+      .eq("is_archived", false);
     
     if (campus && campus !== "All") {
       postsQuery = postsQuery.or(`campus.eq.All,campus.eq.${campus}`);
     }
 
     const { data: posts } = await postsQuery;
-    const noticesCount = Array.isArray(posts)
-      ? posts.filter((p: any) => String(p.category || "") === "notice").length
-      : 0;
+    const noticesCount = Array.isArray(posts) ? posts.length : 0;
 
     // 3. New Students (Guest Inquiries)
     let newStudentsQuery = supabaseService

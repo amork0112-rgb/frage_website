@@ -233,33 +233,35 @@ export default function AdminRequestsPage() {
           )}
           {filtered.map((r) => (
             <div key={r.id} className="p-4 flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-slate-900">{r.childName}</span>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full border">
-                    {activeTab === "bus_change"
-                      ? r.changeType === "no_bus"
-                        ? "버스 없음"
-                        : r.changeType === "pickup_change"
-                        ? "픽업 변경"
-                        : "드롭오프 변경"
-                      : activeTab === "early_pickup"
-                      ? r.time
-                      : activeTab === "medication"
-                      ? r.medName
-                      : r.dateStart}
-                  </span>
-                </div>
-                <div className="text-[11px] text-slate-500">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-700">
+                <span className="font-bold text-slate-900">{r.childName}</span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full border">
+                  {activeTab === "bus_change"
+                    ? r.changeType === "no_bus"
+                      ? "버스 없음"
+                      : r.changeType === "pickup_change"
+                      ? "픽업 변경"
+                      : "드롭오프 변경"
+                    : activeTab === "early_pickup"
+                    ? r.time
+                    : activeTab === "medication"
+                    ? r.medName
+                    : r.dateStart}
+                </span>
+                <span className="text-xs text-slate-500">
                   {r.campus}
                   {r.className ? ` · ${r.className}` : ""}
-                </div>
-                <div className="text-xs text-slate-500">
+                </span>
+                <span className="text-xs text-slate-500">
                   {activeTab === "medication" && r.dateEnd
                     ? `${r.dateStart} ~ ${r.dateEnd}`
                     : r.dateStart}
-                </div>
-                {r.note && <div className="text-xs text-slate-600">{r.note}</div>}
+                </span>
+                {r.note && (
+                  <span className="text-xs text-slate-600">
+                    · {r.note}
+                  </span>
+                )}
               </div>
               <div className="text-right">
                 <div className="text-xs text-slate-400">{new Date(r.createdAt).toLocaleString("ko-KR")}</div>
