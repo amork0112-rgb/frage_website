@@ -35,8 +35,7 @@ export async function GET(req: Request) {
     let postsQuery = supabaseService
       .from("posts")
       .select("category,is_archived,campus")
-      .eq("category", "notice")
-      .eq("is_archived", false);
+      .eq("category", "notice");
     
     if (campus && campus !== "All") {
       postsQuery = postsQuery.or(`campus.eq.All,campus.eq.${campus}`);
