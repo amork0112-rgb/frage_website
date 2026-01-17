@@ -81,7 +81,14 @@ export default function RequestsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedType || !selectedChildId) return;
+    if (!selectedType) {
+      setSubmittedText("요청 유형을 먼저 선택해 주세요.");
+      return;
+    }
+    if (!selectedChildId) {
+      setSubmittedText("자녀를 먼저 선택해 주세요.");
+      return;
+    }
     setLoading(true);
     const typeForDb = selectedType;
     const payload =
