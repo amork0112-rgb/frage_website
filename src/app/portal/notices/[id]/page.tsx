@@ -61,15 +61,34 @@ export default function NoticeDetailPage() {
     })();
   }, [noticeId]);
 
-  // 3. Fetch Initial Reactions
   useEffect(() => {
     (async () => {
-      if (!noticeId) return;
+      const numId = Number(noticeId);
+      if (Number.isNaN(numId)) return;
       try {
-        const res = await fetch(`/api/notices/${noticeId}/reactions`);
+        let hasSetCounts = false;
+
+        const { data: countsRow, error: countsError } = await supabase
+          .from("v_notice_reaction_counts")
+          .select("notice_id,check_count,heart_count,smile_count")
+          .eq("notice_id", numId)
+          .maybeSingle();
+
+        if (!countsError && countsRow) {
+          setReactions({
+            check: Number((countsRow as any).check_count ?? 0),
+            heart: Number((countsRow as any).heart_count ?? 0),
+            smile: Number((countsRow as any).smile_count ?? 0),
+          });
+          hasSetCounts = true;
+        }
+
+        const res = await fetch(`/api/notices/${numId}/reactions`);
         const json = await res.json();
         if (json.ok) {
-          setReactions(json.counts);
+          if (!hasSetCounts && json.counts) {
+            setReactions(json.counts);
+          }
           setMyReactions(json.myReactions || []);
         }
       } catch (e) {

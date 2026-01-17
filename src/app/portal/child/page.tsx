@@ -24,7 +24,6 @@ export default function ChildPage() {
     photoUrl: "",
     class: "",
     campus: "",
-    teacher: "",
     birthDate: "",
     gender: "",
     address: "",
@@ -59,16 +58,6 @@ export default function ChildPage() {
       const url = URL.createObjectURL(file);
       setStudentProfile(prev => ({ ...prev, photoUrl: url }));
       setEditForm(prev => ({ ...prev, photoUrl: url }));
-      (async () => {
-        try {
-          if (isValidUUID(studentId)) {
-            await supabase
-              .from("students")
-              .update({ photo_url: url })
-              .eq("id", studentId);
-          }
-        } catch (e) {}
-      })();
     }
   };
 
@@ -137,9 +126,7 @@ export default function ChildPage() {
         }
         const { data: studentRows } = await supabase
           .from("v_students_full")
-          .select(
-            "student_id,student_name,english_first_name,class_name,campus,birth_date,gender,address"
-          )
+          .select("student_id,student_name,english_first_name,class_name,campus,birth_date,gender,address,parent_phone")
           .eq("parent_id", parentId)
           .limit(1);
         const s = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
@@ -155,48 +142,62 @@ export default function ChildPage() {
             photoUrl: "",
             class: String(s.class_name || ""),
             campus: String(s.campus || ""),
-            teacher: "",
             birthDate: String(s.birth_date || ""),
             gender: String(s.gender || ""),
             address: String(s.address || ""),
-            studentPhone: "",
+            studentPhone: String((s as any).parent_phone || ""),
           });
           setEditForm({
             name: { en: String(s.english_first_name || ""), ko: String(s.student_name || "") },
             photoUrl: "",
             class: String(s.class_name || ""),
             campus: String(s.campus || ""),
-            teacher: "",
             birthDate: String(s.birth_date || ""),
             gender: String(s.gender || ""),
             address: String(s.address || ""),
-            studentPhone: "",
+            studentPhone: String((s as any).parent_phone || ""),
           });
-          const { data: loc } = await supabase
-            .from("students")
-            .select(
-              "pickup_method,pickup_lat,pickup_lng,pickup_address,dropoff_method,dropoff_lat,dropoff_lng,dropoff_address,default_dropoff_time"
-            )
-            .eq("id", rawStudentId)
-            .maybeSingle();
-          if (loc) {
-            setPickupCoord({
-              lat: loc.pickup_lat ? String(loc.pickup_lat) : "",
-              lng: loc.pickup_lng ? String(loc.pickup_lng) : "",
-            });
-            setDropoffCoord({
-              lat: loc.dropoff_lat ? String(loc.dropoff_lat) : "",
-              lng: loc.dropoff_lng ? String(loc.dropoff_lng) : "",
-            });
-            setTransportForm(prev => ({
-              ...prev,
-              arrivalMethod: (loc.pickup_method as any) || prev.arrivalMethod,
-              departureMethod: (loc.dropoff_method as any) || prev.departureMethod,
-              pickupPlace: loc.pickup_address || prev.pickupPlace,
-              dropoffPlace: loc.dropoff_address || prev.dropoffPlace,
-              defaultDepartureTime: loc.default_dropoff_time || prev.defaultDepartureTime,
-            }));
-          }
+          try {
+            const homeRes = await fetch("/api/portal/home", { cache: "no-store" });
+            const homePayload = await homeRes.json().catch(() => ({}));
+            const students = Array.isArray(homePayload?.students) ? homePayload.students : [];
+            const target = students.find((st: any) => String(st.id) === rawStudentId);
+            if (target) {
+              const pickupMethod: "shuttle" | "academy" | "self" =
+                target.pickup_method === "academy" || target.pickup_method === "self"
+                  ? target.pickup_method
+                  : "shuttle";
+              const dropoffMethod: "shuttle" | "academy" | "self" =
+                target.dropoff_method === "academy" || target.dropoff_method === "self"
+                  ? target.dropoff_method
+                  : "shuttle";
+              const defaultTime =
+                typeof target.default_dropoff_time === "string" &&
+                target.default_dropoff_time.length >= 5
+                  ? String(target.default_dropoff_time).slice(0, 5)
+                  : "16:30";
+              setPickupCoord({
+                lat:
+                  typeof target.pickup_lat === "number" ? String(target.pickup_lat) : "",
+                lng:
+                  typeof target.pickup_lng === "number" ? String(target.pickup_lng) : "",
+              });
+              setDropoffCoord({
+                lat:
+                  typeof target.dropoff_lat === "number" ? String(target.dropoff_lat) : "",
+                lng:
+                  typeof target.dropoff_lng === "number" ? String(target.dropoff_lng) : "",
+              });
+              setTransportForm(prev => ({
+                ...prev,
+                arrivalMethod: pickupMethod,
+                departureMethod: dropoffMethod,
+                pickupPlace: target.pickup_address || prev.pickupPlace,
+                dropoffPlace: target.dropoff_address || prev.dropoffPlace,
+                defaultDepartureTime: defaultTime,
+              }));
+            }
+          } catch {}
         }
       } catch (e) {}
     })();
@@ -290,26 +291,34 @@ export default function ChildPage() {
   };
 
   const savePickupDropoff = async () => {
-    if (!isValidUUID(studentId)) return;
-    const latP = parseFloat(pickupCoord.lat);
-    const lngP = parseFloat(pickupCoord.lng);
-    const latD = parseFloat(dropoffCoord.lat);
-    const lngD = parseFloat(dropoffCoord.lng);
-    if (Number.isNaN(latP) || Number.isNaN(lngP) || Number.isNaN(latD) || Number.isNaN(lngD)) {
-      alert("좌표를 올바르게 입력해 주세요.");
-      return;
+    if (!canSubmitTransport || !isValidUUID(studentId)) return;
+    try {
+      const payload = {
+        studentId,
+        pickup_method: transportForm.arrivalMethod,
+        dropoff_method: transportForm.departureMethod,
+        pickup_address: transportForm.pickupPlace || null,
+        dropoff_address: transportForm.dropoffPlace || null,
+        default_dropoff_time: transportForm.defaultDepartureTime,
+        pickup_lat: pickupCoord.lat ? Number.parseFloat(pickupCoord.lat) : null,
+        pickup_lng: pickupCoord.lng ? Number.parseFloat(pickupCoord.lng) : null,
+        dropoff_lat: dropoffCoord.lat ? Number.parseFloat(dropoffCoord.lat) : null,
+        dropoff_lng: dropoffCoord.lng ? Number.parseFloat(dropoffCoord.lng) : null,
+      };
+      const res = await fetch("/api/onboarding/transport", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        alert("등·하원 / 차량 정보 저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
+        return;
+      }
+      alert("위치 정보가 저장되었습니다.");
+    } catch (e) {
+      alert("등·하원 / 차량 정보 저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
     }
-    await supabase
-      .from("students")
-      .update({
-        pickup_lat: latP,
-        pickup_lng: lngP,
-        dropoff_lat: latD,
-        dropoff_lng: lngD,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", studentId);
-    alert("위치 정보가 저장되었습니다.");
   };
 
   return (
@@ -405,15 +414,6 @@ export default function ChildPage() {
                         <span className="font-bold text-slate-900">{studentProfile.campus}</span>
                      </div>
 
-                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 text-slate-600">
-                           <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-frage-blue shadow-sm">
-                              <User className="w-4 h-4" />
-                           </div>
-                           <span className="text-sm font-bold">Teacher</span>
-                        </div>
-                        <span className="font-bold text-slate-900">{studentProfile.teacher}</span>
-                     </div>
                  </div>
 
                  {/* Detailed Info (Editable) */}
@@ -496,16 +496,9 @@ export default function ChildPage() {
                        <div className="flex items-center gap-3">
                           <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
                           <span className="text-sm text-slate-600 w-24 flex-shrink-0">Phone</span>
-                          {isEditing ? (
-                            <input 
-                              type="tel"
-                              className="flex-1 border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-frage-blue"
-                              value={editForm.studentPhone}
-                              onChange={(e) => setEditForm({...editForm, studentPhone: e.target.value})}
-                            />
-                          ) : (
-                            <span className="text-sm font-bold text-slate-800 flex-1">{studentProfile.studentPhone}</span>
-                          )}
+                          <span className="text-sm font-bold text-slate-800 flex-1">
+                            {studentProfile.studentPhone}
+                          </span>
                        </div>
                      </div>
                  </div>
