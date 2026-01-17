@@ -139,6 +139,7 @@ export async function POST(req: Request) {
 
     if (type === "absence") {
       dateStart = payload.dateStart || payload.date_start || null;
+      dateEnd = payload.dateEnd || payload.date_end || dateStart || null;
       note = payload.note || null;
     } else if (type === "early_pickup") {
       dateStart = payload.dateStart || payload.date_start || null;

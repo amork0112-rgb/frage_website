@@ -93,6 +93,7 @@ export default function RequestsPage() {
   }, [selectedChildId]);
 
   const [absenceDate, setAbsenceDate] = useState(new Date().toISOString().split("T")[0]);
+  const [absenceEndDate, setAbsenceEndDate] = useState(new Date().toISOString().split("T")[0]);
   const [absenceReason, setAbsenceReason] = useState("");
   const [pickupDate, setPickupDate] = useState(new Date().toISOString().split("T")[0]);
   const [pickupTime, setPickupTime] = useState("");
@@ -131,7 +132,7 @@ export default function RequestsPage() {
         ? { dateStart: busDate, note: busNote, changeType: busChangeType }
         : selectedType === "early_pickup"
         ? { dateStart: pickupDate, time: pickupTime, note: pickupNote }
-        : { dateStart: absenceDate, note: absenceReason };
+        : { dateStart: absenceDate, dateEnd: absenceEndDate || absenceDate, note: absenceReason };
     try {
       const res = await fetch("/api/portal/requests", {
         method: "POST",
@@ -262,12 +263,22 @@ export default function RequestsPage() {
           {selectedType === "absence" && (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">날짜</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">시작 날짜</label>
                 <input
                   type="date"
                   required
                   value={absenceDate}
                   onChange={(e) => setAbsenceDate(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-frage-blue bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">끝나는 날짜</label>
+                <input
+                  type="date"
+                  value={absenceEndDate}
+                  min={absenceDate}
+                  onChange={(e) => setAbsenceEndDate(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-frage-blue bg-white"
                 />
               </div>
