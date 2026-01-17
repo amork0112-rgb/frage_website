@@ -132,9 +132,26 @@ export async function POST(req: Request) {
     console.log("INSERT studentId", studentId);
     console.log("INSERT payload", payload);
 
-    const dateStart = payload.dateStart || payload.date_start;
-    const dateEnd = payload.dateEnd || payload.date_end;
-    const time = payload.time;
+    let dateStart: string | null = null;
+    let dateEnd: string | null = null;
+    let time: string | null = null;
+    let note: string | null = null;
+
+    if (type === "absence") {
+      dateStart = payload.dateStart || payload.date_start || null;
+      note = payload.note || null;
+    } else if (type === "early_pickup") {
+      dateStart = payload.dateStart || payload.date_start || null;
+      time = payload.time || null;
+      note = payload.note || null;
+    } else if (type === "bus_change") {
+      dateStart = payload.dateStart || payload.date_start || null;
+      note = payload.note || null;
+    } else if (type === "medication") {
+      dateStart = payload.dateStart || payload.date_start || null;
+      dateEnd = payload.dateEnd || payload.date_end || null;
+      note = payload.note || null;
+    }
 
     const { error } = await supabaseAdmin.from("portal_requests").insert({
       student_id: studentId,
@@ -142,7 +159,8 @@ export async function POST(req: Request) {
       payload,
       date_start: dateStart,
       date_end: dateEnd,
-      time: time,
+      time,
+      note,
       created_at: new Date().toISOString(),
     });
 
