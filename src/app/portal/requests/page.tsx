@@ -12,7 +12,7 @@ export default function RequestsPage() {
   const [selectedType, setSelectedType] = useState<RequestType | null>(null);
   const [loading, setLoading] = useState(false);
   const [submittedText, setSubmittedText] = useState<string>("");
-  const [recentRequests, setRecentRequests] = useState<{ date: string; type: RequestType }[]>([]);
+  const [recentRequests, setRecentRequests] = useState<{ date: string; type: RequestType; studentName?: string }[]>([]);
   const [children, setChildren] = useState<{ id: string; name: string }[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string>("");
   const selectedChild = useMemo(
@@ -78,9 +78,13 @@ export default function RequestsPage() {
         const recent = items.map((it: any) => {
           const rawType = String(it.type || "absence");
           const mappedType = rawType === "pickup" ? "early_pickup" : rawType;
+          // API 변경 반영: date_start 우선 사용, 없으면 created_at
+          const displayDate = it.date_start || it.created_at || "";
           return {
-            date: String(it.date || ""),
+            date: String(displayDate),
             type: mappedType as RequestType,
+            // 필요 시 student_name 등 추가 사용 가능
+            studentName: it.student_name,
           };
         });
         setRecentRequests(recent);

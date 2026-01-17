@@ -38,23 +38,45 @@ export async function GET(req: Request) {
     }
 
     // ⭐ GET은 읽기이므로, RLS가 적용된 일반 client 사용 (안전)
+    // portal_requests와 students를 JOIN하여 학생 이름 가져오기
     const { data, error } = await supabase
       .from("portal_requests")
-      .select("id,type,payload,created_at")
+      .select(`
+        id,
+        type,
+        payload,
+        created_at,
+        student:students (
+          id,
+          student_name
+        )
+      `)
       .eq("student_id", studentId)
       .order("created_at", { ascending: false })
       .limit(5);
 
     if (error) {
+      console.error("GET ERROR:", error);
       return json({ ok: false, items: [] }, 200);
     }
 
     const rows = Array.isArray(data) ? data : [];
-    const items = rows.map((row: any) => ({
-      id: String(row.id ?? ""),
-      date: String(row?.payload?.dateStart || row?.created_at || ""),
-      type: String(row.type || "absence"),
-    }));
+    const items = rows.map((row: any) => {
+      // payload에서 날짜/시간 추출 (없으면 null)
+      const p = row.payload || {};
+      return {
+        id: String(row.id ?? ""),
+        type: String(row.type || "absence"),
+        payload: p,
+        date_start: p.dateStart || p.date_start || null,
+        date_end: p.dateEnd || p.date_end || null,
+        time: p.time || null,
+        created_at: row.created_at,
+        // JOIN된 데이터 flatten
+        student_id: row.student?.id || "",
+        student_name: row.student?.student_name || "자녀",
+      };
+    });
 
     return json({ ok: true, items }, 200);
   } catch {
