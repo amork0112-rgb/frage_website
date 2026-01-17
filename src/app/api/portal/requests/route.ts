@@ -37,18 +37,20 @@ export async function GET(req: Request) {
       return json({ ok: true, items: [] }, 200);
     }
 
-    // ⭐ GET은 읽기이므로, RLS가 적용된 일반 client 사용 (안전)
-    // portal_requests와 students를 JOIN하여 학생 이름 가져오기
     const { data, error } = await supabase
       .from("portal_requests")
       .select(`
         id,
         type,
         payload,
+        date_start,
+        date_end,
+        time,
         created_at,
-        student:students (
+        students (
           id,
-          student_name
+          student_name,
+          campus
         )
       `)
       .eq("student_id", studentId)
@@ -62,19 +64,19 @@ export async function GET(req: Request) {
 
     const rows = Array.isArray(data) ? data : [];
     const items = rows.map((row: any) => {
-      // payload에서 날짜/시간 추출 (없으면 null)
       const p = row.payload || {};
+      const student = row.students;
       return {
         id: String(row.id ?? ""),
         type: String(row.type || "absence"),
         payload: p,
-        date_start: p.dateStart || p.date_start || null,
-        date_end: p.dateEnd || p.date_end || null,
-        time: p.time || null,
+        date_start: row.date_start ?? p.dateStart ?? p.date_start ?? null,
+        date_end: row.date_end ?? p.dateEnd ?? p.date_end ?? null,
+        time: row.time ?? p.time ?? null,
         created_at: row.created_at,
-        // JOIN된 데이터 flatten
-        student_id: row.student?.id || "",
-        student_name: row.student?.student_name || "자녀",
+        student_id: student?.id || "",
+        student_name: student?.student_name || "자녀",
+        campus: student?.campus || null,
       };
     });
 
@@ -118,10 +120,9 @@ export async function POST(req: Request) {
       return json({ ok: false, error: "invalid_type" }, 400);
     }
 
-    // 1️⃣ 학생 존재 검증 및 캠퍼스 조회 (Admin 권한)
     const { data: student } = await supabaseAdmin
       .from("students")
-      .select("id, campus")
+      .select("id")
       .eq("id", studentId)
       .maybeSingle();
 
@@ -130,14 +131,12 @@ export async function POST(req: Request) {
     }
 
     // 2️⃣ INSERT (Admin 권한)
-    // payload 내부 값 추출 (사용자 요청 예시 반영)
     const dateStart = payload.dateStart || payload.date_start;
     const dateEnd = payload.dateEnd || payload.date_end;
     const time = payload.time;
 
     const { error } = await supabaseAdmin.from("portal_requests").insert({
       student_id: studentId,
-      campus: student.campus, // ⭐️ 필수 필드: 학생의 캠퍼스 자동 주입
       type,
       payload,
       date_start: dateStart,
