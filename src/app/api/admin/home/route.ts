@@ -43,7 +43,7 @@ export async function GET(req: Request) {
 
     const { data: posts } = await postsQuery;
     const noticesCount = Array.isArray(posts)
-      ? posts.filter((p: any) => String(p.category || "") === "notice" && !p.is_archived).length
+      ? posts.filter((p: any) => String(p.category || "") === "notice").length
       : 0;
 
     // 3. New Students (Guest Inquiries)
