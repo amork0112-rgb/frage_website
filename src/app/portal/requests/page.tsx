@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import PortalHeader from "@/components/PortalHeader";
 import { Calendar, Clock, Bus, Pill, Send } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 type RequestType = "absence" | "early_pickup" | "bus_change" | "medication";
 
@@ -22,12 +21,19 @@ export default function RequestsPage() {
   useEffect(() => {
     (async () => {
       try {
-        const { data: userData } = await supabase.auth.getUser();
-        const user = userData?.user;
-        const id = user?.id || "s8";
-        const arr = [{ id, name: "자녀" }];
-        setChildren(arr);
-        setSelectedChildId(arr[0].id);
+        const res = await fetch("/api/portal/home", { cache: "no-store" });
+        const payload = await res.json().catch(() => ({}));
+        const students = Array.isArray(payload?.students) ? payload.students : [];
+        const enrolled = students.filter((s: any) => s.type === "enrolled");
+        const list =
+          enrolled.length > 0
+            ? enrolled.map((s: any) => ({
+                id: String(s.id),
+                name: String(s.englishName || s.name || "자녀"),
+              }))
+            : [];
+        setChildren(list);
+        setSelectedChildId(list[0]?.id ?? "");
       } catch {}
     })();
   }, []);
@@ -35,19 +41,21 @@ export default function RequestsPage() {
   useEffect(() => {
     (async () => {
       if (!selectedChildId) return;
-      const { data } = await supabase
-        .from("portal_requests")
-        .select("*")
-        .eq("student_id", selectedChildId)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      const recent = Array.isArray(data)
-        ? data.map((it: any) => ({
-            date: String(it?.payload?.dateStart || it?.created_at || ""),
-            type: (String(it?.type || "absence").replace("early_pickup", "pickup") as any) as RequestType,
-          }))
-        : [];
-      setRecentRequests(recent);
+      try {
+        const res = await fetch(`/api/portal/requests?studentId=${selectedChildId}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const payload = await res.json().catch(() => ({}));
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        const recent = items.map((it: any) => {
+          const rawType = String(it.type || "absence");
+          const mappedType = rawType === "pickup" ? "early_pickup" : rawType;
+          return {
+            date: String(it.date || ""),
+            type: mappedType as RequestType,
+          };
+        });
+        setRecentRequests(recent);
+      } catch {}
     })();
   }, [selectedChildId]);
 
@@ -73,8 +81,9 @@ export default function RequestsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedType || !selectedChildId) return;
     setLoading(true);
-    const typeForDb = selectedType === "early_pickup" ? "pickup" : selectedType;
+    const typeForDb = selectedType;
     const payload =
       selectedType === "medication"
         ? { dateStart: medStart, dateEnd: medEnd, note: medInstructions, medName }
@@ -83,22 +92,38 @@ export default function RequestsPage() {
         : selectedType === "early_pickup"
         ? { dateStart: pickupDate, time: pickupTime, note: pickupNote }
         : { dateStart: absenceDate, note: absenceReason };
-    await supabase.from("portal_requests").insert({
-      student_id: selectedChildId,
-      type: typeForDb,
-      payload,
-      campus: "main",
-      status: "pending",
-      created_at: new Date().toISOString(),
-    });
-    setSubmittedText("요청이 제출되었습니다. 학원에 전달되었습니다.");
-    const dateForRecent =
-      selectedType === "medication" ? medStart : selectedType === "bus_change" ? busDate : selectedType === "early_pickup" ? pickupDate : absenceDate;
-    setRecentRequests((prev) => {
-      const next = [{ date: dateForRecent, type: selectedType! }, ...prev];
-      return next.slice(0, 5);
-    });
-    setLoading(false);
+    try {
+      const res = await fetch("/api/portal/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId: selectedChildId,
+          type: typeForDb,
+          payload,
+        }),
+      });
+      if (!res.ok) {
+        setSubmittedText("요청 전달에 실패했습니다. 다시 시도해 주세요.");
+      } else {
+        setSubmittedText("요청이 제출되었습니다. 학원에 전달되었습니다.");
+        const dateForRecent =
+          selectedType === "medication"
+            ? medStart
+            : selectedType === "bus_change"
+            ? busDate
+            : selectedType === "early_pickup"
+            ? pickupDate
+            : absenceDate;
+        setRecentRequests((prev) => {
+          const next = [{ date: dateForRecent, type: selectedType }, ...prev];
+          return next.slice(0, 5);
+        });
+      }
+    } catch {
+      setSubmittedText("요청 전달에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const clearSubmission = () => setSubmittedText("");
