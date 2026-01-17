@@ -30,27 +30,6 @@ export async function GET(req: Request) {
       return json({ ok: true, items: [] }, 200);
     }
 
-    const { data: parent } = await supabase
-      .from("parents")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-
-    if (!parent) {
-      return json({ ok: true, items: [] }, 200);
-    }
-
-    const { data: student } = await supabase
-      .from("students")
-      .select("id")
-      .eq("id", studentId)
-      .eq("parent_id", parent.id)
-      .maybeSingle();
-
-    if (!student) {
-      return json({ ok: true, items: [] }, 200);
-    }
-
     const { data, error } = await supabase
       .from("portal_requests")
       .select("id,type,payload,created_at")
@@ -106,47 +85,13 @@ export async function POST(req: Request) {
       return json({ ok: false, error: "invalid_type" }, 400);
     }
 
-    const { data: parent } = await supabase
-      .from("parents")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-
-    if (!parent) {
-      return json({ ok: false, error: "parent_not_found" }, 403);
-    }
-
-    const { data: student } = await supabase
-      .from("students")
-      .select("id,campus,parent_id,teacher_id")
-      .eq("id", studentId)
-      .eq("parent_id", parent.id)
-      .maybeSingle();
-
-    if (!student) {
-      return json({ ok: false, error: "student_not_found" }, 403);
-    }
-
-    const now = new Date().toISOString();
-    const campus = String((student as any).campus || "All");
-    const teacherId = (student as any).teacher_id || null;
-
-    const row: any = {
+    const { error } = await supabase.from("portal_requests").insert({
       student_id: studentId,
       type,
       payload,
-      campus,
-      status: "pending",
-      created_at: now,
-    };
-
-    if (teacherId) {
-      row.teacher_id = teacherId;
-    }
-
-    const { error } = await supabase.from("portal_requests").insert(row);
+    });
     if (error) {
-      return json({ ok: false, error: "db_error" }, 500);
+      return json({ ok: false, error: error.message }, 403);
     }
 
     return json({ ok: true }, 200);
