@@ -19,19 +19,18 @@ export async function GET(req: Request) {
     const guard = await requireAdmin(supabase);
     if ("error" in guard) return guard.error;
 
-    // 1. Portal Requests (New Requests)
+    const allowedRequestTypes = ["absence", "early_pickup", "bus_change", "medication"];
     let requestsQuery = supabaseService
       .from("portal_requests")
-      .select("id,created_at,campus")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    
+      .select("*", { count: "exact", head: true })
+      .in("type", allowedRequestTypes);
+
     if (campus && campus !== "All") {
       requestsQuery = requestsQuery.eq("campus", campus);
     }
-    
-    const { data: latestRequests } = await requestsQuery;
-    const newRequestsCount = Array.isArray(latestRequests) ? latestRequests.length : 0;
+
+    const { count: newRequestsCountRaw } = await requestsQuery;
+    const newRequestsCount = typeof newRequestsCountRaw === "number" ? newRequestsCountRaw : 0;
 
     let postsQuery = supabaseService
       .from("posts")

@@ -12,6 +12,7 @@ type PortalRequest = {
   childId: string;
   childName: string;
   campus: string;
+  className?: string;
   type: RequestType;
   dateStart: string;
   dateEnd?: string;
@@ -48,6 +49,7 @@ export default function AdminRequestsPage() {
           childId: String(row.childId ?? ""),
           childName: String(row.childName ?? ""),
           campus: String(row.campus ?? "International"),
+          className: row.className ? String(row.className) : undefined,
           type: String(row.type ?? "absence") as RequestType,
           dateStart: String(row.dateStart ?? ""),
           dateEnd: row.dateEnd ? String(row.dateEnd) : undefined,
@@ -134,6 +136,7 @@ export default function AdminRequestsPage() {
           childId: String(row.childId ?? ""),
           childName: String(row.childName ?? ""),
           campus: String(row.campus ?? "International"),
+          className: row.className ? String(row.className) : undefined,
           type: String(row.type ?? "absence") as RequestType,
           dateStart: String(row.dateStart ?? ""),
           dateEnd: row.dateEnd ? String(row.dateEnd) : undefined,
@@ -246,6 +249,10 @@ export default function AdminRequestsPage() {
                       ? r.medName
                       : r.dateStart}
                   </span>
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  {r.campus}
+                  {r.className ? ` · ${r.className}` : ""}
                 </div>
                 <div className="text-xs text-slate-500">
                   {activeTab === "medication" && r.dateEnd

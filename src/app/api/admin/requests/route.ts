@@ -76,7 +76,7 @@ export async function GET(_req: Request) {
     const guard = await requireAdmin(supabase);
     if ((guard as any).error) return (guard as any).error;
     const { data, error } = await supabaseService
-      .from("portal_requests")
+      .from("v_portal_requests_with_student")
       .select("*")
       .order("created_at", { ascending: false });
     if (error) {
@@ -85,8 +85,8 @@ export async function GET(_req: Request) {
     const items = Array.isArray(data)
       ? data.map((row: any) => ({
           id: String(row.id),
-          childId: String(row.child_id ?? ""),
-          childName: String(row.child_name ?? ""),
+          childId: String(row.student_id ?? row.child_id ?? ""),
+          childName: String(row.student_name ?? row.child_name ?? ""),
           campus: String(row.campus ?? ""),
           type: String(row.type ?? ""),
           dateStart: String(row.date_start ?? ""),
@@ -96,6 +96,7 @@ export async function GET(_req: Request) {
           changeType: row.change_type ? String(row.change_type) : undefined,
           medName: row.med_name ? String(row.med_name) : undefined,
           createdAt: String(row.created_at ?? new Date().toISOString()),
+          className: row.class_name ? String(row.class_name) : undefined,
           name: row.name ? String(row.name) : undefined,
           phone: row.phone ? String(row.phone) : undefined,
           source: row.source ? String(row.source) : undefined,
