@@ -8,36 +8,18 @@ const json = (data: any, status = 200) =>
     headers: { "Content-Type": "application/json" },
   });
 
-async function getOwnedStudent(userId: string, studentId: string) {
-  const { data: parent } = await supabaseService
-    .from("parents")
-    .select("id")
-    .eq("auth_user_id", userId)
-    .maybeSingle();
-
-  if (!parent) return null;
-
-  const { data: student } = await supabaseService
-    .from("students")
-    .select("id,campus,parent_id,teacher_id")
-    .eq("id", studentId)
-    .eq("parent_id", parent.id)
-    .maybeSingle();
-
-  return student;
-}
-
 export async function GET(req: Request) {
   try {
-    const supabaseAuth = createSupabaseServer();
+    const supabase = createSupabaseServer();
     const {
       data: { user },
-    } = await supabaseAuth.auth.getUser();
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return json({ ok: false, items: [] }, 401);
     }
 
+    // Role check - optional if RLS handles it, but good for fail-fast
     const role = user.app_metadata?.role ?? "parent";
     if (role !== "parent") {
       return json({ ok: false, items: [] }, 403);
@@ -50,12 +32,31 @@ export async function GET(req: Request) {
       return json({ ok: true, items: [] }, 200);
     }
 
-    const student = await getOwnedStudent(user.id, studentId);
+    // 1. Get Parent ID
+    const { data: parent } = await supabase
+      .from("parents")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (!parent) {
+      return json({ ok: true, items: [] }, 200);
+    }
+
+    // 2. Validate Student Ownership (Parent -> Student)
+    const { data: student } = await supabase
+      .from("students")
+      .select("id")
+      .eq("id", studentId)
+      .eq("parent_id", parent.id)
+      .maybeSingle();
+
     if (!student) {
       return json({ ok: true, items: [] }, 200);
     }
 
-    const { data, error } = await supabaseService
+    // 3. Fetch Requests
+    const { data, error } = await supabase
       .from("portal_requests")
       .select("id,type,payload,created_at")
       .eq("student_id", studentId)
@@ -81,10 +82,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const supabaseAuth = createSupabaseServer();
+    const supabase = createSupabaseServer();
     const {
       data: { user },
-    } = await supabaseAuth.auth.getUser();
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return json({ ok: false, error: "unauthorized" }, 401);
@@ -110,7 +111,25 @@ export async function POST(req: Request) {
       return json({ ok: false, error: "invalid_type" }, 400);
     }
 
-    const student = await getOwnedStudent(user.id, studentId);
+    // 1. Get Parent ID
+    const { data: parent } = await supabase
+      .from("parents")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (!parent) {
+      return json({ ok: false, error: "parent_not_found" }, 403);
+    }
+
+    // 2. Validate Student Ownership (Parent -> Student)
+    const { data: student } = await supabase
+      .from("students")
+      .select("id,campus,parent_id,teacher_id")
+      .eq("id", studentId)
+      .eq("parent_id", parent.id)
+      .maybeSingle();
+
     if (!student) {
       return json({ ok: false, error: "student_not_found" }, 403);
     }
@@ -132,6 +151,9 @@ export async function POST(req: Request) {
       row.teacher_id = teacherId;
     }
 
+    // Insert Request
+    // Use supabase (auth) if RLS permits, otherwise fallback to service if needed.
+    // Assuming portal_requests has RLS for parents to insert.
     const { error } = await supabaseService.from("portal_requests").insert(row);
     if (error) {
       return json({ ok: false, error: "db_error" }, 500);
