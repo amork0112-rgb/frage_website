@@ -20,6 +20,7 @@ type PortalRequest = {
   note?: string;
   changeType?: "no_bus" | "pickup_change" | "dropoff_change";
   medName?: string;
+  teacherRead?: boolean;
   createdAt: string;
 };
 
@@ -57,6 +58,7 @@ export default function AdminRequestsPage() {
           note: row.note ? String(row.note) : undefined,
           changeType: row.changeType ? (String(row.changeType) as PortalRequest["changeType"]) : undefined,
           medName: row.medName ? String(row.medName) : undefined,
+          teacherRead: typeof row.teacherRead === "boolean" ? row.teacherRead : undefined,
           createdAt: String(row.createdAt ?? new Date().toISOString()),
         }));
         setRequests(list);
@@ -144,6 +146,7 @@ export default function AdminRequestsPage() {
           note: row.note ? String(row.note) : undefined,
           changeType: row.changeType ? (String(row.changeType) as PortalRequest["changeType"]) : undefined,
           medName: row.medName ? String(row.medName) : undefined,
+          teacherRead: typeof row.teacherRead === "boolean" ? row.teacherRead : undefined,
           createdAt: String(row.createdAt ?? new Date().toISOString()),
         }));
         setRequests(list);
@@ -234,6 +237,9 @@ export default function AdminRequestsPage() {
           {filtered.map((r) => (
             <div key={r.id} className="p-4 flex items-center justify-between">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-700">
+                {!r.teacherRead && (
+                  <span className="w-2 h-2 rounded-full bg-red-500 mr-1 inline-block" />
+                )}
                 <span className="font-bold text-slate-900">{r.childName}</span>
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full border">
                   {activeTab === "bus_change"

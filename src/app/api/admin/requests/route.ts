@@ -101,6 +101,12 @@ export async function GET(_req: Request) {
           phone: row.phone ? String(row.phone) : undefined,
           source: row.source ? String(row.source) : undefined,
           status: row.status ? String(row.status) : undefined,
+          teacherRead:
+            typeof row.teacher_read === "boolean"
+              ? row.teacher_read
+              : typeof row.teacherRead === "boolean"
+              ? row.teacherRead
+              : undefined,
         }))
       : [];
     return json({ ok: true, items }, 200);
