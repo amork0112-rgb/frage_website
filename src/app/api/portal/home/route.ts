@@ -9,11 +9,6 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
-    const role = (user.app_metadata as any)?.role ?? "parent";
-    if (role !== "parent") {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    }
-
     const { data: parent } = await supabase
       .from("parents")
       .select("id,name,phone,campus")
