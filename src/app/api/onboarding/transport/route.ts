@@ -26,6 +26,17 @@ export async function POST(req: Request) {
     const dropoffAddressRaw = body?.dropoff_address;
     const defaultDropoffTimeRaw = String(body?.default_dropoff_time || "").trim();
 
+    console.log("onboarding_transport_request", {
+      userId: user.id,
+      role,
+      studentId,
+      pickupMethod: pickupMethodRaw,
+      dropoffMethod: dropoffMethodRaw,
+      hasPickupAddress: typeof pickupAddressRaw === "string" && pickupAddressRaw.trim().length > 0,
+      hasDropoffAddress: typeof dropoffAddressRaw === "string" && dropoffAddressRaw.trim().length > 0,
+      defaultDropoffTimeRaw,
+    });
+
     if (!studentId) {
       return NextResponse.json({ ok: false, error: "student_id_required" }, { status: 400 });
     }
@@ -92,6 +103,11 @@ export async function POST(req: Request) {
     const useBus = pickupMethodRaw === "shuttle" || dropoffMethodRaw === "shuttle";
     const primaryAddress = dropoffAddress || pickupAddress || null;
 
+    const normalizedDropoffTime =
+      defaultDropoffTimeRaw.length === 5
+        ? `${defaultDropoffTimeRaw}:00`
+        : defaultDropoffTimeRaw || null;
+
     const updatePayload: Record<string, any> = {
       pickup_method: pickupMethodRaw,
       dropoff_method: dropoffMethodRaw,
@@ -101,12 +117,27 @@ export async function POST(req: Request) {
       dropoff_lat: dropoffLat,
       dropoff_lng: dropoffLng,
       dropoff_address: dropoffAddress,
-      default_dropoff_time: defaultDropoffTimeRaw || null,
+      default_dropoff_time: normalizedDropoffTime,
       onboarding_step: "complete",
       use_bus: useBus,
       address: primaryAddress,
       profile_completed: true,
     };
+
+    console.log("onboarding_transport_update_payload", {
+      studentId,
+      parentId,
+      pickup_method: updatePayload.pickup_method,
+      dropoff_method: updatePayload.dropoff_method,
+      hasPickupLat: typeof updatePayload.pickup_lat === "number",
+      hasPickupLng: typeof updatePayload.pickup_lng === "number",
+      hasDropoffLat: typeof updatePayload.dropoff_lat === "number",
+      hasDropoffLng: typeof updatePayload.dropoff_lng === "number",
+      hasPickupAddress: !!updatePayload.pickup_address,
+      hasDropoffAddress: !!updatePayload.dropoff_address,
+      default_dropoff_time: updatePayload.default_dropoff_time,
+      use_bus: updatePayload.use_bus,
+    });
 
     const { error: updateErr } = await supabaseService
       .from("students")
@@ -115,11 +146,13 @@ export async function POST(req: Request) {
       .eq("parent_id", parentId);
 
     if (updateErr) {
+      console.error("onboarding_transport_update_error", updateErr);
       return NextResponse.json({ ok: false, error: "update_failed" }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch {
+  } catch (e) {
+    console.error("onboarding_transport_server_error", e);
     return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
   }
 }

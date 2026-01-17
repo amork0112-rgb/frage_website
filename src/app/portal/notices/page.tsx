@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PortalHeader from "@/components/PortalHeader";
 import type { Notice } from "@/data/notices";
-import { Pin, Calendar, ChevronRight, ChevronDown, Archive, Megaphone } from "lucide-react";
+import { Pin, Calendar, ChevronRight, ChevronDown, Archive, Megaphone, CheckCircle2, Heart, Smile } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function NoticesPage() {
@@ -18,23 +18,54 @@ export default function NoticesPage() {
         .select("*")
         .eq("category", "notice")
         .order("created_at", { ascending: false });
-      const server: Notice[] = Array.isArray(data)
-        ? data.map((p: any) => ({
-            id: String(p.id),
-            title: p.title,
-            date: p.created_at,
-            category: "Academic",
-            campus: "All",
-            summary: p.content || "",
-            content: [],
-            isPinned: !!p.is_pinned,
-            pinnedOrder: undefined,
-            isArchived: !!p.is_archived,
-            viewCount: 0,
-            isRead: false,
-            reactions: { check: 0, heart: 0, smile: 0 },
-          }))
-        : [];
+
+      const rows = Array.isArray(data) ? data : [];
+      const ids = rows
+        .map((p: any) => Number(p.id))
+        .filter((n) => !Number.isNaN(n));
+
+      let reactionMap: Record<number, { check: number; heart: number; smile: number }> = {};
+
+      if (ids.length > 0) {
+        const { data: reactionRows } = await supabase
+          .from("v_notice_reaction_counts")
+          .select("notice_id,check_count,heart_count,smile_count")
+          .in("notice_id", ids as any);
+
+        if (Array.isArray(reactionRows)) {
+          reactionMap = reactionRows.reduce((acc, row: any) => {
+            const nid = Number(row.notice_id);
+            if (Number.isNaN(nid)) return acc;
+            acc[nid] = {
+              check: Number(row.check_count ?? 0),
+              heart: Number(row.heart_count ?? 0),
+              smile: Number(row.smile_count ?? 0),
+            };
+            return acc;
+          }, {} as Record<number, { check: number; heart: number; smile: number }>);
+        }
+      }
+
+      const server: Notice[] = rows.map((p: any) => {
+        const pid = Number(p.id);
+        const reactions = reactionMap[pid] || { check: 0, heart: 0, smile: 0 };
+        return {
+          id: String(p.id),
+          title: p.title,
+          date: p.created_at,
+          category: "Academic",
+          campus: "All",
+          summary: p.content || "",
+          content: [],
+          isPinned: !!p.is_pinned,
+          pinnedOrder: undefined,
+          isArchived: !!p.is_archived,
+          viewCount: Number(p.view_count ?? 0),
+          isRead: false,
+          reactions,
+        };
+      });
+
       setAllNotices(server);
     })();
   }, []);
@@ -104,7 +135,23 @@ export default function NoticesPage() {
                               <span className="w-1 h-1 rounded-full bg-slate-300"></span>
                               <span className="text-frage-orange">{p.category}</span>
                           </div>
-                          <span className="text-slate-400">조회 {p.viewCount}</span>
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                {p.reactions.check}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Heart className="w-3 h-3" />
+                                {p.reactions.heart}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Smile className="w-3 h-3" />
+                                {p.reactions.smile}
+                              </span>
+                            </div>
+                            <span className="text-slate-400">조회 {p.viewCount}</span>
+                          </div>
                       </div>
                   </div>
                 </Link>
@@ -147,8 +194,22 @@ export default function NoticesPage() {
                     <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed mb-3">
                         {notice.summary}
                     </p>
-                    <div className="flex items-center justify-end border-t border-slate-50 pt-2">
-                        <span className="text-xs text-slate-400">조회 {notice.viewCount}</span>
+                    <div className="flex items-center justify-between border-t border-slate-50 pt-2">
+                      <div className="flex items-center gap-3 text-[11px] text-slate-400">
+                        <span className="flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          {notice.reactions.check}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Heart className="w-3 h-3" />
+                          {notice.reactions.heart}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Smile className="w-3 h-3" />
+                          {notice.reactions.smile}
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-400">조회 {notice.viewCount}</span>
                     </div>
                 </div>
               </Link>
