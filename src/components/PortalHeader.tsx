@@ -57,9 +57,9 @@ export default function PortalHeader() {
 
   const menuItems = [
     { name: "홈", href: "/portal/home", icon: Home },
-    ...(isEnrolled ? [{ name: "과제", href: "/portal/video", icon: Video }] : []),
-    ...(isEnrolled ? [{ name: "리포트", href: "/portal/report", icon: FileText }] : []),
     { name: "공지사항", href: "/portal/notices", icon: Bell },
+    { name: "과제", href: "/portal/video", icon: Video },
+    { name: "리포트", href: "/portal/report", icon: FileText },
     { name: "요청 전달", href: "/portal/requests", icon: MessageCircle },
     { name: "내 자녀", href: "/portal/child", icon: User },
   ];
