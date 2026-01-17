@@ -26,6 +26,14 @@ type RequestBody =
       use_bus: boolean;
       commute_type: string;
       address?: string | null;
+      arrival_method?: "shuttle" | "academy" | "self";
+      departure_method?: "shuttle" | "academy" | "self";
+      pickup_lat?: number | null;
+      pickup_lng?: number | null;
+      dropoff_lat?: number | null;
+      dropoff_lng?: number | null;
+      pickup_place?: string | null;
+      dropoff_place?: string | null;
     };
 
 function json(data: unknown, status = 200) {
@@ -327,8 +335,72 @@ export async function POST(request: Request) {
         return json({ ok: false, error: "address_required" }, 400);
       }
 
-      const commuteType =
-        commuteRaw === "bus" ? "bus" : "self";
+      const arrivalMethodRaw = String((body as any).arrival_method || "").trim();
+      const departureMethodRaw = String(
+        (body as any).departure_method || ""
+      ).trim();
+
+      let pickupType: "bus" | "self" | null = null;
+      let dropoffType: "bus" | "self" | null = null;
+
+      const arrivalNormalized =
+        arrivalMethodRaw === "guardian" ? "academy" : arrivalMethodRaw;
+      const departureNormalized =
+        departureMethodRaw === "guardian" ? "academy" : departureMethodRaw;
+
+      if (arrivalNormalized === "shuttle") {
+        pickupType = "bus";
+      } else if (arrivalNormalized === "academy" || arrivalNormalized === "self") {
+        pickupType = "self";
+      }
+
+      if (departureNormalized === "shuttle") {
+        dropoffType = "bus";
+      } else if (
+        departureNormalized === "academy" ||
+        departureNormalized === "self"
+      ) {
+        dropoffType = "self";
+      }
+
+      const commuteType = commuteRaw === "bus" ? "bus" : "self";
+
+      if (!pickupType) {
+        pickupType = commuteType;
+      }
+      if (!dropoffType) {
+        dropoffType = commuteType;
+      }
+
+      const pickupLatRaw = (body as any).pickup_lat;
+      const pickupLngRaw = (body as any).pickup_lng;
+      const dropoffLatRaw = (body as any).dropoff_lat;
+      const dropoffLngRaw = (body as any).dropoff_lng;
+
+      const pickupLat =
+        typeof pickupLatRaw === "number"
+          ? pickupLatRaw
+          : pickupLatRaw != null
+          ? Number.parseFloat(String(pickupLatRaw))
+          : null;
+      const pickupLng =
+        typeof pickupLngRaw === "number"
+          ? pickupLngRaw
+          : pickupLngRaw != null
+          ? Number.parseFloat(String(pickupLngRaw))
+          : null;
+      const dropoffLat =
+        typeof dropoffLatRaw === "number"
+          ? dropoffLatRaw
+          : dropoffLatRaw != null
+          ? Number.parseFloat(String(dropoffLatRaw))
+          : null;
+      const dropoffLng =
+        typeof dropoffLngRaw === "number"
+          ? dropoffLngRaw
+          : dropoffLngRaw != null
+          ? Number.parseFloat(String(dropoffLngRaw))
+          : null;
 
       const { data: students, error: studentsErr } = await supabaseService
         .from("students")
@@ -352,9 +424,33 @@ export async function POST(request: Request) {
         profile_completed: true,
       };
 
-      if (commuteType === "bus" || commuteType === "self") {
-        payload.pickup_type = commuteType;
-        payload.dropoff_type = commuteType;
+      if (pickupType) {
+        payload.pickup_type = pickupType;
+      }
+      if (dropoffType) {
+        payload.dropoff_type = dropoffType;
+      }
+
+      if (
+        pickupType === "bus" &&
+        typeof pickupLat === "number" &&
+        !Number.isNaN(pickupLat) &&
+        typeof pickupLng === "number" &&
+        !Number.isNaN(pickupLng)
+      ) {
+        payload.pickup_lat = pickupLat;
+        payload.pickup_lng = pickupLng;
+      }
+
+      if (
+        dropoffType === "bus" &&
+        typeof dropoffLat === "number" &&
+        !Number.isNaN(dropoffLat) &&
+        typeof dropoffLng === "number" &&
+        !Number.isNaN(dropoffLng)
+      ) {
+        payload.dropoff_lat = dropoffLat;
+        payload.dropoff_lng = dropoffLng;
       }
 
       const { error: updateErr } = await supabaseService

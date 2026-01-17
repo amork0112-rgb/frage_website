@@ -81,9 +81,9 @@ export default function ChildPage() {
   };
 
   const [transportForm, setTransportForm] = useState({
-    arrivalMethod: "shuttle" as "shuttle" | "self" | "guardian",
+    arrivalMethod: "shuttle" as "shuttle" | "self" | "academy",
     pickupPlace: "",
-    departureMethod: "shuttle" as "shuttle" | "self" | "guardian",
+    departureMethod: "shuttle" as "shuttle" | "self" | "academy",
     dropoffPlace: "",
     pickupVerified: false,
     dropoffVerified: false,
@@ -120,15 +120,17 @@ export default function ChildPage() {
           accountId: user.id,
         }));
         const { data: studentRows } = await supabase
-          .from("students")
-          .select("*")
+          .from("v_students_full")
+          .select(
+            "student_id,student_name,english_first_name,class_name,campus,teacher_name,birth_date,gender,address,student_phone,photo_url,pickup_lat,pickup_lng,dropoff_lat,dropoff_lng,parent_auth_user_id"
+          )
           .eq("parent_auth_user_id", user.id)
           .limit(1);
         const s = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
         if (s) {
-          setStudentId(String(s.id));
+          setStudentId(String(s.student_id));
           setStudentProfile({
-            name: { en: String(s.english_name || ""), ko: String(s.name || "") },
+            name: { en: String(s.english_first_name || ""), ko: String(s.student_name || "") },
             photoUrl: String(s.photo_url || ""),
             class: String(s.class_name || ""),
             campus: String(s.campus || ""),
@@ -136,10 +138,10 @@ export default function ChildPage() {
             birthDate: String(s.birth_date || ""),
             gender: String(s.gender || ""),
             address: String(s.address || ""),
-            studentPhone: String(s.phone || ""),
+            studentPhone: String(s.student_phone || ""),
           });
           setEditForm({
-            name: { en: String(s.english_name || ""), ko: String(s.name || "") },
+            name: { en: String(s.english_first_name || ""), ko: String(s.student_name || "") },
             photoUrl: String(s.photo_url || ""),
             class: String(s.class_name || ""),
             campus: String(s.campus || ""),
@@ -147,7 +149,7 @@ export default function ChildPage() {
             birthDate: String(s.birth_date || ""),
             gender: String(s.gender || ""),
             address: String(s.address || ""),
-            studentPhone: String(s.phone || ""),
+            studentPhone: String(s.student_phone || ""),
           });
           setPickupCoord({
             lat: s.pickup_lat ? String(s.pickup_lat) : "",
@@ -449,12 +451,12 @@ export default function ChildPage() {
                 <select
                   required
                   value={transportForm.arrivalMethod}
-                  onChange={(e) => setTransportForm({ ...transportForm, arrivalMethod: e.target.value as "shuttle" | "self" | "guardian" })}
+                  onChange={(e) => setTransportForm({ ...transportForm, arrivalMethod: e.target.value as "shuttle" | "self" | "academy" })}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
                 >
                   <option value="shuttle">셔틀 버스</option>
-                  <option value="guardian">보호자 등원</option>
                   <option value="self">자가 등원</option>
+                  <option value="academy">타학원 등원</option>
                 </select>
                </div>
                <div>
@@ -478,12 +480,12 @@ export default function ChildPage() {
                 <select
                   required
                   value={transportForm.departureMethod}
-                  onChange={(e) => setTransportForm({ ...transportForm, departureMethod: e.target.value as "shuttle" | "self" | "guardian" })}
+                  onChange={(e) => setTransportForm({ ...transportForm, departureMethod: e.target.value as "shuttle" | "self" | "academy" })}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
                 >
                   <option value="shuttle">셔틀 버스</option>
-                  <option value="guardian">보호자 하원</option>
                   <option value="self">자가 하원</option>
+                  <option value="academy">타학원 하원</option>
                 </select>
                </div>
                <div>

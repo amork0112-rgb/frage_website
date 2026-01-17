@@ -34,8 +34,12 @@ export default function ParentFirstVerificationPage() {
   const [parentName, setParentName] = useState<string | null>(null);
   const [children, setChildren] = useState<ChildInfo[]>([]);
 
-  const [useBus, setUseBus] = useState<boolean | null>(null);
-  const [commuteType, setCommuteType] = useState<"bus" | "pickup" | "walk" | "">("");
+  const [arrivalMethod, setArrivalMethod] = useState<"shuttle" | "self" | "academy">("shuttle");
+  const [pickupPlace, setPickupPlace] = useState("");
+  const [departureMethod, setDepartureMethod] = useState<"shuttle" | "self" | "academy">("shuttle");
+  const [dropoffPlace, setDropoffPlace] = useState("");
+  const [pickupCoord, setPickupCoord] = useState<{ lat: string; lng: string }>({ lat: "", lng: "" });
+  const [dropoffCoord, setDropoffCoord] = useState<{ lat: string; lng: string }>({ lat: "", lng: "" });
   const [address, setAddress] = useState("");
 
   const [email, setEmail] = useState("");
@@ -269,8 +273,12 @@ export default function ParentFirstVerificationPage() {
         setParentId(verifiedParentId || null);
         setParentName(verifiedParentName);
         setChildren(verifiedChildren);
-        setUseBus(null);
-        setCommuteType("");
+        setArrivalMethod("shuttle");
+        setDepartureMethod("shuttle");
+        setPickupPlace("");
+        setDropoffPlace("");
+        setPickupCoord({ lat: "", lng: "" });
+        setDropoffCoord({ lat: "", lng: "" });
         setAddress("");
 
         setStep("confirm");
@@ -289,18 +297,60 @@ export default function ParentFirstVerificationPage() {
       setError("인증 정보가 올바르지 않습니다. 처음부터 다시 진행해 주세요.");
       return;
     }
-    if (useBus === null) {
-      setError("셔틀 버스 이용 여부를 선택해 주세요.");
+
+    const useBus =
+      arrivalMethod === "shuttle" || departureMethod === "shuttle";
+
+    const addrTrim = address.trim();
+    if (useBus && addrTrim.length === 0) {
+      setError("셔틀을 이용하시는 경우 기준 주소를 입력해 주세요.");
       return;
     }
-    if (commuteType === "") {
-      setError("귀가 방식을 선택해 주세요.");
-      return;
+
+    if (arrivalMethod === "shuttle") {
+      if (!pickupPlace.trim()) {
+        setError("셔틀 등원 장소를 입력해 주세요.");
+        return;
+      }
+      if (!pickupCoord.lat.trim() || !pickupCoord.lng.trim()) {
+        setError("셔틀 등원 좌표(위도/경도)를 모두 입력해 주세요.");
+        return;
+      }
+      const latP = parseFloat(pickupCoord.lat);
+      const lngP = parseFloat(pickupCoord.lng);
+      if (Number.isNaN(latP) || Number.isNaN(lngP)) {
+        setError("등원 좌표를 올바르게 입력해 주세요.");
+        return;
+      }
     }
-    if (useBus === true && address.trim().length === 0) {
-      setError("버스를 이용하시는 경우 주소를 입력해 주세요.");
-      return;
+
+    if (departureMethod === "shuttle") {
+      if (!dropoffPlace.trim()) {
+        setError("셔틀 하원 장소를 입력해 주세요.");
+        return;
+      }
+      if (!dropoffCoord.lat.trim() || !dropoffCoord.lng.trim()) {
+        setError("셔틀 하원 좌표(위도/경도)를 모두 입력해 주세요.");
+        return;
+      }
+      const latD = parseFloat(dropoffCoord.lat);
+      const lngD = parseFloat(dropoffCoord.lng);
+      if (Number.isNaN(latD) || Number.isNaN(lngD)) {
+        setError("하원 좌표를 올바르게 입력해 주세요.");
+        return;
+      }
     }
+
+    const commuteType = useBus ? "bus" : "self";
+
+    const pickupLat =
+      arrivalMethod === "shuttle" ? parseFloat(pickupCoord.lat) : null;
+    const pickupLng =
+      arrivalMethod === "shuttle" ? parseFloat(pickupCoord.lng) : null;
+    const dropoffLat =
+      departureMethod === "shuttle" ? parseFloat(dropoffCoord.lat) : null;
+    const dropoffLng =
+      departureMethod === "shuttle" ? parseFloat(dropoffCoord.lng) : null;
 
     setLoading(true);
     setError(null);
@@ -317,7 +367,17 @@ export default function ParentFirstVerificationPage() {
             parentId,
             use_bus: useBus,
             commute_type: commuteType,
-            address: address.trim().length > 0 ? address.trim() : null,
+            address: addrTrim.length > 0 ? addrTrim : null,
+            arrival_method: arrivalMethod,
+            departure_method: departureMethod,
+            pickup_place:
+              pickupPlace.trim().length > 0 ? pickupPlace.trim() : null,
+            dropoff_place:
+              dropoffPlace.trim().length > 0 ? dropoffPlace.trim() : null,
+            pickup_lat: pickupLat,
+            pickup_lng: pickupLng,
+            dropoff_lat: dropoffLat,
+            dropoff_lng: dropoffLng,
           }),
         });
         const payload = await res.json().catch(() => ({}));
@@ -623,85 +683,118 @@ export default function ParentFirstVerificationPage() {
                     등·하원 기본 정보 설정
                   </h2>
                   <p className="text-sm text-frage-gray">
-                    자녀의 기본 등·하원 방식과 주소를 설정해 주세요. 이후에도 내 자녀 메뉴에서 수정할 수 있습니다.
+                    자녀의 등·하원 방법(셔틀/자가/타학원), 장소, 좌표를 설정해 주세요. 이후에도 내 자녀 메뉴에서 수정할 수 있습니다.
                   </p>
                 </div>
                 <div className="space-y-4 bg-slate-50 rounded-2xl border border-slate-200 p-4">
-                  <div className="space-y-2">
-                    <div className="text-sm font-bold text-slate-900">
-                      셔틀 버스를 이용하시나요?
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setUseBus(true);
-                          if (commuteType === "") {
-                            setCommuteType("bus");
-                          }
-                        }}
-                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
-                          useBus === true
-                            ? "bg-slate-900 text-white border-slate-900"
-                            : "bg-white text-slate-700 border-slate-200"
-                        }`}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="text-sm font-bold text-slate-900">
+                        등원 방법
+                      </div>
+                      <select
+                        value={arrivalMethod}
+                        onChange={(e) =>
+                          setArrivalMethod(e.target.value as "shuttle" | "self" | "academy")
+                        }
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
                       >
-                        네, 이용합니다
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setUseBus(false)}
-                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
-                          useBus === false
-                            ? "bg-slate-900 text-white border-slate-900"
-                            : "bg-white text-slate-700 border-slate-200"
-                        }`}
-                      >
-                        아니요, 이용하지 않습니다
-                      </button>
+                        <option value="shuttle">셔틀 버스</option>
+                        <option value="self">자가 등원</option>
+                        <option value="academy">타학원 등원</option>
+                      </select>
+                      {arrivalMethod !== "self" && (
+                        <div className="space-y-1 mt-2">
+                          <div className="text-xs font-bold text-slate-700">
+                            등원 장소
+                          </div>
+                          <input
+                            type="text"
+                            value={pickupPlace}
+                            onChange={(e) => setPickupPlace(e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
+                            placeholder="예: 수성구 ○○아파트 정문"
+                          />
+                        </div>
+                      )}
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      버스를 이용하지 않는 경우에도 귀가 방식을 선택해 주세요.
-                    </p>
+                    <div className="space-y-2">
+                      <div className="text-sm font-bold text-slate-900">
+                        하원 방법
+                      </div>
+                      <select
+                        value={departureMethod}
+                        onChange={(e) =>
+                          setDepartureMethod(e.target.value as "shuttle" | "self" | "academy")
+                        }
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
+                      >
+                        <option value="shuttle">셔틀 버스</option>
+                        <option value="self">자가 하원</option>
+                        <option value="academy">타학원 하원</option>
+                      </select>
+                      {departureMethod !== "self" && (
+                        <div className="space-y-1 mt-2">
+                          <div className="text-xs font-bold text-slate-700">
+                            하원 장소
+                          </div>
+                          <input
+                            type="text"
+                            value={dropoffPlace}
+                            onChange={(e) => setDropoffPlace(e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
+                            placeholder="예: 수성구 ○○아파트 후문"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <div className="text-sm font-bold text-slate-900">
-                      귀가 방식
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="text-xs font-bold text-slate-500">
+                        등원 좌표 (위도 / 경도)
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          placeholder="위도"
+                          value={pickupCoord.lat}
+                          onChange={(e) =>
+                            setPickupCoord({ ...pickupCoord, lat: e.target.value })
+                          }
+                          className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                        />
+                        <input
+                          placeholder="경도"
+                          value={pickupCoord.lng}
+                          onChange={(e) =>
+                            setPickupCoord({ ...pickupCoord, lng: e.target.value })
+                          }
+                          className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                        />
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setCommuteType("bus")}
-                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
-                          commuteType === "bus"
-                            ? "bg-slate-900 text-white border-slate-900"
-                            : "bg-white text-slate-700 border-slate-200"
-                        }`}
-                      >
-                        Bus
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCommuteType("pickup")}
-                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
-                          commuteType === "pickup"
-                            ? "bg-slate-900 text-white border-slate-900"
-                            : "bg-white text-slate-700 border-slate-200"
-                        }`}
-                      >
-                        Pickup
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCommuteType("walk")}
-                        className={`px-3 py-2 rounded-lg border text-xs font-bold ${
-                          commuteType === "walk"
-                            ? "bg-slate-900 text-white border-slate-900"
-                            : "bg-white text-slate-700 border-slate-200"
-                        }`}
-                      >
-                        Walk
-                      </button>
+                    <div className="space-y-2">
+                      <div className="text-xs font-bold text-slate-500">
+                        하원 좌표 (위도 / 경도)
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          placeholder="위도"
+                          value={dropoffCoord.lat}
+                          onChange={(e) =>
+                            setDropoffCoord({ ...dropoffCoord, lat: e.target.value })
+                          }
+                          className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                        />
+                        <input
+                          placeholder="경도"
+                          value={dropoffCoord.lng}
+                          onChange={(e) =>
+                            setDropoffCoord({ ...dropoffCoord, lng: e.target.value })
+                          }
+                          className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -715,16 +808,6 @@ export default function ParentFirstVerificationPage() {
                       placeholder="예: 대구 수성구 ○○아파트 101동 101호"
                       className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy text-sm"
                     />
-                    {useBus === true && (
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        셔틀 버스를 이용하시는 경우 등·하원의 기준 주소로 사용됩니다.
-                      </p>
-                    )}
-                    {useBus === false && (
-                      <p className="text-[11px] text-slate-400 mt-1">
-                        버스를 이용하지 않는 경우 주소 입력은 선택입니다.
-                      </p>
-                    )}
                   </div>
                   {error && (
                     <div className="text-sm bg-rose-50 text-rose-700 border border-rose-200 rounded-xl px-4 py-3">
@@ -743,12 +826,7 @@ export default function ParentFirstVerificationPage() {
                   </button>
                   <button
                     type="button"
-                    disabled={
-                      loading ||
-                      useBus === null ||
-                      commuteType === "" ||
-                      (useBus === true && address.trim().length === 0)
-                    }
+                    disabled={loading}
                     onClick={handleOnboardingSubmit}
                     className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
                   >

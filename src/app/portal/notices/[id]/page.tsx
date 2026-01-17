@@ -12,28 +12,48 @@ export default function NoticeDetailPage() {
   const noticeId = params.id as string;
   const [serverNotice, setServerNotice] = useState<any | null>(null);
 
+  // Reactions state
+  const [reactions, setReactions] = useState({ check: 0, heart: 0, smile: 0 });
+  const [myReactions, setMyReactions] = useState<string[]>([]);
+  const [isLoadingReaction, setIsLoadingReaction] = useState(false);
+
   useEffect(() => {
     (async () => {
       const numId = Number(noticeId);
       if (Number.isNaN(numId)) return;
+
+      // 1. Increment View Count (once per session locally)
+      // Check localStorage to avoid duplicate increments
+      const storageKey = `viewed_notice_${numId}`;
+      if (typeof window !== 'undefined' && !localStorage.getItem(storageKey)) {
+        try {
+          await fetch(`/api/notices/${numId}/view`);
+          localStorage.setItem(storageKey, "true");
+        } catch (e) {
+          console.error("View increment failed", e);
+        }
+      }
+
+      // 2. Fetch Notice Details
       const { data } = await supabase
         .from("posts")
         .select("*")
         .eq("id", numId)
         .eq("category", "notice")
         .single();
+
       if (data) {
         setServerNotice({
           id: String(data.id),
           title: data.title,
           date: data.created_at,
-          category: "Academic",
+          category: data.category || "Academic",
           campus: "All",
           summary: data.content || "",
           content: String(data.content || "").split(/\n+/),
           isPinned: !!data.is_pinned,
           isArchived: !!data.is_archived,
-          viewCount: 0,
+          viewCount: data.view_count || 0,
         });
       } else {
         setServerNotice(null);
@@ -41,27 +61,72 @@ export default function NoticeDetailPage() {
     })();
   }, [noticeId]);
 
+  // 3. Fetch Initial Reactions
+  useEffect(() => {
+    (async () => {
+      if (!noticeId) return;
+      try {
+        const res = await fetch(`/api/notices/${noticeId}/reactions`);
+        const json = await res.json();
+        if (json.ok) {
+          setReactions(json.counts);
+          setMyReactions(json.myReactions || []);
+        }
+      } catch (e) {
+        console.error("Fetch reactions failed", e);
+      }
+    })();
+  }, [noticeId]);
+
   const notice = serverNotice;
 
-  // Local state for reactions to simulate interaction
-  const [reactions, setReactions] = useState(
-    { check: 0, heart: 0, smile: 0 }
-  );
-  const [userReaction, setUserReaction] = useState<string | null>(null);
+  const handleReaction = async (type: 'check' | 'heart' | 'smile') => {
+    if (isLoadingReaction) return;
 
-  const handleReaction = (type: 'check' | 'heart' | 'smile') => {
-    if (userReaction === type) {
-      // Toggle off
-        setReactions(prev => ({ ...prev, [type]: prev[type] - 1 }));
-        setUserReaction(null);
+    // Optimistic Update
+    const isActive = myReactions.includes(type);
+    const nextMyReactions = isActive 
+      ? myReactions.filter(r => r !== type) 
+      : [...myReactions, type];
+
+    const nextReactions = { ...reactions };
+    if (isActive) {
+      nextReactions[type] = Math.max(0, nextReactions[type] - 1);
     } else {
-        // Toggle on (and remove previous if any)
-        setReactions(prev => ({
-            ...prev,
-            [type]: prev[type] + 1,
-            ...(userReaction ? { [userReaction]: prev[userReaction as 'check' | 'heart' | 'smile'] - 1 } : {})
-        }));
-        setUserReaction(type);
+      nextReactions[type] = nextReactions[type] + 1;
+    }
+
+    setMyReactions(nextMyReactions);
+    setReactions(nextReactions);
+    setIsLoadingReaction(true);
+
+    try {
+      const res = await fetch(`/api/notices/${noticeId}/reaction`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reactionType: type }),
+      });
+      const json = await res.json();
+
+      if (!json.ok) {
+        // Revert or show error
+        if (json.error === "Unauthorized") {
+          alert("로그인이 필요합니다.");
+        } else {
+          // Silent fail or toast? Just revert for now by refetching
+        }
+        // Refetch to sync state
+        const refresh = await fetch(`/api/notices/${noticeId}/reactions`);
+        const rJson = await refresh.json();
+        if (rJson.ok) {
+          setReactions(rJson.counts);
+          setMyReactions(rJson.myReactions || []);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoadingReaction(false);
     }
   };
 
@@ -150,39 +215,42 @@ export default function NoticeDetailPage() {
                     <div className="flex justify-center gap-4">
                         <button 
                             onClick={() => handleReaction('check')}
+                            disabled={isLoadingReaction}
                             className={`flex flex-col items-center gap-2 p-3 min-w-[80px] rounded-xl transition-all ${
-                                userReaction === 'check' 
+                                myReactions.includes('check')
                                 ? 'bg-green-50 text-green-600 scale-105 ring-2 ring-green-100' 
                                 : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-                            }`}
+                            } ${isLoadingReaction ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            <CheckCircle2 className={`w-8 h-8 ${userReaction === 'check' ? 'fill-current' : ''}`} />
+                            <CheckCircle2 className={`w-8 h-8 ${myReactions.includes('check') ? 'fill-current' : ''}`} />
                             <span className="text-xs font-bold">확인했어요</span>
                             <span className="text-xs font-medium bg-white/50 px-2 rounded-full">{reactions.check}</span>
                         </button>
 
                         <button 
                             onClick={() => handleReaction('heart')}
+                            disabled={isLoadingReaction}
                             className={`flex flex-col items-center gap-2 p-3 min-w-[80px] rounded-xl transition-all ${
-                                userReaction === 'heart' 
+                                myReactions.includes('heart')
                                 ? 'bg-red-50 text-red-500 scale-105 ring-2 ring-red-100' 
                                 : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-                            }`}
+                            } ${isLoadingReaction ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            <Heart className={`w-8 h-8 ${userReaction === 'heart' ? 'fill-current' : ''}`} />
+                            <Heart className={`w-8 h-8 ${myReactions.includes('heart') ? 'fill-current' : ''}`} />
                             <span className="text-xs font-bold">좋아요</span>
                             <span className="text-xs font-medium bg-white/50 px-2 rounded-full">{reactions.heart}</span>
                         </button>
 
                         <button 
                             onClick={() => handleReaction('smile')}
+                            disabled={isLoadingReaction}
                             className={`flex flex-col items-center gap-2 p-3 min-w-[80px] rounded-xl transition-all ${
-                                userReaction === 'smile' 
+                                myReactions.includes('smile')
                                 ? 'bg-yellow-50 text-yellow-600 scale-105 ring-2 ring-yellow-100' 
                                 : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-                            }`}
+                            } ${isLoadingReaction ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            <Smile className={`w-8 h-8 ${userReaction === 'smile' ? 'fill-current' : ''}`} />
+                            <Smile className={`w-8 h-8 ${myReactions.includes('smile') ? 'fill-current' : ''}`} />
                             <span className="text-xs font-bold">감사합니다</span>
                             <span className="text-xs font-medium bg-white/50 px-2 rounded-full">{reactions.smile}</span>
                         </button>
