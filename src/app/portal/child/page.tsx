@@ -137,7 +137,7 @@ export default function ChildPage() {
         const { data: studentRows } = await supabase
           .from("v_students_full")
           .select(
-            "id,student_name,english_first_name,class_name,campus,teacher_name,birth_date,gender,address,student_phone,photo_url"
+            "id,student_name,english_first_name,class_name,campus,birth_date,gender,address,student_phone,photo_url"
           )
           .eq("parent_id", parentId)
           .limit(1);
@@ -155,7 +155,7 @@ export default function ChildPage() {
             photoUrl: String(s.photo_url || ""),
             class: String(s.class_name || ""),
             campus: String(s.campus || ""),
-            teacher: String(s.teacher_name || ""),
+            teacher: "",
             birthDate: String(s.birth_date || ""),
             gender: String(s.gender || ""),
             address: String(s.address || ""),
@@ -166,7 +166,7 @@ export default function ChildPage() {
             photoUrl: String(s.photo_url || ""),
             class: String(s.class_name || ""),
             campus: String(s.campus || ""),
-            teacher: String(s.teacher_name || ""),
+            teacher: "",
             birthDate: String(s.birth_date || ""),
             gender: String(s.gender || ""),
             address: String(s.address || ""),
