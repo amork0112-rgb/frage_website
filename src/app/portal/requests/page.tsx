@@ -1,3 +1,4 @@
+//app/portal/requests/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -45,7 +46,7 @@ export default function RequestsPage() {
 
         const { data: rows } = await supabase
           .from("students")
-          .select("id,student_name,english_first_name,name")
+          .select("id,student_name")
           .eq("parent_id", parent.id);
 
         const students = Array.isArray(rows) ? rows : [];
@@ -53,7 +54,7 @@ export default function RequestsPage() {
           students.length > 0
             ? students.map((s: any) => ({
                 id: String(s.id),
-                name: String(s.english_first_name || s.student_name || s.name || "자녀"),
+                name: String(s.student_name || "자녀"),
               }))
             : [];
 
