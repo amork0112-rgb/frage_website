@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function POST(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createSupabaseServer();
-    
-    // 1. Check Authentication
-    const { data: { user } } = await supabase.auth.getUser();
+    const supabaseAuth = createSupabaseServer();
+
+    // 1. Check Authentication (portal 세션 기반)
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser();
     if (!user) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
@@ -26,11 +29,11 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "Invalid reaction type" }, { status: 400 });
     }
 
-    // 2. Toggle reaction manually in notice_reactions table
-    const { data: existing, error: existingError } = await supabase
+    // 2. Toggle reaction manually in notice_reactions table (service role 사용)
+    const { data: existing, error: existingError } = await supabaseService
       .from("notice_reactions")
       .select("id")
-      .eq("post_id", postId)
+      .eq("notice_id", postId)
       .eq("user_id", user.id)
       .eq("reaction_type", reactionType)
       .maybeSingle();
@@ -41,7 +44,7 @@ export async function POST(
     }
 
     if (existing && existing.id) {
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await supabaseService
         .from("notice_reactions")
         .delete()
         .eq("id", existing.id);
@@ -54,8 +57,8 @@ export async function POST(
       return NextResponse.json({ ok: true, result: { toggled: "off" } });
     }
 
-    const { error: insertError } = await supabase.from("notice_reactions").insert({
-      post_id: postId,
+    const { error: insertError } = await supabaseService.from("notice_reactions").insert({
+      notice_id: postId,
       user_id: user.id,
       reaction_type: reactionType,
       created_at: new Date().toISOString(),

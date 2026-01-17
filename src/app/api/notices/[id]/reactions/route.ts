@@ -18,7 +18,7 @@ export async function GET(
     const { data: countsData, error: countsError } = await supabase
       .from("notice_reactions_count_view")
       .select("reaction_type, count")
-      .eq("post_id", postId);
+      .eq("notice_id", postId);
 
     if (countsError) {
       console.error("Fetch counts error:", countsError);
@@ -52,7 +52,7 @@ export async function GET(
       const { data: userReactionsData, error: userError } = await supabase
         .from("notice_reactions")
         .select("reaction_type")
-        .eq("post_id", postId)
+        .eq("notice_id", postId)
         .eq("user_id", user.id);
         
       if (!userError && userReactionsData) {
