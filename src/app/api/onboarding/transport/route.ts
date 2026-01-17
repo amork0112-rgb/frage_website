@@ -92,12 +92,19 @@ export async function POST(req: Request) {
 
     const { data: student } = await supabaseService
       .from("students")
-      .select("id,parent_id")
+      .select("id,parent_id,profile_completed")
       .eq("id", studentId)
       .maybeSingle();
 
     if (!student || String(student.parent_id) !== parentId) {
       return NextResponse.json({ ok: false, error: "student_not_found" }, { status: 404 });
+    }
+
+    if (student.profile_completed) {
+      return NextResponse.json(
+        { ok: false, error: "already_enrolled" },
+        { status: 400 }
+      );
     }
 
     const useBus = pickupMethodRaw === "shuttle" || dropoffMethodRaw === "shuttle";
