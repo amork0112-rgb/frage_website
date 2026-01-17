@@ -118,10 +118,10 @@ export async function POST(req: Request) {
       return json({ ok: false, error: "invalid_type" }, 400);
     }
 
-    // 1️⃣ 학생 존재 검증 (Admin 권한)
+    // 1️⃣ 학생 존재 검증 및 캠퍼스 조회 (Admin 권한)
     const { data: student } = await supabaseAdmin
       .from("students")
-      .select("id")
+      .select("id, campus")
       .eq("id", studentId)
       .maybeSingle();
 
@@ -130,11 +130,6 @@ export async function POST(req: Request) {
     }
 
     // 2️⃣ INSERT (Admin 권한)
-    // payload에서 날짜 등 필요한 정보 추출하여 컬럼에 매핑 가능하지만,
-    // 현재 스키마는 jsonb payload를 사용하는 것으로 보임.
-    // 사용자가 제공한 구조대로 date_start 등을 풀어서 넣을 수도 있지만,
-    // 기존 로직(payload 통째로 + 필요한 컬럼 추출)을 유지하되 Admin 사용.
-    
     // payload 내부 값 추출 (사용자 요청 예시 반영)
     const dateStart = payload.dateStart || payload.date_start;
     const dateEnd = payload.dateEnd || payload.date_end;
@@ -142,12 +137,12 @@ export async function POST(req: Request) {
 
     const { error } = await supabaseAdmin.from("portal_requests").insert({
       student_id: studentId,
+      campus: student.campus, // ⭐️ 필수 필드: 학생의 캠퍼스 자동 주입
       type,
       payload,
-      // 필요한 경우 추가 컬럼 매핑 (스키마에 존재한다면)
-      // date_start: dateStart,
-      // date_end: dateEnd,
-      // time: time,
+      date_start: dateStart,
+      date_end: dateEnd,
+      time: time,
       created_at: new Date().toISOString(),
     });
 
