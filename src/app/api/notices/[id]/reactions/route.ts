@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
 
@@ -8,14 +9,14 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createSupabaseServer();
+    const supabaseAuth = createSupabaseServer();
     const postId = Number(params.id);
     if (Number.isNaN(postId)) {
       return NextResponse.json({ ok: false, error: "Invalid ID" }, { status: 400 });
     }
 
     // 1. Get counts from view
-    const { data: countsData, error: countsError } = await supabase
+    const { data: countsData, error: countsError } = await supabaseService
       .from("notice_reactions_count_view")
       .select("reaction_type, count")
       .eq("notice_id", postId);
@@ -46,10 +47,10 @@ export async function GET(
 
     // 2. Get user's reactions if logged in
     let myReactions: string[] = [];
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
     
     if (user) {
-      const { data: userReactionsData, error: userError } = await supabase
+      const { data: userReactionsData, error: userError } = await supabaseService
         .from("notice_reactions")
         .select("reaction_type")
         .eq("notice_id", postId)
