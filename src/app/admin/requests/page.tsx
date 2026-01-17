@@ -246,20 +246,22 @@ export default function AdminRequestsPage() {
                     ? r.time
                     : activeTab === "medication"
                     ? r.medName
+                    : r.dateEnd && r.dateEnd !== r.dateStart
+                    ? `${r.dateStart} ~ ${r.dateEnd}`
                     : r.dateStart}
                 </span>
                 <span className="text-xs text-slate-500">
                   {r.campus}
                   {r.className ? ` · ${r.className}` : ""}
                 </span>
-                <span className="text-xs text-slate-500">
-                  {activeTab === "medication" && r.dateEnd
-                    ? `${r.dateStart} ~ ${r.dateEnd}`
-                    : r.dateStart}
-                </span>
+                {activeTab === "medication" && r.dateEnd && (
+                  <span className="text-xs text-slate-500">
+                    {`${r.dateStart} ~ ${r.dateEnd}`}
+                  </span>
+                )}
                 {r.note && (
                   <span className="text-xs text-slate-600">
-                    · {r.note}
+                    사유: {r.note}
                   </span>
                 )}
               </div>
