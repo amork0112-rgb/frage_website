@@ -215,11 +215,11 @@ export async function POST(request: Request) {
 
       const children = Array.isArray(students)
         ? students.map((s: any) => ({
-            id: String(s.id || ""),
+            id: String(s.id || s.student_id || ""),
             name: String(s.student_name || ""),
             englishName: String(s.english_first_name || ""),
-            className: String(s.grade || ""),
             campus: String(s.campus || ""),
+            className: String(s.class_name || "-"),
             status: String(s.status || ""),
           }))
         : [];
