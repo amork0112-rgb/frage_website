@@ -209,21 +209,36 @@ export default function ChildPage() {
 
   const handleTransportSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmitTransport) return;
+    if (!canSubmitTransport || !studentId) return;
     (async () => {
       try {
-        await supabase.from("portal_requests").insert({
-          child_id: studentId || null,
-          child_name: studentProfile.name.ko || studentProfile.name.en || "학생",
-          campus: studentProfile.campus || null,
-          type: "bus_change",
-          change_type: null,
-          note: `등원:${transportForm.arrivalMethod}(${transportForm.pickupPlace || "-"}) / 하원:${transportForm.departureMethod}(${transportForm.dropoffPlace || "-"})`,
-          created_at: new Date().toISOString(),
+        const payload = {
+          studentId,
+          pickup_method: transportForm.arrivalMethod,
+          dropoff_method: transportForm.departureMethod,
+          pickup_address: transportForm.pickupPlace || null,
+          dropoff_address: transportForm.dropoffPlace || null,
+          default_dropoff_time: transportForm.defaultDepartureTime,
+          pickup_lat: pickupCoord.lat ? Number.parseFloat(pickupCoord.lat) : null,
+          pickup_lng: pickupCoord.lng ? Number.parseFloat(pickupCoord.lng) : null,
+          dropoff_lat: dropoffCoord.lat ? Number.parseFloat(dropoffCoord.lat) : null,
+          dropoff_lng: dropoffCoord.lng ? Number.parseFloat(dropoffCoord.lng) : null,
+        };
+        const res = await fetch("/api/onboarding/transport", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
-        alert("자녀 등·하원/차량 요청이 저장되었습니다.");
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) {
+          alert("등·하원 / 차량 정보 저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
+          return;
+        }
+        alert("등·하원 / 차량 정보가 저장되었습니다.");
         router.push("/portal/home");
-      } catch (e) {}
+      } catch (e) {
+        alert("등·하원 / 차량 정보 저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
+      }
     })();
   };
 
