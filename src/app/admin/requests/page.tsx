@@ -164,6 +164,15 @@ export default function AdminRequestsPage() {
     insert();
   };
 
+  const handleCardClick = async (id: string) => {
+    // Optimistic update
+    setRequests((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, teacherRead: true } : r))
+    );
+    // Server update
+    await supabase.from("portal_requests").update({ teacher_read: true }).eq("id", id);
+  };
+
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
