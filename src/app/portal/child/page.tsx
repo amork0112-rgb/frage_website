@@ -137,13 +137,19 @@ export default function ChildPage() {
         const { data: studentRows } = await supabase
           .from("v_students_full")
           .select(
-            "student_id,student_name,english_first_name,class_name,campus,teacher_name,birth_date,gender,address,student_phone,photo_url,pickup_lat,pickup_lng,dropoff_lat,dropoff_lng"
+            "id,student_name,english_first_name,class_name,campus,teacher_name,birth_date,gender,address,student_phone,photo_url"
           )
           .eq("parent_id", parentId)
           .limit(1);
         const s = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
         if (s) {
-          setStudentId(String(s.student_id));
+          const numericId =
+            typeof s.id === "number" ? s.id : Number.parseInt(String(s.id), 10);
+          const studentIdStr = numericId && !Number.isNaN(numericId) ? String(numericId) : "";
+          if (!studentIdStr) {
+            return;
+          }
+          setStudentId(studentIdStr);
           setStudentProfile({
             name: { en: String(s.english_first_name || ""), ko: String(s.student_name || "") },
             photoUrl: String(s.photo_url || ""),
@@ -166,14 +172,31 @@ export default function ChildPage() {
             address: String(s.address || ""),
             studentPhone: String(s.student_phone || ""),
           });
-          setPickupCoord({
-            lat: s.pickup_lat ? String(s.pickup_lat) : "",
-            lng: s.pickup_lng ? String(s.pickup_lng) : "",
-          });
-          setDropoffCoord({
-            lat: s.dropoff_lat ? String(s.dropoff_lat) : "",
-            lng: s.dropoff_lng ? String(s.dropoff_lng) : "",
-          });
+          const { data: loc } = await supabase
+            .from("students")
+            .select(
+              "pickup_method,pickup_lat,pickup_lng,pickup_address,dropoff_method,dropoff_lat,dropoff_lng,dropoff_address,default_dropoff_time"
+            )
+            .eq("id", numericId)
+            .maybeSingle();
+          if (loc) {
+            setPickupCoord({
+              lat: loc.pickup_lat ? String(loc.pickup_lat) : "",
+              lng: loc.pickup_lng ? String(loc.pickup_lng) : "",
+            });
+            setDropoffCoord({
+              lat: loc.dropoff_lat ? String(loc.dropoff_lat) : "",
+              lng: loc.dropoff_lng ? String(loc.dropoff_lng) : "",
+            });
+            setTransportForm(prev => ({
+              ...prev,
+              arrivalMethod: (loc.pickup_method as any) || prev.arrivalMethod,
+              departureMethod: (loc.dropoff_method as any) || prev.departureMethod,
+              pickupPlace: loc.pickup_address || prev.pickupPlace,
+              dropoffPlace: loc.dropoff_address || prev.dropoffPlace,
+              defaultDepartureTime: loc.default_dropoff_time || prev.defaultDepartureTime,
+            }));
+          }
         }
       } catch (e) {}
     })();
