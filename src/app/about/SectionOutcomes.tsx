@@ -10,9 +10,21 @@ export default function SectionOutcomes({ showHighlights = true }: { showHighlig
   const [previews, setPreviews] = useState<Record<string, { image: string; title: string; description: string }>>({});
   const requestedRef = useRef<Record<string, boolean>>({});
   const highlights = [
-    { title: "유치부 Lexile 865 전국 최연소 · 최고점 기록", link: "https://blog.naver.com/frage_2030/224113840941" },
-    { title: "국제통번역자원봉사단 청소년 에세이 공모전 참가 학생 전원 수상", link: "https://blog.naver.com/frage_2030/223161007823" },
-    { title: "전국 영어 말하기 대회 누적 750명 이상 출전", link: "https://blog.naver.com/frage_2030/222490002924" },
+    {
+      title: "유치부 Lexile 865 전국 최연소 · 최고점 기록",
+      link: "https://blog.naver.com/frage_2030/224113840941",
+      image: "/images/highlights/lexile.jpg",
+    },
+    {
+      title: "국제통번역자원봉사단 청소년 에세이 공모전 참가 학생 전원 수상",
+      link: "https://blog.naver.com/frage_2030/223161007823",
+      image: "/images/highlights/essay.jpg",
+    },
+    {
+      title: "전국 영어 말하기 대회 누적 750명 이상 출전",
+      link: "https://blog.naver.com/frage_2030/222490002924",
+      image: "/images/highlights/speech.jpg",
+    },
   ];
   useEffect(() => {
     highlights.forEach((h) => {
@@ -115,9 +127,9 @@ export default function SectionOutcomes({ showHighlights = true }: { showHighlig
             {highlights.map((h, i) => (
               <a key={i} href={h.link} target="_blank" rel="noreferrer" className="group rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm hover:shadow-md transition-all">
                 <div className="aspect-video bg-slate-100">
-                  {previews[h.link]?.image ? (
+                  {h.image || previews[h.link]?.image ? (
                     <img
-                      src={previews[h.link].image}
+                      src={h.image || previews[h.link]?.image}
                       alt={h.title}
                       className="w-full h-full object-cover"
                     />

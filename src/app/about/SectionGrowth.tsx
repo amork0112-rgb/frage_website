@@ -54,7 +54,7 @@ export default function SectionGrowth() {
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
               <div className="text-xs font-semibold tracking-wide text-frage-navy">
-                {isEn ? "2026 Student Management System" : "2026년 학생 관리 시스템"}
+                {isEn ? "Student Management System" : "학생 관리 시스템"}
               </div>
               <div className="mt-1 text-lg font-semibold text-slate-900 md:text-xl">
                 {isEn
