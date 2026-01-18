@@ -177,7 +177,7 @@ export default function TeacherVideoManagementPage() {
       return intlKinderClasses.map((name) => ({ name, sort: null }));
     }
     if (newCampus === "All") return classOptionsAll;
-    return classOptionsByCampus[newCampus] || classOptionsAll;
+    return classOptionsByCampus[newCampus] || [];
   }, [newCampus, newDivision, classOptionsAll, classOptionsByCampus, intlKinderClasses, intlPrimaryClasses]);
 
   const filterClassOptions = useMemo(() => {
@@ -186,7 +186,7 @@ export default function TeacherVideoManagementPage() {
       return base.map((name) => ({ name, sort: null }));
     }
     if (filterCampus === "All") return classOptionsAll;
-    return classOptionsByCampus[filterCampus] || classOptionsAll;
+    return classOptionsByCampus[filterCampus] || [];
   }, [filterCampus, filterDivision, classOptionsAll, classOptionsByCampus, intlKinderClasses, intlPrimaryClasses]);
 
   const filtered = useMemo(() => {
@@ -524,7 +524,11 @@ export default function TeacherVideoManagementPage() {
           </div>
         </div>
         <div className="mt-3">
-          <button onClick={createAssignment} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white">
+          <button
+            onClick={createAssignment}
+            disabled={!newTitle.trim() || !newModule.trim() || !newDue || newClass === "All"}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <Plus className="w-4 h-4" /> 생성
           </button>
         </div>
