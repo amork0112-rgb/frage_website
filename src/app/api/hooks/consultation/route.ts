@@ -22,10 +22,33 @@ export async function POST(req: Request) {
     if (!payload.student_id || !payload.phone) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
+
+    const kakaoPfId = process.env.KAKAO_PF_ID || "";
+    const kakaoTemplateId = process.env.KAKAO_TEMPLATE_CONSULT || "";
+
+    const kakaoOptions = {
+      pfId: kakaoPfId,
+      templateId: kakaoTemplateId,
+      variables: {
+        student_name: payload.student_name,
+        parent_name: payload.parent_name,
+        date: payload.date,
+        time: payload.time,
+        campus_name: payload.campus_name,
+        address: payload.address,
+        contact_phone: payload.contact_phone,
+      },
+    };
+
+    const makePayload = {
+      ...payload,
+      kakaoOptions,
+    };
+
     const res = await fetch(webhook, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(makePayload),
     });
     if (!res.ok) {
       return NextResponse.json({ ok: false }, { status: 502 });
