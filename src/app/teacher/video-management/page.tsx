@@ -42,6 +42,11 @@ export default function TeacherVideoManagementPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<Assignment | null>(null);
 
+  const [autoAction, setAutoAction] = useState<"" | "publish" | "change_date" | "skip">("");
+  const [autoDate, setAutoDate] = useState("");
+  const [autoToast, setAutoToast] = useState("");
+  const [showAutoDatePicker, setShowAutoDatePicker] = useState(false);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -260,6 +265,54 @@ export default function TeacherVideoManagementPage() {
   const isKinderCreateMode = newCampus === "International" && newDivision === "kinder";
   const isKinderFilterMode = filterCampus === "International" && filterDivision === "kinder";
 
+  const autoMeta = useMemo(() => {
+    const now = new Date();
+    const oneJan = new Date(now.getFullYear(), 0, 1);
+    const numberOfDays = Math.floor((now.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
+    const weekNum = Math.ceil((now.getDay() + 1 + numberOfDays) / 7);
+    const title = `Week ${weekNum} Reading`;
+    const moduleName = `Week ${weekNum}`;
+    const dayOfWeek = now.getDay();
+    const daysUntilSunday = 7 - dayOfWeek;
+    const due = new Date(now);
+    due.setDate(now.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday));
+    const dueDate = due.toISOString().split("T")[0];
+    return { title, moduleName, dueDate };
+  }, []);
+
+  const autoCard = useMemo(() => {
+    if (!isKinderFilterMode || intlKinderClasses.length === 0) return null;
+    const baseClasses = filterClass === "All" ? intlKinderClasses : [filterClass];
+    const autoAssignments = assignments.filter((a) => {
+      if (a.campus !== "International") return false;
+      if (!baseClasses.includes(a.className)) return false;
+      if (a.title !== autoMeta.title) return false;
+      return true;
+    });
+    let status: "Draft" | "Scheduled" | "Published" | "Skipped" = "Draft";
+    if (autoAssignments.length === 0) {
+      status = "Draft";
+    } else {
+      const hasSkip = autoAssignments.some((a) => (a.description || "").startsWith("[SKIP]"));
+      const hasDraft = autoAssignments.some((a) => (a.description || "").startsWith("[DRAFT]"));
+      if (hasSkip) status = "Skipped";
+      else if (hasDraft) status = "Scheduled";
+      else status = "Published";
+    }
+    const baseLabelList = baseClasses.slice();
+    const classesLabel =
+      filterClass === "All"
+        ? baseLabelList.slice(0, 3).join(", ") + (baseLabelList.length > 3 ? ` 외 ${baseLabelList.length - 3}개` : "")
+        : filterClass;
+    return {
+      weekLabel: autoMeta.moduleName,
+      title: autoMeta.title,
+      dueDate: autoMeta.dueDate,
+      classesLabel: classesLabel || "Kinder classes",
+      status,
+    };
+  }, [assignments, autoMeta, filterClass, intlKinderClasses, isKinderFilterMode]);
+
   const TEMPLATES = [
     {
       label: "Reading Retell",
@@ -349,6 +402,51 @@ export default function TeacherVideoManagementPage() {
     (async () => {
       await supabase.from("video_assignments").delete().eq("id", Number(id));
       await refreshAssignments();
+    })();
+  };
+
+  const runAutoAction = (action: "publish" | "change_date" | "skip") => {
+    if (action === "change_date" && !autoDate) {
+      setAutoToast("날짜를 선택해 주세요.");
+      return;
+    }
+    (async () => {
+      setAutoAction(action);
+      try {
+        const res = await fetch("/api/teacher/kinder-auto-control", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            date: action === "change_date" ? autoDate : undefined,
+          }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const code = data?.error || "";
+          if (code === "no_kinder_classes") {
+            setAutoToast("국제관 킨더 반이 없습니다.");
+          } else if (code === "unauthorized" || code === "forbidden") {
+            setAutoToast("권한이 없습니다. 다시 로그인해 주세요.");
+          } else {
+            setAutoToast("요청 처리 중 오류가 발생했습니다.");
+          }
+          return;
+        }
+        await refreshAssignments();
+        if (action === "publish") {
+          setAutoToast("이번 주 과제가 학부모에게 공개되었습니다.");
+        } else if (action === "change_date") {
+          setAutoToast("마감일이 업데이트되었습니다.");
+          setShowAutoDatePicker(false);
+        } else if (action === "skip") {
+          setAutoToast("이번 주 과제가 건너뛰기로 설정되었습니다.");
+        }
+      } catch {
+        setAutoToast("요청 처리 중 오류가 발생했습니다.");
+      } finally {
+        setAutoAction("");
+      }
     })();
   };
 
@@ -493,16 +591,72 @@ export default function TeacherVideoManagementPage() {
         </div>
       </div>
 
-      {isKinderFilterMode && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 mb-4">
-          <div className="text-sm font-bold text-slate-700 mb-1">
-            Upcoming Auto Assignment
+      {isKinderFilterMode && autoCard && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 mb-4">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div>
+              <div className="text-[11px] font-bold text-blue-800">{autoCard.weekLabel} · Kinder Auto Assignment</div>
+              <div className="text-sm font-bold text-slate-900">{autoCard.title}</div>
+            </div>
+            <div className="text-[11px] font-bold px-2 py-1 rounded-full bg-white text-blue-700 border border-blue-200">
+              {autoCard.status === "Published"
+                ? "Published"
+                : autoCard.status === "Scheduled"
+                ? "Scheduled"
+                : autoCard.status === "Skipped"
+                ? "Skipped"
+                : "Draft"}
+            </div>
           </div>
-          <div className="text-xs text-slate-600 space-y-0.5">
-            <div>• Mode: Kinder International – Auto (Weekly)</div>
-            <div>• Classes: {filterClass === "All" ? (intlKinderClasses.slice(0, 3).join(", ") || "Kinder classes") : filterClass}</div>
-            <div>• Generated based on weekly textbook and lesson schedule</div>
+          <div className="text-[11px] text-blue-700 space-y-1 mb-3">
+            <div>Classes: {autoCard.classesLabel}</div>
+            <div>Planned Due Date: {autoCard.dueDate}</div>
+            <div>이 과제는 자동 생성되며, 공휴일이나 행사에 맞춰 배포 일정을 조정할 수 있습니다.</div>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => runAutoAction("publish")}
+              disabled={autoAction === "publish"}
+              className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-xs font-bold bg-frage-navy text-white disabled:opacity-60"
+            >
+              {autoAction === "publish" ? "Publishing..." : "Publish Now"}
+            </button>
+            <button
+              onClick={() => setShowAutoDatePicker((v) => !v)}
+              className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white"
+            >
+              Change Date
+            </button>
+            <button
+              onClick={() => runAutoAction("skip")}
+              disabled={autoAction === "skip"}
+              className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-xs font-bold bg-slate-600 text-white disabled:opacity-60"
+            >
+              {autoAction === "skip" ? "Processing..." : "Skip This Week"}
+            </button>
+          </div>
+          {showAutoDatePicker && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                type="date"
+                value={autoDate}
+                onChange={(e) => setAutoDate(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              />
+              <button
+                onClick={() => runAutoAction("change_date")}
+                disabled={autoAction === "change_date"}
+                className="px-3 py-2 rounded-lg text-xs font-bold bg-white border border-indigo-200 text-indigo-700 disabled:opacity-60"
+              >
+                {autoAction === "change_date" ? "Updating..." : "Save Date"}
+              </button>
+            </div>
+          )}
+          {autoToast && (
+            <div className="mt-2 text-[11px] text-blue-700">
+              {autoToast}
+            </div>
+          )}
         </div>
       )}
 

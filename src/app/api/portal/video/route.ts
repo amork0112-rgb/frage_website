@@ -54,7 +54,14 @@ export async function GET(req: Request) {
       }
     });
 
-    const items = await Promise.all((assignments || []).map(async (a: any) => {
+    const visibleAssignments = (assignments || []).filter((a: any) => {
+      const desc = String(a.description || "");
+      if (desc.startsWith("[DRAFT]")) return false;
+      if (desc.startsWith("[SKIP]")) return false;
+      return true;
+    });
+
+    const items = await Promise.all(visibleAssignments.map(async (a: any) => {
       const aid = String(a.id ?? a.assignment_id ?? "");
       const sub = subByAssign[aid] || null;
       const fb = fbByAssign[aid] || null;

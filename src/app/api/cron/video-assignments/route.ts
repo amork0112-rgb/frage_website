@@ -30,23 +30,13 @@ export async function GET(request: Request) {
 
     const title = `Week ${weekNum} Reading`;
     const moduleName = `Week ${weekNum}`;
-    const description = "Video assignments for Kinder classes are generated automatically each week.";
+    const description = "[DRAFT] Video assignments for Kinder classes are generated automatically each week.";
     
-    // Due Date: Next Sunday
-    // If today is Sunday (0), next Sunday is today + 7? Or today?
-    // Let's assume due date is upcoming Sunday.
+    // Due Date: upcoming Sunday (if run on Sunday, use next Sunday)
     const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
     const daysUntilSunday = 7 - dayOfWeek; 
-    // If today is Sunday, set to next Sunday (7 days later) or today?
-    // Usually due date is end of week. If generated on Monday, due Sunday.
-    // If generated on Sunday, due next Sunday.
     const due = new Date(now);
-    due.setDate(now.getDate() + (daysUntilSunday === 0 ? 0 : daysUntilSunday)); 
-    // Wait, if today is Sunday (0), 7-0 = 7 (next Sunday). 
-    // If today is Monday (1), 7-1 = 6 (this Sunday).
-    // Let's stick to "This Sunday" if run early in week, or "Next Sunday".
-    // I'll just set it to "Next Sunday" logic relative to run time.
-    // Ideally, this script runs on Monday. Then Due is Sunday.
+    due.setDate(now.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday)); 
     
     const dueDateStr = due.toISOString().split('T')[0];
 

@@ -112,7 +112,14 @@ export async function GET() {
       studentsByClassCampus[key].push(st);
     });
 
-    const enriched = (assignments || []).map((a: any) => {
+    const visibleAssignments = (assignments || []).filter((a: any) => {
+      const desc = String(a.description || "");
+      if (desc.startsWith("[DRAFT]")) return false;
+      if (desc.startsWith("[SKIP]")) return false;
+      return true;
+    });
+
+    const enriched = visibleAssignments.map((a: any) => {
       const aid = String(a.id ?? a.assignment_id ?? "");
       const cls = String(a.class_name ?? a.className ?? "");
       const camp = String(a.campus ?? "");
