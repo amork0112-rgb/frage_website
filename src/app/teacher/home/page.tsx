@@ -289,7 +289,13 @@ export default function TeacherHome() {
             <div className="space-y-3">
               <textarea
                 value={rememberItems.join("\n")}
-                onChange={(e) => setRememberItems(e.target.value.split("\n").map(s => s.trim()).filter(Boolean))}
+                onChange={(e) =>
+                  setRememberItems(
+                    e.target.value
+                      .split("\n")
+                      .filter((s) => s.trim().length > 0),
+                  )
+                }
                 rows={6}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white"
                 placeholder="Enter one item per line"
