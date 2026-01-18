@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Video, FileText, CheckCircle2, Clock, ArrowRight, Calendar, Brain, ExternalLink, PencilLine } from "lucide-react";
+import { Video, FileText, CheckCircle2, Clock, ArrowRight, Calendar, ExternalLink } from "lucide-react";
 import { supabase, supabaseReady } from "@/lib/supabase";
 
 type Student = { id: string; name: string; englishName: string; className: string; campus: string };
@@ -43,10 +43,6 @@ export default function TeacherHome() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [teacherId, setTeacherId] = useState<string | null>(null);
   const [teacherName, setTeacherName] = useState<string>("");
-  const [rememberItems, setRememberItems] = useState<string[]>([]);
-  const [rememberSaving, setRememberSaving] = useState(false);
-  const [rememberEditable, setRememberEditable] = useState(false);
-  const [rememberEditing, setRememberEditing] = useState(false);
   const [teacherClass, setTeacherClass] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [todayReservations, setTodayReservations] = useState<number>(0);
@@ -61,12 +57,7 @@ export default function TeacherHome() {
       const uid = user?.id || null;
       setTeacherId(uid);
       if (!uid) return;
-      const email = String(user?.email || "");
-      const role = String((user?.app_metadata as any)?.role || "");
-      const isMasterTeacher = email === "master_teacher@frage.com" || role === "master_teacher";
-      if (isMasterTeacher) {
-        setRememberEditable(true);
-      }
+      
       try {
         const { data: trow } = await supabase
           .from("teachers")
@@ -94,34 +85,6 @@ export default function TeacherHome() {
   const y = now.getFullYear();
   const m = now.getMonth();
   const ym = `${y}-${String(m + 1).padStart(2, "0")}`;
-
-  useEffect(() => {
-    if (!supabaseReady) return;
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from("teacher_home_remember")
-          .select("id, items")
-          .eq("ym", ym)
-          .order("created_at", { ascending: false })
-          .limit(1);
-        const row = Array.isArray(data) && data.length > 0 ? data[0] as any : null;
-        if (row) {
-          const items = Array.isArray(row.items)
-            ? row.items
-            : String(row.items ?? "")
-                .split("\n")
-                .map((s) => s.trim())
-                .filter(Boolean);
-          setRememberItems(items);
-        } else {
-          setRememberItems([]);
-        }
-      } catch {
-        setRememberItems([]);
-      }
-    })();
-  }, [ym]);
 
   useEffect(() => {
     const load = async () => {
@@ -180,7 +143,7 @@ export default function TeacherHome() {
       setStudents(mappedStudents);
     };
     load();
-  }, [teacherId]);
+  }, [teacherId, y, m]);
 
   const myStudents = useMemo(() => {
     if (!teacherClass) return [];
@@ -202,47 +165,17 @@ export default function TeacherHome() {
     return filtered.slice(0, 8);
   }, [events, ym, y, m]);
 
-  const saveRemember = () => {
-    if (!supabaseReady) return;
-    const run = async () => {
-      try {
-        setRememberSaving(true);
-        const { data } = await supabase
-          .from("teacher_home_remember")
-          .select("id")
-          .eq("ym", ym)
-          .limit(1);
-        const row = Array.isArray(data) && data.length > 0 ? data[0] as any : null;
-        if (row?.id) {
-          await supabase
-            .from("teacher_home_remember")
-            .update({ items: rememberItems })
-            .eq("id", row.id);
-        } else {
-          await supabase.from("teacher_home_remember").insert({
-            ym,
-            items: rememberItems,
-          });
-        }
-      } finally {
-        setRememberSaving(false);
-        setRememberEditing(false);
-      }
-    };
-    run();
-  };
-
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-black text-slate-900 font-serif">
-          Hello, {rememberEditable ? "관리자" : teacherName || "Teacher"}! 👋
+          Hello, {teacherName || "Teacher"}! 👋
         </h1>
         <p className="text-slate-500 mt-1">Here is your dashboard for today.</p>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <section className="col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2 font-serif">
             <Calendar className="w-5 h-5 text-frage-orange" />
             This Month
@@ -266,62 +199,6 @@ export default function TeacherHome() {
               })
             )}
           </ul>
-        </section>
-
-        <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 font-serif">
-              <Brain className="w-5 h-5 text-purple-500" />
-              Remember
-            </h2>
-            {rememberEditable && (
-              <button
-                type="button"
-                onClick={() => setRememberEditing((v) => !v)}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 bg-white hover:bg-slate-50"
-              >
-                <PencilLine className="w-3 h-3" />
-                <span>{rememberEditing ? "Done" : "Edit"}</span>
-              </button>
-            )}
-          </div>
-          {rememberEditable && rememberEditing ? (
-            <div className="space-y-3">
-              <textarea
-                value={rememberItems.join("\n")}
-                onChange={(e) =>
-                  setRememberItems(
-                    e.target.value
-                      .split("\n")
-                      .filter((s) => s.trim().length > 0),
-                  )
-                }
-                rows={6}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white"
-                placeholder="Enter one item per line"
-              />
-              <button
-                onClick={saveRemember}
-                disabled={rememberSaving}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-              >
-                {rememberSaving ? "Saving..." : "Save Remember"}
-              </button>
-            </div>
-          ) : (
-            <ul className="space-y-3">
-              {rememberItems.length === 0 ? (
-                <li className="text-sm text-slate-500">No reminders for this month.</li>
-              ) : (
-                rememberItems.map((txt, i) => (
-                  <li key={i} className="flex gap-2 items-start text-sm text-slate-600">
-                    <span className="text-purple-500">•</span>
-                    {txt}
-                  </li>
-                ))
-              )}
-            </ul>
-          )}
         </section>
 
         <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
@@ -404,20 +281,6 @@ export default function TeacherHome() {
             Quick Actions
           </h2>
           <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2 text-xs mb-2">
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-2">
-                <div className="text-slate-400 font-bold">오늘 예약</div>
-                <div className="text-lg font-black text-slate-900">{todayReservations}</div>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-2">
-                <div className="text-slate-400 font-bold">신규생 체크</div>
-                <div className="text-lg font-black text-slate-900">{pendingChecklists}</div>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-2">
-                <div className="text-slate-400 font-bold">학부모 요청</div>
-                <div className="text-lg font-black text-slate-900">{unreadParentRequests}</div>
-              </div>
-            </div>
             {(() => {
               const today = new Date();
               const ymStr = `${y}-${String(m + 1).padStart(2, "0")}`;
@@ -450,21 +313,6 @@ export default function TeacherHome() {
                 </Link>
               );
             })()}
-
-            <Link href="/teacher/new-students" className="group block bg-white p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                    <CheckCircle2 className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900">신규생 입학 관리</h3>
-                    <p className="text-xs text-slate-500">입학 체크리스트 및 해피콜</p>
-                  </div>
-                </div>
-                <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
-              </div>
-            </Link>
           </div>
         </section>
       </div>
