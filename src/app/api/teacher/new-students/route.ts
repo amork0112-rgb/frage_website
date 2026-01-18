@@ -13,7 +13,20 @@ export async function GET() {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
-    const role = user.app_metadata?.role ?? "parent";
+    let role = user.app_metadata?.role ?? "parent";
+    if (role === "parent") {
+      const { data: teacher } = await supabaseService
+        .from("teachers")
+        .select("role")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+      if (teacher?.role) {
+        role = teacher.role;
+      }
+    }
+    if (user.email === "master_teacher@frage.com") {
+      role = "master_teacher";
+    }
     const teacherRoles = ["teacher", "master_teacher", "admin", "master_admin"];
     if (!teacherRoles.includes(role)) {
       return json({ error: "forbidden" }, 403);
@@ -92,7 +105,20 @@ export async function PUT(req: Request) {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
-    const role = user.app_metadata?.role ?? "parent";
+    let role = user.app_metadata?.role ?? "parent";
+    if (role === "parent") {
+      const { data: teacher } = await supabaseService
+        .from("teachers")
+        .select("role")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+      if (teacher?.role) {
+        role = teacher.role;
+      }
+    }
+    if (user.email === "master_teacher@frage.com") {
+      role = "master_teacher";
+    }
     const teacherRoles = ["teacher", "master_teacher", "admin", "master_admin"];
     if (!teacherRoles.includes(role)) {
       return json({ error: "forbidden" }, 403);

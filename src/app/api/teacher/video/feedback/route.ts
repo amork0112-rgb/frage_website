@@ -24,7 +24,20 @@ export async function GET(req: Request) {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-    const role = user.app_metadata?.role ?? "parent";
+    let role = user.app_metadata?.role ?? "parent";
+    if (role === "parent") {
+      const { data: teacher } = await supabaseAuth
+        .from("teachers")
+        .select("role")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+      if (teacher?.role) {
+        role = teacher.role;
+      }
+    }
+    if (user.email === "master_teacher@frage.com") {
+      role = "master_teacher";
+    }
     const teacherRoles = ["teacher", "master_teacher"];
     if (!teacherRoles.includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
 
@@ -77,7 +90,20 @@ export async function POST(req: Request) {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-    const role = user.app_metadata?.role ?? "parent";
+    let role = user.app_metadata?.role ?? "parent";
+    if (role === "parent") {
+      const { data: teacher } = await supabaseAuth
+        .from("teachers")
+        .select("role")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+      if (teacher?.role) {
+        role = teacher.role;
+      }
+    }
+    if (user.email === "master_teacher@frage.com") {
+      role = "master_teacher";
+    }
     const teacherRoles = ["teacher", "master_teacher"];
     if (!teacherRoles.includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
 

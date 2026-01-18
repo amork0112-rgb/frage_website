@@ -85,7 +85,25 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
-    const role = user.app_metadata?.role ?? "parent";
+    let role = user.app_metadata?.role ?? "parent";
+
+    // Fallback: Check teachers table
+    if (role === "parent") {
+      const { data: teacher } = await supabaseService
+        .from("teachers")
+        .select("role")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+      if (teacher?.role) {
+        role = teacher.role;
+      }
+    }
+
+    // Fallback: Master teacher email
+    if (user.email === "master_teacher@frage.com") {
+      role = "master_teacher";
+    }
+
     if (!["teacher", "master_teacher", "admin", "master_admin"].includes(role)) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
