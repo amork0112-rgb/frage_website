@@ -257,6 +257,9 @@ export default function TeacherVideoManagementPage() {
     setFilterClass("All");
   }, [filterDivision]);
 
+  const isKinderCreateMode = newCampus === "International" && newDivision === "kinder";
+  const isKinderFilterMode = filterCampus === "International" && filterDivision === "kinder";
+
   const TEMPLATES = [
     {
       label: "Reading Retell",
@@ -396,46 +399,61 @@ export default function TeacherVideoManagementPage() {
               </select>
             </div>
           )}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
-            <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              <option value="All">전체</option>
-              {newClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">마감일</label>
-            <input type="date" value={newDue} onChange={(e) => setNewDue(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">제목</label>
-            <div className="flex gap-2">
-              <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Into Reading 1.3" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-              {newCampus === "International" && newDivision === "primary" && (
-                <button onClick={() => setShowTemplateModal(true)} className="px-3 py-2 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 whitespace-nowrap hover:bg-indigo-100">
-                  Templates
-                </button>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">모듈/차시</label>
-            <input value={newModule} onChange={(e) => setNewModule(e.target.value)} placeholder="[Module 5-1] Day 18" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-slate-500 mb-1">설명 (선택)</label>
-            <input value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="과제 설명..." className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-          </div>
+          {!isKinderCreateMode && (
+            <>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
+                <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+                  <option value="All">전체</option>
+                  {newClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">마감일</label>
+                <input type="date" value={newDue} onChange={(e) => setNewDue(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">제목</label>
+                <div className="flex gap-2">
+                  <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Into Reading 1.3" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+                  {newCampus === "International" && newDivision === "primary" && (
+                    <button onClick={() => setShowTemplateModal(true)} className="px-3 py-2 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 whitespace-nowrap hover:bg-indigo-100">
+                      Templates
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">모듈/차시</label>
+                <input value={newModule} onChange={(e) => setNewModule(e.target.value)} placeholder="[Module 5-1] Day 18" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-slate-500 mb-1">설명 (선택)</label>
+                <input value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="과제 설명..." className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+              </div>
+            </>
+          )}
         </div>
         <div className="mt-3">
-          {!(newCampus === "International" && newDivision === "kinder") ? (
+          {!isKinderCreateMode ? (
             <button onClick={createAssignment} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white">
               <Plus className="w-4 h-4" /> 생성
             </button>
           ) : (
-            <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
-              Weekly auto assignment enabled
-            </span>
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-blue-800 font-bold text-sm">
+                <span>⚙️</span>
+                <span>Automatic Weekly Video Assignment</span>
+              </div>
+              <ul className="text-xs text-blue-700 list-disc pl-5 space-y-1">
+                <li>Assignments are generated automatically every week.</li>
+                <li>Based on textbook session and lesson progress.</li>
+                <li>No manual creation is required for Kinder.</li>
+              </ul>
+              <div className="text-[11px] text-blue-600 mt-1">
+                Next assignment will be generated on <b>Monday</b>.
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -475,6 +493,19 @@ export default function TeacherVideoManagementPage() {
         </div>
       </div>
 
+      {isKinderFilterMode && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 mb-4">
+          <div className="text-sm font-bold text-slate-700 mb-1">
+            Upcoming Auto Assignment
+          </div>
+          <div className="text-xs text-slate-600 space-y-0.5">
+            <div>• Mode: Kinder International – Auto (Weekly)</div>
+            <div>• Classes: {filterClass === "All" ? (intlKinderClasses.slice(0, 3).join(", ") || "Kinder classes") : filterClass}</div>
+            <div>• Generated based on weekly textbook and lesson schedule</div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(a => (
           <div key={a.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -505,8 +536,11 @@ export default function TeacherVideoManagementPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="text-sm font-bold text-slate-900">{a.title}</div>
                     {intlKinderClasses.includes(a.className) && (
-                      <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">
-                        Auto
+                      <span
+                        className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700"
+                        title="This assignment was generated automatically by the system."
+                      >
+                        Auto (Weekly)
                       </span>
                     )}
                   </div>
