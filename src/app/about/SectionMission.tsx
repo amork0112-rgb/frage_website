@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { HelpCircle, Brain, Presentation, Sparkles, Globe2, HeartHandshake } from "lucide-react";
+import { HelpCircle, Brain, Presentation } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -92,44 +92,36 @@ export default function SectionMission() {
     isEn
       ? [
           {
-            icon: Brain,
             title: "Critical Thinker",
             subtitle: "Children who craft questions and think logically about the world",
           },
           {
-            icon: Sparkles,
             title: "Confident Communicator",
             subtitle: "Children who express their ideas in English with confidence",
           },
           {
-            icon: Globe2,
             title: "Collaborative Global Citizen",
             subtitle: "Children who respect differences and collaborate with others",
           },
           {
-            icon: HeartHandshake,
             title: "Positive Impact Maker",
             subtitle: "Children who connect learning to life and society",
           },
         ]
       : [
           {
-            icon: Brain,
             title: "Critical Thinker",
             subtitle: "질문을 만들고 논리적으로 사고하는 아이",
           },
           {
-            icon: Sparkles,
             title: "Confident Communicator",
             subtitle: "자신의 생각을 당당하게 표현하는 아이",
           },
           {
-            icon: Globe2,
             title: "Collaborative Global Citizen",
             subtitle: "다름을 이해하고 협력하는 아이",
           },
           {
-            icon: HeartHandshake,
             title: "Positive Impact Maker",
             subtitle: "배운 것을 삶과 사회에 연결하는 아이",
           },
@@ -167,9 +159,9 @@ export default function SectionMission() {
               </>
             ) : (
               <>
-                영어로 말하는 아이가 아니라,
+                영어로 말하고,
                 <br className="hidden md:block" />
-                영어로 생각하는 아이를 키웁니다.
+                영어로 생각하는 아이로 키웁니다.
               </>
             )}
           </h2>
@@ -308,23 +300,19 @@ export default function SectionMission() {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {futureLearnerCards.map((c) => {
-              const Icon = c.icon;
-              return (
-                <div
-                  key={c.title}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-5 flex gap-3"
-                >
-                  <div className="mt-1">
-                    <Icon className="w-6 h-6 text-frage-navy" strokeWidth={1.5} />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-frage-navy">{c.title}</div>
-                    <div className="mt-1 text-sm text-slate-700">{c.subtitle}</div>
-                  </div>
+            {futureLearnerCards.map((c) => (
+              <div
+                key={c.title}
+                className="rounded-2xl border border-slate-200 bg-white px-6 py-5"
+              >
+                <div className="text-sm font-semibold text-frage-navy">
+                  {c.title}
                 </div>
-              );
-            })}
+                <div className="mt-1.5 text-sm text-slate-700">
+                  {c.subtitle}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
