@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Video, FileText, CheckCircle2, Clock, ArrowRight, Calendar, Brain, ExternalLink } from "lucide-react";
+import { Video, FileText, CheckCircle2, Clock, ArrowRight, Calendar, Brain, ExternalLink, PencilLine } from "lucide-react";
 import { supabase, supabaseReady } from "@/lib/supabase";
 
 type Student = { id: string; name: string; englishName: string; className: string; campus: string };
@@ -14,7 +14,7 @@ type CalendarEvent = {
   type: ScheduleType;
   start: string;
   end: string;
-  campus?: "International" | "Andover" | "Platz" | "Atheneum";
+  campus?: "International" | "Andover" | "Platz" | "Atheneum" | "All";
   className?: string;
   place?: string;
   exposeToParent: boolean;
@@ -45,6 +45,8 @@ export default function TeacherHome() {
   const [teacherName, setTeacherName] = useState<string>("");
   const [rememberItems, setRememberItems] = useState<string[]>([]);
   const [rememberSaving, setRememberSaving] = useState(false);
+  const [rememberEditable, setRememberEditable] = useState(false);
+  const [rememberEditing, setRememberEditing] = useState(false);
   const [teacherClass, setTeacherClass] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [todayReservations, setTodayReservations] = useState<number>(0);
@@ -55,9 +57,16 @@ export default function TeacherHome() {
     (async () => {
       if (!supabaseReady) return;
       const { data } = await supabase.auth.getUser();
-      const uid = data?.user?.id || null;
+      const user = data?.user;
+      const uid = user?.id || null;
       setTeacherId(uid);
       if (!uid) return;
+      const email = String(user?.email || "");
+      const role = String((user?.app_metadata as any)?.role || "");
+      const isMasterTeacher = email === "master_teacher@frage.com" || role === "master_teacher";
+      if (isMasterTeacher) {
+        setRememberEditable(true);
+      }
       try {
         const { data: trow } = await supabase
           .from("teachers")
@@ -117,33 +126,19 @@ export default function TeacherHome() {
   useEffect(() => {
     const load = async () => {
       if (!supabaseReady) return;
-      const { data: evs } = await supabase
-        .from("events")
-        .select("id,title,type,start,end,campus,className,place,created_at,exposeToParent,notify,notifyDays,noticeLink")
-        .order("start", { ascending: true });
-      const mappedEvents: CalendarEvent[] = Array.isArray(evs)
-        ? evs.map((r: any) => ({
-            id: String(r.id),
-            title: String(r.title || ""),
-            type: r.type as ScheduleType,
-            start: String(r.start || ""),
-            end: String(r.end || r.start || ""),
-            campus: r.campus || undefined,
-            className: r.className || undefined,
-            place: r.place || undefined,
-            exposeToParent: !!r.exposeToParent,
-            notify: !!r.notify,
-            notifyDays: Array.isArray(r.notifyDays) ? r.notifyDays : undefined,
-            noticeLink: r.noticeLink || undefined,
-            createdAt: String(r.created_at || ""),
-          }))
-        : [];
-      setEvents(mappedEvents);
+      try {
+        const res = await fetch(`/api/calendar?year=${y}&month=${m + 1}`, { cache: "no-store" });
+        const data = await res.json();
+        const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
+        setEvents(items);
+      } catch {
+        setEvents([]);
+      }
       const today = new Date();
-      const y = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, "0");
-      const dd = String(today.getDate()).padStart(2, "0");
-      const todayStr = `${y}-${mm}-${dd}`;
+      const ty = today.getFullYear();
+      const tm = String(today.getMonth() + 1).padStart(2, "0");
+      const td = String(today.getDate()).padStart(2, "0");
+      const todayStr = `${ty}-${tm}-${td}`;
       const { data: slotsToday } = await supabase
         .from("consultation_slots")
         .select("id,date")
@@ -231,6 +226,7 @@ export default function TeacherHome() {
         }
       } finally {
         setRememberSaving(false);
+        setRememberEditing(false);
       }
     };
     run();
@@ -239,13 +235,15 @@ export default function TeacherHome() {
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-black text-slate-900">Hello, {teacherId === "master_teacher" ? "관리자" : teacherName || "Teacher"}! 👋</h1>
+        <h1 className="text-2xl font-black text-slate-900 font-serif">
+          Hello, {rememberEditable ? "관리자" : teacherName || "Teacher"}! 👋
+        </h1>
         <p className="text-slate-500 mt-1">Here is your dashboard for today.</p>
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2 font-serif">
             <Calendar className="w-5 h-5 text-frage-orange" />
             This Month
           </h2>
@@ -271,11 +269,23 @@ export default function TeacherHome() {
         </section>
 
         <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <Brain className="w-5 h-5 text-purple-500" />
-            Remember
-          </h2>
-          {teacherId === "master_teacher" ? (
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 font-serif">
+              <Brain className="w-5 h-5 text-purple-500" />
+              Remember
+            </h2>
+            {rememberEditable && (
+              <button
+                type="button"
+                onClick={() => setRememberEditing((v) => !v)}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 bg-white hover:bg-slate-50"
+              >
+                <PencilLine className="w-3 h-3" />
+                <span>{rememberEditing ? "Done" : "Edit"}</span>
+              </button>
+            )}
+          </div>
+          {rememberEditable && rememberEditing ? (
             <div className="space-y-3">
               <textarea
                 value={rememberItems.join("\n")}
@@ -310,7 +320,7 @@ export default function TeacherHome() {
 
         <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2 font-serif">
               <Clock className="w-5 h-5 text-blue-500" />
               My Schedule
             </h2>
@@ -342,7 +352,7 @@ export default function TeacherHome() {
       <div className="grid md:grid-cols-2 gap-8">
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 font-serif">
               <Video className="w-5 h-5 text-slate-400" />
               My Students
             </h2>
@@ -377,13 +387,13 @@ export default function TeacherHome() {
               })
             )}
           </div>
-          <Link href="/teacher/students" className="block text-center text-sm font-bold text-slate-500 hover:text-frage-blue mt-3 py-2">
+          <Link href="/teacher/students" className="block text-center text-sm font-bold text-slate-500 hover:text-frage-blue mt-3 py-2 font-serif">
             View Students
           </Link>
         </section>
 
         <section>
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2 font-serif">
             <CheckCircle2 className="w-5 h-5 text-slate-400" />
             Quick Actions
           </h2>
