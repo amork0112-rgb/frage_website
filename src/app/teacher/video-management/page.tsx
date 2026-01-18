@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Video, Plus, Trash2, PencilLine, Save, X } from "lucide-react";
+import { Video, Plus, Trash2, PencilLine, Save, X, Settings } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type Student = { id: string; name: string; englishName: string; className: string; campus: string; classSortOrder?: number | null };
 type Assignment = { id: string; title: string; module: string; description?: string; dueDate: string; className: string; campus?: string };
+type WeeklyStatus = "draft" | "scheduled" | "published" | "skipped";
 
 const CAMPUS_VALUES = ["All", "International", "Andover", "Atheneum", "Platz"] as const;
 const CAMPUS_LABELS: Record<string, string> = {
@@ -41,11 +42,6 @@ export default function TeacherVideoManagementPage() {
 
   const [editId, setEditId] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<Assignment | null>(null);
-
-  const [autoAction, setAutoAction] = useState<"" | "publish" | "change_date" | "skip">("");
-  const [autoDate, setAutoDate] = useState("");
-  const [autoToast, setAutoToast] = useState("");
-  const [showAutoDatePicker, setShowAutoDatePicker] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -262,56 +258,99 @@ export default function TeacherVideoManagementPage() {
     setFilterClass("All");
   }, [filterDivision]);
 
-  const isKinderCreateMode = newCampus === "International" && newDivision === "kinder";
-  const isKinderFilterMode = filterCampus === "International" && filterDivision === "kinder";
-
-  const autoMeta = useMemo(() => {
+  const [weeklyClassStatus, setWeeklyClassStatus] = useState<{
+    className: string;
+    campus: string;
+    division: "kinder" | "primary";
+    weekKey: string;
+    status: "draft" | "scheduled" | "published" | "skipped" | "no_lesson" | "needs_review";
+    suggestedDueDate: string | null;
+    confirmedDueDate: string | null;
+    reason: string | null;
+  }[]>([]);
+  const [loadingWeeklyStatus, setLoadingWeeklyStatus] = useState(false);
+  const [selectedWeek, setSelectedWeek] = useState(() => {
     const now = new Date();
     const oneJan = new Date(now.getFullYear(), 0, 1);
     const numberOfDays = Math.floor((now.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
     const weekNum = Math.ceil((now.getDay() + 1 + numberOfDays) / 7);
-    const title = `Week ${weekNum} Reading`;
-    const moduleName = `Week ${weekNum}`;
-    const dayOfWeek = now.getDay();
-    const daysUntilSunday = 7 - dayOfWeek;
-    const due = new Date(now);
-    due.setDate(now.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday));
-    const dueDate = due.toISOString().split("T")[0];
-    return { title, moduleName, dueDate };
-  }, []);
+    return `${now.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  });
 
-  const autoCard = useMemo(() => {
-    if (!isKinderFilterMode || intlKinderClasses.length === 0) return null;
-    const baseClasses = filterClass === "All" ? intlKinderClasses : [filterClass];
-    const autoAssignments = assignments.filter((a) => {
-      if (a.campus !== "International") return false;
-      if (!baseClasses.includes(a.className)) return false;
-      if (a.title !== autoMeta.title) return false;
-      return true;
+  // Mock fetch function for weekly status
+  const fetchWeeklyStatus = async () => {
+    if (filterCampus !== "International" || filterDivision !== "kinder") return;
+    
+    setLoadingWeeklyStatus(true);
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Mock data generation based on intlKinderClasses
+    const statusList = intlKinderClasses.map((className, index) => {
+      // Randomly assign status for demo purposes
+      const statuses = ["draft", "scheduled", "published", "skipped", "no_lesson", "needs_review"] as const;
+      const status = statuses[index % statuses.length];
+      
+      const suggestedDueDate = "2026-01-28";
+      let confirmedDueDate = null;
+      let reason = null;
+
+      if (status === "scheduled" || status === "published") {
+        confirmedDueDate = "2026-01-28";
+      }
+      if (status === "no_lesson") {
+        reason = "No regular class this week";
+      }
+      if (status === "needs_review") {
+        reason = "Check lesson coverage";
+      }
+
+      return {
+        className,
+        campus: "International",
+        division: "kinder" as const,
+        weekKey: selectedWeek,
+        status,
+        suggestedDueDate,
+        confirmedDueDate,
+        reason
+      };
     });
-    let status: "Draft" | "Scheduled" | "Published" | "Skipped" = "Draft";
-    if (autoAssignments.length === 0) {
-      status = "Draft";
+    
+    setWeeklyClassStatus(statusList);
+    setLoadingWeeklyStatus(false);
+  };
+
+  useEffect(() => {
+    if (filterCampus === "International" && filterDivision === "kinder") {
+      fetchWeeklyStatus();
     } else {
-      const hasSkip = autoAssignments.some((a) => (a.description || "").startsWith("[SKIP]"));
-      const hasDraft = autoAssignments.some((a) => (a.description || "").startsWith("[DRAFT]"));
-      if (hasSkip) status = "Skipped";
-      else if (hasDraft) status = "Scheduled";
-      else status = "Published";
+      setWeeklyClassStatus([]);
     }
-    const baseLabelList = baseClasses.slice();
-    const classesLabel =
-      filterClass === "All"
-        ? baseLabelList.slice(0, 3).join(", ") + (baseLabelList.length > 3 ? ` 외 ${baseLabelList.length - 3}개` : "")
-        : filterClass;
-    return {
-      weekLabel: autoMeta.moduleName,
-      title: autoMeta.title,
-      dueDate: autoMeta.dueDate,
-      classesLabel: classesLabel || "Kinder classes",
-      status,
-    };
-  }, [assignments, autoMeta, filterClass, intlKinderClasses, isKinderFilterMode]);
+  }, [filterCampus, filterDivision, selectedWeek, intlKinderClasses]);
+
+  const handleControlAction = async (action: "publish" | "change_date" | "skip" | "set_due_date", className: string, date?: string) => {
+    // Mock API call
+    console.log(`Action: ${action}, Class: ${className}, Date: ${date}`);
+    
+    // Optimistic update
+    setWeeklyClassStatus(prev => prev.map(item => {
+      if (item.className !== className) return item;
+      
+      if (action === "publish") {
+        return { ...item, status: "published" };
+      }
+      if (action === "skip") {
+        return { ...item, status: "skipped", reason: "Skipped by teacher" };
+      }
+      if (action === "set_due_date" || action === "change_date") {
+        return { ...item, status: "scheduled", confirmedDueDate: date || item.suggestedDueDate };
+      }
+      return item;
+    }));
+  };
+
+  const isKinderFilterMode = filterCampus === "International" && filterDivision === "kinder";
 
   const TEMPLATES = [
     {
@@ -348,7 +387,6 @@ export default function TeacherVideoManagementPage() {
   };
 
   const createAssignment = () => {
-    if (newCampus === "International" && newDivision === "kinder") return;
     if (!newTitle.trim() || !newModule.trim() || !newDue || newClass === "All") return;
     (async () => {
       await supabase.from("video_assignments").insert({
@@ -405,51 +443,6 @@ export default function TeacherVideoManagementPage() {
     })();
   };
 
-  const runAutoAction = (action: "publish" | "change_date" | "skip") => {
-    if (action === "change_date" && !autoDate) {
-      setAutoToast("날짜를 선택해 주세요.");
-      return;
-    }
-    (async () => {
-      setAutoAction(action);
-      try {
-        const res = await fetch("/api/teacher/kinder-auto-control", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action,
-            date: action === "change_date" ? autoDate : undefined,
-          }),
-        });
-        const data = await res.json().catch(() => null);
-        if (!res.ok) {
-          const code = data?.error || "";
-          if (code === "no_kinder_classes") {
-            setAutoToast("국제관 킨더 반이 없습니다.");
-          } else if (code === "unauthorized" || code === "forbidden") {
-            setAutoToast("권한이 없습니다. 다시 로그인해 주세요.");
-          } else {
-            setAutoToast("요청 처리 중 오류가 발생했습니다.");
-          }
-          return;
-        }
-        await refreshAssignments();
-        if (action === "publish") {
-          setAutoToast("이번 주 과제가 학부모에게 공개되었습니다.");
-        } else if (action === "change_date") {
-          setAutoToast("마감일이 업데이트되었습니다.");
-          setShowAutoDatePicker(false);
-        } else if (action === "skip") {
-          setAutoToast("이번 주 과제가 건너뛰기로 설정되었습니다.");
-        }
-      } catch {
-        setAutoToast("요청 처리 중 오류가 발생했습니다.");
-      } finally {
-        setAutoAction("");
-      }
-    })();
-  };
-
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -458,18 +451,20 @@ export default function TeacherVideoManagementPage() {
           <h1 className="text-2xl font-black text-slate-900">Video Management</h1>
         </div>
         {newCampus === "International" && (
-          <div className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${
-            newDivision === "kinder" ? "bg-blue-50 text-blue-700" : "bg-green-50 text-green-700"
-          }`}>
+          <div
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${
+              newDivision === "kinder" ? "bg-blue-50 text-blue-700" : "bg-green-50 text-green-700"
+            }`}
+          >
             {newDivision === "kinder" ? (
               <>
                 <span>⚙️</span>
-                <span>Mode: Automatic Weekly Assignments (Kinder)</span>
+                <span>Mode: Semi-Automatic Weekly Assignments (Kinder)</span>
               </>
             ) : (
               <>
                 <span>✍️</span>
-                <span>Mode: Manual Assignments with Templates (Primary)</span>
+                <span>Mode: Manual Assignments (Primary)</span>
               </>
             )}
           </div>
@@ -497,69 +492,52 @@ export default function TeacherVideoManagementPage() {
               </select>
             </div>
           )}
-          {!isKinderCreateMode && (
-            <>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
-                <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                  <option value="All">전체</option>
-                  {newClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">마감일</label>
-                <input type="date" value={newDue} onChange={(e) => setNewDue(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">제목</label>
-                <div className="flex gap-2">
-                  <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Into Reading 1.3" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-                  {newCampus === "International" && newDivision === "primary" && (
-                    <button onClick={() => setShowTemplateModal(true)} className="px-3 py-2 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 whitespace-nowrap hover:bg-indigo-100">
-                      Templates
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">모듈/차시</label>
-                <input value={newModule} onChange={(e) => setNewModule(e.target.value)} placeholder="[Module 5-1] Day 18" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-slate-500 mb-1">설명 (선택)</label>
-                <input value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="과제 설명..." className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-              </div>
-            </>
-          )}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
+            <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+              <option value="All">전체</option>
+              {newClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">마감일</label>
+            <input type="date" value={newDue} onChange={(e) => setNewDue(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">제목</label>
+            <div className="flex gap-2">
+              <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Into Reading 1.3" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+              {newCampus === "International" && newDivision === "primary" && (
+                <button onClick={() => setShowTemplateModal(true)} className="px-3 py-2 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 whitespace-nowrap hover:bg-indigo-100">
+                  Templates
+                </button>
+              )}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">모듈/차시</label>
+            <input value={newModule} onChange={(e) => setNewModule(e.target.value)} placeholder="[Module 5-1] Day 18" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-bold text-slate-500 mb-1">설명 (선택)</label>
+            <input value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="과제 설명..." className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+          </div>
         </div>
         <div className="mt-3">
-          {!isKinderCreateMode ? (
-            <button onClick={createAssignment} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white">
-              <Plus className="w-4 h-4" /> 생성
-            </button>
-          ) : (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
-              <div className="flex items-center gap-2 text-blue-800 font-bold text-sm">
-                <span>⚙️</span>
-                <span>Automatic Weekly Video Assignment</span>
-              </div>
-              <ul className="text-xs text-blue-700 list-disc pl-5 space-y-1">
-                <li>Assignments are generated automatically every week.</li>
-                <li>Based on textbook session and lesson progress.</li>
-                <li>No manual creation is required for Kinder.</li>
-              </ul>
-              <div className="text-[11px] text-blue-600 mt-1">
-                Next assignment will be generated on <b>Monday</b>.
-              </div>
-            </div>
-          )}
+          <button onClick={createAssignment} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white">
+            <Plus className="w-4 h-4" /> 생성
+          </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Settings className="w-4 h-4 text-slate-400" />
+          <h3 className="font-bold text-slate-900 text-sm">Management Scope</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">캠퍼스 필터</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1">Campus</label>
             <select value={filterCampus} onChange={(e) => setFilterCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
               {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
             </select>
@@ -577,90 +555,176 @@ export default function TeacherVideoManagementPage() {
               </select>
             </div>
           )}
+          {isKinderFilterMode && (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">Week</label>
+              <select 
+                value={selectedWeek} 
+                onChange={(e) => setSelectedWeek(e.target.value)} 
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              >
+                {/* Mock week options - In real app, generate dynamically */}
+                <option value="2026-W01">Week 1 (Jan 01 - Jan 07)</option>
+                <option value="2026-W02">Week 2 (Jan 08 - Jan 14)</option>
+                <option value="2026-W03">Week 3 (Jan 15 - Jan 21)</option>
+                <option value="2026-W04">Week 4 (Jan 22 - Jan 28)</option>
+              </select>
+            </div>
+          )}
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">반 필터</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1">Class Filter</label>
             <select value={filterClass} onChange={(e) => setFilterClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              <option value="All">전체</option>
+              <option value="All">All Classes</option>
               {filterClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
             </select>
           </div>
-          <div className="md:col-span-3">
-            <label className="block text-xs font-bold text-slate-500 mb-1">검색</label>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="제목/모듈" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+          <div className="md:col-span-2">
+            <label className="block text-xs font-bold text-slate-500 mb-1">Search</label>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Title or Module..."
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+            />
           </div>
         </div>
       </div>
 
-      {isKinderFilterMode && autoCard && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 mb-4">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div>
-              <div className="text-[11px] font-bold text-blue-800">{autoCard.weekLabel} · Kinder Auto Assignment</div>
-              <div className="text-sm font-bold text-slate-900">{autoCard.title}</div>
-            </div>
-            <div className="text-[11px] font-bold px-2 py-1 rounded-full bg-white text-blue-700 border border-blue-200">
-              {autoCard.status === "Published"
-                ? "Published"
-                : autoCard.status === "Scheduled"
-                ? "Scheduled"
-                : autoCard.status === "Skipped"
-                ? "Skipped"
-                : "Draft"}
-            </div>
-          </div>
-          <div className="text-[11px] text-blue-700 space-y-1 mb-3">
-            <div>Classes: {autoCard.classesLabel}</div>
-            <div>Planned Due Date: {autoCard.dueDate}</div>
-            <div>이 과제는 자동 생성되며, 공휴일이나 행사에 맞춰 배포 일정을 조정할 수 있습니다.</div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => runAutoAction("publish")}
-              disabled={autoAction === "publish"}
-              className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-xs font-bold bg-frage-navy text-white disabled:opacity-60"
+      {/* Weekly Assignment Overview (Kinder Only) */}
+      {isKinderFilterMode && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span className="text-blue-600">📦</span>
+              Weekly Assignment Overview
+              <span className="text-xs font-normal text-slate-500 ml-2 bg-slate-100 px-2 py-1 rounded">
+                {selectedWeek}
+              </span>
+            </h2>
+            <button 
+              onClick={fetchWeeklyStatus}
+              className="text-xs font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1"
             >
-              {autoAction === "publish" ? "Publishing..." : "Publish Now"}
-            </button>
-            <button
-              onClick={() => setShowAutoDatePicker((v) => !v)}
-              className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white"
-            >
-              Change Date
-            </button>
-            <button
-              onClick={() => runAutoAction("skip")}
-              disabled={autoAction === "skip"}
-              className="flex-1 min-w-[120px] px-3 py-2 rounded-lg text-xs font-bold bg-slate-600 text-white disabled:opacity-60"
-            >
-              {autoAction === "skip" ? "Processing..." : "Skip This Week"}
+              <Video className="w-3 h-3" /> Refresh Status
             </button>
           </div>
-          {showAutoDatePicker && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <input
-                type="date"
-                value={autoDate}
-                onChange={(e) => setAutoDate(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-              />
-              <button
-                onClick={() => runAutoAction("change_date")}
-                disabled={autoAction === "change_date"}
-                className="px-3 py-2 rounded-lg text-xs font-bold bg-white border border-indigo-200 text-indigo-700 disabled:opacity-60"
-              >
-                {autoAction === "change_date" ? "Updating..." : "Save Date"}
-              </button>
-            </div>
-          )}
-          {autoToast && (
-            <div className="mt-2 text-[11px] text-blue-700">
-              {autoToast}
+
+          {loadingWeeklyStatus ? (
+             <div className="text-center py-10 text-slate-500">Loading weekly status...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {weeklyClassStatus
+                .filter(item => filterClass === "All" || item.className === filterClass)
+                .map((item) => (
+                <div key={item.className} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 relative overflow-hidden">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-slate-900 text-lg">{item.className}</h3>
+                    <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wide ${
+                      item.status === 'published' ? 'bg-green-100 text-green-700' :
+                      item.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                      item.status === 'skipped' ? 'bg-slate-100 text-slate-500 line-through' :
+                      item.status === 'no_lesson' ? 'bg-yellow-50 text-yellow-600' :
+                      item.status === 'needs_review' ? 'bg-red-50 text-red-600' :
+                      'bg-slate-100 text-slate-600'
+                    }`}>
+                      {item.status.replace("_", " ")}
+                    </span>
+                  </div>
+                  
+                  <div className="mb-4">
+                     <div className="text-xs text-slate-500 mb-1">Due Date</div>
+                     <div className="font-mono text-sm font-medium">
+                       {item.confirmedDueDate ? (
+                         <span className="text-slate-900">{item.confirmedDueDate}</span>
+                       ) : item.suggestedDueDate ? (
+                         <span className="text-slate-400">{item.suggestedDueDate} (Suggested)</span>
+                       ) : (
+                         <span className="text-slate-300">-</span>
+                       )}
+                     </div>
+                     {item.reason && (
+                       <div className="mt-2 text-xs text-slate-500 bg-slate-50 p-2 rounded">
+                         Reason: {item.reason}
+                       </div>
+                     )}
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-auto pt-3 border-t border-slate-100">
+                    {item.status === "draft" && (
+                       <>
+                         <button 
+                           onClick={() => handleControlAction("set_due_date", item.className)}
+                           className="flex-1 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded hover:bg-blue-100"
+                         >
+                           Set Date
+                         </button>
+                         <button 
+                           onClick={() => handleControlAction("skip", item.className)}
+                           className="flex-1 py-1.5 bg-slate-50 text-slate-600 text-xs font-bold rounded hover:bg-slate-100"
+                         >
+                           Skip
+                         </button>
+                       </>
+                    )}
+                    {item.status === "scheduled" && (
+                      <>
+                        <button 
+                          onClick={() => handleControlAction("publish", item.className)}
+                          className="flex-1 py-1.5 bg-green-600 text-white text-xs font-bold rounded hover:bg-green-700 shadow-sm"
+                        >
+                          Publish
+                        </button>
+                        <button 
+                          onClick={() => handleControlAction("change_date", item.className)}
+                          className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50"
+                        >
+                          Change
+                        </button>
+                        <button 
+                           onClick={() => handleControlAction("skip", item.className)}
+                           className="px-2 py-1.5 text-slate-400 hover:text-red-500"
+                        >
+                           <X className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                    {item.status === "published" && (
+                      <button 
+                        onClick={() => handleControlAction("change_date", item.className)}
+                        className="w-full py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50"
+                      >
+                        Change Date
+                      </button>
+                    )}
+                    {item.status === "needs_review" && (
+                      <button 
+                         onClick={() => handleControlAction("set_due_date", item.className)}
+                         className="w-full py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50"
+                      >
+                        Review & Set Date
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Assignment Records (Existing List) */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <span className="text-slate-400">🗂</span>
+            Assignment Records
+          </h2>
+          <div className="text-xs text-slate-400">
+            Total {filtered.length} assignments
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(a => (
           <div key={a.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-4 space-y-1">
@@ -669,7 +733,7 @@ export default function TeacherVideoManagementPage() {
                   <input value={editItem?.title || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), title: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
                   <input value={editItem?.module || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), module: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
                   <input value={editItem?.description || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), description: e.target.value }))} placeholder="Description" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-                  <input type="date" value={editItem?.dueDate || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), dueDate: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg白" />
+                  <input type="date" value={editItem?.dueDate || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), dueDate: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
                   <select value={editItem?.className || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), className: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
                     {classes.filter(c => c !== "All").map(c => (<option key={c} value={c}>{c}</option>))}
                   </select>
@@ -715,6 +779,7 @@ export default function TeacherVideoManagementPage() {
             </div>
           </div>
         ))}
+        </div>
         {filtered.length === 0 && (
           <div className="text-sm text-slate-600">등록된 영상 과제가 없습니다.</div>
         )}
