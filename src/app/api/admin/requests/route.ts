@@ -90,12 +90,12 @@ export async function GET(_req: Request) {
     // Collect student IDs to fetch class info
     const studentIds = Array.from(new Set((rawRequests || []).map((r: any) => r.child_id).filter(Boolean)));
 
-    // Fetch student info (class_name)
+    // Fetch student info (class_name, campus, etc.)
     let studentMap: Record<string, any> = {};
     if (studentIds.length > 0) {
       const { data: students } = await supabaseService
         .from("v_students_full")
-        .select("student_id, class_name, student_name")
+        .select("*")
         .in("student_id", studentIds);
       
       (students || []).forEach((s: any) => {
@@ -108,17 +108,17 @@ export async function GET(_req: Request) {
       return {
         id: String(row.id),
         childId: String(row.child_id ?? ""),
-        childName: String(student.student_name ?? row.child_name ?? ""), // Prefer current student name, fallback to snapshot
-        campus: String(row.campus ?? ""),
+        childName: String(student.student_name ?? student.name ?? row.child_name ?? ""), 
+        campus: String(student.campus ?? row.campus ?? ""),
+        className: String(student.class_name ?? student.className ?? ""),
         type: String(row.type ?? ""),
         dateStart: String(row.date_start ?? ""),
         dateEnd: row.date_end ? String(row.date_end) : undefined,
-        time: row.time ? String(row.time) : undefined, // Direct from table
+        time: row.time ? String(row.time) : undefined,
         note: row.note ? String(row.note) : undefined,
         changeType: row.change_type ? String(row.change_type) : undefined,
         medName: row.med_name ? String(row.med_name) : undefined,
         createdAt: String(row.created_at ?? new Date().toISOString()),
-        className: student.class_name ? String(student.class_name) : undefined, // From student join
         name: row.name ? String(row.name) : undefined,
         phone: row.phone ? String(row.phone) : undefined,
         source: row.source ? String(row.source) : undefined,
