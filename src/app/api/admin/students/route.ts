@@ -79,8 +79,41 @@ export async function GET(req: Request) {
     return NextResponse.json({ error }, { status: 500 });
   }
 
+  // Fetch program enrollments for these students
+  // Deduplicate students by ID just in case the view returns duplicates
+  const rawStudents = data ?? [];
+  const uniqueStudentsMap = new Map();
+  rawStudents.forEach((s: any) => {
+    if (s.id && !uniqueStudentsMap.has(s.id)) {
+      uniqueStudentsMap.set(s.id, s);
+    }
+  });
+  const students = Array.from(uniqueStudentsMap.values());
+  const studentIds = students.map((s: any) => s.id);
+  
+  if (studentIds.length > 0) {
+    const { data: enrollments } = await supabase
+      .from("enrollments")
+      .select("student_id, class:classes(id, name)")
+      .in("student_id", studentIds)
+      .eq("enrollment_type", "program")
+      .eq("status", "active");
+
+    const enrollmentMap: Record<string, any[]> = {};
+    (enrollments || []).forEach((e: any) => {
+      if (!enrollmentMap[e.student_id]) enrollmentMap[e.student_id] = [];
+      if (e.class) {
+        enrollmentMap[e.student_id].push({ id: e.class.id, name: e.class.name });
+      }
+    });
+
+    students.forEach((s: any) => {
+      s.program_classes = enrollmentMap[s.id] || [];
+    });
+  }
+
   return NextResponse.json({
-    items: data ?? [],
+    items: students,
     totalCount: count ?? 0,
   });
 }

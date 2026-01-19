@@ -525,6 +525,7 @@ export default function AdminStudentsPage() {
                 </th>
                 <th className="p-3 font-bold">이름</th>
                 <th className="p-3 font-bold w-32">반</th>
+                <th className="p-3 font-bold w-32">추가 수강</th>
                 <th className="p-3 font-bold w-32">생년월일</th>
                 <th className="p-3 font-bold w-24">캠퍼스</th>
                 <th className="p-3 font-bold w-16 text-center">차량</th>
@@ -550,6 +551,19 @@ export default function AdminStudentsPage() {
                     <div className="text-xs text-slate-400">{s.parent_phone}</div>
                   </td>
                   <td className="p-3 text-slate-700">{s.class_name}</td>
+                  <td className="p-3">
+                    {s.program_classes && s.program_classes.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {s.program_classes.map((c: any) => (
+                          <span key={c.id} className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                            {c.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-300 text-xs">-</span>
+                    )}
+                  </td>
                   <td className="p-3 text-sm text-slate-600">{s.birth_date}</td>
                   <td className="p-3 text-sm text-slate-600">{s.campus}</td>
                   <td className="p-3 text-center text-sm text-slate-600">{s.has_transport ? "O" : "-"}</td>
