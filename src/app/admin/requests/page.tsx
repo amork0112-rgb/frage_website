@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { MessageSquare, Calendar, Clock, Bus, Pill, Users, Bell, AlertCircle, ArrowRight } from "lucide-react";
+import { MessageSquare, Calendar, Clock, Bus, Pill, Users, Bell, AlertCircle, ArrowRight, LayoutGrid } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type RequestType = "absence" | "early_pickup" | "bus_change" | "medication";
+type TabType = "all" | RequestType;
 
 type PortalRequest = {
   id: string;
@@ -25,7 +26,7 @@ type PortalRequest = {
 };
 
 export default function AdminRequestsPage() {
-  const [activeTab, setActiveTab] = useState<RequestType>("absence");
+  const [activeTab, setActiveTab] = useState<TabType>("all");
   const [requests, setRequests] = useState<PortalRequest[]>([]);
   const [campusFilter, setCampusFilter] = useState<string>("All");
   const [createOpen, setCreateOpen] = useState(false);
@@ -78,12 +79,16 @@ export default function AdminRequestsPage() {
     [requests, activeTab, campusFilter]
   );
 
-  const iconFor = (t: RequestType) =>
-    t === "absence" ? Calendar : t === "early_pickup" ? Clock : t === "bus_change" ? Bus : Pill;
+  const iconFor = (t: TabType) => {
+    if (t === "all") return LayoutGrid;
+    return t === "absence" ? Calendar : t === "early_pickup" ? Clock : t === "bus_change" ? Bus : Pill;
+  };
   const Icon = iconFor(activeTab);
 
-  const badge = (t: RequestType) =>
-    t === "absence"
+  const badge = (t: TabType) =>
+    t === "all"
+      ? "bg-slate-800 text-white border-slate-800"
+      : t === "absence"
       ? "bg-frage-blue text-white border-frage-blue"
       : t === "early_pickup"
       ? "bg-frage-green text-white border-frage-green"
@@ -268,8 +273,18 @@ export default function AdminRequestsPage() {
                 <span className="text-xs text-slate-500">
                   {r.campus}
                   {r.className ? ` · ${r.className}` : ""}
+                  {activeTab === "all" && (
+                    <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                      r.type === "absence" ? "text-frage-blue border-frage-blue bg-blue-50" :
+                      r.type === "early_pickup" ? "text-frage-green border-frage-green bg-green-50" :
+                      r.type === "bus_change" ? "text-frage-yellow border-frage-yellow bg-yellow-50" :
+                      "text-frage-navy border-frage-navy bg-slate-50"
+                    }`}>
+                      {r.type === "absence" ? "결석" : r.type === "early_pickup" ? "조퇴" : r.type === "bus_change" ? "차량" : "투약"}
+                    </span>
+                  )}
                 </span>
-                {activeTab === "medication" && r.dateEnd && (
+                {r.type === "medication" && r.dateEnd && (
                   <span className="text-xs text-slate-500">
                     {`${r.dateStart} ~ ${r.dateEnd}`}
                   </span>
