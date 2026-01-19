@@ -46,7 +46,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
     const { data, error } = await supabaseAuth
-      .from("teacher_reports")
+      .from("v_teacher_reports_full")
       .select("*")
       .eq("student_id", studentId)
       .eq("month", month)
@@ -60,8 +60,8 @@ export async function GET(req: Request) {
       ? {
           studentId: String(row.student_id || ""),
           month: String(row.month || ""),
-          className: String(row.class_name || ""),
-          gender: row.gender === "F" ? "F" : "M",
+          className: String(row.student_class_name || row.class_name || ""),
+          gender: (row.gender === "F" || row.gender === "Female") ? "F" : "M",
           scores: row.scores || { Reading: 0, Listening: 0, Speaking: 0, Writing: 0 },
           comments: row.comments || { Reading: "", Listening: "", Speaking: "", Writing: "" },
           videoScores: row.video_scores || { fluency: 0, volume: 0, speed: 0, pronunciation: 0, performance: 0 },
@@ -146,11 +146,11 @@ export async function POST(req: Request) {
     const payload = {
       student_id: studentId,
       month,
-      campus: student.campus ?? null,
-      class_id: student.main_class ?? null,
-      class_name: student.class_name ?? null,
-      student_name: student.student_name ?? null,
-      english_first_name: student.english_first_name ?? null,
+      // campus: student.campus ?? null,
+      // class_id: student.main_class ?? null,
+      // class_name: student.class_name ?? null,
+      // student_name: student.student_name ?? null,
+      // english_first_name: student.english_first_name ?? null,
       gender,
       scores,
       comments,
