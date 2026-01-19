@@ -436,333 +436,356 @@ export default function TeacherReportsPage() {
   };
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-8">
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-7xl px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <aside className="hidden lg:block lg:col-span-4 space-y-8 sticky top-8 h-fit self-start">
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <p className="text-lg font-black text-slate-900">STEP 1</p>
+            <p className="font-bold text-slate-800">Choose the Month</p>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Use the Month selector at the top-left.<br />
+              Reports are created and saved per student, per month.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-lg font-black text-slate-900">STEP 2</p>
+            <p className="font-bold text-slate-800">Filter Students</p>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              You can filter students by Campus, Class, Report Status, or Name.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-lg font-black text-slate-900">STEP 3</p>
+            <p className="font-bold text-slate-800">Write Comments (AI-Assisted)</p>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Select Gender (M / F) for correct pronouns.<br />
+              Use AI Draft / AI Variation to generate overall, participation, and skill comments.<br />
+              Edit any text freely after generation.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-lg font-black text-slate-900">STEP 4</p>
+            <p className="font-bold text-slate-800">Save and Request Sending</p>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Use <span className="font-bold">Save Draft</span> to keep working and revisit the report later.<br />
+              Use <span className="font-bold">Save Final</span> when the report is ready for parents.<br />
+              Use <span className="font-bold">Request Send</span> to request that this monthly report be sent.
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      <main className="lg:col-span-8">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <FileText className="w-6 h-6 text-slate-400" />
             <h1 className="text-2xl font-black text-slate-900">Monthly Reports</h1>
           </div>
           <Link href="/teacher/home" className="text-sm font-bold text-frage-blue">Home</Link>
         </div>
-        <div className="mt-2 text-xs text-slate-500 space-y-1">
-          <p className="font-semibold">Step 1. Choose the Month</p>
-          <p>Use the Month selector at the top-left.</p>
-          <p>Reports are created and saved per student, per month.</p>
-          <p className="font-semibold mt-2">Step 2. Filter Students</p>
-          <p>You can filter students by Campus, Class, Report Status, or Name.</p>
-          <p className="font-semibold mt-2">Step 3. Write Comments (AI-Assisted)</p>
-          <p>Select Gender (M / F) for correct pronouns.</p>
-          <p>Use AI Draft / AI Variation to generate overall, participation, and skill comments.</p>
-          <p>Edit any text freely after generation.</p>
-          <p className="font-semibold mt-2">Step 4. Save and Request Sending</p>
-          <p>Use Save Draft to keep working and revisit the report later.</p>
-          <p>Use Save Final when the report is ready for parents.</p>
-          <p>Use Request Send to request that this monthly report be sent.</p>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-12 gap-4">
-        <aside className="md:col-span-1 lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm">
-          <div className="p-4 space-y-3 border-b border-slate-100">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Month</label>
-              <input
-                type="month"
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Campus</label>
-              <select
-                value={campusFilter}
-                onChange={(e) => {
-                  setCampusFilter(e.target.value);
-                  setClassFilter("All");
-                }}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-              >
-                {campuses.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-          <label className="block text-xs font-bold text-slate-500 mb-1">Class</label>
-          <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                {classes.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-          </select>
-        </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Status</label>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                {[
-                  { value: "All", label: "All" },
-                  { value: "미작성", label: "Not Started" },
-                  { value: "작성중", label: "In Progress" },
-                  { value: "저장완료", label: "Saved" },
-                  { value: "발송요청", label: "Requested Send" }
-                ].map(s => <option key={s.value} value={s.value as any}>{s.label}</option>)}
-              </select>
-            </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search Student"
-                className="w-full pl-10 pr-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-              />
-            </div>
-          </div>
-          <div className="border-t border-slate-100 p-3 flex items-center justify-between">
-            <div className="text-[11px] text-slate-500">Selected: {Object.values(selectedBulk).filter(Boolean).length}</div>
-            <div className="flex items-center gap-2">
-              <button onClick={selectAllFiltered} className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold bg-white">Select All</button>
-              <button onClick={clearSelected} className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold bg-white">Clear</button>
-              <button onClick={requestSendSelected} className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-600 text-white">Request Send Selected</button>
-            </div>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {filtered.slice(0, 80).map(s => {
-              const st = statusMap[s.id] || "미작성";
-              const badge =
-                st === "미작성" ? "bg-slate-100 text-slate-700 border-slate-200" :
-                st === "작성중" ? "bg-blue-100 text-blue-700 border-blue-200" :
-                st === "저장완료" ? "bg-green-100 text-green-700 border-green-200" :
-                "bg-purple-100 text-purple-700 border-purple-200";
-              const label =
-                st === "미작성" ? "Not Started" :
-                st === "작성중" ? "In Progress" :
-                st === "저장완료" ? "Saved" :
-                st === "발송완료" ? "Sent" :
-                "Requested Send";
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => setSelected(s)}
-                  className={`w-full px-4 py-3 flex items-center justify-between ${selected?.id === s.id ? "bg-slate-50" : "bg-white"} hover:bg-slate-50 transition-colors`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={!!selectedBulk[s.id]}
-                      onChange={(e) => setSelectedBulk(prev => ({ ...prev, [s.id]: e.target.checked }))}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-4 h-4"
-                    />
-                    <div className="text-sm font-bold text-slate-900">
-                      {s.name} <span className="text-xs text-slate-500">({s.englishName})</span> <span className="text-xs text-slate-500">• {s.className}</span>
-                    </div>
-                    <div className="text-xs text-slate-500">{s.campus}</div>
-                  </div>
-                  <span className={`px-2 py-1 rounded text-[11px] font-bold border ${badge}`}>{label}</span>
-                </button>
-              );
-            })}
-            {filtered.length === 0 && <div className="p-4 text-sm text-slate-500">No students to display.</div>}
-          </div>
-        </aside>
-
-        <section className="md:col-span-2 lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm">
-          {!selected ? (
-            <div className="p-6 text-sm text-slate-500">Select a student from the left.</div>
-          ) : (
-            <>
-              <div className="p-4 flex items-center justify-between border-b border-slate-100">
-                <div className="font-bold text-slate-900 text-sm">
-                  {month} | {selected.className} | {selected.name} ({selected.englishName})
-                </div>
-                <div className="flex items-center gap-2">
-                  <select value={gender} onChange={(e) => setGender(e.target.value as Gender)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                    <option value="M">M</option>
-                    <option value="F">F</option>
-                  </select>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setAiMode("off")}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
-                        aiMode === "off" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
-                      }`}
-                    >
-                      Use Template
-                    </button>
-                    <button
-                      onClick={() => setAiMode("on")}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
-                        aiMode === "on" ? "bg-frage-navy text-white border-frage-navy" : "bg-white text-slate-700 border-slate-200"
-                      }`}
-                    >
-                      Apply AI Variation
-                    </button>
-                  </div>
-                  <span className={`text-xs font-bold ${autoSave === "saving" ? "text-slate-500" : "text-green-600"}`}>
-                    {autoSave === "saving" ? "Saving…" : autoSave === "saved" ? "Saved ✔" : ""}
-                  </span>
-                </div>
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+          <aside className="xl:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm">
+            <div className="p-4 space-y-3 border-b border-slate-100">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Month</label>
+                <input
+                  type="month"
+                  value={month}
+                  onChange={(e) => setMonth(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                />
               </div>
-
-              <div className="p-4 space-y-6">
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <div className="text-xs font-bold text-slate-500 mb-2">The Goal of {selected.className}</div>
-                  {(() => {
-                    const g = classGoals[selected.className] || null;
-                    const keys: (keyof Scores)[] = ["Reading", "Listening", "Speaking", "Writing"];
-                    return (
-                      <div className="grid grid-cols-2 gap-3">
-                        {keys.map(k => (
-                          <div key={k} className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-                            <div className="text-xs font-bold text-slate-700">{k}</div>
-                            <div className="text-xs text-slate-600">{g ? g[k] : "반별 목표가 아직 설정되지 않았습니다."}</div>
-                          </div>
-                        ))}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Campus</label>
+                <select
+                  value={campusFilter}
+                  onChange={(e) => {
+                    setCampusFilter(e.target.value);
+                    setClassFilter("All");
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                >
+                  {campuses.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Class</label>
+                <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+                  {classes.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Status</label>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+                  {[
+                    { value: "All", label: "All" },
+                    { value: "미작성", label: "Not Started" },
+                    { value: "작성중", label: "In Progress" },
+                    { value: "저장완료", label: "Saved" },
+                    { value: "발송요청", label: "Requested Send" }
+                  ].map(s => <option key={s.value} value={s.value as any}>{s.label}</option>)}
+                </select>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search Student"
+                  className="w-full pl-10 pr-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                />
+              </div>
+            </div>
+            <div className="border-t border-slate-100 p-3 flex items-center justify-between">
+              <div className="text-[11px] text-slate-500">Selected: {Object.values(selectedBulk).filter(Boolean).length}</div>
+              <div className="flex items-center gap-2">
+                <button onClick={selectAllFiltered} className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold bg-white">Select All</button>
+                <button onClick={clearSelected} className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold bg-white">Clear</button>
+                <button onClick={requestSendSelected} className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-600 text-white">Request Send Selected</button>
+              </div>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {filtered.slice(0, 80).map(s => {
+                const st = statusMap[s.id] || "미작성";
+                const badge =
+                  st === "미작성" ? "bg-slate-100 text-slate-700 border-slate-200" :
+                  st === "작성중" ? "bg-blue-100 text-blue-700 border-blue-200" :
+                  st === "저장완료" ? "bg-green-100 text-green-700 border-green-200" :
+                  "bg-purple-100 text-purple-700 border-purple-200";
+                const label =
+                  st === "미작성" ? "Not Started" :
+                  st === "작성중" ? "In Progress" :
+                  st === "저장완료" ? "Saved" :
+                  st === "발송완료" ? "Sent" :
+                  "Requested Send";
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setSelected(s)}
+                    className={`w-full px-4 py-3 flex items-center justify-between ${selected?.id === s.id ? "bg-slate-50" : "bg-white"} hover:bg-slate-50 transition-colors`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={!!selectedBulk[s.id]}
+                        onChange={(e) => setSelectedBulk(prev => ({ ...prev, [s.id]: e.target.checked }))}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4"
+                      />
+                      <div className="text-sm font-bold text-slate-900">
+                        {s.name} <span className="text-xs text-slate-500">({s.englishName})</span> <span className="text-xs text-slate-500">• {s.className}</span>
                       </div>
-                    );
-                  })()}
+                      <div className="text-xs text-slate-500">{s.campus}</div>
+                    </div>
+                    <span className={`px-2 py-1 rounded text-[11px] font-bold border ${badge}`}>{label}</span>
+                  </button>
+                );
+              })}
+              {filtered.length === 0 && <div className="p-4 text-sm text-slate-500">No students to display.</div>}
+            </div>
+          </aside>
+
+          <section className="xl:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm">
+            {!selected ? (
+              <div className="p-6 text-sm text-slate-500">Select a student from the left.</div>
+            ) : (
+              <>
+                <div className="p-4 flex items-center justify-between border-b border-slate-100">
+                  <div className="font-bold text-slate-900 text-sm">
+                    {month} | {selected.className} | {selected.name} ({selected.englishName})
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select value={gender} onChange={(e) => setGender(e.target.value as Gender)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+                      <option value="M">M</option>
+                      <option value="F">F</option>
+                    </select>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setAiMode("off")}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
+                          aiMode === "off" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        Use Template
+                      </button>
+                      <button
+                        onClick={() => setAiMode("on")}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
+                          aiMode === "on" ? "bg-frage-navy text-white border-frage-navy" : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        Apply AI Variation
+                      </button>
+                    </div>
+                    <span className={`text-xs font-bold ${autoSave === "saving" ? "text-slate-500" : "text-green-600"}`}>
+                      {autoSave === "saving" ? "Saving…" : autoSave === "saved" ? "Saved ✔" : ""}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <div className="text-xs font-bold text-slate-500 mb-2">Video Assignment</div>
-                  {videoUrl && (
-                    <div className="mb-3">
-                      <div className="aspect-video rounded-lg overflow-hidden bg-black">
-                        <video src={videoUrl} controls className="w-full h-full object-contain bg-black" playsInline />
-                      </div>
-                      <div className="text-[11px] text-slate-500 mt-1">Student submission preview</div>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-1 gap-4 mb-3 md:text-[90%] lg:text-[100%]">
-                    <div className="rounded-lg border border-slate-200 shadow-sm p-2">
-                      <div className="text-[10px] font-bold text-slate-500 mb-2">Completion Status</div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {weeklyStatus.map((ok, idx) => (
-                            <div key={idx} className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border ${
-                              ok ? "bg-green-100 text-green-700 border-green-200" : "bg-slate-100 text-slate-600 border-slate-200"
-                            }`}>
-                              {`W${idx + 1}`}
+                <div className="p-4 space-y-6">
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <div className="text-xs font-bold text-slate-500 mb-2">The Goal of {selected.className}</div>
+                    {(() => {
+                      const g = classGoals[selected.className] || null;
+                      const keys: (keyof Scores)[] = ["Reading", "Listening", "Speaking", "Writing"];
+                      return (
+                        <div className="grid grid-cols-2 gap-3">
+                          {keys.map(k => (
+                            <div key={k} className="rounded-lg bg-slate-50 border border-slate-200 p-3">
+                              <div className="text-xs font-bold text-slate-700">{k}</div>
+                              <div className="text-xs text-slate-600">{g ? g[k] : "반별 목표가 아직 설정되지 않았습니다."}</div>
                             </div>
                           ))}
                         </div>
-                        <div className="px-2 py-1 rounded-full bg-green-50 text-green-700 text-[10px] font-bold border border-green-200">
-                          {`${Math.round((weeklyStatus.filter(Boolean).length / 4) * 100)}% Completed`}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-slate-200 shadow-sm p-3">
-                      <div className="text-[11px] font-bold text-slate-500 mb-2">Score & Feedback</div>
-                      <div className="rounded-lg overflow-hidden border border-slate-200">
-                        <div className="grid grid-cols-1">
-                          {videoCats.map((c) => {
-                            const v = (videoScores as any)[c.key] || 0;
-                            return (
-                              <div key={c.key} className="p-3 border-t border-slate-100 first:border-t-0 bg-slate-50/40">
-                                <div className="flex items-center justify-between">
-                                  <div className="text-sm font-bold text-slate-800">{c.label}</div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex items-center gap-1">
-                                      {[1,2,3,4].map(n => (
-                                        <button
-                                          key={n}
-                                          onClick={() => setVideoScores(prev => ({ ...prev, [c.key]: n } as any))}
-                                          className={`w-6 h-2 rounded-full ${v >= n ? "bg-gradient-to-r from-amber-300 to-orange-500" : "bg-slate-200"}`}
-                                          aria-label={`${c.label} ${n}`}
-                                        />
-                                      ))}
-                                    </div>
-                                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">{v || 0}/4</span>
-                                  </div>
-                                </div>
-                                <div className="text-xs text-slate-700 mt-2">{videoDesc[c.key][v || 0] || ""}</div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-slate-200 shadow-sm p-2">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-[11px] font-bold text-slate-500">Teacher&apos;s Feedback</div>
-                        <button onClick={draftVideoSummary} className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold bg-white">Auto Comment</button>
-                      </div>
-                      <textarea
-                        value={videoSummary}
-                        onChange={(e) => setVideoSummary(e.target.value)}
-                        rows={8}
-                        className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white leading-relaxed min-h-[180px]"
-                        placeholder="Summarize weekly submission consistency and guidance."
-                      />
-                    </div>
+                      );
+                    })()}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-                </div>
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <div className="text-xs font-bold text-slate-500 mb-2">Class Participation & Skill Progress</div>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-bold text-slate-500">Overall Comment</div>
-                        <button onClick={draftOverall} className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">AI Draft</button>
+
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <div className="text-xs font-bold text-slate-500 mb-2">Video Assignment</div>
+                    {videoUrl && (
+                      <div className="mb-3">
+                        <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                          <video src={videoUrl} controls className="w-full h-full object-contain bg-black" playsInline />
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-1">Student submission preview</div>
                       </div>
-                      <textarea
-                        value={classOverall}
-                        onChange={(e) => { setClassOverall(e.target.value); setOverall(e.target.value); }}
-                        rows={4}
-                        className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-bold text-slate-500">Class Participation</div>
-                        <button onClick={draftParticipation} className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold bg-white">AI Draft</button>
+                    )}
+                    <div className="grid grid-cols-1 gap-4 mb-3 md:text-[90%] lg:text-[100%]">
+                      <div className="rounded-lg border border-slate-200 shadow-sm p-2">
+                        <div className="text-[10px] font-bold text-slate-500 mb-2">Completion Status</div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {weeklyStatus.map((ok, idx) => (
+                              <div key={idx} className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border ${
+                                ok ? "bg-green-100 text-green-700 border-green-200" : "bg-slate-100 text-slate-600 border-slate-200"
+                              }`}>
+                                {`W${idx + 1}`}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="px-2 py-1 rounded-full bg-green-50 text-green-700 text-[10px] font-bold border border-green-200">
+                            {`${Math.round((weeklyStatus.filter(Boolean).length / 4) * 100)}% Completed`}
+                          </div>
+                        </div>
                       </div>
-                      <textarea
-                        value={participation}
-                        onChange={(e) => setParticipation(e.target.value)}
-                        rows={3}
-                        className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-                        placeholder="Describe participation and weekly engagement."
-                      />
-                    </div>
-                    {(["Reading", "Listening", "Speaking", "Writing"] as (keyof Scores)[]).map((k) => (
-                      <div key={k} className="rounded-lg border border-slate-200 p-3">
+                      <div className="rounded-lg border border-slate-200 shadow-sm p-3">
+                        <div className="text-[11px] font-bold text-slate-500 mb-2">Score & Feedback</div>
+                        <div className="rounded-lg overflow-hidden border border-slate-200">
+                          <div className="grid grid-cols-1">
+                            {videoCats.map((c) => {
+                              const v = (videoScores as any)[c.key] || 0;
+                              return (
+                                <div key={c.key} className="p-3 border-t border-slate-100 first:border-t-0 bg-slate-50/40">
+                                  <div className="flex items-center justify-between">
+                                    <div className="text-sm font-bold text-slate-800">{c.label}</div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-1">
+                                        {[1,2,3,4].map(n => (
+                                          <button
+                                            key={n}
+                                            onClick={() => setVideoScores(prev => ({ ...prev, [c.key]: n } as any))}
+                                            className={`w-6 h-2 rounded-full ${v >= n ? "bg-gradient-to-r from-amber-300 to-orange-500" : "bg-slate-200"}`}
+                                            aria-label={`${c.label} ${n}`}
+                                          />
+                                        ))}
+                                      </div>
+                                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">{v || 0}/4</span>
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-slate-700 mt-2">{videoDesc[c.key][v || 0] || ""}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 shadow-sm p-2">
                         <div className="flex items-center justify-between mb-2">
-                          <div className="text-xs font-bold text-slate-500">{k} Comment</div>
-                          <button
-                            onClick={() => varyTemplate(k, scores[k] || 3)}
-                            className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white"
-                            title="AI Variation"
-                          >
-                            AI Variation
-                          </button>
+                          <div className="text-[11px] font-bold text-slate-500">Teacher&apos;s Feedback</div>
+                          <button onClick={draftVideoSummary} className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold bg-white">Auto Comment</button>
                         </div>
                         <textarea
-                          value={comments[k]}
-                          onChange={(e) => setComments(prev => ({ ...prev, [k]: e.target.value }))}
-                          rows={3}
+                          value={videoSummary}
+                          onChange={(e) => setVideoSummary(e.target.value)}
+                          rows={8}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white leading-relaxed min-h-[180px]"
+                          placeholder="Summarize weekly submission consistency and guidance."
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <div className="text-xs font-bold text-slate-500 mb-2">Class Participation & Skill Progress</div>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-xs font-bold text-slate-500">Overall Comment</div>
+                          <button onClick={draftOverall} className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">AI Draft</button>
+                        </div>
+                        <textarea
+                          value={classOverall}
+                          onChange={(e) => { setClassOverall(e.target.value); setOverall(e.target.value); }}
+                          rows={4}
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
                         />
                       </div>
-                    ))}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-xs font-bold text-slate-500">Class Participation</div>
+                          <button onClick={draftParticipation} className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold bg-white">AI Draft</button>
+                        </div>
+                        <textarea
+                          value={participation}
+                          onChange={(e) => setParticipation(e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                          placeholder="Describe participation and weekly engagement."
+                        />
+                      </div>
+                      {(["Reading", "Listening", "Speaking", "Writing"] as (keyof Scores)[]).map((k) => (
+                        <div key={k} className="rounded-lg border border-slate-200 p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="text-xs font-bold text-slate-500">{k} Comment</div>
+                            <button
+                              onClick={() => varyTemplate(k, scores[k] || 3)}
+                              className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white"
+                              title="AI Variation"
+                            >
+                              AI Variation
+                            </button>
+                          </div>
+                          <textarea
+                            value={comments[k]}
+                            onChange={(e) => setComments(prev => ({ ...prev, [k]: e.target.value }))}
+                            rows={3}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
+
+                  <div></div>
                 </div>
 
-                <div></div>
-              </div>
-
-              <div className="sticky bottom-0 bg-white border-t border-slate-200 p-3 flex items-center justify-end gap-2 rounded-b-2xl">
-                <button onClick={() => saveStatus("작성중")} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">Save Draft</button>
-                <button onClick={() => saveStatus("저장완료")} className="px-3 py-2 rounded-lg text-sm font-bold bg-green-600 text-white">Save Final</button>
-                <button onClick={() => saveStatus("발송요청")} className="px-3 py-2 rounded-lg text-sm font-bold bg-purple-600 text-white">Request Send</button>
-              </div>
-            </>
-          )}
-        </section>
-      </div>
-    </main>
+                <div className="sticky bottom-0 bg-white border-t border-slate-200 p-3 flex items-center justify-end gap-2 rounded-b-2xl">
+                  <button onClick={() => saveStatus("작성중")} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">Save Draft</button>
+                  <button onClick={() => saveStatus("저장완료")} className="px-3 py-2 rounded-lg text-sm font-bold bg-green-600 text-white">Save Final</button>
+                  <button onClick={() => saveStatus("발송요청")} className="px-3 py-2 rounded-lg text-sm font-bold bg-purple-600 text-white">Request Send</button>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      </main>
+    </div>
   );
 }
