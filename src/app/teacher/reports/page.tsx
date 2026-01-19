@@ -436,56 +436,50 @@ export default function TeacherReportsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-      <aside className="hidden lg:block lg:col-span-4 space-y-8 sticky top-8 h-fit self-start">
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <p className="text-lg font-black text-slate-900">STEP 1</p>
-            <p className="font-bold text-slate-800">Choose the Month</p>
-            <p className="text-sm text-slate-500 leading-relaxed">
-              Use the Month selector at the top-left.<br />
-              Reports are created and saved per student, per month.
+    <div className="mx-auto max-w-6xl px-6 py-8 space-y-6">
+      <header className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FileText className="w-6 h-6 text-slate-400" />
+          <h1 className="text-2xl font-black text-slate-900">Monthly Reports</h1>
+        </div>
+        <Link href="/teacher/home" className="text-sm font-bold text-frage-blue">Home</Link>
+      </header>
+
+      <section className="rounded-xl bg-slate-50 p-6 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+          <div className="rounded-lg bg-white border border-slate-200 p-3">
+            <div className="text-xs font-bold text-slate-500 mb-1">STEP 1</div>
+            <div className="font-bold text-slate-800 mb-1">Choose Month</div>
+            <p className="text-xs text-slate-600">
+              Select the target month at the top of this page.
             </p>
           </div>
-          <div className="space-y-2">
-            <p className="text-lg font-black text-slate-900">STEP 2</p>
-            <p className="font-bold text-slate-800">Filter Students</p>
-            <p className="text-sm text-slate-500 leading-relaxed">
-              You can filter students by Campus, Class, Report Status, or Name.
+          <div className="rounded-lg bg-white border border-slate-200 p-3">
+            <div className="text-xs font-bold text-slate-500 mb-1">STEP 2</div>
+            <div className="font-bold text-slate-800 mb-1">Filter Students</div>
+            <p className="text-xs text-slate-600">
+              Narrow students by Campus, Class, Status, or Name.
             </p>
           </div>
-          <div className="space-y-2">
-            <p className="text-lg font-black text-slate-900">STEP 3</p>
-            <p className="font-bold text-slate-800">Write Comments (AI-Assisted)</p>
-            <p className="text-sm text-slate-500 leading-relaxed">
-              Select Gender (M / F) for correct pronouns.<br />
-              Use AI Draft / AI Variation to generate overall, participation, and skill comments.<br />
-              Edit any text freely after generation.
+          <div className="rounded-lg bg-white border border-slate-200 p-3">
+            <div className="text-xs font-bold text-slate-500 mb-1">STEP 3</div>
+            <div className="font-bold text-slate-800 mb-1">Write Comments</div>
+            <p className="text-xs text-slate-600">
+              Use AI tools and templates, then adjust wording freely.
             </p>
           </div>
-          <div className="space-y-2">
-            <p className="text-lg font-black text-slate-900">STEP 4</p>
-            <p className="font-bold text-slate-800">Save and Request Sending</p>
-            <p className="text-sm text-slate-500 leading-relaxed">
-              Use <span className="font-bold">Save Draft</span> to keep working and revisit the report later.<br />
-              Use <span className="font-bold">Save Final</span> when the report is ready for parents.<br />
-              Use <span className="font-bold">Request Send</span> to request that this monthly report be sent.
+          <div className="rounded-lg bg-white border border-slate-200 p-3">
+            <div className="text-xs font-bold text-slate-500 mb-1">STEP 4</div>
+            <div className="font-bold text-slate-800 mb-1">Save &amp; Send</div>
+            <p className="text-xs text-slate-600">
+              Save drafts or request sending when reports are ready.
             </p>
           </div>
         </div>
-      </aside>
+      </section>
 
-      <main className="lg:col-span-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <FileText className="w-6 h-6 text-slate-400" />
-            <h1 className="text-2xl font-black text-slate-900">Monthly Reports</h1>
-          </div>
-          <Link href="/teacher/home" className="text-sm font-bold text-frage-blue">Home</Link>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-          <aside className="xl:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm">
+      <section className="grid grid-cols-12 gap-6">
+        <aside className="col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm">
             <div className="p-4 space-y-3 border-b border-slate-100">
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Month</label>
@@ -590,7 +584,7 @@ export default function TeacherReportsPage() {
             </div>
           </aside>
 
-          <section className="xl:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm">
+          <section className="col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm">
             {!selected ? (
               <div className="p-6 text-sm text-slate-500">Select a student from the left.</div>
             ) : (
@@ -784,8 +778,7 @@ export default function TeacherReportsPage() {
               </>
             )}
           </section>
-        </div>
-      </main>
-    </div>
+        </section>
+      </div>
   );
 }
