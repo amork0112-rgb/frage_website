@@ -75,42 +75,61 @@ export async function GET(_req: Request) {
     const supabase = createSupabaseServer();
     const guard = await requireAdmin(supabase);
     if ((guard as any).error) return (guard as any).error;
-    const { data, error } = await supabaseService
-      .from("v_portal_requests_with_student")
+
+    // Fetch raw requests directly from the table to ensure we get all columns (especially time)
+    const { data: rawRequests, error: reqError } = await supabaseService
+      .from("portal_requests")
       .select("*")
       .order("created_at", { ascending: false });
-    if (error) {
+
+    if (reqError) {
+      console.error("REQUESTS FETCH ERROR", reqError);
       return json({ ok: true, items: [] }, 200);
     }
-    const items = Array.isArray(data)
-      ? data.map((row: any) => ({
-          id: String(row.id),
-          childId: String(row.student_id ?? row.child_id ?? ""),
-          childName: String(row.student_name ?? row.child_name ?? ""),
-          campus: String(row.campus ?? ""),
-          type: String(row.type ?? ""),
-          dateStart: String(row.date_start ?? ""),
-          dateEnd: row.date_end ? String(row.date_end) : undefined,
-          time: row.time ? String(row.time) : undefined,
-          note: row.note ? String(row.note) : undefined,
-          changeType: row.change_type ? String(row.change_type) : undefined,
-          medName: row.med_name ? String(row.med_name) : undefined,
-          createdAt: String(row.created_at ?? new Date().toISOString()),
-          className: row.class_name ? String(row.class_name) : undefined,
-          name: row.name ? String(row.name) : undefined,
-          phone: row.phone ? String(row.phone) : undefined,
-          source: row.source ? String(row.source) : undefined,
-          status: row.status ? String(row.status) : undefined,
-          teacherRead:
-            typeof row.teacher_read === "boolean"
-              ? row.teacher_read
-              : typeof row.teacherRead === "boolean"
-              ? row.teacherRead
-              : undefined,
-        }))
-      : [];
+
+    // Collect student IDs to fetch class info
+    const studentIds = Array.from(new Set((rawRequests || []).map((r: any) => r.child_id).filter(Boolean)));
+
+    // Fetch student info (class_name)
+    let studentMap: Record<string, any> = {};
+    if (studentIds.length > 0) {
+      const { data: students } = await supabaseService
+        .from("v_students_full")
+        .select("student_id, class_name, student_name")
+        .in("student_id", studentIds);
+      
+      (students || []).forEach((s: any) => {
+        studentMap[s.student_id] = s;
+      });
+    }
+
+    const items = (rawRequests || []).map((row: any) => {
+      const student = studentMap[row.child_id] || {};
+      return {
+        id: String(row.id),
+        childId: String(row.child_id ?? ""),
+        childName: String(student.student_name ?? row.child_name ?? ""), // Prefer current student name, fallback to snapshot
+        campus: String(row.campus ?? ""),
+        type: String(row.type ?? ""),
+        dateStart: String(row.date_start ?? ""),
+        dateEnd: row.date_end ? String(row.date_end) : undefined,
+        time: row.time ? String(row.time) : undefined, // Direct from table
+        note: row.note ? String(row.note) : undefined,
+        changeType: row.change_type ? String(row.change_type) : undefined,
+        medName: row.med_name ? String(row.med_name) : undefined,
+        createdAt: String(row.created_at ?? new Date().toISOString()),
+        className: student.class_name ? String(student.class_name) : undefined, // From student join
+        name: row.name ? String(row.name) : undefined,
+        phone: row.phone ? String(row.phone) : undefined,
+        source: row.source ? String(row.source) : undefined,
+        status: row.status ? String(row.status) : undefined,
+        teacherRead: typeof row.teacher_read === "boolean" ? row.teacher_read : undefined,
+      };
+    });
+
     return json({ ok: true, items }, 200);
-  } catch {
+  } catch (e) {
+    console.error("GET REQUESTS ERROR", e);
     return json({ ok: false }, 500);
   }
 }
