@@ -5,12 +5,11 @@ export const dynamic = 'force-dynamic'; // Ensure not cached
 
 export async function GET(request: Request) {
   try {
-    // 1. Get Kinder Classes (International Campus)
+    // 1. Get Classes (International Campus - all divisions)
     const { data: classes, error: classError } = await supabaseService
       .from("classes")
       .select("name")
-      .eq("campus", "International")
-      .eq("division", "kinder");
+      .eq("campus", "International");
 
     if (classError) {
       console.error("Error fetching classes:", classError);
@@ -18,7 +17,7 @@ export async function GET(request: Request) {
     }
 
     if (!classes || classes.length === 0) {
-      return NextResponse.json({ message: "No Kinder classes found" });
+      return NextResponse.json({ message: "No International classes found" });
     }
 
     // 2. Determine Assignment Details for the current week
@@ -30,7 +29,7 @@ export async function GET(request: Request) {
 
     const title = `Week ${weekNum} Reading`;
     const moduleName = `Week ${weekNum}`;
-    const description = "[DRAFT] Video assignments for Kinder classes are generated automatically each week.";
+    const description = "[DRAFT] Video assignments for International classes are generated automatically each week.";
     
     // Due Date: upcoming Sunday (if run on Sunday, use next Sunday)
     const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)

@@ -34,8 +34,7 @@ async function fetchKinderClasses() {
   const { data, error } = await supabaseService
     .from("classes")
     .select("name")
-    .eq("campus", "International")
-    .eq("division", "kinder");
+    .eq("campus", "International");
   if (error) throw error;
   const names = (data || [])
     .map((row: any) => String(row.name || "").trim())

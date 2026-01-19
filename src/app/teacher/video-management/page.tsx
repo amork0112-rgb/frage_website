@@ -25,7 +25,6 @@ export default function TeacherVideoManagementPage() {
   const [query, setQuery] = useState("");
   const [filterClass, setFilterClass] = useState<string>("All");
   const [filterCampus, setFilterCampus] = useState<string>("All");
-  const [filterDivision, setFilterDivision] = useState<"kinder" | "primary">("kinder");
 
   const [newTitle, setNewTitle] = useState("");
   const [newModule, setNewModule] = useState("");
@@ -33,10 +32,6 @@ export default function TeacherVideoManagementPage() {
   const [newDue, setNewDue] = useState("");
   const [newClass, setNewClass] = useState<string>("All");
   const [newCampus, setNewCampus] = useState<string>("All");
-  const [newDivision, setNewDivision] = useState<"kinder" | "primary">("kinder");
-
-  const [intlKinderClasses, setIntlKinderClasses] = useState<string[]>([]);
-  const [intlPrimaryClasses, setIntlPrimaryClasses] = useState<string[]>([]);
 
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
@@ -75,28 +70,6 @@ export default function TeacherVideoManagementPage() {
       }
       setClassCatalog([]);
       setTeacherClassMap({});
-
-      try {
-        const { data: intlClasses } = await supabase
-          .from("classes")
-          .select("name, campus, division")
-          .eq("campus", "International")
-          .order("name", { ascending: true });
-        const kinder: string[] = [];
-        const primary: string[] = [];
-        (intlClasses || []).forEach((row: any) => {
-          const name = String(row.name || row.class_name || "").trim();
-          const division = String(row.division || "").toLowerCase();
-          if (!name) return;
-          if (division === "primary") {
-            if (!primary.includes(name)) primary.push(name);
-          } else if (division === "kinder") {
-            if (!kinder.includes(name)) kinder.push(name);
-          }
-        });
-        setIntlKinderClasses(kinder);
-        setIntlPrimaryClasses(primary);
-      } catch {}
     };
     load();
   }, []);
@@ -173,26 +146,22 @@ export default function TeacherVideoManagementPage() {
 
   const newClassOptions = useMemo(() => {
     if (newCampus === "International") {
-      if (newDivision === "primary") return intlPrimaryClasses.map((name) => ({ name, sort: null }));
-      return intlKinderClasses.map((name) => ({ name, sort: null }));
+      return classOptionsByCampus["International"] || [];
     }
     if (newCampus === "All") return classOptionsAll;
     return classOptionsByCampus[newCampus] || [];
-  }, [newCampus, newDivision, classOptionsAll, classOptionsByCampus, intlKinderClasses, intlPrimaryClasses]);
+  }, [newCampus, classOptionsAll, classOptionsByCampus]);
 
   const filterClassOptions = useMemo(() => {
     if (filterCampus === "International") {
-      const base = filterDivision === "primary" ? intlPrimaryClasses : intlKinderClasses;
-      return base.map((name) => ({ name, sort: null }));
+      return classOptionsByCampus["International"] || [];
     }
     if (filterCampus === "All") return classOptionsAll;
     return classOptionsByCampus[filterCampus] || [];
-  }, [filterCampus, filterDivision, classOptionsAll, classOptionsByCampus, intlKinderClasses, intlPrimaryClasses]);
+  }, [filterCampus, classOptionsAll, classOptionsByCampus]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const intlKinderSet = new Set(intlKinderClasses);
-    const intlPrimarySet = new Set(intlPrimaryClasses);
     return assignments
       .filter((a) => {
         if (filterCampus === "All") return true;
@@ -200,18 +169,6 @@ export default function TeacherVideoManagementPage() {
         return camp === filterCampus;
       })
       .filter((a) => {
-        if (filterCampus !== "International") return true;
-        if (filterDivision === "primary") {
-          return filterClass === "All"
-            ? intlPrimarySet.has(a.className)
-            : a.className === filterClass;
-        }
-        return filterClass === "All"
-          ? intlKinderSet.has(a.className)
-          : a.className === filterClass;
-      })
-      .filter((a) => {
-        if (filterCampus === "International") return true;
         if (filterClass === "All") return true;
         return a.className === filterClass;
       })
@@ -222,7 +179,7 @@ export default function TeacherVideoManagementPage() {
           a.module.toLowerCase().includes(q)
         );
       });
-  }, [assignments, filterClass, filterCampus, filterDivision, query, intlKinderClasses, intlPrimaryClasses]);
+  }, [assignments, filterClass, filterCampus, query]);
 
   const refreshAssignments = async () => {
     const { data } = await supabase
@@ -250,18 +207,9 @@ export default function TeacherVideoManagementPage() {
     setFilterClass("All");
   }, [filterCampus]);
 
-  useEffect(() => {
-    setNewClass("All");
-  }, [newDivision]);
-
-  useEffect(() => {
-    setFilterClass("All");
-  }, [filterDivision]);
-
   const [weeklyClassStatus, setWeeklyClassStatus] = useState<{
     className: string;
     campus: string;
-    division: "kinder" | "primary";
     weekKey: string;
     status: "draft" | "scheduled" | "published" | "skipped" | "no_lesson" | "needs_review";
     suggestedDueDate: string | null;
@@ -279,14 +227,14 @@ export default function TeacherVideoManagementPage() {
 
   // Mock fetch function for weekly status
   const fetchWeeklyStatus = async () => {
-    if (filterCampus !== "International" || filterDivision !== "kinder") return;
+    if (filterCampus !== "International") return;
     
     setLoadingWeeklyStatus(true);
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Mock data generation based on intlKinderClasses
-    const statusList = intlKinderClasses.map((className, index) => {
+    const intlClasses = (classOptionsByCampus["International"] || []).map(c => c.name);
+    const statusList = intlClasses.map((className, index) => {
       // Randomly assign status for demo purposes
       const statuses = ["draft", "scheduled", "published", "skipped", "no_lesson", "needs_review"] as const;
       const status = statuses[index % statuses.length];
@@ -308,7 +256,6 @@ export default function TeacherVideoManagementPage() {
       return {
         className,
         campus: "International",
-        division: "kinder" as const,
         weekKey: selectedWeek,
         status,
         suggestedDueDate,
@@ -322,12 +269,12 @@ export default function TeacherVideoManagementPage() {
   };
 
   useEffect(() => {
-    if (filterCampus === "International" && filterDivision === "kinder") {
+    if (filterCampus === "International") {
       fetchWeeklyStatus();
     } else {
       setWeeklyClassStatus([]);
     }
-  }, [filterCampus, filterDivision, selectedWeek, intlKinderClasses]);
+  }, [filterCampus, selectedWeek, classOptionsByCampus]);
 
   const handleControlAction = async (action: "publish" | "change_date" | "skip" | "set_due_date", className: string, date?: string) => {
     // Mock API call
@@ -350,7 +297,7 @@ export default function TeacherVideoManagementPage() {
     }));
   };
 
-  const isKinderFilterMode = filterCampus === "International" && filterDivision === "kinder";
+  const isKinderFilterMode = filterCampus === "International";
 
   const TEMPLATES = [
     {
@@ -451,22 +398,9 @@ export default function TeacherVideoManagementPage() {
           <h1 className="text-2xl font-black text-slate-900">Video Management</h1>
         </div>
         {newCampus === "International" && (
-          <div
-            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${
-              newDivision === "kinder" ? "bg-blue-50 text-blue-700" : "bg-green-50 text-green-700"
-            }`}
-          >
-            {newDivision === "kinder" ? (
-              <>
-                <span>⚙️</span>
-                <span>Mode: Semi-Automatic Weekly Assignments (Kinder)</span>
-              </>
-            ) : (
-              <>
-                <span>✍️</span>
-                <span>Mode: Manual Assignments (Primary)</span>
-              </>
-            )}
+          <div className="px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 bg-blue-50 text-blue-700">
+            <span>⚙️</span>
+            <span>Mode: Semi-Automatic Weekly Assignments (International)</span>
           </div>
         )}
       </div>
@@ -479,19 +413,6 @@ export default function TeacherVideoManagementPage() {
               {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
             </select>
           </div>
-          {newCampus === "International" && (
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Division</label>
-              <select
-                value={newDivision}
-                onChange={(e) => setNewDivision(e.target.value as "kinder" | "primary")}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-              >
-                <option value="kinder">Kinder</option>
-                <option value="primary">Primary</option>
-              </select>
-            </div>
-          )}
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
             <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
@@ -507,7 +428,7 @@ export default function TeacherVideoManagementPage() {
             <label className="block text-xs font-bold text-slate-500 mb-1">제목</label>
             <div className="flex gap-2">
               <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Into Reading 1.3" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-              {newCampus === "International" && newDivision === "primary" && (
+              {newCampus === "International" && (
                 <button onClick={() => setShowTemplateModal(true)} className="px-3 py-2 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 whitespace-nowrap hover:bg-indigo-100">
                   Templates
                 </button>
@@ -546,19 +467,6 @@ export default function TeacherVideoManagementPage() {
               {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
             </select>
           </div>
-          {filterCampus === "International" && (
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Division</label>
-              <select
-                value={filterDivision}
-                onChange={(e) => setFilterDivision(e.target.value as "kinder" | "primary")}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-              >
-                <option value="kinder">Kinder</option>
-                <option value="primary">Primary</option>
-              </select>
-            </div>
-          )}
           {isKinderFilterMode && (
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">Week</label>
@@ -757,12 +665,12 @@ export default function TeacherVideoManagementPage() {
                 <>
                   <div className="flex items-start justify-between gap-2">
                     <div className="text-sm font-bold text-slate-900">{a.title}</div>
-                    {intlKinderClasses.includes(a.className) && (
+                    {a.campus === "International" && (
                       <span
                         className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700"
-                        title="This assignment was generated automatically by the system."
+                        title="This assignment is managed in the International semi-automatic flow."
                       >
-                        Auto (Weekly)
+                        Intl
                       </span>
                     )}
                   </div>
