@@ -81,7 +81,6 @@ export async function GET(req: Request) {
 
   query = query
     .order("class_sort_order", { ascending: true })
-    .order("student_name", { ascending: true })
     .range(from, to);
 
   const { data, count, error } = await query;
