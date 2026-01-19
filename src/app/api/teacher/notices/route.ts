@@ -83,7 +83,7 @@ export async function GET(request: Request) {
       // For now, let's show notices they authored to keep it simple and safe
       // If master_teacher, maybe show all?
       if (role !== "master_teacher" && role !== "admin") {
-         query = query.eq("author_id", user.id);
+         query = query.eq("creator_id", user.id);
       }
     }
 
@@ -167,7 +167,8 @@ export async function POST(request: Request) {
       class_id: class_id,
       campus: null,
       creator_role: "teacher",
-      author_id: user.id,
+      creator_id: user.id,
+      published: true,
       is_pinned: body.is_pinned || false,
       is_archived: false,
     };

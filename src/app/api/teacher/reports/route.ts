@@ -117,7 +117,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { studentId, month, gender, scores, comments, videoScores, overall } = body || {};
+    const { studentId, month, scores, comments, videoScores, overall } = body || {};
     if (
       !studentId ||
       !month ||
@@ -153,7 +153,6 @@ export async function POST(req: Request) {
       // class_name: student.class_name ?? null,
       // student_name: student.student_name ?? null,
       // english_first_name: student.english_first_name ?? null,
-      // gender, // REMOVED: gender is a derived property from students table, do not store in reports
       scores,
       comments,
       video_scores: videoScores,
