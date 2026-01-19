@@ -108,7 +108,7 @@ export default function TeacherReportsPage() {
           className: String(s.className || "미배정"),
           campus: String(s.campus || "미지정"),
           classId: String(s.classId || ""),
-          gender: (String(s.gender || "").toUpperCase() === "F" ? "F" : "M") as Gender,
+          gender: (["F", "FEMALE", "WOMAN", "GIRL"].includes(String(s.gender || "").toUpperCase()) ? "F" : "M") as Gender,
         }));
         setStudents(mapped);
       } catch {

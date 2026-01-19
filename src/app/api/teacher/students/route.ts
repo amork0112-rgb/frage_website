@@ -48,6 +48,7 @@ type Student = {
   pickupType?: "bus" | "self";
   dropoffType?: "bus" | "self";
   classSortOrder?: number | null;
+  gender?: string | null;
 };
 
 export async function GET(request: Request) {
@@ -254,6 +255,7 @@ function formatResponse(rows: StudentRow[], page: number, pageSize: number) {
     pickupType: "self",
     dropoffType: "self",
     classSortOrder: typeof r.class_sort_order === "number" ? r.class_sort_order : r.class_sort_order == null ? null : Number(r.class_sort_order),
+    gender: r.gender,
   }));
   const total = base.length;
   const start = (page - 1) * pageSize;
