@@ -3,6 +3,8 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 // RLS enforced: use SSR client only
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
