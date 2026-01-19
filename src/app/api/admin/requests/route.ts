@@ -76,67 +76,41 @@ export async function GET(_req: Request) {
     const guard = await requireAdmin(supabase);
     if ((guard as any).error) return (guard as any).error;
 
-    // 1. Fetch ALL Raw Requests (Primary Source for Time, Date, Type, etc.)
-    const { data: rawRequests, error: reqError } = await supabaseService
+    // Use INNER JOIN with students table as requested
+    const { data: requests, error } = await supabaseService
       .from("portal_requests")
-      .select("*")
+      .select(`
+        *,
+        students!inner (
+          id,
+          student_name,
+          class_name,
+          campus
+        )
+      `)
       .order("created_at", { ascending: false });
 
-    if (reqError) {
-      console.error("REQUESTS FETCH ERROR", reqError);
+    if (error) {
+      console.error("REQUESTS FETCH ERROR", error);
       return json({ ok: true, items: [] }, 200);
     }
 
-    // 2. Collect Student IDs
-    const studentIds = Array.from(new Set((rawRequests || []).map((r: any) => r.child_id).filter(Boolean)));
-
-    // 3. Fetch Student Info (Name, Campus, Class)
-    let studentMap: Record<string, any> = {};
-    if (studentIds.length > 0) {
-      const { data: students } = await supabaseService
-        .from("v_students_full")
-        .select("*") // Fetch all columns to ensure we get id/student_id/name/class_name etc.
-        .in("student_id", studentIds); // Assuming student_id is the join key
-      
-      // Fallback: If 'student_id' column doesn't work for IN clause, try 'id'
-      // But usually v_students_full has student_id.
-      
-      (students || []).forEach((s: any) => {
-        // Map by both possible ID keys to be safe
-        if (s.student_id) studentMap[s.student_id] = s;
-        if (s.id) studentMap[s.id] = s;
-      });
-    }
-
-    // 4. Merge Data
-    const items = (rawRequests || []).map((row: any) => {
-      const student = studentMap[row.child_id] || {};
-      
+    const items = (requests || []).map((row: any) => {
+      const student = row.students || {};
       return {
         id: String(row.id),
-        childId: String(row.child_id ?? ""),
-        
-        // Name: Student View > Raw Request Snapshot > Unknown
-        childName: String(student.student_name ?? student.name ?? row.child_name ?? "Unknown"), 
-        
-        // Campus: Student View > Raw Request Snapshot > Unknown
-        campus: String(student.campus ?? row.campus ?? "International"),
-        
-        // Class: Student View > Raw Request Snapshot > Empty
-        className: String(student.class_name ?? student.className ?? row.class_name ?? ""),
-        
+        childId: String(student.id ?? row.child_id ?? ""),
+        childName: String(student.student_name ?? row.child_name ?? ""),
+        campus: String(student.campus ?? row.campus ?? ""),
+        className: String(student.class_name ?? ""),
         type: String(row.type ?? ""),
         dateStart: String(row.date_start ?? ""),
         dateEnd: row.date_end ? String(row.date_end) : undefined,
-        
-        // Time: Raw Request (Guaranteed to be present if in DB)
         time: row.time ? String(row.time) : undefined,
-        
         note: row.note ? String(row.note) : undefined,
         changeType: row.change_type ? String(row.change_type) : undefined,
         medName: row.med_name ? String(row.med_name) : undefined,
         createdAt: String(row.created_at ?? new Date().toISOString()),
-        
         name: row.name ? String(row.name) : undefined,
         phone: row.phone ? String(row.phone) : undefined,
         source: row.source ? String(row.source) : undefined,
@@ -146,8 +120,7 @@ export async function GET(_req: Request) {
     });
 
     return json({ ok: true, items }, 200);
-  } catch (e) {
-    console.error("GET REQUESTS ERROR", e);
-    return json({ ok: false }, 500);
+  } catch (e: any) {
+    return json({ ok: false, error: "invalid" }, 400);
   }
 }
