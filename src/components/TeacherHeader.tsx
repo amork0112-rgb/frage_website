@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Video, FileText, LogOut, Menu, X, Users, UserPlus } from "lucide-react";
+import { Bell, FileText, Home, LogOut, Menu, UserPlus, Users, Video, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function TeacherHeader() {

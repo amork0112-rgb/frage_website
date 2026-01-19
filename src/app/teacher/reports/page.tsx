@@ -100,9 +100,10 @@ export default function TeacherReportsPage() {
         const res = await fetch("/api/teacher/students", { cache: "no-store", credentials: "include" });
         const data = await res.json();
         const items = Array.isArray(data?.items) ? data.items : [];
+        console.log("TeacherReportsPage loaded students:", items.slice(0, 3));
         const enrolled = items.filter((s: any) => String(s.status) !== "rejected");
         const mapped: Student[] = enrolled.map((s: any) => ({
-          id: String(s.id || ""),
+          id: String(s.student_id || s.id || ""),
           name: String(s.name || ""),
           englishName: String(s.englishName || ""),
           className: String(s.className || "미배정"),
@@ -143,7 +144,7 @@ export default function TeacherReportsPage() {
   }, [campusFilter]);
 
   useEffect(() => {
-    if (!selected) return;
+    if (!selected || !selected.id) return;
     (async () => {
       try {
         const res = await fetch(`/api/teacher/reports?studentId=${selected.id}&month=${encodeURIComponent(month)}`);
@@ -625,8 +626,13 @@ export default function TeacherReportsPage() {
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
+                        disabled={!s.id || s.id === "undefined" || s.id === "null"}
                         checked={!!selectedBulk[s.id]}
-                        onChange={(e) => setSelectedBulk(prev => ({ ...prev, [s.id]: e.target.checked }))}
+                        onChange={(e) => {
+                          if (!s.id || s.id === "undefined" || s.id === "null") return;
+                          console.log("Checkbox change:", s.id, e.target.checked);
+                          setSelectedBulk(prev => ({ ...prev, [s.id]: e.target.checked }));
+                        }}
                         onClick={(e) => e.stopPropagation()}
                         className="w-4 h-4"
                       />

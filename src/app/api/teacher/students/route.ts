@@ -218,6 +218,13 @@ export async function GET(request: Request) {
 
       const { data, error } = await query.order("student_name", { ascending: true });
 
+      if (data && data.length > 0) {
+        const missingId = data.filter(r => !r.student_id);
+        if (missingId.length > 0) {
+          console.error("TEACHER_STUDENTS: Missing student_id for rows:", missingId.length);
+        }
+      }
+
       if (error) {
         console.error("STUDENTS SELECT ERROR", error);
         return NextResponse.json({ error }, { status: 500 });
