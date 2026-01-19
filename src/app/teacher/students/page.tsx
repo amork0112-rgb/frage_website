@@ -162,9 +162,9 @@ export default function TeacherStudentsPage() {
         at,
       });
       const next = { ...memos };
-      const list = next[memoOpenFor.];
+      const list = next[memoOpenFor.student_id] || [];
       list.unshift({ text: newMemo.trim(), author, at, tag: newMemoType });
-      next[memoOpenFor.st;
+      next[memoOpenFor.student_id] = list;
       setMemos(next);
       setNewMemo("");
       setNewMemoType("기타");
