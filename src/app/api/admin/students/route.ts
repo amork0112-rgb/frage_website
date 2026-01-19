@@ -45,8 +45,9 @@ export async function GET(req: Request) {
     query = query.eq("campus", campus);
   }
 
+  // Frontend sends class NAME as classId param
   if (classId && classId !== "All") {
-    query = query.eq("main_class", classId);
+    query = query.eq("class_name", classId);
   }
 
   if (dajim && dajim !== "All") {

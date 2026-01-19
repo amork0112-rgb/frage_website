@@ -159,15 +159,17 @@ export default function AdminStudentsPage() {
 
   const refetch = async () => {
     try {
-      const params = new URLSearchParams({
-        campus: campusFilter,
-        classId: classFilter,
-        dajim: dajimFilter,
-        name: query,
-        birthMonth,
-        page: String(page),
-        pageSize: String(pageSize),
-      });
+      const params = new URLSearchParams();
+      
+      if (campusFilter !== "All") params.set("campus", campusFilter);
+      if (classFilter !== "All") params.set("classId", classFilter);
+      if (dajimFilter !== "All") params.set("dajim", dajimFilter);
+      if (birthMonth !== "All") params.set("birthMonth", birthMonth);
+      if (query) params.set("name", query);
+      
+      params.set("page", String(page));
+      params.set("pageSize", String(pageSize));
+
       const res = await fetch(`/api/admin/students?${params.toString()}`);
       const data = await res.json();
       setStudents(data.items ?? []);
