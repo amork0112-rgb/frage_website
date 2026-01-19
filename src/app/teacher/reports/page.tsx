@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { FileText, Search, ChevronDown } from "lucide-react";
+import { FileText, Search } from "lucide-react";
 import { reportTemplates } from "@/data/reportTemplates";
 import { classGoals } from "@/data/classGoals";
 import { supabase } from "@/lib/supabase";
@@ -319,26 +319,24 @@ export default function TeacherReportsPage() {
       .replaceAll("{possessive}", possessive);
     return [text, p0, p1].filter(Boolean).join("\n");
   };
-  const applyTemplate = (skill: keyof Scores, score: number) => {
-    try {
-      const t = reportTemplates.skills[skill][score];
-      const variants = t?.variations || [];
-      const pick =
-        aiMode === "on" && variants.length > 0
-          ? variants[Math.floor(Math.random() * variants.length)]
-          : t?.base || "";
-      const text = pick
-        .replaceAll("{Name}", selected?.englishName || "")
-        .replaceAll("{pronoun}", pronoun)
-        .replaceAll("{possessive}", possessive);
-      setComments(prev => ({ ...prev, [skill]: toThreeLines(skill, text) }));
-    } catch {}
+  const mapScoreToTemplate = (score: number) => {
+    if (score <= 2) return 1;
+    if (score <= 4) return 2;
+    if (score <= 6) return 3;
+    if (score <= 8) return 4;
+    if (score <= 9) return 5;
+    return 6;
   };
+
   const varyTemplate = (skill: keyof Scores, score: number) => {
     try {
-      const t = reportTemplates.skills[skill][score];
+      const mapped = mapScoreToTemplate(score);
+      const t = reportTemplates.skills[skill][mapped];
       const arr = t?.variations || [];
-      const pick = arr[Math.floor(Math.random() * arr.length)] || t?.base || "";
+      const pick =
+        aiMode === "on" && arr.length > 0
+          ? arr[Math.floor(Math.random() * arr.length)]
+          : t?.base || "";
       const text = pick
         .replaceAll("{Name}", selected?.englishName || "")
         .replaceAll("{pronoun}", pronoun)
@@ -357,14 +355,31 @@ export default function TeacherReportsPage() {
     const end = gender === "M" ? "– Mr. Teacher" : "– Ms. Teacher";
     setOverall(`${synth} ${end}`);
   };
-  const draftParticipation = () => {
+  const draftParticipation = (score?: number) => {
     try {
-      const t = reportTemplates.participation;
-      const arr = t?.variations || [];
-      const pick =
-        aiMode === "on" && arr.length > 0
-          ? arr[Math.floor(Math.random() * arr.length)]
-          : t?.base || "";
+      let pick = "";
+      if (typeof score === "number") {
+         // 1-10 score based generation
+         if (score <= 2) {
+           pick = "{Name} needs encouragement to participate in class activities. {pronoun} is learning to follow routines with support.";
+         } else if (score <= 4) {
+           pick = "{Name} participates occasionally when prompted. {pronoun} follows routines but sometimes needs reminders.";
+         } else if (score <= 6) {
+           pick = "{Name} participates in class activities and follows routines. {pronoun} interacts well with peers during group work.";
+         } else if (score <= 8) {
+           pick = "{Name} participates actively in class, follows routines, and engages with peers. {pronoun} shows steady effort and growth each week.";
+         } else {
+           pick = "{Name} is an enthusiastic participant who leads by example. {pronoun} consistently follows routines and supports peers.";
+         }
+      } else {
+        const t = reportTemplates.participation;
+        const arr = t?.variations || [];
+        pick =
+          aiMode === "on" && arr.length > 0
+            ? arr[Math.floor(Math.random() * arr.length)]
+            : t?.base || "";
+      }
+      
       const text = pick
         .replaceAll("{Name}", selected?.englishName || "")
         .replaceAll("{pronoun}", pronoun);
@@ -734,27 +749,49 @@ export default function TeacherReportsPage() {
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <div className="text-xs font-bold text-slate-500">Class Participation</div>
-                          <button onClick={draftParticipation} className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold bg-white">AI Draft</button>
+                          <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                              <button
+                                key={n}
+                                onClick={() => draftParticipation(n)}
+                                className="w-5 h-5 flex items-center justify-center rounded border border-slate-200 text-[10px] hover:bg-slate-100 bg-white text-slate-600"
+                                title={`Generate for score ${n}`}
+                              >
+                                {n}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                         <textarea
                           value={participation}
                           onChange={(e) => setParticipation(e.target.value)}
                           rows={3}
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-                          placeholder="Describe participation and weekly engagement."
+                          placeholder="Click a score to generate, or type freely."
                         />
                       </div>
                       {(["Reading", "Listening", "Speaking", "Writing"] as (keyof Scores)[]).map((k) => (
                         <div key={k} className="rounded-lg border border-slate-200 p-3">
                           <div className="flex items-center justify-between mb-2">
                             <div className="text-xs font-bold text-slate-500">{k} Comment</div>
-                            <button
-                              onClick={() => varyTemplate(k, scores[k] || 3)}
-                              className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white"
-                              title="AI Variation"
-                            >
-                              AI Variation
-                            </button>
+                            <div className="flex items-center gap-0.5">
+                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                                <button
+                                  key={n}
+                                  onClick={() => {
+                                    setScores(prev => ({ ...prev, [k]: n }));
+                                    varyTemplate(k, n);
+                                  }}
+                                  className={`w-5 h-5 flex items-center justify-center rounded border text-[10px] transition-colors ${
+                                    (scores[k] || 0) === n
+                                      ? "bg-slate-900 text-white border-slate-900"
+                                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  {n}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                           <textarea
                             value={comments[k]}
