@@ -445,11 +445,21 @@ export default function TeacherReportsPage() {
           </div>
           <Link href="/teacher/home" className="text-sm font-bold text-frage-blue">Home</Link>
         </div>
-        <p className="mt-2 text-xs text-slate-500">
-          Use this page to draft, save, and request sending monthly progress reports.
-          Filter students on the left, then select a student to review video data and
-          write comments. Changes are autosaved while you type.
-        </p>
+        <div className="mt-2 text-xs text-slate-500 space-y-1">
+          <p className="font-semibold">Step 1. Choose the Month</p>
+          <p>Use the Month selector at the top-left.</p>
+          <p>Reports are created and saved per student, per month.</p>
+          <p className="font-semibold mt-2">Step 2. Filter Students</p>
+          <p>You can filter students by Campus, Class, Report Status, or Name.</p>
+          <p className="font-semibold mt-2">Step 3. Write Comments (AI-Assisted)</p>
+          <p>Select Gender (M / F) for correct pronouns.</p>
+          <p>Use AI Draft / AI Variation to generate overall, participation, and skill comments.</p>
+          <p>Edit any text freely after generation.</p>
+          <p className="font-semibold mt-2">Step 4. Save and Request Sending</p>
+          <p>Use Save Draft to keep working and revisit the report later.</p>
+          <p>Use Save Final when the report is ready for parents.</p>
+          <p>Use Request Send to request that this monthly report be sent.</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-12 gap-4">
