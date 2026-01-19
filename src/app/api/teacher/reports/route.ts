@@ -153,7 +153,7 @@ export async function POST(req: Request) {
       // class_name: student.class_name ?? null,
       // student_name: student.student_name ?? null,
       // english_first_name: student.english_first_name ?? null,
-      gender,
+      // gender, // REMOVED: gender is a derived property from students table, do not store in reports
       scores,
       comments,
       video_scores: videoScores,
