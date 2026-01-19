@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
-import { mockAIGrading } from "@/lib/ai/grading";
+import { mockAIGrading, generateFeedbackDraft } from "@/lib/ai/grading";
 
 function computeKinderWeekMeta(now: Date) {
   const oneJan = new Date(now.getFullYear(), 0, 1);
@@ -194,8 +194,6 @@ export async function GET() {
           scores: mock.scores,
           average: mock.average,
           pronunciation_flags: mock.pronunciation_flags,
-          teacher_feedback_draft: mock.teacher_feedback_draft,
-          parent_report_message: mock.parent_report_message,
           needs_teacher_review: mock.needs_teacher_review,
           ai_confidence: mock.ai_confidence
         });
@@ -288,8 +286,8 @@ export async function GET() {
                 scores: ai.scores,
                 average: ai.average,
                 pronunciation_flags: ai.pronunciation_flags,
-                teacher_feedback_draft: ai.teacher_feedback_draft,
-                parent_report_message: ai.parent_report_message,
+                teacher_feedback_draft: ai.teacher_feedback_draft || generateFeedbackDraft(ai.scores, String(st.student_name ?? st.name ?? "Student")),
+                parent_report_message: ai.parent_report_message || "AI Analysis completed.",
                 needs_teacher_review: ai.needs_teacher_review,
                 ai_confidence: ai.ai_confidence
               }

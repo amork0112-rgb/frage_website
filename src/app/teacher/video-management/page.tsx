@@ -2,20 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Video, Plus, Save, X, Settings, Eye, FileText, Trash2, LayoutGrid, Calendar } from "lucide-react";
+import { Video, Plus, X, Settings, LayoutGrid, Calendar } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type Student = { id: string; name: string; englishName: string; className: string; campus: string; classSortOrder?: number | null };
-type Assignment = {
-  id: string;
-  title: string;
-  module: string;
-  dueDate: string;
-  releaseAt: string;
-  className: string;
-  campus?: string;
-  submissionCount: number;
-};
 
 const CAMPUS_VALUES = ["All", "International", "Andover", "Atheneum", "Platz"] as const;
 const CAMPUS_LABELS: Record<string, string> = {
@@ -33,10 +23,8 @@ export default function TeacherVideoManagementPage() {
   const [viewMode, setViewMode] = useState<"primary" | "kinder">("primary");
 
   const [students, setStudents] = useState<Student[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [classCatalog, setClassCatalog] = useState<string[]>([]);
   const [teacherClassMap, setTeacherClassMap] = useState<Record<string, string[]>>({});
-  const [query, setQuery] = useState("");
   const [filterClass, setFilterClass] = useState<string>("All");
   const [filterCampus, setFilterCampus] = useState<string>("All");
 
@@ -49,9 +37,6 @@ export default function TeacherVideoManagementPage() {
 
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editItem, setEditItem] = useState<Assignment | null>(null);
-
   useEffect(() => {
     const load = async () => {
       try {
@@ -61,27 +46,6 @@ export default function TeacherVideoManagementPage() {
         setStudents(arr);
       } catch {
         setStudents([]);
-      }
-      try {
-        const { data } = await supabase
-          .from("video_assignments")
-          .select("*, portal_video_submissions(count)")
-          .order("due_date", { ascending: false });
-        const list: Assignment[] = Array.isArray(data)
-          ? data.map((row: any) => ({
-              id: String(row.id),
-              title: row.title,
-              module: row.module,
-              dueDate: row.due_date,
-              releaseAt: row.release_at,
-              className: row.class_name,
-              campus: row.campus || "All",
-              submissionCount: row.portal_video_submissions ? row.portal_video_submissions[0]?.count || 0 : 0,
-            }))
-          : [];
-        setAssignments(list);
-      } catch {
-        setAssignments([]);
       }
       setClassCatalog([]);
       setTeacherClassMap({});
@@ -175,47 +139,6 @@ export default function TeacherVideoManagementPage() {
     return classOptionsByCampus[filterCampus] || [];
   }, [filterCampus, classOptionsAll, classOptionsByCampus]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return assignments
-      .filter((a) => {
-        if (filterCampus === "All") return true;
-        const camp = a.campus || "All";
-        return camp === filterCampus;
-      })
-      .filter((a) => {
-        if (filterClass === "All") return true;
-        return a.className === filterClass;
-      })
-      .filter((a) => {
-        if (!q) return true;
-        return (
-          a.title.toLowerCase().includes(q) ||
-          a.module.toLowerCase().includes(q)
-        );
-      });
-  }, [assignments, filterClass, filterCampus, query]);
-
-  const refreshAssignments = async () => {
-    const { data } = await supabase
-      .from("video_assignments")
-      .select("*, portal_video_submissions(count)")
-      .order("due_date", { ascending: false });
-    const list: Assignment[] = Array.isArray(data)
-      ? data.map((row: any) => ({
-          id: String(row.id),
-          title: row.title,
-          module: row.module,
-          dueDate: row.due_date,
-          releaseAt: row.release_at,
-          className: row.class_name,
-          campus: row.campus || "All",
-          submissionCount: row.portal_video_submissions ? row.portal_video_submissions[0]?.count || 0 : 0,
-        }))
-      : [];
-    setAssignments(list);
-  };
-  
   useEffect(() => {
     setNewClass("All");
   }, [newCampus]);
@@ -241,47 +164,48 @@ export default function TeacherVideoManagementPage() {
     return `${now.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
   });
 
-  // Mock fetch function for weekly status
+  // Fetch weekly status from API
   const fetchWeeklyStatus = async () => {
     if (viewMode !== "kinder") return;
     
     setLoadingWeeklyStatus(true);
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
     
-    const intlClasses = (classOptionsByCampus["International"] || []).map(c => c.name);
-    const statusList = intlClasses.map((className, index) => {
-      // Randomly assign status for demo purposes
-      const statuses = ["draft", "scheduled", "published", "skipped", "no_lesson", "needs_review"] as const;
-      const status = statuses[index % statuses.length];
+    try {
+      // Fetch from API (International campus)
+      const targetCampus = "International";
+      const res = await fetch(
+        `/api/weekly-assignments?campus=${targetCampus}&week=${selectedWeek}`,
+        { credentials: "include" }
+      );
+      const data = await res.json();
+      const dbItems = Array.isArray(data) ? data : [];
+
+      // Merge with full class list to ensure all classes are shown
+      const allClasses = (classOptionsByCampus[targetCampus] || []).map(c => c.name);
       
-      const suggestedDueDate = "2026-01-28";
-      let confirmedDueDate = null;
-      let reason = null;
-
-      if (status === "scheduled" || status === "published") {
-        confirmedDueDate = "2026-01-28";
-      }
-      if (status === "no_lesson") {
-        reason = "No regular class this week";
-      }
-      if (status === "needs_review") {
-        reason = "Check lesson coverage";
-      }
-
-      return {
-        className,
-        campus: "International",
-        weekKey: selectedWeek,
-        status,
-        suggestedDueDate,
-        confirmedDueDate,
-        reason
-      };
-    });
-    
-    setWeeklyClassStatus(statusList);
-    setLoadingWeeklyStatus(false);
+      const statusList = allClasses.map(className => {
+        const found = dbItems.find((item: any) => item.className === className);
+        if (found) return found;
+        
+        // Default 'draft' item for classes without records
+        return {
+          className,
+          campus: targetCampus,
+          weekKey: selectedWeek,
+          status: "draft",
+          suggestedDueDate: null,
+          confirmedDueDate: null,
+          reason: null
+        };
+      });
+      
+      setWeeklyClassStatus(statusList);
+    } catch (err) {
+      console.error(err);
+      setWeeklyClassStatus([]);
+    } finally {
+      setLoadingWeeklyStatus(false);
+    }
   };
 
   useEffect(() => {
@@ -291,9 +215,8 @@ export default function TeacherVideoManagementPage() {
   }, [viewMode, selectedWeek, classOptionsByCampus]);
 
   const handleControlAction = async (action: "publish" | "change_date" | "skip" | "set_due_date", className: string, date?: string) => {
-    // Mock API call
-    console.log(`Action: ${action}, Class: ${className}, Date: ${date}`);
-    
+    const campus = "International";
+
     // Optimistic update
     setWeeklyClassStatus(prev => prev.map(item => {
       if (item.className !== className) return item;
@@ -309,6 +232,25 @@ export default function TeacherVideoManagementPage() {
       }
       return item;
     }));
+
+    // Real API call
+    try {
+      await fetch("/api/weekly-assignments/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campus,
+          className,
+          weekKey: selectedWeek,
+          action,
+          confirmedDueDate: date,
+          reason: action === "skip" ? "Skipped by teacher" : null
+        })
+      });
+    } catch (err) {
+      console.error("Failed to update status", err);
+      // Revert logic could go here
+    }
   };
 
   const TEMPLATES = [
@@ -359,7 +301,6 @@ export default function TeacherVideoManagementPage() {
         class_name: newClass,
         campus: newCampus === "All" ? null : newCampus,
       });
-      await refreshAssignments();
     })();
     setNewTitle("");
     setNewModule("");
@@ -367,66 +308,6 @@ export default function TeacherVideoManagementPage() {
     setNewRelease("");
     setNewClass("All");
     setNewCampus("All");
-  };
-
-  const startEdit = (id: string) => {
-    const item = assignments.find(a => a.id === id) || null;
-    setEditId(id);
-    setEditItem(item ? { ...item } : null);
-  };
-  const cancelEdit = () => {
-    setEditId(null);
-    setEditItem(null);
-  };
-  const saveEdit = () => {
-    if (!editId || !editItem) return;
-    if (!editItem.title.trim() || !editItem.module.trim() || !editItem.dueDate || !editItem.releaseAt || !editItem.className) {
-      alert("Please fill in all required fields.");
-      return;
-    }
-    if (editItem.dueDate <= editItem.releaseAt) {
-      alert("Due date must be after release date.");
-      return;
-    }
-    (async () => {
-      await supabase
-        .from("video_assignments")
-        .update({
-          title: editItem.title.trim(),
-          module: editItem.module.trim(),
-          due_date: editItem.dueDate,
-          release_at: editItem.releaseAt,
-          class_name: editItem.className,
-          campus: editItem.campus === "All" ? null : editItem.campus,
-        })
-        .eq("id", Number(editId));
-      await refreshAssignments();
-    })();
-    setEditId(null);
-    setEditItem(null);
-  };
-  const publishNow = async (id: string) => {
-    const now = new Date().toISOString();
-    await supabase.from("video_assignments").update({ release_at: now }).eq("id", Number(id));
-    await refreshAssignments();
-  };
-
-  const remove = (id: string) => {
-    (async () => {
-      await supabase.from("video_assignments").delete().eq("id", Number(id));
-      await refreshAssignments();
-    })();
-  };
-
-  const getStatus = (a: Assignment) => {
-    const now = new Date();
-    const release = new Date(a.releaseAt);
-    const due = new Date(a.dueDate);
-    due.setHours(23, 59, 59, 999);
-
-    if (now < release) return "Draft";
-    if (now > due) return "Closed";
-    return "Assigned";
   };
 
   return (
@@ -555,15 +436,6 @@ export default function TeacherVideoManagementPage() {
               {filterClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
             </select>
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-slate-500 mb-1">Search</label>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Title or Module..."
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-            />
-          </div>
         </div>
       </div>
 
@@ -689,149 +561,7 @@ export default function TeacherVideoManagementPage() {
         </div>
       )}
 
-      {/* Assignment Records List (Always visible, filtered by filters) */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <span className="text-slate-400">🗂</span>
-            Assignment Records
-          </h2>
-          <div className="text-xs text-slate-400">
-            Total {filtered.length} assignments
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map(a => {
-          const status = getStatus(a);
-          return (
-          <div key={a.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-4 space-y-3">
-              {editId === a.id ? (
-                <>
-                  <div className="space-y-2">
-                    <div>
-                      <label className="text-xs font-bold text-slate-500">Title</label>
-                      <input value={editItem?.title || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), title: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-500">Module</label>
-                      <input value={editItem?.module || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), module: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-500">Release Date</label>
-                      <input type="datetime-local" value={editItem?.releaseAt ? new Date(editItem.releaseAt).toISOString().slice(0, 16) : ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), releaseAt: new Date(e.target.value).toISOString() }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-500">Due Date</label>
-                      <input type="date" value={editItem?.dueDate || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), dueDate: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-500">Class</label>
-                      <select value={editItem?.className || ""} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), className: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                        {classes.filter(c => c !== "All").map(c => (<option key={c} value={c}>{c}</option>))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-500">Campus</label>
-                      <select value={editItem?.campus || "All"} onChange={(e) => setEditItem(prev => ({ ...(prev as Assignment), campus: e.target.value === "All" ? undefined : e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                        {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 pt-2">
-                    <button onClick={saveEdit} className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white">
-                      <Save className="w-4 h-4" /> Save
-                    </button>
-                    <button onClick={cancelEdit} className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-bold bg-slate-200 text-slate-700">
-                      <X className="w-4 h-4" /> Cancel
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="text-sm font-bold text-slate-900">{a.title}</div>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                      status === 'Draft' ? 'bg-slate-100 text-slate-600 border-slate-200' :
-                      status === 'Assigned' ? 'bg-green-50 text-green-700 border-green-200' :
-                      'bg-red-50 text-red-700 border-red-200'
-                    }`}>
-                      {status}
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Class</span>
-                      {a.className}
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Campus</span>
-                      {a.campus || "All"}
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Release</span>
-                      {a.releaseAt ? new Date(a.releaseAt).toLocaleDateString() : "-"}
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Due</span>
-                      {a.dueDate}
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-50 rounded-lg p-2 flex items-center justify-between">
-                     <span className="text-xs font-bold text-slate-500">Submissions</span>
-                     <span className="text-sm font-black text-slate-900">{a.submissionCount}</span>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
-                    {status === "Draft" && (
-                      <div className="flex gap-2">
-                        <button onClick={() => startEdit(a.id)} className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 hover:bg-slate-50">
-                          Edit / Change Dates
-                        </button>
-                        <button onClick={() => publishNow(a.id)} className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100">
-                          Publish Now
-                        </button>
-                      </div>
-                    )}
-                    {status === "Assigned" && (
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => router.push(`/teacher/video-management/${a.id}`)}
-                          className="flex-1 inline-flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
-                        >
-                          <Eye className="w-3 h-3" /> View Submissions
-                        </button>
-                      </div>
-                    )}
-                    {status === "Closed" && (
-                       <div className="flex gap-2">
-                         <button 
-                           onClick={() => router.push(`/teacher/video-management/${a.id}`)}
-                           className="flex-1 inline-flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200"
-                         >
-                           <FileText className="w-3 h-3" /> View Results
-                         </button>
-                       </div>
-                    )}
-                    {/* Always allow delete for cleanup */}
-                    <button onClick={() => remove(a.id)} className="w-full py-1.5 rounded-lg text-xs font-bold text-red-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center gap-2">
-                      <Trash2 className="w-4 h-4" /> Delete
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          );
-        })}
-        </div>
-        {filtered.length === 0 && (
-          <div className="text-sm text-slate-600">등록된 영상 과제가 없습니다.</div>
-        )}
-      </div>
+      {/* Assignment Records List Removed per user request */}
       {showTemplateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">

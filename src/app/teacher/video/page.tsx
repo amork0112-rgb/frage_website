@@ -2,26 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Video, CheckCircle, Search, X, Bot, AlertCircle, Settings, Activity, Clock, Layers, Database, ChevronRight, PlayCircle } from "lucide-react";
+import { Video, CheckCircle, Search, X, Bot, AlertCircle, Settings, Database } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-
-type EngineStatus = {
-  active: boolean;
-  division: string;
-  generation: string;
-  source: string;
-  lastRun: string;
-  nextRun: string;
-};
-
-type UpcomingAssignment = {
-  week: string;
-  class_name: string;
-  textbook: string;
-  unit: string;
-  students_count: number;
-  status: string;
-};
 
 type AIEvaluation = {
   scores: {
@@ -130,8 +112,6 @@ export default function TeacherVideoPage() {
   const [dateFilter, setDateFilter] = useState<"All" | "Today" | "Week" | "Overdue" | "Missing">("All");
   const [statusFilter, setStatusFilter] = useState<"All" | Status>("All");
   const [query, setQuery] = useState("");
-  const [engineStatus, setEngineStatus] = useState<EngineStatus | null>(null);
-  const [upcoming, setUpcoming] = useState<UpcomingAssignment[]>([]);
   const [openVideoFor, setOpenVideoFor] = useState<Homework | null>(null);
   const [fb, setFb] = useState<Feedback>({
     overall_message: "",
@@ -186,9 +166,6 @@ export default function TeacherVideoPage() {
         const res = await fetch("/api/teacher/video-dashboard", { cache: "no-store" });
         const data = await res.json();
         
-        if (data.engine_status) setEngineStatus(data.engine_status);
-        if (data.upcoming_assignments) setUpcoming(data.upcoming_assignments);
-
         const assigns: any[] = Array.isArray(data?.assignments) ? data.assignments : [];
         const flattened: Homework[] = assigns.flatMap(a => {
           const title = String(a.title || "");
@@ -483,133 +460,16 @@ export default function TeacherVideoPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Video className="w-6 h-6 text-slate-400" />
-          <h1 className="text-2xl font-black text-slate-900">Video Management</h1>
+          <h1 className="text-2xl font-black text-slate-900">Video Assignment Assessment</h1>
         </div>
         <Link href="/teacher/home" className="text-sm font-bold text-frage-blue">Home</Link>
       </div>
 
-      {engineStatus?.division !== "KINDER" && (
-        <div className="mb-6 flex justify-end">
-          <Link
-            href="/teacher/video/create"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-frage-navy text-white text-sm font-bold hover:bg-frage-blue"
-          >
-            <PlayCircle className="w-4 h-4" />
-            Create Video Assignment
-          </Link>
-        </div>
-      )}
-
-      {/* 1. Status Panel */}
-      {engineStatus && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
-          <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2">
-              <Settings className="w-5 h-5 text-slate-500" />
-              <h2 className="font-bold text-slate-900">Weekly Assignment Engine</h2>
-            </div>
-            <div className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded border border-green-100 flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              Running
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div>
-              <div className="text-xs font-bold text-slate-400 mb-1">Status</div>
-              <div className="flex items-center gap-2 text-sm font-bold text-green-600">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                Active
-              </div>
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-400 mb-1">Division</div>
-              <div className="text-sm font-bold text-slate-700">{engineStatus.division}</div>
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-400 mb-1">Generation</div>
-              <div className="text-sm font-bold text-slate-700">{engineStatus.generation}</div>
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-400 mb-1">Source</div>
-              <div className="text-sm font-bold text-slate-700">{engineStatus.source}</div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-4 pt-4 border-t border-slate-50">
-            <div>
-              <div className="text-xs font-bold text-slate-400 mb-1">Last Run</div>
-              <div className="text-sm font-bold text-slate-700">{engineStatus.lastRun}</div>
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-400 mb-1">Next Run</div>
-              <div className="text-sm font-bold text-slate-700">{engineStatus.nextRun}</div>
-            </div>
-            <div className="md:col-span-2 flex justify-end gap-2 items-end">
-              <button className="text-xs font-bold text-slate-500 hover:text-slate-800 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors">
-                View Generation Log
-              </button>
-              <button className="text-xs font-bold text-slate-500 hover:text-slate-800 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors">
-                Pause Automation
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 2. Upcoming Cards */}
-      {upcoming.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {upcoming.map((u, i) => (
-            <div key={i} className="bg-slate-50 rounded-xl border border-slate-200 p-4 border-l-4 border-l-indigo-500 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-5">
-                <Layers className="w-24 h-24" />
-              </div>
-              <div className="flex items-center justify-between mb-3 relative z-10">
-                <div className="flex items-center gap-2 text-indigo-900 font-bold text-sm">
-                  <Layers className="w-4 h-4" />
-                  Upcoming Assignment
-                  <span className="text-[10px] font-normal text-slate-500">(Auto-Generation Pending)</span>
-                </div>
-                <div className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {u.status}
-                </div>
-              </div>
-              <div className="space-y-1 relative z-10">
-                <div className="flex justify-between text-xs border-b border-slate-200/50 pb-1 mb-1">
-                  <span className="text-slate-500 font-medium">Week</span>
-                  <span className="font-bold text-slate-700">{u.week}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-500 font-medium">Class</span>
-                  <span className="font-bold text-slate-700">{u.class_name}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-500 font-medium">Textbook</span>
-                  <span className="font-bold text-slate-700">{u.textbook}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-500 font-medium">Unit</span>
-                  <span className="font-bold text-slate-700">{u.unit}</span>
-                </div>
-                <div className="flex justify-between text-xs pt-1 mt-1 border-t border-slate-200/50">
-                  <span className="text-slate-500 font-medium">Est. Students</span>
-                  <span className="font-bold text-slate-700">{u.students_count}</span>
-                </div>
-              </div>
-              <div className="mt-3 text-[10px] text-slate-400 relative z-10 flex items-center gap-1">
-                 <Bot className="w-3 h-3" />
-                 This assignment will be generated automatically.
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* 3. Management Scope */}
+      {/* 1. Management Scope */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-8">
         <div className="flex items-center gap-2 mb-4">
           <Settings className="w-4 h-4 text-slate-400" />
-          <h3 className="font-bold text-slate-900 text-sm">Management Scope</h3>
+          <h3 className="font-bold text-slate-900 text-sm">Assessment Filters</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
           <div>
@@ -681,7 +541,7 @@ export default function TeacherVideoPage() {
       {/* 4. Assignment Records */}
       <div className="flex items-center gap-2 mb-4">
         <Database className="w-5 h-5 text-slate-400" />
-        <h2 className="text-lg font-bold text-slate-900">Assignment Records</h2>
+        <h2 className="text-lg font-bold text-slate-900">Assignments</h2>
       </div>
 
       {filtered.length === 0 && (
@@ -689,12 +549,8 @@ export default function TeacherVideoPage() {
           <div className="flex justify-center mb-3">
             <Database className="w-12 h-12 text-slate-200" />
           </div>
-          <div className="text-slate-500 font-medium mb-1">No assignments generated yet.</div>
-          <div className="text-xs text-slate-400 mb-4">This division uses automatic weekly assignments.<br/>You can review generation rules or logs while waiting.</div>
-          <div className="flex justify-center gap-2">
-            <button className="text-xs font-bold text-slate-500 hover:text-slate-800 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm transition-colors">View Rules</button>
-            <button className="text-xs font-bold text-slate-500 hover:text-slate-800 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm transition-colors">View Logs</button>
-          </div>
+          <div className="text-slate-500 font-medium mb-1">No assignments found.</div>
+          <div className="text-xs text-slate-400 mb-4">There are no assignments matching your filters.</div>
         </div>
       )}
 
