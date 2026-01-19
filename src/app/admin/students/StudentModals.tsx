@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { StudentView } from "@/lib/types";
+import { StudentFull } from "@/lib/types";
 
 interface ModalProps {
   open: boolean;
   onClose: () => void;
-  student: StudentView | null;
+  student: StudentFull | null;
   onSuccess: () => void;
 }
 
