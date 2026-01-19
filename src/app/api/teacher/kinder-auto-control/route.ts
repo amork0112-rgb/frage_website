@@ -4,7 +4,6 @@ import { supabaseService } from "@/lib/supabase/service";
 
 const DRAFT_PREFIX = "[DRAFT] ";
 const SKIP_PREFIX = "[SKIP] ";
-const DESCRIPTION_BASE = "Video assignments for Kinder classes are generated automatically each week.";
 
 type Action = "publish" | "change_date" | "skip";
 
@@ -42,7 +41,7 @@ async function fetchKinderClasses() {
   return Array.from(new Set(names));
 }
 
-async function ensureAssignmentsExists(classNames: string[], meta: KinderWeekMeta, description: string) {
+async function ensureAssignmentsExists(classNames: string[], meta: KinderWeekMeta) {
   if (classNames.length === 0) return [];
   const { data } = await supabaseService
     .from("video_assignments")
@@ -58,7 +57,6 @@ async function ensureAssignmentsExists(classNames: string[], meta: KinderWeekMet
     .map((name) => ({
       title: meta.title,
       module: meta.moduleName,
-      description,
       due_date: meta.dueDate,
       class_name: name,
       campus: "International",
@@ -128,7 +126,7 @@ export async function POST(req: Request) {
     }
 
     if (action === "publish") {
-      const assignments = await ensureAssignmentsExists(classNames, meta, DESCRIPTION_BASE);
+      const assignments = await ensureAssignmentsExists(classNames, meta);
       if (assignments.length === 0) {
         return NextResponse.json({ ok: true, updated: 0 }, { status: 200 });
       }
@@ -136,12 +134,7 @@ export async function POST(req: Request) {
       if (ids.length === 0) {
         return NextResponse.json({ ok: true, updated: 0 }, { status: 200 });
       }
-      await supabaseService
-        .from("video_assignments")
-        .update({
-          description: DESCRIPTION_BASE,
-        })
-        .in("id", ids);
+      // description update removed
       if (date) {
         await supabaseService
           .from("video_assignments")
@@ -152,28 +145,25 @@ export async function POST(req: Request) {
     }
 
     if (action === "change_date") {
-      const assignments = await ensureAssignmentsExists(classNames, meta, `${DRAFT_PREFIX}${DESCRIPTION_BASE}`);
+      const assignments = await ensureAssignmentsExists(classNames, meta);
       const ids = assignments.map((row: any) => row.id).filter((id) => id != null);
       if (ids.length === 0) {
         return NextResponse.json({ ok: true, updated: 0 }, { status: 200 });
       }
       await supabaseService
         .from("video_assignments")
-        .update({ due_date: date, description: `${DRAFT_PREFIX}${DESCRIPTION_BASE}` })
+        .update({ due_date: date })
         .in("id", ids);
       return NextResponse.json({ ok: true, updated: ids.length }, { status: 200 });
     }
 
     if (action === "skip") {
-      const assignments = await ensureAssignmentsExists(classNames, meta, `${SKIP_PREFIX}${DESCRIPTION_BASE}`);
+      const assignments = await ensureAssignmentsExists(classNames, meta);
       const ids = assignments.map((row: any) => row.id).filter((id) => id != null);
       if (ids.length === 0) {
         return NextResponse.json({ ok: true, updated: 0 }, { status: 200 });
       }
-      await supabaseService
-        .from("video_assignments")
-        .update({ description: `${SKIP_PREFIX}${DESCRIPTION_BASE}` })
-        .in("id", ids);
+      // Skip action currently does not persist status as description field is removed
       return NextResponse.json({ ok: true, updated: ids.length }, { status: 200 });
     }
 

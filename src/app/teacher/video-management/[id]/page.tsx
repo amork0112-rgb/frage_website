@@ -9,7 +9,6 @@ type Assignment = {
   id: string;
   title: string;
   module: string;
-  description?: string;
   due_date: string;
   release_at: string;
   class_name: string;

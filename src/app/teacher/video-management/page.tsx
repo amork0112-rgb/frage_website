@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Video, Plus, Save, X, Settings, Eye, FileText, Trash2 } from "lucide-react";
+import { Video, Plus, Save, X, Settings, Eye, FileText, Trash2, LayoutGrid, Calendar } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type Student = { id: string; name: string; englishName: string; className: string; campus: string; classSortOrder?: number | null };
@@ -10,7 +10,6 @@ type Assignment = {
   id: string;
   title: string;
   module: string;
-  description?: string;
   dueDate: string;
   releaseAt: string;
   className: string;
@@ -29,6 +28,10 @@ const CAMPUS_LABELS: Record<string, string> = {
 
 export default function TeacherVideoManagementPage() {
   const router = useRouter();
+  
+  // View Mode State
+  const [viewMode, setViewMode] = useState<"primary" | "kinder">("primary");
+
   const [students, setStudents] = useState<Student[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [classCatalog, setClassCatalog] = useState<string[]>([]);
@@ -39,7 +42,6 @@ export default function TeacherVideoManagementPage() {
 
   const [newTitle, setNewTitle] = useState("");
   const [newModule, setNewModule] = useState("");
-  const [newDescription, setNewDescription] = useState("");
   const [newDue, setNewDue] = useState("");
   const [newRelease, setNewRelease] = useState("");
   const [newClass, setNewClass] = useState<string>("All");
@@ -70,7 +72,6 @@ export default function TeacherVideoManagementPage() {
               id: String(row.id),
               title: row.title,
               module: row.module,
-              description: row.description || "",
               dueDate: row.due_date,
               releaseAt: row.release_at,
               className: row.class_name,
@@ -205,7 +206,6 @@ export default function TeacherVideoManagementPage() {
           id: String(row.id),
           title: row.title,
           module: row.module,
-          description: row.description || "",
           dueDate: row.due_date,
           releaseAt: row.release_at,
           className: row.class_name,
@@ -243,7 +243,7 @@ export default function TeacherVideoManagementPage() {
 
   // Mock fetch function for weekly status
   const fetchWeeklyStatus = async () => {
-    if (filterCampus !== "International") return;
+    if (viewMode !== "kinder") return;
     
     setLoadingWeeklyStatus(true);
     // Simulate API delay
@@ -285,12 +285,10 @@ export default function TeacherVideoManagementPage() {
   };
 
   useEffect(() => {
-    if (filterCampus === "International") {
+    if (viewMode === "kinder") {
       fetchWeeklyStatus();
-    } else {
-      setWeeklyClassStatus([]);
     }
-  }, [filterCampus, selectedWeek, classOptionsByCampus]);
+  }, [viewMode, selectedWeek, classOptionsByCampus]);
 
   const handleControlAction = async (action: "publish" | "change_date" | "skip" | "set_due_date", className: string, date?: string) => {
     // Mock API call
@@ -313,39 +311,32 @@ export default function TeacherVideoManagementPage() {
     }));
   };
 
-  const isKinderFilterMode = filterCampus === "International";
-
   const TEMPLATES = [
     {
       label: "Reading Retell",
       titlePrefix: "Reading Retell: ",
       module: "Reading",
-      description: "Read the story and retell it in your own words."
     },
     {
       label: "Speaking Opinion",
       titlePrefix: "Speaking Opinion: ",
       module: "Speaking",
-      description: "Express your opinion on the topic."
     },
     {
       label: "Fluency Check",
       titlePrefix: "Fluency Check",
       module: "Reading",
-      description: "Read the passage clearly and fluently."
     },
     {
       label: "Presentation Practice",
       titlePrefix: "Presentation Practice",
       module: "Speaking",
-      description: "Practice your presentation skills."
     }
   ];
 
   const applyTemplate = (tmpl: typeof TEMPLATES[0]) => {
     setNewTitle(tmpl.titlePrefix);
     setNewModule(tmpl.module);
-    setNewDescription(tmpl.description);
     setShowTemplateModal(false);
   };
 
@@ -363,7 +354,6 @@ export default function TeacherVideoManagementPage() {
       await supabase.from("video_assignments").insert({
         title: newTitle.trim(),
         module: newModule.trim(),
-        description: newDescription.trim(),
         due_date: newDue,
         release_at: newRelease,
         class_name: newClass,
@@ -373,7 +363,6 @@ export default function TeacherVideoManagementPage() {
     })();
     setNewTitle("");
     setNewModule("");
-    setNewDescription("");
     setNewDue("");
     setNewRelease("");
     setNewClass("All");
@@ -405,7 +394,6 @@ export default function TeacherVideoManagementPage() {
         .update({
           title: editItem.title.trim(),
           module: editItem.module.trim(),
-          description: editItem.description?.trim() || "",
           due_date: editItem.dueDate,
           release_at: editItem.releaseAt,
           class_name: editItem.className,
@@ -442,74 +430,100 @@ export default function TeacherVideoManagementPage() {
   };
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8">
+    <main className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Video className="w-6 h-6 text-slate-400" />
           <h1 className="text-2xl font-black text-slate-900">Video Management</h1>
         </div>
-        {newCampus === "International" && (
-          <div className="px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 bg-blue-50 text-blue-700">
-            <span>⚙️</span>
-            <span>Mode: Semi-Automatic Weekly Assignments (International)</span>
-          </div>
-        )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">캠퍼스(선택)</label>
-            <select value={newCampus} onChange={(e) => setNewCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
-            </select>
+      {/* Mode Switch */}
+      <div className="flex items-center gap-2 mb-6">
+        <button
+          onClick={() => setViewMode("primary")}
+          className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${
+            viewMode === "primary"
+              ? "bg-frage-navy text-white shadow-md"
+              : "bg-white text-slate-500 hover:bg-slate-50 border border-slate-200"
+          }`}
+        >
+          <LayoutGrid className="w-4 h-4" />
+          Primary Assignments
+        </button>
+        <button
+          onClick={() => setViewMode("kinder")}
+          className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${
+            viewMode === "kinder"
+              ? "bg-blue-600 text-white shadow-md"
+              : "bg-white text-slate-500 hover:bg-slate-50 border border-slate-200"
+          }`}
+        >
+          <Calendar className="w-4 h-4" />
+          Kinder Weekly Control
+        </button>
+      </div>
+
+      {/* Primary Mode: Create Assignment Panel */}
+      {viewMode === "primary" && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
+          <div className="flex items-center gap-2 mb-4 text-sm font-bold text-slate-900">
+            <Plus className="w-4 h-4 text-frage-navy" />
+            Create New Assignment
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
-            <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              <option value="All">전체</option>
-              {newClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">게시일 (Release)</label>
-            <input type="datetime-local" value={newRelease} onChange={(e) => setNewRelease(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">마감일 (Due)</label>
-            <input type="date" value={newDue} onChange={(e) => setNewDue(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-slate-500 mb-1">제목</label>
-            <div className="flex gap-2">
-              <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Into Reading 1.3" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-              {newCampus === "International" && (
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">캠퍼스(선택)</label>
+              <select value={newCampus} onChange={(e) => setNewCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+                {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
+              <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+                <option value="All">전체</option>
+                {newClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">게시일 (Release)</label>
+              <input type="datetime-local" value={newRelease} onChange={(e) => setNewRelease(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">마감일 (Due)</label>
+              <input type="date" value={newDue} onChange={(e) => setNewDue(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-slate-500 mb-1">제목</label>
+              <div className="flex gap-2">
+                <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Into Reading 1.3" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
                 <button onClick={() => setShowTemplateModal(true)} className="px-3 py-2 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 whitespace-nowrap hover:bg-indigo-100">
                   Templates
                 </button>
-              )}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">모듈/차시</label>
+              <input value={newModule} onChange={(e) => setNewModule(e.target.value)} placeholder="[Module 5-1] Day 18" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">모듈/차시</label>
-            <input value={newModule} onChange={(e) => setNewModule(e.target.value)} placeholder="[Module 5-1] Day 18" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
+          <div className="mt-3">
+            <button
+              onClick={createAssignment}
+              disabled={!newTitle.trim() || !newModule.trim() || !newDue || !newRelease || newClass === "All"}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-4 h-4" /> 생성
+            </button>
           </div>
         </div>
-        <div className="mt-3">
-          <button
-            onClick={createAssignment}
-            disabled={!newTitle.trim() || !newModule.trim() || !newDue || !newRelease || newClass === "All"}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Plus className="w-4 h-4" /> 생성
-          </button>
-        </div>
-      </div>
+      )}
 
+      {/* Filters (Shared) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <Settings className="w-4 h-4 text-slate-400" />
-          <h3 className="font-bold text-slate-900 text-sm">Management Scope</h3>
+          <h3 className="font-bold text-slate-900 text-sm">Management Filters</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
           <div>
@@ -518,7 +532,7 @@ export default function TeacherVideoManagementPage() {
               {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
             </select>
           </div>
-          {isKinderFilterMode && (
+          {viewMode === "kinder" && (
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">Week</label>
               <select 
@@ -553,8 +567,8 @@ export default function TeacherVideoManagementPage() {
         </div>
       </div>
 
-      {/* Weekly Assignment Overview (Kinder Only) */}
-      {isKinderFilterMode && (
+      {/* Kinder Weekly Control Panel (Kinder Only) */}
+      {viewMode === "kinder" && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -675,7 +689,7 @@ export default function TeacherVideoManagementPage() {
         </div>
       )}
 
-      {/* Assignment Records (Existing List) */}
+      {/* Assignment Records List (Always visible, filtered by filters) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -835,7 +849,6 @@ export default function TeacherVideoManagementPage() {
                   className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-frage-blue hover:bg-blue-50 transition-colors group"
                 >
                   <div className="font-bold text-slate-800 group-hover:text-frage-blue mb-1">{tmpl.label}</div>
-                  <div className="text-xs text-slate-500">{tmpl.description}</div>
                   <div className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">
                     Module: {tmpl.module}
                   </div>

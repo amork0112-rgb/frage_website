@@ -19,7 +19,6 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
     subject: string;
     module_code: string;
     due_date: string;
-    description?: string;
     status: "Pending" | "Submitted" | "Reviewed" | string;
     feedback: {
       overall_message: string;
@@ -159,7 +158,6 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
           subject: assignData.title,
           module_code: assignData.module,
           due_date: assignData.due_date,
-          description: assignData.description,
           status,
           feedback
         });
@@ -441,11 +439,6 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
           <p className="text-slate-500 text-sm">
             Due: {homeworkData.due_date}
           </p>
-          {homeworkData.description && (
-             <div className="mt-4 p-4 bg-slate-50 rounded-xl text-sm text-slate-600">
-                {homeworkData.description}
-             </div>
-          )}
         </div>
 
         {/* Video Area */}

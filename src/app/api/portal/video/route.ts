@@ -62,9 +62,6 @@ export async function GET(req: Request) {
         if (now < release) return false;
       }
 
-      const desc = String(a.description || "");
-      if (desc.startsWith("[DRAFT]")) return false;
-      if (desc.startsWith("[SKIP]")) return false;
       return true;
     });
 
