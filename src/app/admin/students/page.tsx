@@ -279,43 +279,61 @@ export default function AdminStudentsPage() {
   const handleBulkClassChange = async () => {
     if (!selectedStudentIds.length) return;
     if (!selectedTargetClass) return;
-    if (!availableClasses.includes(selectedTargetClass)) return;
+    
+    // Find the class object to get the name for logging
+    const targetClassObj = filters.regularClasses.find(c => c.id === selectedTargetClass);
+    if (!targetClassObj) return;
+    const targetClassName = targetClassObj.name;
+
     const selectedStudents = merged.filter(s => selectedStudentIds.includes(s.id));
     if (!selectedStudents.length) return;
-    const hasSame = selectedStudents.some(s => s.class_name === selectedTargetClass);
-    if (hasSame) return;
+    
+    // Filter out students who are already in this class (optional, but good for efficiency)
+    // Checking against class_name might be risky if names aren't synced, but it's a reasonable check.
+    // Or just update everyone. Let's update everyone to be safe.
+    
     try {
       const newUpdates = { ...updates };
       const newLogs = { ...studentLogs };
       const { data } = await supabase.auth.getUser();
       const admin = String(data?.user?.email ?? "관리자");
       const date = new Date().toISOString().split("T")[0];
-      selectedStudents.forEach(s => {
+
+      // We can use Promise.all for better performance
+      await Promise.all(selectedStudents.map(async (s) => {
         const oldClass = s.class_name;
-        newUpdates[s.id] = { ...(newUpdates[s.id] || {}), class_name: selectedTargetClass };
-        const entry = `${date} 반 변경: ${oldClass} → ${selectedTargetClass} 처리자: ${admin}`;
+        if (oldClass === targetClassName) return; // Skip if same
+
+        newUpdates[s.id] = { ...(newUpdates[s.id] || {}), class_name: targetClassName };
+        const entry = `${date} 반 일괄 변경: ${oldClass} → ${targetClassName} 처리자: ${admin}`;
         const list = newLogs[s.id] || [];
         list.push(entry);
         newLogs[s.id] = list;
-        saveUpdate(s.id, { class_name: selectedTargetClass });
-        supabase.from("student_status_logs").insert({
+        
+        // Update main_class_id in DB
+        await supabase.from("students").update({ main_class_id: selectedTargetClass }).eq("id", s.id);
+
+        await supabase.from("student_status_logs").insert({
           student_id: s.id,
           type: "class_change",
           message: entry,
           at: new Date().toISOString(),
         });
-      });
+      }));
+
       setUpdates(newUpdates);
       setStudentLogs(newLogs);
       setSelectedStudentIds([]);
       setSelectedTargetClass("");
       closeBulkModal();
+      refetch(); // Refresh to ensure data consistency
     } catch {
+      alert("일괄 변경 중 오류가 발생했습니다.");
     }
   };
 
   const addNewClassToCatalog = () => {
-    // Deprecated: Classes should be managed via API
+    // Deprecated
   };
 
   const openInfoPanel = (s: StudentFull) => {
@@ -439,8 +457,18 @@ export default function AdminStudentsPage() {
       {/* Status filters removed */}
 
       <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-        <div className="text-sm text-slate-600 font-bold">
-          총 <span className="text-frage-blue">{totalCount}</span>명 중 {totalCount > 0 ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, totalCount)}명 표시
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-slate-600 font-bold">
+            총 <span className="text-frage-blue">{totalCount}</span>명 중 {totalCount > 0 ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, totalCount)}명 표시
+          </div>
+          {selectedStudentIds.length > 0 && (
+            <button
+              onClick={openBulkModal}
+              className="px-3 py-1.5 bg-frage-blue text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors animate-in fade-in slide-in-from-left-2"
+            >
+              선택한 {selectedStudentIds.length}명 반 일괄 변경
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -628,38 +656,29 @@ export default function AdminStudentsPage() {
             <p className="text-sm text-slate-500 mb-4">
               선택한 학생 {selectedStudentIds.length}명의 반을 변경합니다.
             </p>
-            <div className="mb-4">
-              <label className="block text-sm font-bold text-slate-700 mb-1">변경할 반</label>
+            <div className="mb-6">
+              <label className="block text-sm font-bold text-slate-700 mb-1">변경할 반 (메인 클래스)</label>
               <select
                 value={selectedTargetClass}
                 onChange={(e) => setSelectedTargetClass(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white"
               >
-                <option value="">선택하세요</option>
-                {availableClasses.map(c => <option key={c} value={c}>{c}</option>)}
+                <option value="">(선택하세요)</option>
+                {filters.regularClasses.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
               </select>
             </div>
-            <div className="mb-4 p-3 bg-slate-50 rounded-lg">
-              <label className="block text-xs font-bold text-slate-500 mb-1">새 반 추가</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newClassName}
-                  onChange={(e) => setNewClassName(e.target.value)}
-                  placeholder="예: Einstein"
-                  className="flex-1 px-2 py-1 text-sm border border-slate-200 rounded"
-                />
-                <button
-                  onClick={addNewClassToCatalog}
-                  className="px-2 py-1 bg-slate-200 text-xs font-bold rounded hover:bg-slate-300"
-                >
-                  추가
-                </button>
-              </div>
-            </div>
+            
             <div className="flex justify-end gap-2">
               <button onClick={closeBulkModal} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg">취소</button>
-              <button onClick={handleBulkClassChange} className="px-4 py-2 text-sm font-bold text-white bg-frage-blue rounded-lg hover:bg-blue-700">변경하기</button>
+              <button 
+                onClick={handleBulkClassChange} 
+                disabled={!selectedTargetClass}
+                className="px-4 py-2 text-sm font-bold text-white bg-frage-blue rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                변경하기
+              </button>
             </div>
           </div>
         </div>
