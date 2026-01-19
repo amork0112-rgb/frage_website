@@ -437,12 +437,19 @@ export default function TeacherReportsPage() {
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <FileText className="w-6 h-6 text-slate-400" />
-          <h1 className="text-2xl font-black text-slate-900">Monthly Reports</h1>
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileText className="w-6 h-6 text-slate-400" />
+            <h1 className="text-2xl font-black text-slate-900">Monthly Reports</h1>
+          </div>
+          <Link href="/teacher/home" className="text-sm font-bold text-frage-blue">Home</Link>
         </div>
-        <Link href="/teacher/home" className="text-sm font-bold text-frage-blue">Home</Link>
+        <p className="mt-2 text-xs text-slate-500">
+          Use this page to draft, save, and request sending monthly progress reports.
+          Filter students on the left, then select a student to review video data and
+          write comments. Changes are autosaved while you type.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-12 gap-4">
