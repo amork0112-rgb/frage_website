@@ -70,6 +70,35 @@ export async function POST(req: Request) {
   }
 }
 
+export async function PATCH(req: Request) {
+  try {
+    const supabase = createSupabaseServer();
+    const guard = await requireAdmin(supabase);
+    if ((guard as any).error) return (guard as any).error;
+
+    const body = await req.json();
+    const { id, teacherRead } = body;
+
+    if (!id || typeof teacherRead !== "boolean") {
+      return json({ ok: false, error: "invalid_payload" }, 400);
+    }
+
+    const { error } = await supabaseService
+      .from("portal_requests")
+      .update({ teacher_read: teacherRead })
+      .eq("id", id);
+
+    if (error) {
+      console.error("REQUEST UPDATE ERROR", error);
+      return json({ ok: false, error: error.message }, 500);
+    }
+
+    return json({ ok: true }, 200);
+  } catch (e: any) {
+    return json({ ok: false, error: "server_error" }, 500);
+  }
+}
+
 export async function GET(_req: Request) {
   try {
     const supabase = createSupabaseServer();

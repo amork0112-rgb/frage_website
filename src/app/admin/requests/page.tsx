@@ -184,7 +184,19 @@ export default function AdminRequestsPage() {
       prev.map((r) => (r.id === id ? { ...r, teacherRead: next } : r))
     );
     // Server update
-    await supabase.from("portal_requests").update({ teacher_read: next }).eq("id", id);
+    try {
+      await fetch("/api/admin/requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, teacherRead: next }),
+      });
+    } catch (error) {
+      console.error("Failed to update teacher read status", error);
+      // Revert optimistic update on error
+      setRequests((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, teacherRead: current } : r))
+      );
+    }
   };
 
   return (
