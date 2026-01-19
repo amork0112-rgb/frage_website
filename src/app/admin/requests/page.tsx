@@ -275,8 +275,9 @@ export default function AdminRequestsPage() {
                   </span>
                 )}
                 {r.note && (
-                  <span className="text-xs text-slate-600">
-                    사유: {r.note}
+                  <span className="text-xs text-slate-700 bg-slate-100 px-2 py-1 rounded">
+                    <span className="font-bold mr-1">사유:</span>
+                    {r.note}
                   </span>
                 )}
               </div>
@@ -351,7 +352,7 @@ export default function AdminRequestsPage() {
                 </div>
               )}
               <div className="flex flex-col gap-1 col-span-2">
-                <span className="text-xs font-bold text-slate-700">메모</span>
+                <span className="text-xs font-bold text-slate-700">사유</span>
                 <input value={newNote} onChange={(e) => setNewNote(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" />
               </div>
             </div>
