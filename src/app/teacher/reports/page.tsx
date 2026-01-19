@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 
 type Status = "미작성" | "작성중" | "저장완료" | "발송요청" | "발송완료";
 type Gender = "M" | "F";
-type Student = { id: string; name: string; englishName: string; className: string; campus: string; classId: string };
+type Student = { id: string; name: string; englishName: string; className: string; campus: string; classId: string; gender: Gender };
 type Scores = { Reading: number; Listening: number; Speaking: number; Writing: number };
 type VideoScores = { fluency: number; volume: number; speed: number; pronunciation: number; performance: number };
 
@@ -39,6 +39,7 @@ export default function TeacherReportsPage() {
   const [participation, setParticipation] = useState<string>("");
   const [selectedBulk, setSelectedBulk] = useState<Record<string, boolean>>({});
   const [classOptions, setClassOptions] = useState<{ id: string; name: string; campus: string }[]>([]);
+  const [variationCursor, setVariationCursor] = useState<Record<string, number>>({});
   const videoCats = [
     { key: "fluency", label: "Fluency" },
     { key: "volume", label: "Volume" },
@@ -107,6 +108,7 @@ export default function TeacherReportsPage() {
           className: String(s.className || "미배정"),
           campus: String(s.campus || "미지정"),
           classId: String(s.classId || ""),
+          gender: (String(s.gender || "").toUpperCase() === "F" ? "F" : "M") as Gender,
         }));
         setStudents(mapped);
       } catch {
@@ -148,7 +150,7 @@ export default function TeacherReportsPage() {
         const data = await res.json();
         const obj = data?.item || null;
         if (obj) {
-          setGender(obj.gender || "M");
+          setGender((obj.gender as Gender) || (selected?.gender ?? "M"));
           setScores(obj.scores || { Reading: 0, Listening: 0, Speaking: 0, Writing: 0 });
           setComments(obj.comments || { Reading: "", Listening: "", Speaking: "", Writing: "" });
           setVideoScores(obj.videoScores || { fluency: 0, volume: 0, speed: 0, pronunciation: 0, performance: 0 });
@@ -156,6 +158,7 @@ export default function TeacherReportsPage() {
           setParticipation(obj.participation || "");
           setVideoSummary(obj.videoSummary || "");
         } else {
+          setGender(selected?.gender ?? "M");
           setScores({ Reading: 0, Listening: 0, Speaking: 0, Writing: 0 });
           setComments({ Reading: "", Listening: "", Speaking: "", Writing: "" });
           setVideoScores({ fluency: 0, volume: 0, speed: 0, pronunciation: 0, performance: 0 });
@@ -317,7 +320,7 @@ export default function TeacherReportsPage() {
       .replaceAll("{Name}", selected?.englishName || "")
       .replaceAll("{pronoun}", pronoun)
       .replaceAll("{possessive}", possessive);
-    return [text, p0, p1].filter(Boolean).join("\n");
+    return [text, p0, p1].filter(Boolean).join(" ");
   };
   const mapScoreToTemplate = (score: number) => {
     if (score <= 2) return 1;
@@ -333,15 +336,23 @@ export default function TeacherReportsPage() {
       const mapped = mapScoreToTemplate(score);
       const t = reportTemplates.skills[skill][mapped];
       const arr = t?.variations || [];
-      const pick =
+      const key = `${selected?.className || ""}_${month}_${skill}_${mapped}`;
+      const currentIndex = variationCursor[key] ?? 0;
+      const candidates =
         aiMode === "on" && arr.length > 0
-          ? arr[Math.floor(Math.random() * arr.length)]
-          : t?.base || "";
+          ? arr
+          : [t?.base || ""];
+      const safeIndex = candidates.length > 0 ? currentIndex % candidates.length : 0;
+      const pick = candidates[safeIndex] || "";
       const text = pick
         .replaceAll("{Name}", selected?.englishName || "")
         .replaceAll("{pronoun}", pronoun)
         .replaceAll("{possessive}", possessive);
       setComments(prev => ({ ...prev, [skill]: toThreeLines(skill, text) }));
+      setVariationCursor(prev => ({
+        ...prev,
+        [key]: candidates.length > 0 ? (safeIndex + 1) % candidates.length : 0,
+      }));
     } catch {}
   };
   const draftOverall = () => {
@@ -359,25 +370,58 @@ export default function TeacherReportsPage() {
     try {
       let pick = "";
       if (typeof score === "number") {
-         // 1-10 score based generation
-         if (score <= 2) {
-           pick = "{Name} needs encouragement to participate in class activities. {pronoun} is learning to follow routines with support.";
-         } else if (score <= 4) {
-           pick = "{Name} participates occasionally when prompted. {pronoun} follows routines but sometimes needs reminders.";
-         } else if (score <= 6) {
-           pick = "{Name} participates in class activities and follows routines. {pronoun} interacts well with peers during group work.";
-         } else if (score <= 8) {
-           pick = "{Name} participates actively in class, follows routines, and engages with peers. {pronoun} shows steady effort and growth each week.";
-         } else {
-           pick = "{Name} is an enthusiastic participant who leads by example. {pronoun} consistently follows routines and supports peers.";
-         }
+        const band =
+          score <= 2 ? "very_low" :
+          score <= 4 ? "low" :
+          score <= 6 ? "mid" :
+          score <= 8 ? "high" :
+          "very_high";
+        const templatesByBand: Record<string, string[]> = {
+          very_low: [
+            "{Name} needs encouragement to participate in class activities. {pronoun} is learning to follow routines with support.",
+            "{Name} is still getting used to joining class activities. With gentle guidance, {pronoun} is learning to follow routines more steadily.",
+          ],
+          low: [
+            "{Name} participates occasionally when prompted. {pronoun} follows routines but sometimes needs reminders.",
+            "{Name} joins activities with some prompts and reminders. With consistent cues, {pronoun} follows routines more independently.",
+          ],
+          mid: [
+            "{Name} participates in class activities and follows routines. {pronoun} interacts well with peers during group work.",
+            "{Name} joins class activities regularly and follows routines reliably. {pronoun} collaborates well with classmates during group tasks.",
+          ],
+          high: [
+            "{Name} participates actively in class, follows routines, and engages with peers. {pronoun} shows steady effort and growth each week.",
+            "{Name} is an active participant who follows routines well. {pronoun} engages positively with peers and shows steady weekly growth.",
+          ],
+          very_high: [
+            "{Name} is an enthusiastic participant who leads by example. {pronoun} consistently follows routines and supports peers.",
+            "{Name} models excellent participation and routine-following. {pronoun} often encourages and supports classmates during activities.",
+          ],
+        };
+        const key = `${selected?.className || ""}_${month}_participation_${band}`;
+        const currentIndex = variationCursor[key] ?? 0;
+        const list = templatesByBand[band] || templatesByBand.mid;
+        const safeIndex = list.length > 0 ? currentIndex % list.length : 0;
+        pick = list[safeIndex] || "";
+        setVariationCursor(prev => ({
+          ...prev,
+          [key]: list.length > 0 ? (safeIndex + 1) % list.length : 0,
+        }));
       } else {
         const t = reportTemplates.participation;
         const arr = t?.variations || [];
-        pick =
+        const key = `${selected?.className || ""}_${month}_participation_fallback`;
+        const currentIndex = variationCursor[key] ?? 0;
+        const candidates =
           aiMode === "on" && arr.length > 0
-            ? arr[Math.floor(Math.random() * arr.length)]
-            : t?.base || "";
+            ? arr
+            : [t?.base || ""];
+        const safeIndex = candidates.length > 0 ? currentIndex % candidates.length : 0;
+        pick = candidates[safeIndex] || "";
+        setVariationCursor(prev => ({
+          ...prev,
+          [key]: candidates.length > 0 ? (safeIndex + 1) % candidates.length : 0,
+        }));
       }
       
       const text = pick

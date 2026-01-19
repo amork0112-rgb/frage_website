@@ -824,7 +824,8 @@ export default function AdminStudentsPage() {
         onClose={() => setClassModalOpen(false)}
         student={targetStudent}
         onSuccess={refetch}
-        classes={availableClasses}
+        mainClasses={filters.regularClasses}
+        programClasses={filters.programClasses}
       />
 
 

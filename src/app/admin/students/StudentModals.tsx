@@ -220,35 +220,60 @@ export function ConsultModal({ open, onClose, student, onSuccess }: ModalProps) 
 // 3. Class Modal
 // ----------------------------------------------------------------------
 interface ClassModalProps extends ModalProps {
-  classes: string[]; // List of class names
+  mainClasses: { id: string; name: string }[];
+  programClasses: { id: string; name: string }[];
 }
 
-export function ClassModal({ open, onClose, student, onSuccess, classes }: ClassModalProps) {
-  const [selectedClass, setSelectedClass] = useState<string>("");
+export function ClassModal({ open, onClose, student, onSuccess, mainClasses, programClasses }: ClassModalProps) {
+  const [selectedMainClass, setSelectedMainClass] = useState<string>("");
+  const [selectedPrograms, setSelectedPrograms] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
 
   useEffect(() => {
     if (open && student) {
-      setSelectedClass(student.main_class || ""); // Use main_class field
+      const fetchCurrent = async () => {
+        try {
+          setFetching(true);
+          const res = await fetch(`/api/admin/students/${student.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            setSelectedMainClass(data.main_class_id || "");
+            setSelectedPrograms(data.program_class_ids || []);
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setFetching(false);
+        }
+      };
+      fetchCurrent();
+    } else {
+      setSelectedMainClass("");
+      setSelectedPrograms([]);
     }
   }, [open, student]);
+
+  const toggleProgram = (id: string) => {
+    setSelectedPrograms(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
 
   const handleSave = async () => {
     if (!student) return;
     try {
       setLoading(true);
-      // If empty string, treat as null (no class) or validate?
-      // User requirement says "select class -> save". Assuming empty string means "no class" if allowed.
       
-      const res = await fetch("/api/admin/students/class", {
+      const res = await fetch(`/api/admin/students/${student.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          studentId: student.id, 
-          classId: selectedClass || null 
+          main_class_id: selectedMainClass || null,
+          program_class_ids: selectedPrograms
         }),
       });
-      if (!res.ok) throw new Error("Failed to update class");
+      if (!res.ok) throw new Error("Failed to update classes");
       
       onSuccess();
       onClose();
@@ -263,38 +288,70 @@ export function ClassModal({ open, onClose, student, onSuccess, classes }: Class
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6 relative">
+      <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 relative max-h-[90vh] flex flex-col">
         <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
           <X className="w-5 h-5" />
         </button>
-        <h2 className="text-lg font-bold mb-4">반 변경</h2>
+        <h2 className="text-lg font-bold mb-4">반 배정 관리</h2>
         <p className="text-sm text-slate-600 mb-4">
-          <span className="font-bold text-slate-900">{student.student_name}</span> 학생의 반을 변경합니다.
+          <span className="font-bold text-slate-900">{student.student_name}</span> 학생의 수강 반을 설정합니다.
         </p>
 
-        <div className="mb-6">
-          <label className="block text-sm font-bold text-slate-700 mb-2">반 선택</label>
-          <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            className="w-full p-3 border border-slate-200 rounded-lg text-sm bg-white"
-          >
-            <option value="">(반 없음)</option>
-            {classes.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+        <div className="flex-1 overflow-y-auto pr-2">
+          {fetching ? (
+            <div className="py-10 text-center text-slate-400">정보 불러오는 중...</div>
+          ) : (
+            <div className="space-y-6">
+              {/* Main Class Section */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">메인 클래스 (담임/등하원 기준)</label>
+                <select
+                  value={selectedMainClass}
+                  onChange={(e) => setSelectedMainClass(e.target.value)}
+                  className="w-full p-3 border border-slate-200 rounded-lg text-sm bg-white"
+                >
+                  <option value="">(미배정)</option>
+                  {mainClasses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Program Classes Section */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">수강 과목 (프로그램)</label>
+                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50">
+                  {programClasses.map((c) => (
+                    <label key={c.id} className="flex items-center gap-2 p-2 hover:bg-white rounded cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedPrograms.includes(c.id)}
+                        onChange={() => toggleProgram(c.id)}
+                        className="rounded border-slate-300 text-frage-blue focus:ring-frage-blue"
+                      />
+                      <span className="text-sm text-slate-700">{c.name}</span>
+                    </label>
+                  ))}
+                  {programClasses.length === 0 && (
+                    <div className="col-span-2 text-center text-slate-400 text-sm py-4">
+                      등록된 프로그램 반이 없습니다.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="mt-6 flex justify-end gap-2 pt-4 border-t border-slate-100">
           <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg">
             취소
           </button>
           <button
             onClick={handleSave}
-            disabled={loading}
+            disabled={loading || fetching}
             className="px-4 py-2 text-sm font-bold text-white bg-frage-blue hover:bg-blue-600 rounded-lg disabled:opacity-50"
           >
             {loading ? "저장 중..." : "저장"}

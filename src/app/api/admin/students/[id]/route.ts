@@ -2,6 +2,46 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = createSupabaseServer();
+    const { error: authError } = await requireAdmin(supabase);
+    if (authError) return authError;
+
+    const studentId = params.id;
+
+    // Fetch student main class
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("main_class_id")
+      .eq("id", studentId)
+      .single();
+
+    if (studentError) throw studentError;
+
+    // Fetch active program enrollments
+    const { data: enrollments, error: enrollError } = await supabase
+      .from("enrollments")
+      .select("class_id")
+      .eq("student_id", studentId)
+      .eq("enrollment_type", "program")
+      .eq("status", "active");
+
+    if (enrollError) throw enrollError;
+
+    return NextResponse.json({
+      main_class_id: student.main_class_id,
+      program_class_ids: enrollments.map((e) => e.class_id),
+    });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }

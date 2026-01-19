@@ -25,33 +25,31 @@ export async function GET() {
     });
     const campuses = Array.from(campusSet).sort();
 
-    // 2. Fetch Classes (from v_students_full where main_class is not null)
+    // 2. Fetch Classes (from classes table)
     const { data: classData, error: classError } = await supabase
-      .from("v_students_full")
-      .select("main_class, class_name")
-      .not("main_class", "is", null);
+      .from("classes")
+      .select("id, name, campus")
+      .order("name", { ascending: true });
 
     if (classError) throw classError;
 
-    const classMap = new Map<string, string>();
-    (classData || []).forEach((r: any) => {
-      if (r.main_class) {
-        classMap.set(r.main_class, r.class_name || r.main_class);
-      }
-    });
+    const availableClasses = (classData || []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      campus: c.campus
+    }));
 
     // Format for frontend
-    const availableClasses = Array.from(classMap.entries()).map(([id, name]) => ({
-      id,
-      name
-    })).sort((a, b) => a.name.localeCompare(b.name));
+    // We provide all classes as both regular and program classes for now
+    const regularClasses = availableClasses;
+    const programClasses = availableClasses.map(c => ({ ...c, program_name: c.name }));
 
     // Compatibility return structure
     return NextResponse.json({
       campuses,
       classes: availableClasses,
-      regularClasses: availableClasses, // Mapping same for simplicity as requested
-      programClasses: [],
+      regularClasses,
+      programClasses,
       programNames: [],
       buses: [], // Not requested to fix but keeping structure
       timeSlots: [],
