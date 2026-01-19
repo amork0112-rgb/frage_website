@@ -24,12 +24,19 @@ export async function GET(req: Request) {
     const cls = String(student.class_name ?? student.className ?? "");
     const camp = String(student.campus ?? "");
 
-    const { data: assignments } = await supabase
+    const assignmentId = searchParams.get("assignmentId");
+    
+    let query = supabase
       .from("video_assignments")
       .select("*")
       .eq("class_name", cls)
-      .eq("campus", camp)
-      .order("due_date", { ascending: true });
+      .eq("campus", camp);
+      
+    if (assignmentId) {
+      query = query.eq("id", assignmentId);
+    }
+    
+    const { data: assignments } = await query.order("due_date", { ascending: true });
 
     const { data: submissions } = await supabase
       .from("portal_video_submissions")
@@ -103,6 +110,7 @@ export async function GET(req: Request) {
             }
           : null,
         videoUrl: signedUrl,
+        videoPath: vp,
       };
     }));
 

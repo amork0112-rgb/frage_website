@@ -22,14 +22,10 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
     status: "Pending" | "Submitted" | "Reviewed" | string;
     feedback: {
       overall_message: string;
-      fluency_score: string;
-      volume_score: string;
-      speed_score: string;
-      pronunciation_score: string;
-      performance_score: string;
       strengths: string[];
       focus_point: string;
       next_try_guide: string;
+      details?: Record<string, string>;
     } | null;
   }>({
     id: params.id,
@@ -47,7 +43,6 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   const [cameraActive, setCameraActive] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
   const [videoPath, setVideoPath] = useState<string | null>(null);
 
   // Refs
@@ -74,92 +69,33 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
             currentStudentId = String(firstEnrolled.id);
             setStudentId(currentStudentId);
           } else {
-            // No student found
             setLoading(false);
             return;
           }
         }
 
-        // 2. Fetch Assignment Details
-        const { data: assignData, error: assignError } = await supabase
-          .from("video_assignments")
-          .select("*")
-          .eq("id", params.id)
-          .single();
+        // 2. Fetch Assignment Details via API
+        const res = await fetch(`/api/portal/video?studentId=${currentStudentId}&assignmentId=${params.id}`);
+        const data = await res.json();
+        const item = data.items && data.items.length > 0 ? data.items[0] : null;
 
-        if (assignError || !assignData) {
+        if (!item) {
           console.error("Assignment not found");
           setLoading(false);
           return;
         }
 
-        if (assignData.release_at) {
-          const release = new Date(assignData.release_at);
-          const now = new Date();
-          if (now < release) {
-            alert("This assignment is not yet released.");
-            router.push("/portal/video");
-            return;
-          }
-        }
-
-        // 3. Fetch Submission & Feedback
-        let status: "Pending" | "Submitted" | "Reviewed" = "Pending";
-        let feedback = null;
-        let vUrl = null;
-        let vPath = null;
-
-        const { data: subRows } = await supabase
-          .from("portal_video_submissions")
-          .select("*")
-          .eq("student_id", currentStudentId)
-          .eq("assignment_id", params.id);
+        // 3. Set State
+        setVideoPath(item.videoPath || null);
+        setVideoUrl(item.videoUrl || null);
         
-        const sub = (subRows && subRows.length > 0) ? subRows[0] : null;
-
-        if (sub) {
-          status = "Submitted";
-          vPath = sub.video_path;
-          if (vPath) {
-            setVideoPath(vPath);
-            const { data: signed } = await supabase.storage
-              .from("student-videos")
-              .createSignedUrl(vPath, 3600);
-            vUrl = signed?.signedUrl || null;
-          }
-
-          // Check feedback
-          const { data: feedRows } = await supabase
-            .from("portal_video_feedback")
-            .select("*")
-            .eq("student_id", currentStudentId)
-            .eq("assignment_id", params.id);
-          
-          const fb = (feedRows && feedRows.length > 0) ? feedRows[0] : null;
-          if (fb) {
-            status = "Reviewed";
-            feedback = {
-              overall_message: fb.overall_message || "",
-              strengths: Array.isArray(fb.strengths) ? fb.strengths : [],
-              focus_point: fb.focus_point || "",
-              next_try_guide: fb.next_try_guide || "",
-              fluency_score: String(fb.fluency || 0),
-              volume_score: String(fb.volume || 0),
-              speed_score: String(fb.speed || 0),
-              pronunciation_score: String(fb.pronunciation || 0),
-              performance_score: String(fb.performance || 0),
-            };
-          }
-        }
-
-        setVideoUrl(vUrl);
         setHomeworkData({
-          id: String(assignData.id),
-          subject: assignData.title,
-          module_code: assignData.module,
-          due_date: assignData.due_date,
-          status,
-          feedback
+          id: String(item.id),
+          subject: item.title,
+          module_code: item.module,
+          due_date: item.dueDate,
+          status: item.status,
+          feedback: item.feedback
         });
 
       } catch (err) {
@@ -319,11 +255,8 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       }
 
       setVideoPath(storagePath);
-      const { data: signed } = await supabase.storage
-        .from("student-videos")
-        .createSignedUrl(storagePath, 3600);
-      const url = signed?.signedUrl || null;
-      setVideoUrl(url);
+      // We can rely on the uploaded file's local URL for now, or fetch a signed one.
+      // For simplicity, we just keep the current view.
       setHomeworkData(prev => ({ ...prev, status: "Submitted" }));
       alert("Submitted successfully!");
 
@@ -401,6 +334,23 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
                </p>
             </div>
           </section>
+
+          {/* [5] Details (Table) - Added for consistency */}
+          {feedback.details && (
+            <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-3 bg-slate-50 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-500 uppercase">Evaluation Details</span>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {Object.entries(feedback.details).map(([key, value]) => (
+                  <div key={key} className="px-5 py-3 flex justify-between items-center text-sm">
+                    <span className="text-slate-600 font-medium">{key}</span>
+                    <span className="font-bold text-frage-blue">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Submitted Video Review */}
           {videoUrl && (
@@ -550,14 +500,10 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
                   <button 
                     onClick={handleSubmit}
                     disabled={isSubmitting}
-                    className="py-3 rounded-xl bg-frage-blue text-white font-bold shadow-lg shadow-blue-200 hover:bg-blue-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="py-3 rounded-xl bg-frage-blue text-white font-bold hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSubmitting ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <CheckCircle className="w-5 h-5" />
-                    )}
-                    Submit
+                    <CheckCircle className="w-4 h-4" />
+                    {isSubmitting ? "Submitting..." : "Submit Video"}
                   </button>
                 </div>
               </div>
