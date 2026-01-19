@@ -55,6 +55,13 @@ export async function GET(req: Request) {
     });
 
     const visibleAssignments = (assignments || []).filter((a: any) => {
+      // release_at check: if release date is in the future, it's a draft
+      if (a.release_at) {
+        const release = new Date(a.release_at);
+        const now = new Date();
+        if (now < release) return false;
+      }
+
       const desc = String(a.description || "");
       if (desc.startsWith("[DRAFT]")) return false;
       if (desc.startsWith("[SKIP]")) return false;
@@ -77,7 +84,7 @@ export async function GET(req: Request) {
         } catch {}
       }
       return {
-        id: `hw_${studentId}_${aid}`,
+        id: aid,
         title: String(a.title || ""),
         module: String(a.module || ""),
         dueDate: String(a.due_date ?? a.dueDate ?? ""),

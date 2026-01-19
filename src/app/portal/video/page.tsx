@@ -7,6 +7,7 @@ import { PlayCircle, CheckCircle, Clock, ChevronRight, Video, ChevronDown, Chevr
 
 export default function VideoListPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [studentId, setStudentId] = useState<string>("");
   const [homeworkList, setHomeworkList] = useState<Array<{
     id: string;
     title: string;
@@ -51,12 +52,13 @@ export default function VideoListPage() {
         const homePayload = await homeRes.json();
         const students = Array.isArray(homePayload?.students) ? homePayload.students : [];
         const firstEnrolled = students.find((s: any) => s.type === "enrolled") || students[0] || null;
-        const studentId = firstEnrolled && firstEnrolled.id ? String(firstEnrolled.id) : "";
-        if (!studentId) {
+        const sId = firstEnrolled && firstEnrolled.id ? String(firstEnrolled.id) : "";
+        if (!sId) {
           setHomeworkList([]);
           return;
         }
-        const res = await fetch(`/api/portal/video?studentId=${encodeURIComponent(studentId)}`);
+        setStudentId(sId);
+        const res = await fetch(`/api/portal/video?studentId=${encodeURIComponent(sId)}`);
         const data = await res.json();
         const list = Array.isArray(data?.items) ? data.items : [];
         const mapped = list.map((item: any) => ({
@@ -100,7 +102,7 @@ export default function VideoListPage() {
             {homeworkList.filter(hw => hw.status === "Pending").map((hw) => (
               <Link 
                 key={hw.id} 
-                href={`/portal/video/${hw.id}`}
+                href={`/portal/video/${hw.id}?studentId=${studentId}`}
                 className="block bg-white rounded-xl p-5 shadow-sm border border-slate-200 hover:border-frage-blue hover:shadow-md transition-all group"
               >
                 <div className="flex justify-between items-start mb-3">
