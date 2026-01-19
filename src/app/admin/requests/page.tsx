@@ -177,13 +177,14 @@ export default function AdminRequestsPage() {
     insert();
   };
 
-  const handleCardClick = async (id: string) => {
+  const toggleTeacherRead = async (id: string, current: boolean) => {
+    const next = !current;
     // Optimistic update
     setRequests((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, teacherRead: true } : r))
+      prev.map((r) => (r.id === id ? { ...r, teacherRead: next } : r))
     );
     // Server update
-    await supabase.from("portal_requests").update({ teacher_read: true }).eq("id", id);
+    await supabase.from("portal_requests").update({ teacher_read: next }).eq("id", id);
   };
 
   return (
@@ -277,12 +278,13 @@ export default function AdminRequestsPage() {
                   <th className="px-4 py-3 whitespace-nowrap">반</th>
                   <th className="px-4 py-3 whitespace-nowrap">구분</th>
                   <th className="px-4 py-3 w-full">사유</th>
+                  <th className="px-4 py-3 whitespace-nowrap">행정확인</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-6 text-center text-slate-500">해당 요청이 없습니다.</td>
+                    <td colSpan={8} className="p-6 text-center text-slate-500">해당 요청이 없습니다.</td>
                   </tr>
                 )}
                 {filtered.map((r) => (
@@ -325,6 +327,14 @@ export default function AdminRequestsPage() {
                         </span>
                       )}
                       {r.note}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center">
+                      <input
+                        type="checkbox"
+                        checked={r.teacherRead || false}
+                        onChange={() => toggleTeacherRead(r.id, r.teacherRead || false)}
+                        className="w-5 h-5 text-frage-navy rounded border-slate-300 focus:ring-frage-navy cursor-pointer"
+                      />
                     </td>
                   </tr>
                 ))}
