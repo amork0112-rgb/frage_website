@@ -76,49 +76,101 @@ export async function GET(_req: Request) {
     const guard = await requireAdmin(supabase);
     if ((guard as any).error) return (guard as any).error;
 
-    // Fetch raw requests directly from the table to ensure we get all columns (especially time)
-    const { data: rawRequests, error: reqError } = await supabaseService
-      .from("portal_requests")
+    // 1. Fetch from View (Preserves existing working logic for Name/Campus)
+    const { data: viewData, error: viewError } = await supabaseService
+      .from("v_portal_requests_with_student")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (reqError) {
-      console.error("REQUESTS FETCH ERROR", reqError);
-      return json({ ok: true, items: [] }, 200);
+    if (viewError) {
+      // Fallback: If view fails, try raw table
+      console.error("VIEW FETCH ERROR", viewError);
+      const { data: rawRequests, error: reqError } = await supabaseService
+        .from("portal_requests")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (reqError) return json({ ok: true, items: [] }, 200);
+      
+      // Basic return from raw table if view fails
+      return json({ 
+        ok: true, 
+        items: (rawRequests || []).map((row: any) => ({
+          id: String(row.id),
+          childId: String(row.child_id ?? ""),
+          childName: String(row.child_name ?? ""),
+          campus: String(row.campus ?? ""),
+          type: String(row.type ?? ""),
+          dateStart: String(row.date_start ?? ""),
+          dateEnd: row.date_end ? String(row.date_end) : undefined,
+          time: row.time ? String(row.time) : undefined,
+          note: row.note ? String(row.note) : undefined,
+          changeType: row.change_type ? String(row.change_type) : undefined,
+          medName: row.med_name ? String(row.med_name) : undefined,
+          createdAt: String(row.created_at ?? new Date().toISOString()),
+          status: row.status ? String(row.status) : undefined,
+          teacherRead: typeof row.teacher_read === "boolean" ? row.teacher_read : undefined,
+        }))
+      }, 200);
     }
 
-    // Collect student IDs to fetch class info
-    const studentIds = Array.from(new Set((rawRequests || []).map((r: any) => r.child_id).filter(Boolean)));
+    // 2. Fetch Raw Data for missing fields (Time)
+    const { data: rawData } = await supabaseService
+      .from("portal_requests")
+      .select("id, time, child_id");
+    
+    const timeMap: Record<string, string> = {};
+    const childIdMap: Record<string, string> = {};
+    (rawData || []).forEach((r: any) => {
+      if (r.time) timeMap[r.id] = r.time;
+      if (r.child_id) childIdMap[r.id] = r.child_id;
+    });
 
-    // Fetch student info (class_name, campus, etc.)
-    let studentMap: Record<string, any> = {};
+    // 3. Fetch Class Info (Class Name)
+    // Collect student IDs from the view data
+    const studentIds = Array.from(new Set((viewData || []).map((r: any) => r.student_id ?? r.child_id ?? childIdMap[r.id]).filter(Boolean)));
+    
+    let classMap: Record<string, string> = {};
     if (studentIds.length > 0) {
+      // Try fetching from v_students_full for class_name
       const { data: students } = await supabaseService
         .from("v_students_full")
-        .select("*")
+        .select("*") // Select all to be safe
         .in("student_id", studentIds);
       
       (students || []).forEach((s: any) => {
-        studentMap[s.student_id] = s;
+        // Map using student_id (or id if student_id is missing)
+        const sid = s.student_id ?? s.id;
+        if (sid) {
+          classMap[sid] = s.class_name ?? s.className ?? "";
+        }
       });
     }
 
-    const items = (rawRequests || []).map((row: any) => {
-      const student = studentMap[row.child_id] || {};
+    const items = (viewData || []).map((row: any) => {
+      const id = String(row.id);
+      const studentId = String(row.student_id ?? row.child_id ?? childIdMap[id] ?? "");
+      
       return {
-        id: String(row.id),
-        childId: String(row.child_id ?? ""),
-        childName: String(student.student_name ?? student.name ?? row.child_name ?? ""), 
-        campus: String(student.campus ?? row.campus ?? ""),
-        className: String(student.class_name ?? student.className ?? ""),
+        id: id,
+        childId: studentId,
+        childName: String(row.student_name ?? row.child_name ?? ""),
+        campus: String(row.campus ?? ""),
         type: String(row.type ?? ""),
         dateStart: String(row.date_start ?? ""),
         dateEnd: row.date_end ? String(row.date_end) : undefined,
-        time: row.time ? String(row.time) : undefined,
+        
+        // Enrich Time: Prefer raw table time, fallback to view time
+        time: timeMap[id] ? String(timeMap[id]) : (row.time ? String(row.time) : undefined),
+        
         note: row.note ? String(row.note) : undefined,
         changeType: row.change_type ? String(row.change_type) : undefined,
         medName: row.med_name ? String(row.med_name) : undefined,
         createdAt: String(row.created_at ?? new Date().toISOString()),
+        
+        // Enrich Class: Prefer joined class name, fallback to view class name
+        className: classMap[studentId] ? String(classMap[studentId]) : (row.class_name ? String(row.class_name) : undefined),
+        
         name: row.name ? String(row.name) : undefined,
         phone: row.phone ? String(row.phone) : undefined,
         source: row.source ? String(row.source) : undefined,
