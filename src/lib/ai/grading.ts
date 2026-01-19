@@ -26,7 +26,7 @@ export function mockAIGrading(studentName: string, videoUrl: string): AIEvaluati
   const seed = studentName.length; 
   const rand = (offset: number) => ((seed + offset) * 9301 + 49297) % 233280 / 233280;
 
-  const score = (offset: number) => Math.floor(rand(offset) * 2) + 2; // 2 to 3 mostly, sometimes 4
+  const score = (offset: number) => Math.floor(rand(offset) * 3) + 2; // 2 to 4 mostly, sometimes 5
   
   const scores = {
     fluency: score(1),
@@ -36,8 +36,8 @@ export function mockAIGrading(studentName: string, videoUrl: string): AIEvaluati
     performance: score(5),
   };
   
-  // Boost one to 4 if possible
-  if (rand(6) > 0.5) scores.performance = 4;
+  // Boost one to 5 if possible
+  if (rand(6) > 0.5) scores.performance = 5;
 
   const average = Math.round(((scores.fluency + scores.volume + scores.speed + scores.pronunciation + scores.performance) / 5) * 10) / 10;
 

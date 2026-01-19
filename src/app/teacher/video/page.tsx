@@ -71,31 +71,36 @@ const scoreDesc: Record<keyof Omit<Feedback, "overall_message" | "strengths" | "
     1: "Reads with frequent pauses",
     2: "Developing flow with some pauses",
     3: "Steady pacing with minor pauses",
-    4: "Smooth and confident flow"
+    4: "Smooth and confident flow",
+    5: "Flawless, native-like flow"
   },
   volume: {
     1: "Often too quiet to hear clearly",
     2: "Generally audible but inconsistent",
     3: "Clear and consistent volume",
-    4: "Strong, clear projection throughout"
+    4: "Strong, clear projection throughout",
+    5: "Perfectly modulated volume"
   },
   speed: {
     1: "Reads too slowly to maintain flow",
     2: "Developing pace, sometimes uneven",
     3: "Appropriate pace most of the time",
-    4: "Natural, well-controlled pacing"
+    4: "Natural, well-controlled pacing",
+    5: "Ideal pacing with dramatic pauses"
   },
   pronunciation: {
     1: "Frequent sound errors",
     2: "Generally accurate with some slips",
     3: "Mostly accurate articulation",
-    4: "Consistently precise pronunciation"
+    4: "Consistently precise pronunciation",
+    5: "Native-level precision"
   },
   performance: {
     1: "Limited expression; needs guidance",
     2: "Developing expression and focus",
     3: "Shows focus with expressive reading",
-    4: "Engaging and confident performance"
+    4: "Engaging and confident performance",
+    5: "Captivating, actor-like performance"
   }
 };
 
@@ -130,7 +135,9 @@ export default function TeacherVideoPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [attachments, setAttachments] = useState<{ name: string; size: number; type: string; url: string }[]>([]);
   const [saving, setSaving] = useState(false);
-  const [saveToast, setSaveToast] = useState<string>("");
+  const [saveToast, setSaveToast] = useState("");
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiMode, setAiMode] = useState<"gentle" | "balanced" | "direct">("balanced");
   const overallMax = 140;
   const focusMax = 120;
   const guideMax = 120;
@@ -344,7 +351,7 @@ export default function TeacherVideoPage() {
 
   const canSave = useMemo(() => {
     const keys = ["fluency", "volume", "speed", "pronunciation", "performance"] as const;
-    const okScores = keys.every(k => fb[k] >= 1 && fb[k] <= 4);
+    const okScores = keys.every(k => fb[k] >= 1 && fb[k] <= 5);
     const okOverall = fb.overall_message.trim().length > 0;
     const okFocus = fb.focus_point.trim().length > 0;
     const okGuide = fb.next_try_guide.trim().length > 0;
@@ -380,54 +387,47 @@ export default function TeacherVideoPage() {
     }
   };
 
-  const draftAI = () => {
+  const draftAI = async () => {
+    if (!openVideoFor) return;
     const scores = { fluency: fb.fluency, volume: fb.volume, speed: fb.speed, pronunciation: fb.pronunciation, performance: fb.performance };
-    const filled = Object.values(scores).every(v => v >= 1 && v <= 4);
-    const name = openVideoFor?.englishName || "Student";
-    const praise =
-      filled && scores.performance >= 3
-        ? "Great effort today — your expression made the reading engaging."
-        : "Great effort today — your confidence is growing with each try.";
-    const guidance =
-      filled && scores.fluency >= 3
-        ? "Keep building smooth phrasing and clear pauses at punctuation."
-        : "With steady practice, you’ll develop smoother flow and clearer sounds.";
-    const baseOverall = `${name} showed positive progress today. ${praise} ${guidance}`;
-    const recStrengths: string[] = [];
-    if (scores.pronunciation >= 3) recStrengths.push("Clear pronunciation");
-    if (scores.fluency >= 3) recStrengths.push("Steady pace");
-    if (scores.performance >= 3) recStrengths.push("Expressive intonation");
-    if (scores.speed >= 3) recStrengths.push("Well-managed punctuation pauses");
-    if (scores.volume >= 3) recStrengths.push("Consistent eye tracking");
-    const uniq = Array.from(new Set(recStrengths)).slice(0, 2);
-    const lowestKey = Object.entries(scores).sort((a, b) => a[1] - b[1])[0]?.[0] as keyof typeof scores | undefined;
-    const focus =
-      lowestKey === "speed"
-        ? "Focus on keeping a steady, calm pace from start to finish."
-        : lowestKey === "fluency"
-        ? "Focus on reducing mid-sentence pauses for smoother flow."
-        : lowestKey === "pronunciation"
-        ? "Focus on ending sounds so each word is clear."
-        : lowestKey === "volume"
-        ? "Focus on maintaining clear, consistent volume throughout."
-        : "Focus on slowing down slightly at the end of sentences.";
-    const guide =
-      lowestKey === "fluency"
-        ? "For the next video, read one page without pausing mid-sentence and keep your eyes on the text."
-        : lowestKey === "speed"
-        ? "For the next video, pause for one second at each period and aim for steady rhythm."
-        : lowestKey === "pronunciation"
-        ? "For the next video, emphasize ending sounds on each line to make words crisp."
-        : lowestKey === "volume"
-        ? "For the next video, aim for a clear voice on every sentence and check your distance from the mic."
-        : "For the next video, pause for one second at each period and finish sentences with calm tone.";
-    setFb(prev => ({
-      ...prev,
-      overall_message: baseOverall,
-      strengths: uniq,
-      focus_point: focus,
-      next_try_guide: guide
-    }));
+    
+    setIsGeneratingAI(true);
+    try {
+      const payload = {
+        student_name: openVideoFor.englishName || openVideoFor.name,
+        level: openVideoFor.className || "Kinder / G1",
+        task_type: openVideoFor.title,
+        scores,
+        pronunciation_mistakes: openVideoFor.aiEval?.pronunciation_flags?.map(f => f.word) || [],
+        reading_level: "early reader",
+        tone: "warm, encouraging, teacher-like",
+        constraints: { avoid_ai_words: true, max_sentences: 3 },
+        mode: aiMode
+      };
+
+      const res = await fetch("/api/teacher/video/ai-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error("AI generation failed");
+      const { data } = await res.json();
+      
+      setFb(prev => ({
+        ...prev,
+        overall_message: data.overall_message || "",
+        strengths: data.strengths || [],
+        focus_point: data.focus_point || "",
+        next_try_guide: data.next_try_guide || "",
+        parent_report_message: data.parent_report_message || ""
+      }));
+    } catch (err) {
+      console.error(err);
+      alert("AI Draft generation failed.");
+    } finally {
+      setIsGeneratingAI(false);
+    }
   };
   const onAttachFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).slice(0, 3);
@@ -677,7 +677,7 @@ export default function TeacherVideoPage() {
                     <div key={k} className="flex items-center justify-between gap-3 py-2">
                       <div className="w-28 text-xs font-bold text-slate-700 capitalize">{k}</div>
                       <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4].map(n => (
+                        {[1, 2, 3, 4, 5].map(n => (
                           <button
                             key={n}
                             onClick={() => setFb(prev => ({ ...prev, [k]: n }))}
@@ -771,12 +771,34 @@ export default function TeacherVideoPage() {
                     </div>
                   )}
                 </div>
+                
+                {/* AI Mode Selector */}
+                <div>
+                  <div className="text-[11px] font-bold text-slate-500 mb-2">AI Draft Mode</div>
+                  <div className="flex bg-slate-100 rounded-lg p-1">
+                    {(["gentle", "balanced", "direct"] as const).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setAiMode(m)}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-md capitalize transition-colors ${
+                          aiMode === m ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-2">
                   <button
                     onClick={draftAI}
-                    className="flex-1 px-3 py-2 rounded-lg text-sm font-bold bg-slate-900 text-white"
+                    disabled={isGeneratingAI}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-bold ${
+                      isGeneratingAI ? "bg-slate-300 text-slate-500 cursor-not-allowed" : "bg-slate-900 text-white"
+                    }`}
                   >
-                    AI Draft
+                    {isGeneratingAI ? "Generating..." : "AI Draft"}
                   </button>
                   <button
                     onClick={saveFeedback}
