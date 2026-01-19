@@ -39,7 +39,18 @@ export async function GET(req: Request) {
 
   let query = supabase
     .from("v_students_full")
-    .select("*", { count: "exact" });
+    .select(`
+      student_id as id,
+      student_name,
+      birth_date,
+      campus,
+      class_name,
+      class_id,
+      class_sort_order,
+      parent_phone,
+      dajim_enabled,
+      use_bus
+    `, { count: "exact" });
 
   if (campus && campus !== "All") {
     query = query.eq("campus", campus);
