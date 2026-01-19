@@ -76,33 +76,57 @@ export async function GET(_req: Request) {
     const guard = await requireAdmin(supabase);
     if ((guard as any).error) return (guard as any).error;
 
-    // Use INNER JOIN with students table as requested
-    const { data: requests, error } = await supabaseService
+    // 1. Fetch ALL Raw Requests
+    const { data: rawRequests, error: reqError } = await supabaseService
       .from("portal_requests")
-      .select(`
-        *,
-        students!inner (
-          id,
-          student_name,
-          class_name,
-          campus
-        )
-      `)
+      .select("*")
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("REQUESTS FETCH ERROR", error);
+    if (reqError) {
+      console.error("REQUESTS FETCH ERROR", reqError);
       return json({ ok: true, items: [] }, 200);
     }
 
-    const items = (requests || []).map((row: any) => {
-      const student = row.students || {};
-      return {
+    // 2. Collect Student IDs (support both child_id and student_id just in case)
+    const studentIds = Array.from(
+      new Set(
+        (rawRequests || [])
+          .map((r: any) => r.child_id || r.student_id)
+          .filter(Boolean)
+      )
+    );
+
+    // 3. Fetch Student Info from v_students_full (The standard student view)
+    let studentMap: Record<string, any> = {};
+    if (studentIds.length > 0) {
+      const { data: students } = await supabaseService
+        .from("v_students_full")
+        .select("*")
+        .in("student_id", studentIds);
+
+      (students || []).forEach((s: any) => {
+        if (s.student_id) studentMap[s.student_id] = s;
+      });
+    }
+
+    // 4. Merge & Filter (Simulate INNER JOIN)
+    const items: any[] = [];
+    (rawRequests || []).forEach((row: any) => {
+      const sId = row.child_id || row.student_id;
+      const student = studentMap[sId];
+
+      // INNER JOIN: Skip if student not found (invalid data)
+      if (!student) return;
+
+      items.push({
         id: String(row.id),
-        childId: String(student.id ?? row.child_id ?? ""),
-        childName: String(student.student_name ?? row.child_name ?? ""),
-        campus: String(student.campus ?? row.campus ?? ""),
+        childId: String(sId),
+        
+        // Data from v_students_full
+        childName: String(student.student_name ?? ""),
+        campus: String(student.campus ?? ""),
         className: String(student.class_name ?? ""),
+        
         type: String(row.type ?? ""),
         dateStart: String(row.date_start ?? ""),
         dateEnd: row.date_end ? String(row.date_end) : undefined,
@@ -111,12 +135,13 @@ export async function GET(_req: Request) {
         changeType: row.change_type ? String(row.change_type) : undefined,
         medName: row.med_name ? String(row.med_name) : undefined,
         createdAt: String(row.created_at ?? new Date().toISOString()),
+        
         name: row.name ? String(row.name) : undefined,
         phone: row.phone ? String(row.phone) : undefined,
         source: row.source ? String(row.source) : undefined,
         status: row.status ? String(row.status) : undefined,
         teacherRead: typeof row.teacher_read === "boolean" ? row.teacher_read : undefined,
-      };
+      });
     });
 
     return json({ ok: true, items }, 200);
