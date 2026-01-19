@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { Bell, Plus, Trash2, X, AlertCircle } from "lucide-react";
+import { useEffect, useState, useMemo, useRef } from "react";
+import { Bell, Plus, Trash2, X, AlertCircle, Smile } from "lucide-react";
 import { useRouter } from "next/navigation";
+import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 
 type Notice = {
   id: string;
@@ -36,6 +37,7 @@ export default function TeacherNoticesPage() {
   const [newContent, setNewContent] = useState("");
   const [selectedClassId, setSelectedClassId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -80,6 +82,10 @@ export default function TeacherNoticesPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    setNewContent((prev) => prev + emojiData.emoji);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -196,14 +202,42 @@ export default function TeacherNoticesPage() {
             </div>
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">Content</label>
-              <textarea
-                required
-                value={newContent}
-                onChange={(e) => setNewContent(e.target.value)}
-                placeholder="Write your notice here..."
-                rows={4}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-frage-blue/20 resize-none"
-              />
+              <div className="relative">
+                <textarea
+                  required
+                  value={newContent}
+                  onChange={(e) => setNewContent(e.target.value)}
+                  placeholder="Write your notice here..."
+                  rows={4}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-frage-blue/20 resize-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className="absolute bottom-2 right-2 p-1.5 text-slate-400 hover:text-frage-blue hover:bg-slate-100 rounded-lg transition-colors"
+                  title="Add emoji"
+                >
+                  <Smile className="w-5 h-5" />
+                </button>
+                {showEmojiPicker && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setShowEmojiPicker(false)} 
+                    />
+                    <div className="absolute bottom-full right-0 mb-2 z-20 shadow-xl rounded-xl border border-slate-200">
+                      <EmojiPicker
+                        onEmojiClick={onEmojiClick}
+                        width={300}
+                        height={350}
+                        searchDisabled={false}
+                        skinTonesDisabled
+                        previewConfig={{ showPreview: false }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button
