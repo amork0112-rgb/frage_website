@@ -261,7 +261,7 @@ export default function TeacherReportsPage() {
       }
     }, 800);
     return () => clearTimeout(timer);
-  }, [selected, month, gender, scores, comments, videoScores, overall, classOverall, videoSummary]);
+  }, [selected, month, gender, scores, comments, videoScores, overall, classOverall, videoSummary, participation]);
 
   const classes = useMemo(() => {
     const set = new Map<string, string>();
@@ -459,7 +459,14 @@ export default function TeacherReportsPage() {
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">Campus</label>
-              <select value={campusFilter} onChange={(e) => setCampusFilter(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+              <select
+                value={campusFilter}
+                onChange={(e) => {
+                  setCampusFilter(e.target.value);
+                  setClassFilter("All");
+                }}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              >
                 {campuses.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
