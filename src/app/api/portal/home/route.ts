@@ -127,7 +127,7 @@ export async function GET() {
           const key = String(s.student_id || "");
           const onboarding = key ? onboardingMap[key] : undefined;
           return {
-            id: key,
+            student_id: key,
             name: String(s.student_name || ""),
             englishName: String(s.english_first_name || ""),
             status: String(s.status || "promoted"),
@@ -161,7 +161,7 @@ export async function GET() {
 
     const newItems = Array.isArray(newStudents)
       ? newStudents.map((s: any) => ({
-          id: String(s.id || ""),
+          student_id: String(s.id || ""),
           name: String(s.student_name || ""),
           englishName: String(s.english_first_name || ""),
           status: String(s.status || "waiting"),

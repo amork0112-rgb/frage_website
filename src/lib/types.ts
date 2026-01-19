@@ -25,7 +25,7 @@ export type PostRevision = {
 };
 
 export type StudentFull = {
-  id: string;
+  student_id: string;
   student_name: string;
   english_first_name?: string;
   gender?: string;

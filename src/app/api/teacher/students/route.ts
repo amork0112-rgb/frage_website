@@ -26,7 +26,7 @@ type StudentRow = {
 };
 
 type Student = {
-  id: string;
+  student_id: string;
   childId?: string;
   name: string;
   englishName: string;
@@ -238,7 +238,7 @@ export async function GET(request: Request) {
 
 function formatResponse(rows: StudentRow[], page: number, pageSize: number) {
   const base: Student[] = rows.map((r) => ({
-    id: String(r.student_id),
+    student_id: String(r.student_id),
     name: String(r.student_name ?? ""),
     englishName: String(r.english_first_name ?? ""),
     classId: String(r.main_class ?? r.class_id ?? ""),

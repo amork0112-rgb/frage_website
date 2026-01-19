@@ -161,7 +161,7 @@ export default function ChildPage() {
             const homeRes = await fetch("/api/portal/home", { cache: "no-store" });
             const homePayload = await homeRes.json().catch(() => ({}));
             const students = Array.isArray(homePayload?.students) ? homePayload.students : [];
-            const target = students.find((st: any) => String(st.id) === rawStudentId);
+            const target = students.find((st: any) => String(st.student_id) === rawStudentId);
             if (target) {
               const pickupMethod: "shuttle" | "academy" | "self" =
                 target.pickup_method === "academy" || target.pickup_method === "self"

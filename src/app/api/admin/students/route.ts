@@ -6,20 +6,39 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 
 type Status = "waiting" | "consultation_reserved" | "consult_done" | "approved" | "promoted" | "rejected" | "hold";
 
-type Student = {
-  id: string;
+export type StudentView = {
+  // identity
+  student_id: string;
+
+  // student
   student_name: string;
+  birth_date: string | null;
+  gender: "M" | "F" | null;
   campus: string;
+  english_first_name?: string | null;
   status: Status;
-  address: string;
+  dajim_enabled: boolean;
+  use_bus?: boolean | null;
+
+  // address / transport
+  address?: string | null;
   pickup_lat?: number | null;
   pickup_lng?: number | null;
   dropoff_lat?: number | null;
   dropoff_lng?: number | null;
+
+  // parent
+  parent_id?: string | null;
   parent_auth_user_id?: string | null;
-  source_new_student_id?: string | null;
-  created_at: string;
+  parent_name?: string | null;
+  parent_phone?: string | null;
+
+  // class
+  class_id?: string | null;
+  class_name?: string | null;
+  class_sort_order?: number | null;
 };
+
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -40,7 +59,7 @@ export async function GET(req: Request) {
   let query = supabase
     .from("v_students_full")
     .select(`
-      student_id as id,
+      student_id,
       student_name,
       birth_date,
       campus,
@@ -95,12 +114,12 @@ export async function GET(req: Request) {
   const rawStudents = data ?? [];
   const uniqueStudentsMap = new Map();
   rawStudents.forEach((s: any) => {
-    if (s.id && !uniqueStudentsMap.has(s.id)) {
-      uniqueStudentsMap.set(s.id, s);
+    if (s.student_id && !uniqueStudentsMap.has(s.student_id)) {
+      uniqueStudentsMap.set(s.student_id, s);
     }
   });
   const students = Array.from(uniqueStudentsMap.values());
-  const studentIds = students.map((s: any) => s.id);
+  const studentIds = students.map((s: any) => s.student_id);
   
   if (studentIds.length > 0) {
     const { data: enrollments } = await supabase
@@ -119,7 +138,7 @@ export async function GET(req: Request) {
     });
 
     students.forEach((s: any) => {
-      s.program_classes = enrollmentMap[s.id] || [];
+      s.program_classes = enrollmentMap[s.student_id] || [];
     });
   }
 

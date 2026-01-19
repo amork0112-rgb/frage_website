@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 type Status = "waiting" | "consultation_reserved" | "consult_done" | "approved" | "promoted" | "rejected" | "hold";
 
 type Student = {
-  id: string;
+  student_id: string;
   childId?: string;
   name: string;
   englishName: string;
@@ -102,7 +102,7 @@ export default function TeacherStudentsPage() {
   }, []);
 
   const merged = useMemo(() => {
-    return students.map(s => ({ ...s, ...(updates[s.id] || {}) }));
+    return students.map(s => ({ ...s, ...(updates[s.student_id] || {}) }));
   }, [students, updates]);
 
   const filtered = useMemo(() => {
@@ -155,16 +155,16 @@ export default function TeacherStudentsPage() {
       const author = String(data?.user?.email ?? "담임");
       const at = new Date().toISOString();
       await supabase.from("student_memos").insert({
-        student_id: memoOpenFor.id,
+        student_id: memoOpenFor.student_id,
         text: newMemo.trim(),
         author,
         tag: newMemoType,
         at,
       });
       const next = { ...memos };
-      const list = next[memoOpenFor.id] || [];
+      const list = next[memoOpenFor.];
       list.unshift({ text: newMemo.trim(), author, at, tag: newMemoType });
-      next[memoOpenFor.id] = list;
+      next[memoOpenFor.st;
       setMemos(next);
       setNewMemo("");
       setNewMemoType("기타");
@@ -232,7 +232,7 @@ export default function TeacherStudentsPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.slice(0, 50).map(s => (
-                <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={s.student_id} className="hover:bg-slate-50 transition-colors">
                   <td className="p-3">
                     <button onClick={() => openInfoPanel(s)} className="text-slate-900 font-bold hover:underline">{s.name}</button>
                     <div className="text-xs text-slate-400">{s.phone}</div>
@@ -253,13 +253,13 @@ export default function TeacherStudentsPage() {
                   <td className="p-3 text-center">{s.bus}</td>
                   <td className="p-3 text-center">{s.departureTime}</td>
                   <td className="p-3">
-                    {Array.isArray(memos[s.id]) && memos[s.id].length > 0 ? (
+                    {Array.isArray(memos[s.student_id]) && memos[s.student_id].length > 0 ? (
                       <button
                         onClick={() => openMemoPanel(s)}
                         className="px-2 py-1 rounded-lg border border-slate-200 text-sm bg-white hover:bg-slate-100 max-w-[220px] text-left transition-all"
                         style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
                       >
-                        <span className="text-slate-700">[{memos[s.id][0].tag || "기타"}] {previewText(memos[s.id][0].text)}</span>
+                        <span className="text-slate-700">[{memos[s.student_id][0].tag || "기타"}] {previewText(memos[s.student_id][0].text)}</span>
                       </button>
                     ) : (
                       <button
@@ -348,7 +348,7 @@ export default function TeacherStudentsPage() {
           >
             <h3 id="memo-panel-title" className="text-lg font-black text-slate-900 mb-4">메모</h3>
             <div className="flex-1 overflow-auto space-y-2">
-              {(memos[memoOpenFor.id] || []).map((m, i) => (
+              {(memos[memoOpenFor.student_id] || []).map((m, i) => (
                 <div key={i} className="rounded-lg border border-slate-200 px-3 py-2">
                   <div className="text-xs font-bold text-slate-600 mb-1">[{m.tag || "기타"}]</div>
                   <div className="text-sm text-slate-800 break-words whitespace-pre-line">{m.text}</div>

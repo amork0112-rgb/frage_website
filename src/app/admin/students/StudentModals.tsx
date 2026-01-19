@@ -2,46 +2,51 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { StudentFull } from "@/lib/types";
+import { StudentView } from "@/lib/types";
 
 interface ModalProps {
   open: boolean;
   onClose: () => void;
-  student: StudentFull | null;
+  student: StudentView | null;
   onSuccess: () => void;
 }
 
-// ----------------------------------------------------------------------
-// 1. Status Modal
-// ----------------------------------------------------------------------
-const STATUS_OPTIONS = ["재원", "휴원", "퇴원"];
+/* ======================================================
+   1. Status Modal
+====================================================== */
+
+const STATUS_OPTIONS = ["재원", "휴원", "퇴원"] as const;
 
 export function StatusModal({ open, onClose, student, onSuccess }: ModalProps) {
-  const [status, setStatus] = useState<string>("");
+  const [status, setStatus] = useState<string>("재원");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open && student) {
-      // 만약 student.status가 옵션에 없으면 기본값 "재원"
-      setStatus(STATUS_OPTIONS.includes(student.status) ? student.status : "재원");
+      setStatus(STATUS_OPTIONS.includes(student.status as any) ? student.status : "재원");
     }
   }, [open, student]);
 
   const handleSave = async () => {
     if (!student) return;
+
     try {
       setLoading(true);
       const res = await fetch("/api/admin/students/status", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentId: student.id, status }),
+        body: JSON.stringify({
+          studentId: student.student_id,
+          status,
+        }),
       });
-      if (!res.ok) throw new Error("Failed to update status");
-      
+
+      if (!res.ok) throw new Error("상태 변경 실패");
+
       onSuccess();
       onClose();
     } catch (e) {
-      alert("상태 변경 실패: " + e);
+      alert(String(e));
     } finally {
       setLoading(false);
     }
@@ -52,39 +57,33 @@ export function StatusModal({ open, onClose, student, onSuccess }: ModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
-          <X className="w-5 h-5" />
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400">
+          <X />
         </button>
+
         <h2 className="text-lg font-bold mb-4">상태 변경</h2>
-        <p className="text-sm text-slate-600 mb-4">
-          <span className="font-bold text-slate-900">{student.student_name}</span> 학생의 상태를 변경합니다.
+        <p className="text-sm mb-4">
+          <strong>{student.student_name}</strong> 학생
         </p>
 
         <div className="space-y-2 mb-6">
           {STATUS_OPTIONS.map((opt) => (
-            <label key={opt} className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
+            <label key={opt} className="flex items-center gap-2 p-2 border rounded cursor-pointer">
               <input
                 type="radio"
                 name="status"
                 value={opt}
                 checked={status === opt}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-4 h-4 text-frage-blue"
+                onChange={() => setStatus(opt)}
               />
-              <span className="text-sm font-bold text-slate-700">{opt}</span>
+              <span>{opt}</span>
             </label>
           ))}
         </div>
 
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg">
-            취소
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={loading}
-            className="px-4 py-2 text-sm font-bold text-white bg-frage-blue hover:bg-blue-600 rounded-lg disabled:opacity-50"
-          >
+          <button onClick={onClose}>취소</button>
+          <button onClick={handleSave} disabled={loading} className="bg-frage-blue text-white px-4 py-2 rounded">
             {loading ? "저장 중..." : "저장"}
           </button>
         </div>
@@ -93,9 +92,10 @@ export function StatusModal({ open, onClose, student, onSuccess }: ModalProps) {
   );
 }
 
-// ----------------------------------------------------------------------
-// 2. Consult Modal
-// ----------------------------------------------------------------------
+/* ======================================================
+   2. Consult Modal
+====================================================== */
+
 interface ConsultRecord {
   id: string;
   content: string;
@@ -103,58 +103,39 @@ interface ConsultRecord {
   created_at: string;
 }
 
-export function ConsultModal({ open, onClose, student, onSuccess }: ModalProps) {
+export function ConsultModal({ open, onClose, student }: ModalProps) {
   const [records, setRecords] = useState<ConsultRecord[]>([]);
   const [newContent, setNewContent] = useState("");
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(false);
 
-  // Fetch records when modal opens
   useEffect(() => {
-    if (open && student) {
-      fetchRecords();
-    } else {
-      setRecords([]);
-      setNewContent("");
-    }
+    if (open && student) fetchRecords();
+    else setRecords([]);
   }, [open, student]);
 
   const fetchRecords = async () => {
     if (!student) return;
-    try {
-      setFetching(true);
-      const res = await fetch(`/api/admin/student-consults?studentId=${student.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setRecords(Array.isArray(data) ? data : []);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setFetching(false);
-    }
+    const res = await fetch(`/api/admin/student-consults?studentId=${student.student_id}`);
+    if (res.ok) setRecords(await res.json());
   };
 
   const handleAdd = async () => {
     if (!student || !newContent.trim()) return;
+
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/student-consults", {
+      await fetch("/api/admin/student-consults", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          student_id: student.id,
+          student_id: student.student_id,
           content: newContent,
-          created_by: "관리자", // 실제로는 세션에서 가져와야 하지만, API에서 처리하거나 여기서 보냄
+          created_by: "관리자",
         }),
       });
-      if (!res.ok) throw new Error("Failed to add consult");
 
       setNewContent("");
-      fetchRecords(); // Refresh list
-      // onSuccess(); // Optional: if we want to refresh student list (e.g. consult count)
-    } catch (e) {
-      alert("상담 기록 추가 실패: " + e);
+      fetchRecords();
     } finally {
       setLoading(false);
     }
@@ -164,121 +145,98 @@ export function ConsultModal({ open, onClose, student, onSuccess }: ModalProps) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 relative max-h-[80vh] flex flex-col">
-        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
-          <X className="w-5 h-5" />
+      <div className="bg-white rounded-xl w-full max-w-lg p-6 relative">
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400">
+          <X />
         </button>
-        <h2 className="text-lg font-bold mb-1">상담 기록</h2>
-        <p className="text-sm text-slate-600 mb-4">{student.student_name}</p>
 
-        <div className="flex-1 overflow-y-auto mb-4 border rounded-lg p-4 bg-slate-50 min-h-[200px]">
-          {fetching ? (
-            <div className="text-center text-slate-400 py-4">로딩 중...</div>
-          ) : records.length === 0 ? (
-            <div className="text-center text-slate-400 py-4">기록이 없습니다.</div>
-          ) : (
-            <div className="space-y-4">
-              {records.map((r) => (
-                <div key={r.id} className="bg-white p-3 rounded border border-slate-200 shadow-sm">
-                  <div className="text-sm text-slate-800 whitespace-pre-wrap">{r.content}</div>
-                  <div className="mt-2 text-xs text-slate-400 flex justify-between">
-                    <span>{r.created_by}</span>
-                    <span>{new Date(r.created_at).toLocaleString()}</span>
-                  </div>
-                </div>
-              ))}
+        <h2 className="text-lg font-bold mb-4">상담 기록</h2>
+
+        <div className="space-y-3 max-h-60 overflow-y-auto mb-4">
+          {records.map((r) => (
+            <div key={r.id} className="border p-3 rounded">
+              <div className="text-sm whitespace-pre-wrap">{r.content}</div>
+              <div className="text-xs text-slate-400 mt-1">
+                {r.created_by} · {new Date(r.created_at).toLocaleString()}
+              </div>
             </div>
-          )}
+          ))}
         </div>
 
-        <div className="mt-auto">
-          <textarea
-            value={newContent}
-            onChange={(e) => setNewContent(e.target.value)}
-            placeholder="새로운 상담 내용을 입력하세요..."
-            className="w-full p-3 border border-slate-200 rounded-lg text-sm mb-3 focus:ring-2 focus:ring-frage-blue outline-none resize-none h-24"
-          />
-          <div className="flex justify-end gap-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg">
-              닫기
-            </button>
-            <button
-              onClick={handleAdd}
-              disabled={loading || !newContent.trim()}
-              className="px-4 py-2 text-sm font-bold text-white bg-frage-blue hover:bg-blue-600 rounded-lg disabled:opacity-50"
-            >
-              {loading ? "저장 중..." : "기록 추가"}
-            </button>
-          </div>
+        <textarea
+          value={newContent}
+          onChange={(e) => setNewContent(e.target.value)}
+          className="w-full border rounded p-2 mb-3"
+          placeholder="상담 내용 입력"
+        />
+
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose}>닫기</button>
+          <button onClick={handleAdd} disabled={loading} className="bg-frage-blue text-white px-4 py-2 rounded">
+            {loading ? "저장 중..." : "추가"}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// ----------------------------------------------------------------------
-// 3. Class Modal
-// ----------------------------------------------------------------------
+/* ======================================================
+   3. Class Modal
+====================================================== */
+
 interface ClassModalProps extends ModalProps {
   mainClasses: { id: string; name: string }[];
   programClasses: { id: string; name: string }[];
 }
 
-export function ClassModal({ open, onClose, student, onSuccess, mainClasses, programClasses }: ClassModalProps) {
-  const [selectedMainClass, setSelectedMainClass] = useState<string>("");
+export function ClassModal({
+  open,
+  onClose,
+  student,
+  onSuccess,
+  mainClasses,
+  programClasses,
+}: ClassModalProps) {
+  const [selectedMainClass, setSelectedMainClass] = useState("");
   const [selectedPrograms, setSelectedPrograms] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(false);
 
   useEffect(() => {
-    if (open && student) {
-      const fetchCurrent = async () => {
-        try {
-          setFetching(true);
-          const res = await fetch(`/api/admin/students/${student.id}`);
-          if (res.ok) {
-            const data = await res.json();
-            setSelectedMainClass(data.main_class_id || "");
-            setSelectedPrograms(data.program_class_ids || []);
-          }
-        } catch (e) {
-          console.error(e);
-        } finally {
-          setFetching(false);
-        }
-      };
-      fetchCurrent();
-    } else {
-      setSelectedMainClass("");
-      setSelectedPrograms([]);
-    }
+    if (!open || !student) return;
+
+    (async () => {
+      const res = await fetch(`/api/admin/students/${student.student_id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedMainClass(data.main_class_id ?? "");
+        setSelectedPrograms(data.program_class_ids ?? []);
+      }
+    })();
   }, [open, student]);
 
   const toggleProgram = (id: string) => {
-    setSelectedPrograms(prev => 
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    setSelectedPrograms((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
   const handleSave = async () => {
     if (!student) return;
+
     try {
       setLoading(true);
-      
-      const res = await fetch(`/api/admin/students/${student.id}`, {
+      await fetch(`/api/admin/students/${student.student_id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           main_class_id: selectedMainClass || null,
-          program_class_ids: selectedPrograms
+          program_class_ids: selectedPrograms,
         }),
       });
-      if (!res.ok) throw new Error("Failed to update classes");
-      
+
       onSuccess();
       onClose();
-    } catch (e) {
-      alert("반 변경 실패: " + e);
     } finally {
       setLoading(false);
     }
@@ -288,72 +246,48 @@ export function ClassModal({ open, onClose, student, onSuccess, mainClasses, pro
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 relative max-h-[90vh] flex flex-col">
-        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
-          <X className="w-5 h-5" />
+      <div className="bg-white rounded-xl w-full max-w-lg p-6 relative">
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400">
+          <X />
         </button>
-        <h2 className="text-lg font-bold mb-4">반 배정 관리</h2>
-        <p className="text-sm text-slate-600 mb-4">
-          <span className="font-bold text-slate-900">{student.student_name}</span> 학생의 수강 반을 설정합니다.
-        </p>
 
-        <div className="flex-1 overflow-y-auto pr-2">
-          {fetching ? (
-            <div className="py-10 text-center text-slate-400">정보 불러오는 중...</div>
-          ) : (
-            <div className="space-y-6">
-              {/* Main Class Section */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">메인 클래스 (담임/등하원 기준)</label>
-                <select
-                  value={selectedMainClass}
-                  onChange={(e) => setSelectedMainClass(e.target.value)}
-                  className="w-full p-3 border border-slate-200 rounded-lg text-sm bg-white"
-                >
-                  <option value="">(미배정)</option>
-                  {mainClasses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        <h2 className="text-lg font-bold mb-4">반 배정</h2>
 
-              {/* Program Classes Section */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">수강 과목 (프로그램)</label>
-                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50">
-                  {programClasses.map((c) => (
-                    <label key={c.id} className="flex items-center gap-2 p-2 hover:bg-white rounded cursor-pointer transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={selectedPrograms.includes(c.id)}
-                        onChange={() => toggleProgram(c.id)}
-                        className="rounded border-slate-300 text-frage-blue focus:ring-frage-blue"
-                      />
-                      <span className="text-sm text-slate-700">{c.name}</span>
-                    </label>
-                  ))}
-                  {programClasses.length === 0 && (
-                    <div className="col-span-2 text-center text-slate-400 text-sm py-4">
-                      등록된 프로그램 반이 없습니다.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="mb-4">
+          <label className="font-bold text-sm">메인 클래스</label>
+          <select
+            value={selectedMainClass}
+            onChange={(e) => setSelectedMainClass(e.target.value)}
+            className="w-full border rounded p-2"
+          >
+            <option value="">미배정</option>
+            {mainClasses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div className="mt-6 flex justify-end gap-2 pt-4 border-t border-slate-100">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg">
-            취소
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={loading || fetching}
-            className="px-4 py-2 text-sm font-bold text-white bg-frage-blue hover:bg-blue-600 rounded-lg disabled:opacity-50"
-          >
+        <div className="mb-6">
+          <label className="font-bold text-sm">프로그램</label>
+          <div className="grid grid-cols-2 gap-2">
+            {programClasses.map((c) => (
+              <label key={c.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={selectedPrograms.includes(c.id)}
+                  onChange={() => toggleProgram(c.id)}
+                />
+                {c.name}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose}>취소</button>
+          <button onClick={handleSave} disabled={loading} className="bg-frage-blue text-white px-4 py-2 rounded">
             {loading ? "저장 중..." : "저장"}
           </button>
         </div>

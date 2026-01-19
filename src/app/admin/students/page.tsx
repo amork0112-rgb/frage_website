@@ -203,7 +203,7 @@ export default function AdminStudentsPage() {
 
   const merged = useMemo(() => {
     return limitedByRole.map(s => {
-      const u = updates[s.id] || {};
+      const u = updates[s.student_id] || {};
       return { ...s, ...u };
     });
   }, [limitedByRole, updates]);
@@ -251,7 +251,7 @@ export default function AdminStudentsPage() {
       if (typeof next.dajim_enabled !== "undefined") payload.dajim_enabled = next.dajim_enabled;
       if (Object.keys(payload).length === 0) return;
       await supabase.from("students").update(payload).eq("id", id);
-      setStudents(prev => prev.map(s => (s.id === id ? { ...s, ...next } : s)));
+      setStudents(prev => prev.map(s => (s.student_id === id ? { ...s, ...next } : s)));
     };
     apply();
   };
@@ -263,7 +263,7 @@ export default function AdminStudentsPage() {
 
   const toggleSelectAll = () => {
     if (role === "teacher") return;
-    const ids = filtered.map(s => s.id);
+    const ids = filtered.map(s => s.student_id);
     const allSelected = ids.every(id => selectedStudentIds.includes(id));
     setSelectedStudentIds(allSelected ? [] : ids);
   };
@@ -287,7 +287,7 @@ export default function AdminStudentsPage() {
     if (!targetClassObj) return;
     const targetClassName = targetClassObj.name;
 
-    const selectedStudents = merged.filter(s => selectedStudentIds.includes(s.id));
+    const selectedStudents = merged.filter(s => selectedStudentIds.includes(s.student_id));
     if (!selectedStudents.length) return;
     
     // Filter out students who are already in this class (optional, but good for efficiency)
@@ -306,17 +306,17 @@ export default function AdminStudentsPage() {
         const oldClass = s.class_name;
         if (oldClass === targetClassName) return; // Skip if same
 
-        newUpdates[s.id] = { ...(newUpdates[s.id] || {}), class_name: targetClassName };
+        newUpdates[s.student_id] = { ...(newUpdates[s.student_id] || {}), class_name: targetClassName };
         const entry = `${date} 반 일괄 변경: ${oldClass} → ${targetClassName} 처리자: ${admin}`;
-        const list = newLogs[s.id] || [];
+        const list = newLogs[s.student_id] || [];
         list.push(entry);
-        newLogs[s.id] = list;
+        newLogs[s.student_id] = list;
         
         // Update main_class_id in DB
-        await supabase.from("students").update({ main_class_id: selectedTargetClass }).eq("id", s.id);
+        await supabase.from("students").update({ main_class_id: selectedTargetClass }).eq("id", s.student_id);
 
         await supabase.from("student_status_logs").insert({
-          student_id: s.id,
+          student_id: s.student_id,
           type: "class_change",
           message: entry,
           at: new Date().toISOString(),
@@ -373,12 +373,12 @@ export default function AdminStudentsPage() {
     const author = String(data?.user?.email ?? "관리자");
     const at = new Date().toISOString();
     const next = { ...memos };
-    const list = next[memoOpenFor.id] || [];
+    const list = next[memoOpenFor.student_id] || [];
     list.unshift({ text: newMemo.trim(), author, at, tag: newMemoType });
-    next[memoOpenFor.id] = list;
+    next[memoOpenFor.student_id] = list;
     setMemos(next);
     await supabase.from("student_memos").insert({
-      student_id: memoOpenFor.id,
+      student_id: memoOpenFor.student_id,
       text: newMemo.trim(),
       author,
       tag: newMemoType,
@@ -519,7 +519,7 @@ export default function AdminStudentsPage() {
                 <th className="p-3 font-bold w-10">
                   <input
                     type="checkbox"
-                    checked={filtered.length > 0 && filtered.every(s => selectedStudentIds.includes(s.id))}
+                    checked={filtered.length > 0 && filtered.every(s => selectedStudentIds.includes(s.student_id))}
                     onChange={toggleSelectAll}
                     disabled={role === "teacher"}
                     className="rounded border border-slate-200 text-frage-blue focus:ring-frage-blue"
@@ -538,12 +538,12 @@ export default function AdminStudentsPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map(s => (
-                <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={s.student_id} className="hover:bg-slate-50 transition-colors">
                   <td className="p-3">
                     <input
                       type="checkbox"
-                      checked={selectedStudentIds.includes(s.id)}
-                      onChange={() => toggleSelect(s.id)}
+                      checked={selectedStudentIds.includes(s.student_id)}
+                      onChange={() => toggleSelect(s.student_id)}
                       disabled={role === "teacher"}
                       className="rounded border border-slate-200 text-frage-blue focus:ring-frage-blue"
                     />
@@ -573,14 +573,14 @@ export default function AdminStudentsPage() {
                     {s.dajim_enabled ? <span className="text-green-600">✔</span> : <span className="text-slate-300">-</span>}
                   </td>
                   <td className="p-3">
-                    {Array.isArray(memos[s.id]) && memos[s.id].length > 0 ? (
+                    {Array.isArray(memos[s.student_id]) && memos[s.student_id].length > 0 ? (
                       <button
                         onClick={() => openMemoPanel(s)}
                         aria-label="메모 전체 보기"
                         className="px-2 py-1 rounded-lg border border-slate-200 text-sm bg-white hover:bg-slate-100 max-w-[220px] text-left transition-all"
                         style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
                       >
-                        <span className="text-slate-700">[{memos[s.id][0].tag || "기타"}] {previewText(memos[s.id][0].text)}</span>
+                        <span className="text-slate-700">[{memos[s.student_id][0].tag || "기타"}] {previewText(memos[s.student_id][0].text)}</span>
                       </button>
                     ) : (
                       <button
@@ -713,7 +713,7 @@ export default function AdminStudentsPage() {
               <button onClick={() => setMemoOpenFor(null)} className="p-2 text-slate-400 hover:text-slate-600">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {memos[memoOpenFor.id]?.map((m, i) => (
+              {memos[memoOpenFor.student_id]?.map((m, i) => (
                 <div key={i} className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                   <div className="flex justify-between items-start mb-1">
                     <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
@@ -728,7 +728,7 @@ export default function AdminStudentsPage() {
                   <div className="text-[10px] text-slate-400 mt-2 text-right">by {m.author}</div>
                 </div>
               ))}
-              {(!memos[memoOpenFor.id] || memos[memoOpenFor.id].length === 0) && (
+              {(!memos[memoOpenFor.student_id] || memos[memoOpenFor.student_id].length === 0) && (
                 <div className="text-center py-10 text-slate-400 text-sm">기록된 메모가 없습니다.</div>
               )}
             </div>
@@ -812,7 +812,7 @@ export default function AdminStudentsPage() {
                       onChange={(e) => {
                         const checked = e.target.checked;
                         setInfoStudent(prev => prev ? ({ ...prev, dajim_enabled: checked }) : null);
-                        saveUpdate(infoStudent.id, { dajim_enabled: checked });
+                        saveUpdate(infoStudent.student_id, { dajim_enabled: checked });
                       }}
                     />
                     <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-frage-blue rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-frage-blue"></div>

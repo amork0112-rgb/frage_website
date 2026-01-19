@@ -104,7 +104,7 @@ export async function POST(request: Request) {
 
       const { count: studentCount, error: studentErr } = await supabaseService
         .from("v_students_full")
-        .select("*", { count: "exact", head: true })
+        .select("student_id", { count: "exact", head: true })
         .eq("parent_id", parentId);
 
       console.log("[OTP][students count]", {

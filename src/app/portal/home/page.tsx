@@ -120,14 +120,14 @@ export default function ParentPortalHome() {
           setStudentStatus("enrolled");
           setStudentType("enrolled");
         }
-        if (first && first.id) {
-          setStudentId(String(first.id));
+        if (first && first.student_id) {
+          setStudentId(String(first.student_id));
         } else {
           setStudentId(null);
         }
         if (first && first.type === "enrolled") {
-          if (first.onboarding_step === "transport" && first.id) {
-            router.replace(`/portal/onboarding/transport?studentId=${first.id}`);
+          if (first.onboarding_step === "transport" && first.student_id) {
+            router.replace(`/portal/onboarding/transport?studentId=${first.student_id}`);
             return;
           }
           const profileCompleted = first.profile_completed === true;
