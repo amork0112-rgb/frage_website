@@ -70,6 +70,7 @@ export default function TeacherHeader() {
       ],
     },
     { name: "Reports", href: "/teacher/reports", icon: FileText },
+    { name: "Notices", href: "/teacher/notices", icon: Bell },
   ];
 
   const handleLogout = () => {
