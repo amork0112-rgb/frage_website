@@ -668,7 +668,7 @@ export default function TeacherVideoManagementPage() {
                     {a.campus === "International" && (
                       <span
                         className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700"
-                        title="This assignment is managed in the International semi-automatic flow."
+                        title="This assignment is managed in the semi-automatic flow."
                       >
                         Intl
                       </span>
