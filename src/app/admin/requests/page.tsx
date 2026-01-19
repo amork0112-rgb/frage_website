@@ -29,6 +29,7 @@ export default function AdminRequestsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [requests, setRequests] = useState<PortalRequest[]>([]);
   const [campusFilter, setCampusFilter] = useState<string>("All");
+  const [dateFilter, setDateFilter] = useState<string>("");
   const [createOpen, setCreateOpen] = useState(false);
   const [newType, setNewType] = useState<RequestType>("absence");
   const [newChildName, setNewChildName] = useState("");
@@ -73,10 +74,17 @@ export default function AdminRequestsPage() {
   const filtered = useMemo(
     () => {
       return requests
-        .filter(r => r.type === activeTab)
-        .filter(r => (campusFilter === "All" ? true : r.campus === campusFilter));
+        .filter(r => (activeTab === "all" ? true : r.type === activeTab))
+        .filter(r => (campusFilter === "All" ? true : r.campus === campusFilter))
+        .filter(r => {
+          if (!dateFilter) return true;
+          if (r.dateEnd && r.dateEnd !== r.dateStart) {
+            return dateFilter >= r.dateStart && dateFilter <= r.dateEnd;
+          }
+          return r.dateStart === dateFilter;
+        });
     },
-    [requests, activeTab, campusFilter]
+    [requests, activeTab, campusFilter, dateFilter]
   );
 
   const iconFor = (t: TabType) => {
@@ -213,9 +221,19 @@ export default function AdminRequestsPage() {
         })}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <span className="text-sm font-bold text-slate-700">캠퍼스</span>
-        {["All", "International", "Andover", "Platz", "Atheneum"].map((c) => (
+      <div className="flex flex-wrap items-center gap-4 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-slate-700">날짜</span>
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-bold bg-white text-slate-700"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-slate-700">캠퍼스</span>
+          {["All", "International", "Andover", "Platz", "Atheneum"].map((c) => (
           <button
             key={c}
             onClick={() => setCampusFilter(c)}
@@ -226,6 +244,7 @@ export default function AdminRequestsPage() {
             {c === "All" ? "전체" : c === "International" ? "국제관" : c === "Andover" ? "앤도버" : c === "Platz" ? "플라츠" : "아테네움관"}
           </button>
         ))}
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
@@ -246,6 +265,73 @@ export default function AdminRequestsPage() {
           </div>
           <span className="text-xs font-bold text-slate-400">{filtered.length}건</span>
         </div>
+        {activeTab === "all" ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+                <tr>
+                  <th className="px-4 py-3 whitespace-nowrap">날짜</th>
+                  <th className="px-4 py-3 whitespace-nowrap">시간</th>
+                  <th className="px-4 py-3 whitespace-nowrap">학생</th>
+                  <th className="px-4 py-3 whitespace-nowrap">캠퍼스</th>
+                  <th className="px-4 py-3 whitespace-nowrap">반</th>
+                  <th className="px-4 py-3 whitespace-nowrap">구분</th>
+                  <th className="px-4 py-3 w-full">사유</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="p-6 text-center text-slate-500">해당 요청이 없습니다.</td>
+                  </tr>
+                )}
+                {filtered.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 whitespace-nowrap font-medium text-slate-900">
+                      {r.dateStart}
+                      {r.dateEnd && r.dateEnd !== r.dateStart && ` ~ ${r.dateEnd}`}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-slate-600">
+                      {r.time || "-"}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap font-bold text-slate-900">
+                      {r.childName}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-slate-600">
+                      {r.campus === "International" ? "국제관" : r.campus === "Andover" ? "앤도버" : r.campus === "Platz" ? "플라츠" : r.campus}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-slate-500">
+                      {r.className || "-"}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                       <span className={`px-2 py-0.5 rounded text-xs font-bold border ${
+                          r.type === "absence" ? "text-frage-blue border-frage-blue bg-blue-50" :
+                          r.type === "early_pickup" ? "text-frage-green border-frage-green bg-green-50" :
+                          r.type === "bus_change" ? "text-frage-yellow border-frage-yellow bg-yellow-50" :
+                          "text-frage-navy border-frage-navy bg-slate-50"
+                        }`}>
+                          {r.type === "absence" ? "결석" : r.type === "early_pickup" ? "조퇴" : r.type === "bus_change" ? "차량" : "투약"}
+                        </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {r.type === "bus_change" && r.changeType && (
+                        <span className="mr-2 inline-block px-1.5 py-0.5 bg-slate-100 rounded text-xs text-slate-600">
+                          {r.changeType === "no_bus" ? "버스 없음" : r.changeType === "pickup_change" ? "픽업 변경" : "드롭오프 변경"}
+                        </span>
+                      )}
+                      {r.type === "medication" && r.medName && (
+                        <span className="mr-2 inline-block px-1.5 py-0.5 bg-slate-100 rounded text-xs text-slate-600">
+                          약: {r.medName}
+                        </span>
+                      )}
+                      {r.note}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
         <div className="divide-y">
           {filtered.length === 0 && (
             <div className="p-6 text-sm text-slate-500">해당 요청이 없습니다.</div>
@@ -275,16 +361,7 @@ export default function AdminRequestsPage() {
                 <span className="text-xs text-slate-500">
                   {r.campus}
                   {r.className ? ` · ${r.className}` : ""}
-                  {activeTab === "all" && (
-                    <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold border ${
-                      r.type === "absence" ? "text-frage-blue border-frage-blue bg-blue-50" :
-                      r.type === "early_pickup" ? "text-frage-green border-frage-green bg-green-50" :
-                      r.type === "bus_change" ? "text-frage-yellow border-frage-yellow bg-yellow-50" :
-                      "text-frage-navy border-frage-navy bg-slate-50"
-                    }`}>
-                      {r.type === "absence" ? "결석" : r.type === "early_pickup" ? "조퇴" : r.type === "bus_change" ? "차량" : "투약"}
-                    </span>
-                  )}
+
                 </span>
                 {r.type === "medication" && r.dateEnd && (
                   <span className="text-xs text-slate-500">
@@ -304,6 +381,7 @@ export default function AdminRequestsPage() {
             </div>
           ))}
         </div>
+        )}
       </div>
 
       {createOpen && (
