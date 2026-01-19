@@ -81,65 +81,81 @@ export async function GET() {
 
     // --- New Logic for Dashboard UI ---
     
-    // 1. Calculate Engine Status
-    // Assume last run was recent successful one (mock logic or derived from latest assignment)
-    const latestAssignment = assignments?.[assignments.length - 1];
-    const lastRunDate = latestAssignment?.created_at 
-      ? new Date(latestAssignment.created_at) 
-      : new Date();
+    // Determine Division based on teacher's classes
+    const { data: teacherClassesData } = await supabaseService
+      .from("teacher_classes")
+      .select("class_name")
+      .eq("teacher_id", teacher.id);
     
-    // Format: Jan 15, 2026 · Success
-    const lastRunStr = lastRunDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + " · Success";
-    
-    // Next run: Next Monday 09:00
-    const now = new Date();
-    const nextMon = new Date(now);
-    nextMon.setDate(now.getDate() + ((1 + 7 - now.getDay()) % 7 || 7));
-    nextMon.setHours(9, 0, 0, 0);
-    const diffDays = Math.ceil((nextMon.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    const nextRunStr = nextMon.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + ` · In ${diffDays} days`;
+    const teacherClasses = (teacherClassesData || []).map((row: any) => row.class_name);
+    const KINDER_CLASSES = ["Kepler", "Platon", "Euclid", "Darwin", "Gauss", "Edison", "Thales"];
+    const isKinder = teacherClasses.some((c: string) => KINDER_CLASSES.some(k => c.includes(k)));
+    const division = isKinder ? "KINDER" : "PRIMARY";
 
-    const engineStatus = {
-      active: true,
-      division: "Kinder (Automatic)",
-      generation: "Weekly · Monday 09:00",
-      source: "Textbook Progress + Session Log",
-      lastRun: lastRunStr,
-      nextRun: nextRunStr
-    };
-
-    // 2. Calculate Upcoming Assignments
-    // Logic: Look ahead 1 week
-    const nextWeekDate = new Date();
-    nextWeekDate.setDate(nextWeekDate.getDate() + 7);
-    const nextMeta = computeKinderWeekMeta(nextWeekDate);
-    
-    // Get Kinder Student Count
-    // Fetch students to count kinder (simplistic filtering by known kinder classes or pattern)
-    // We already fetch 'students' below, let's move it up or wait.
-    // Ideally we should use 'students' query result.
-    
+    // Fetch students (needed for both upcoming calc and assignment enrichment)
     const { data: students } = await supabase
       .from("students")
       .select("*");
-      
-    // Filter Kinder students (using simplistic logic matching frontend constants if possible, or DB query if we had division)
-    // Frontend uses: ["Kepler", "Platon", "Euclid", "Darwin", "Gauss", "Edison", "Thales"]
-    const KINDER_CLASSES = ["Kepler", "Platon", "Euclid", "Darwin", "Gauss", "Edison", "Thales"];
-    const kinderCount = (students || []).filter((s: any) => 
-      KINDER_CLASSES.some(k => (s.class_name || "").includes(k))
-    ).length;
 
-    const upcomingAssignments = [
-      {
-        week: nextMeta.weekRange,
-        class_name: "Kinder · International",
-        textbook: "Phonics Show 4", // Mocked as per request
-        unit: "Unit 3", // Mocked as per request
-        students_count: kinderCount || 18, // Fallback to 18 if 0
-        status: "Scheduled (Auto)"
-      }
-    ];
+    let engineStatus;
+    let upcomingAssignments: any[] = [];
+
+    if (division === "KINDER") {
+      // 1. Calculate Engine Status (Kinder)
+      const latestAssignment = assignments?.[assignments.length - 1];
+      const lastRunDate = latestAssignment?.created_at 
+        ? new Date(latestAssignment.created_at) 
+        : new Date();
+      
+      const lastRunStr = lastRunDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + " · Success";
+      
+      const now = new Date();
+      const nextMon = new Date(now);
+      nextMon.setDate(now.getDate() + ((1 + 7 - now.getDay()) % 7 || 7));
+      nextMon.setHours(9, 0, 0, 0);
+      const diffDays = Math.ceil((nextMon.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const nextRunStr = nextMon.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + ` · In ${diffDays} days`;
+
+      engineStatus = {
+        active: true,
+        division: "Kinder (Automatic)",
+        generation: "Weekly · Monday 09:00",
+        source: "Textbook Progress + Session Log",
+        lastRun: lastRunStr,
+        nextRun: nextRunStr
+      };
+
+      // 2. Calculate Upcoming Assignments (Kinder)
+      const nextWeekDate = new Date();
+      nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+      const nextMeta = computeKinderWeekMeta(nextWeekDate);
+      
+      const kinderCount = (students || []).filter((s: any) => 
+        KINDER_CLASSES.some(k => (s.class_name || "").includes(k))
+      ).length;
+
+      upcomingAssignments = [
+        {
+          week: nextMeta.weekRange,
+          class_name: "Kinder · International",
+          textbook: "Phonics Show 4",
+          unit: "Unit 3",
+          students_count: kinderCount || 18,
+          status: "Scheduled (Auto)"
+        }
+      ];
+    } else {
+      // Primary (Manual)
+      engineStatus = {
+        active: false,
+        division: "Primary (Manual)",
+        generation: "Manual Creation",
+        source: "Teacher Created",
+        lastRun: "-",
+        nextRun: "-"
+      };
+      upcomingAssignments = [];
+    }
 
     // --- End New Logic ---
 

@@ -118,8 +118,6 @@ const scoreDesc: Record<keyof Omit<Feedback, "overall_message" | "strengths" | "
 };
 
 export default function TeacherVideoPage() {
-  const KINDER = ["Kepler", "Platon", "Euclid", "Darwin", "Gauss", "Edison", "Thales"];
-  const JUNIOR = ["G1", "G2", "G3", "G4", "E1", "E2", "E3", "E4", "A1", "A2", "A3", "A4", "A5", "F1", "F2", "F3", "F4", "F5"];
   const BASE_CAMPUSES = ["International", "Andover", "Atheneum", "Platz"];
   const [role, setRole] = useState<string | null>(null);
   const [teacherClass, setTeacherClass] = useState<string | null>(null);
@@ -269,13 +267,15 @@ export default function TeacherVideoPage() {
   }, [items]);
 
   const filtered = useMemo(() => {
-    const inRange = (due: string) => {
+    const checkDateFilter = (i: Homework) => {
       if (dateFilter === "All") return true;
+      if (dateFilter === "Missing") return i.status === "미제출";
+
       const today = new Date();
-      const dd = new Date(due);
+      const dd = new Date(i.dueDate);
       if (dateFilter === "Today") {
         const s = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-        return due === s;
+        return i.dueDate === s;
       }
       if (dateFilter === "Week") {
         const diff = Math.floor((dd.getTime() - today.getTime()) / 86400000);
@@ -284,16 +284,12 @@ export default function TeacherVideoPage() {
       if (dateFilter === "Overdue") {
         return dd.getTime() < today.getTime();
       }
-      if (dateFilter === "Missing") {
-        return true;
-      }
       return true;
     };
     return items
       .filter(i => (classFilter === "All" ? true : i.className === classFilter))
       .filter(i => (campusFilter === "All" ? true : i.campus === campusFilter))
-      .filter(i => inRange(i.dueDate))
-      .filter(i => (dateFilter === "Missing" ? i.status === "미제출" : true))
+      .filter(i => checkDateFilter(i))
       .filter(i => (statusFilter === "All" ? true : i.status === statusFilter))
       .filter(i => (
         query.trim() === ""
@@ -491,6 +487,18 @@ export default function TeacherVideoPage() {
         </div>
         <Link href="/teacher/home" className="text-sm font-bold text-frage-blue">Home</Link>
       </div>
+
+      {engineStatus?.division !== "KINDER" && (
+        <div className="mb-6 flex justify-end">
+          <Link
+            href="/teacher/video/create"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-frage-navy text-white text-sm font-bold hover:bg-frage-blue"
+          >
+            <PlayCircle className="w-4 h-4" />
+            Create Video Assignment
+          </Link>
+        </div>
+      )}
 
       {/* 1. Status Panel */}
       {engineStatus && (
@@ -733,6 +741,11 @@ export default function TeacherVideoPage() {
                 </div>
               </div>
               <div className="mt-2 text-sm text-slate-700">{hw.title}</div>
+              {new Date() < new Date(hw.dueDate) ? (
+                <span className="text-[10px] font-bold text-indigo-600">Active</span>
+              ) : (
+                <span className="text-[10px] font-bold text-slate-400">Closed</span>
+              )}
               <div className="mt-1 text-xs text-slate-500">Due {hw.dueDate}</div>
 
               <div className="mt-4 flex items-center gap-2">
