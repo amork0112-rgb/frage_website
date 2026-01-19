@@ -195,8 +195,8 @@ export default function AdminRequestsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-2 mb-6">
-        {(["absence", "early_pickup", "bus_change", "medication"] as RequestType[]).map((t) => {
+      <div className="grid grid-cols-5 gap-2 mb-6">
+        {(["all", "absence", "early_pickup", "bus_change", "medication"] as TabType[]).map((t) => {
           const Ico = iconFor(t);
           return (
             <button
@@ -207,7 +207,7 @@ export default function AdminRequestsPage() {
               }`}
             >
               <Ico className="w-5 h-5" />
-              {t === "absence" ? "결석" : t === "early_pickup" ? "조퇴" : t === "bus_change" ? "차량 변경" : "투약"}
+              {t === "all" ? "전체" : t === "absence" ? "결석" : t === "early_pickup" ? "조퇴" : t === "bus_change" ? "차량 변경" : "투약"}
             </button>
           );
         })}
@@ -233,7 +233,9 @@ export default function AdminRequestsPage() {
           <div className="flex items-center gap-2">
             <Icon className="w-5 h-5 text-slate-500" />
             <span className="text-sm font-bold text-slate-700">
-              {activeTab === "absence"
+              {activeTab === "all"
+                ? "전체 요청"
+                : activeTab === "absence"
                 ? "결석 요청"
                 : activeTab === "early_pickup"
                 ? "조퇴 요청"
@@ -256,15 +258,15 @@ export default function AdminRequestsPage() {
                 )}
                 <span className="font-bold text-slate-900">{r.childName}</span>
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full border">
-                  {activeTab === "bus_change"
+                  {r.type === "bus_change"
                     ? r.changeType === "no_bus"
                       ? "버스 없음"
                       : r.changeType === "pickup_change"
                       ? "픽업 변경"
                       : "드롭오프 변경"
-                    : activeTab === "early_pickup"
-                    ? r.time
-                    : activeTab === "medication"
+                    : r.type === "early_pickup"
+                    ? `${r.dateStart} ${r.time || ""}`
+                    : r.type === "medication"
                     ? r.medName
                     : r.dateEnd && r.dateEnd !== r.dateStart
                     ? `${r.dateStart} ~ ${r.dateEnd}`
