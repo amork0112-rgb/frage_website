@@ -164,6 +164,34 @@ export default function TeacherVideoManagementPage() {
     return `${now.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
   });
 
+  const [editingClass, setEditingClass] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState("");
+
+  const startEditing = (className: string, currentDate?: string | null) => {
+    setEditingClass(className);
+    setEditDate(currentDate || new Date().toISOString().split('T')[0]);
+  };
+
+  const cancelEditing = () => {
+    setEditingClass(null);
+    setEditDate("");
+  };
+
+  const saveDate = (className: string) => {
+    if (!editDate) return;
+    const item = weeklyClassStatus.find(i => i.className === className);
+    if (!item) return;
+
+    let action: "set_due_date" | "change_date" = "change_date";
+    if (item.status === "draft" || item.status === "needs_review") {
+      action = "set_due_date";
+    }
+    
+    handleControlAction(action, className, editDate);
+    setEditingClass(null);
+    setEditDate("");
+  };
+
   // Fetch weekly status from API
   const fetchWeeklyStatus = async () => {
     if (viewMode !== "kinder") return;
@@ -482,15 +510,26 @@ export default function TeacherVideoManagementPage() {
                   
                   <div className="mb-4">
                      <div className="text-xs text-slate-500 mb-1">Due Date</div>
-                     <div className="font-mono text-sm font-medium">
-                       {item.confirmedDueDate ? (
-                         <span className="text-slate-900">{item.confirmedDueDate}</span>
-                       ) : item.suggestedDueDate ? (
-                         <span className="text-slate-400">{item.suggestedDueDate} (Suggested)</span>
-                       ) : (
-                         <span className="text-slate-300">-</span>
-                       )}
-                     </div>
+                     {editingClass === item.className ? (
+                       <div className="flex gap-2">
+                         <input 
+                           type="date" 
+                           value={editDate} 
+                           onChange={(e) => setEditDate(e.target.value)}
+                           className="w-full px-2 py-1 text-sm border border-slate-200 rounded"
+                         />
+                       </div>
+                     ) : (
+                       <div className="font-mono text-sm font-medium">
+                         {item.confirmedDueDate ? (
+                           <span className="text-slate-900">{item.confirmedDueDate}</span>
+                         ) : item.suggestedDueDate ? (
+                           <span className="text-slate-400">{item.suggestedDueDate} (Suggested)</span>
+                         ) : (
+                           <span className="text-slate-300">-</span>
+                         )}
+                       </div>
+                     )}
                      {item.reason && (
                        <div className="mt-2 text-xs text-slate-500 bg-slate-50 p-2 rounded">
                          Reason: {item.reason}
@@ -499,59 +538,78 @@ export default function TeacherVideoManagementPage() {
                   </div>
 
                   <div className="flex items-center gap-2 mt-auto pt-3 border-t border-slate-100">
-                    {item.status === "draft" && (
-                       <>
-                         <button 
-                           onClick={() => handleControlAction("set_due_date", item.className)}
-                           className="flex-1 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded hover:bg-blue-100"
-                         >
-                           Set Date
-                         </button>
-                         <button 
-                           onClick={() => handleControlAction("skip", item.className)}
-                           className="flex-1 py-1.5 bg-slate-50 text-slate-600 text-xs font-bold rounded hover:bg-slate-100"
-                         >
-                           Skip
-                         </button>
-                       </>
-                    )}
-                    {item.status === "scheduled" && (
+                    {editingClass === item.className ? (
                       <>
                         <button 
-                          onClick={() => handleControlAction("publish", item.className)}
-                          className="flex-1 py-1.5 bg-green-600 text-white text-xs font-bold rounded hover:bg-green-700 shadow-sm"
+                          onClick={() => saveDate(item.className)}
+                          className="flex-1 py-1.5 bg-frage-navy text-white text-xs font-bold rounded hover:bg-opacity-90"
                         >
-                          Publish
+                          Save
                         </button>
                         <button 
-                          onClick={() => handleControlAction("change_date", item.className)}
-                          className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50"
+                          onClick={cancelEditing}
+                          className="flex-1 py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50"
                         >
-                          Change
-                        </button>
-                        <button 
-                           onClick={() => handleControlAction("skip", item.className)}
-                           className="px-2 py-1.5 text-slate-400 hover:text-red-500"
-                        >
-                           <X className="w-4 h-4" />
+                          Cancel
                         </button>
                       </>
-                    )}
-                    {item.status === "published" && (
-                      <button 
-                        onClick={() => handleControlAction("change_date", item.className)}
-                        className="w-full py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50"
-                      >
-                        Change Date
-                      </button>
-                    )}
-                    {item.status === "needs_review" && (
-                      <button 
-                         onClick={() => handleControlAction("set_due_date", item.className)}
-                         className="w-full py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50"
-                      >
-                        Review & Set Date
-                      </button>
+                    ) : (
+                      <>
+                        {item.status === "draft" && (
+                           <>
+                             <button 
+                               onClick={() => startEditing(item.className, item.suggestedDueDate)}
+                               className="flex-1 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded hover:bg-blue-100"
+                             >
+                               Set Date
+                             </button>
+                             <button 
+                               onClick={() => handleControlAction("skip", item.className)}
+                               className="flex-1 py-1.5 bg-slate-50 text-slate-600 text-xs font-bold rounded hover:bg-slate-100"
+                             >
+                               Skip
+                             </button>
+                           </>
+                        )}
+                        {item.status === "scheduled" && (
+                          <>
+                            <button 
+                              onClick={() => handleControlAction("publish", item.className)}
+                              className="flex-1 py-1.5 bg-green-600 text-white text-xs font-bold rounded hover:bg-green-700 shadow-sm"
+                            >
+                              Publish
+                            </button>
+                            <button 
+                              onClick={() => startEditing(item.className, item.confirmedDueDate)}
+                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50"
+                            >
+                              Change
+                            </button>
+                            <button 
+                               onClick={() => handleControlAction("skip", item.className)}
+                               className="px-2 py-1.5 text-slate-400 hover:text-red-500"
+                            >
+                               <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                        {item.status === "published" && (
+                          <button 
+                            onClick={() => startEditing(item.className, item.confirmedDueDate)}
+                            className="w-full py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50"
+                          >
+                            Change Date
+                          </button>
+                        )}
+                        {item.status === "needs_review" && (
+                          <button 
+                             onClick={() => startEditing(item.className, item.suggestedDueDate)}
+                             className="w-full py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50"
+                          >
+                            Review & Set Date
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
