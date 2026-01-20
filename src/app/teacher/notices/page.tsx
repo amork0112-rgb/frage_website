@@ -40,6 +40,7 @@ export default function TeacherNoticesPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -115,6 +116,18 @@ export default function TeacherNoticesPage() {
         } else {
             return [...prev, classId];
         }
+    });
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
     });
   };
 
@@ -340,7 +353,11 @@ export default function TeacherNoticesPage() {
       ) : (
         <div className="grid gap-4">
           {notices.map((notice) => (
-            <div key={notice.id} className="bg-white px-4 py-3 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div 
+              key={notice.id} 
+              onClick={() => toggleExpand(notice.id)}
+              className="bg-white px-4 py-3 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+            >
               <div className="flex justify-between items-start gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
@@ -355,16 +372,30 @@ export default function TeacherNoticesPage() {
                       })()}
                     </span>
                   </div>
-                  <h3 className="text-base font-bold leading-tight mb-1 text-slate-800">{notice.title}</h3>
-                  <p className="text-sm text-slate-600 leading-snug line-clamp-2">{notice.content}</p>
+                  <h3 className="text-base font-bold leading-tight mb-1 text-slate-800 group-hover:text-frage-blue transition-colors">{notice.title}</h3>
+                  {expandedIds.has(notice.id) && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 animate-in fade-in slide-in-from-top-1">
+                      <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
+                        {notice.content}
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={() => handleDelete(notice.id)}
-                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Delete Notice"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <ChevronDown 
+                    className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${expandedIds.has(notice.id) ? "rotate-180" : ""}`} 
+                  />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(notice.id);
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete Notice"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
