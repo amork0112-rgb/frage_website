@@ -38,9 +38,9 @@ export async function GET(req: Request) {
     if (guard.error) return guard.error;
 
     const { data, error } = await supabaseAuth
-      .from("v_classes_with_schedules")
+      .from("classes")
       .select("*")
-      .order("sort_order", { ascending: true });
+      .order("name", { ascending: true });
 
     if (error) {
       console.error(error);

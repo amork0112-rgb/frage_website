@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     } else if (action === "skip") {
       updateData.status = "skipped";
       updateData.reason = "Skipped by teacher";
-    } else if (action === "set_due_date") {
+    } else if (action === "set_due_date" || action === "change_date") {
       updateData.status = "scheduled";
       updateData.confirmed_due_date = confirmedDueDate;
     } else {
