@@ -148,18 +148,14 @@ export async function POST(req: Request) {
     const payload = {
       student_id: studentId,
       month,
-      // campus: student.campus ?? null,
-      // class_id: student.main_class ?? null,
-      // class_name: student.class_name ?? null,
-      // student_name: student.student_name ?? null,
-      // english_first_name: student.english_first_name ?? null,
+      teacher_id: teacher.id, // 🔥 이 줄이 핵심
       scores,
       comments,
       video_scores: videoScores,
       overall,
       status: "작성중",
       updated_at: now,
-    };
+};
     const { error } = await supabaseAuth
       .from("teacher_reports")
       .upsert(payload, { onConflict: "student_id,month" });
