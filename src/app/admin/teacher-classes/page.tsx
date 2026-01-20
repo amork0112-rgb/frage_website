@@ -130,16 +130,20 @@ export default function AdminTeacherClassesPage() {
     setAssign(map);
     (async () => {
       try {
-        await supabase
-        .from("teacher_classes")
-        .delete()
-        .eq("teacher_id", id);
-        if (uniq.length > 0) {
-          await supabase.from("teacher_classes").insert(
-            uniq.map(c => ({ teacher_id: id, class_name: c }))
-          );
+        const res = await fetch("/api/admin/teacher-classes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ teacherId: id, classNames: uniq }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          alert("저장에 실패했습니다.");
+          // Optionally revert state here if needed, but for now we just alert
+        } else {
+          alert("저장되었습니다.");
         }
       } catch {
+        alert("저장 중 오류가 발생했습니다.");
       }
     })();
   };
