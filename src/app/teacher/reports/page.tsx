@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { FileText, Search } from "lucide-react";
 import { reportTemplates } from "@/data/reportTemplates";
@@ -35,11 +35,11 @@ export default function TeacherReportsPage() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [weeklyStatus, setWeeklyStatus] = useState<boolean[]>([false, false, false, false]);
   const [videoSummary, setVideoSummary] = useState<string>("");
-  const [classOverall, setClassOverall] = useState<string>("");
   const [participation, setParticipation] = useState<string>("");
   const [selectedBulk, setSelectedBulk] = useState<Record<string, boolean>>({});
   const [classOptions, setClassOptions] = useState<{ id: string; name: string; campus: string }[]>([]);
   const [variationCursor, setVariationCursor] = useState<Record<string, number>>({});
+  const hasEditedRef = useRef(false);
   const videoCats = [
     { key: "fluency", label: "Fluency" },
     { key: "volume", label: "Volume" },
@@ -191,8 +191,8 @@ export default function TeacherReportsPage() {
         setVideoUrl(null);
       }
       const defCo = getDefaultOverall(month, selected.className);
-      setClassOverall(defCo);
       setOverall(defCo);
+      hasEditedRef.current = false;
     })();
   }, [selected, month]);
 
@@ -238,6 +238,7 @@ export default function TeacherReportsPage() {
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (!selected?.id || selected.id === "undefined" || selected.id === "null") return;
+      if (!hasEditedRef.current) return;
       setAutoSave("saving");
       try {
         const payload = {
@@ -263,7 +264,7 @@ export default function TeacherReportsPage() {
       }
     }, 800);
     return () => clearTimeout(timer);
-  }, [selected, month, gender, scores, comments, videoScores, overall, classOverall, videoSummary, participation]);
+  }, [selected, month, gender, scores, comments, videoScores, overall, videoSummary, participation]);
 
   const classes = useMemo(() => {
     const set = new Map<string, string>();
@@ -352,6 +353,7 @@ export default function TeacherReportsPage() {
         ...prev,
         [key]: candidates.length > 0 ? (safeIndex + 1) % candidates.length : 0,
       }));
+      hasEditedRef.current = true;
     } catch {}
   };
   const draftOverall = () => {
@@ -364,6 +366,7 @@ export default function TeacherReportsPage() {
       `Class participation remains positive, and ${pronoun} responds well to guidance.`;
     const end = gender === "M" ? "– Mr. Teacher" : "– Ms. Teacher";
     setOverall(`${synth} ${end}`);
+    hasEditedRef.current = true;
   };
   const draftParticipation = (score?: number) => {
     try {
@@ -427,6 +430,7 @@ export default function TeacherReportsPage() {
         .replaceAll("{Name}", selected?.englishName || "")
         .replaceAll("{pronoun}", pronoun);
       setParticipation(text);
+      hasEditedRef.current = true;
     } catch {}
   };
   const draftVideoSummary = () => {
@@ -451,6 +455,7 @@ export default function TeacherReportsPage() {
       count >= 2 ? praiseModerate :
       encouragement;
     setVideoSummary(msg);
+    hasEditedRef.current = true;
   };
 
   const saveStatus = async (next: Status) => {
@@ -742,7 +747,10 @@ export default function TeacherReportsPage() {
                                         {[1,2,3,4].map(n => (
                                           <button
                                             key={n}
-                                            onClick={() => setVideoScores(prev => ({ ...prev, [c.key]: n } as any))}
+                                            onClick={() => {
+                                              setVideoScores(prev => ({ ...prev, [c.key]: n } as any));
+                                              hasEditedRef.current = true;
+                                            }}
                                             className={`w-6 h-2 rounded-full ${v >= n ? "bg-gradient-to-r from-amber-300 to-orange-500" : "bg-slate-200"}`}
                                             aria-label={`${c.label} ${n}`}
                                           />
@@ -765,7 +773,10 @@ export default function TeacherReportsPage() {
                         </div>
                         <textarea
                           value={videoSummary}
-                          onChange={(e) => setVideoSummary(e.target.value)}
+                          onChange={(e) => {
+                            setVideoSummary(e.target.value);
+                            hasEditedRef.current = true;
+                          }}
                           rows={8}
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white leading-relaxed min-h-[180px]"
                           placeholder="Summarize weekly submission consistency and guidance."
@@ -783,8 +794,11 @@ export default function TeacherReportsPage() {
                           <button onClick={draftOverall} className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">AI Draft</button>
                         </div>
                         <textarea
-                          value={classOverall}
-                          onChange={(e) => { setClassOverall(e.target.value); setOverall(e.target.value); }}
+                          value={overall}
+                          onChange={(e) => { 
+                            setOverall(e.target.value); 
+                            hasEditedRef.current = true; 
+                          }}
                           rows={4}
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
                         />
@@ -807,7 +821,10 @@ export default function TeacherReportsPage() {
                         </div>
                         <textarea
                           value={participation}
-                          onChange={(e) => setParticipation(e.target.value)}
+                          onChange={(e) => {
+                            setParticipation(e.target.value);
+                            hasEditedRef.current = true;
+                          }}
                           rows={3}
                           className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
                           placeholder="Click a score to generate, or type freely."
@@ -824,6 +841,7 @@ export default function TeacherReportsPage() {
                                   onClick={() => {
                                     setScores(prev => ({ ...prev, [k]: n }));
                                     varyTemplate(k, n);
+                                    hasEditedRef.current = true;
                                   }}
                                   className={`w-5 h-5 flex items-center justify-center rounded border text-[10px] transition-colors ${
                                     (scores[k] || 0) === n
@@ -838,7 +856,10 @@ export default function TeacherReportsPage() {
                           </div>
                           <textarea
                             value={comments[k]}
-                            onChange={(e) => setComments(prev => ({ ...prev, [k]: e.target.value }))}
+                            onChange={(e) => {
+                              setComments(prev => ({ ...prev, [k]: e.target.value }));
+                              hasEditedRef.current = true;
+                            }}
                             rows={3}
                             className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
                           />
