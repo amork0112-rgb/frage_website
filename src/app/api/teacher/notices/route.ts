@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { getTeacherRole } from "@/lib/auth/getTeacherRole";
 
 export const dynamic = "force-dynamic";
 
@@ -15,34 +16,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let role = user.app_metadata?.role;
+    const role = await getTeacherRole(user);
     let teacherId: string | null = null;
 
-    // Fallback: Check teachers table
-    if (!role || role === "parent") {
-      const { data: teacher } = await supabaseService
-        .from("teachers")
-        .select("id, role")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      
-      if (teacher) {
-        if (teacher.role) role = teacher.role;
-        teacherId = teacher.id;
-      }
-    } else {
-      // If role is in metadata, still fetch teacher ID
+    if (role === "teacher") {
       const { data: teacher } = await supabaseService
         .from("teachers")
         .select("id")
         .eq("auth_user_id", user.id)
         .maybeSingle();
       if (teacher) teacherId = teacher.id;
-    }
-
-    // Fallback: Hardcoded check for master_teacher email
-    if (user.email === "master_teacher@frage.com") {
-      role = "master_teacher";
     }
 
     if (!["teacher", "master_teacher", "admin"].includes(role)) {
@@ -108,32 +91,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let role = user.app_metadata?.role;
+    const role = await getTeacherRole(user);
     let teacherId: string | null = null;
 
-    // Fallback: Check teachers table
-    if (!role || role === "parent") {
+    if (role === "teacher") {
       const { data: teacher } = await supabaseService
-        .from("teachers")
-        .select("id, role")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      
-      if (teacher) {
-        if (teacher.role) role = teacher.role;
-        teacherId = teacher.id;
-      }
-    } else {
-       const { data: teacher } = await supabaseService
         .from("teachers")
         .select("id")
         .eq("auth_user_id", user.id)
         .maybeSingle();
       if (teacher) teacherId = teacher.id;
-    }
-
-    if (user.email === "master_teacher@frage.com") {
-      role = "master_teacher";
     }
 
     if (!["teacher", "master_teacher", "admin"].includes(role)) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 import { mockAIGrading, generateFeedbackDraft } from "@/lib/ai/grading";
+import { getTeacherRole } from "@/lib/auth/getTeacherRole";
 
 function computeKinderWeekMeta(now: Date) {
   const oneJan = new Date(now.getFullYear(), 0, 1);
@@ -38,24 +39,7 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ assignments: [] }, { status: 401 });
     // Role check
-    let role = user.app_metadata?.role ?? "parent";
-
-    // Fallback: Check teachers table if role is parent (sometimes metadata lags)
-    if (role === "parent") {
-      const { data: teacher } = await supabaseService
-        .from("teachers")
-        .select("role")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      if (teacher?.role) {
-        role = teacher.role;
-      }
-    }
-
-    // Fallback: Hardcode master teacher email if needed
-    if (user.email === "master_teacher@frage.com") {
-      role = "master_teacher";
-    }
+    const role = await getTeacherRole(user);
 
     const teacherRoles = ["teacher", "master_teacher"];
     if (!teacherRoles.includes(role)) {

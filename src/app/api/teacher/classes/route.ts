@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 
+import { getTeacherRole } from "@/lib/auth/getTeacherRole";
+
 type ClassItem = {
   id: string;
   name: string;
@@ -19,24 +21,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    let role = user.app_metadata?.role ?? "parent";
-
-    // Fallback: Check teachers table
-    if (role === "parent") {
-      const { data: teacher } = await supabaseService
-        .from("teachers")
-        .select("role")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      if (teacher?.role) {
-        role = teacher.role;
-      }
-    }
-
-    // Fallback: Master teacher email
-    if (user.email === "master_teacher@frage.com") {
-      role = "master_teacher";
-    }
+    const role = await getTeacherRole(user);
 
     if (!["teacher", "master_teacher", "admin", "master_admin"].includes(role)) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });

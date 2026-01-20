@@ -54,14 +54,14 @@ export async function POST(req: Request) {
 
     // 2. Insert new classes if any
     if (classNames.length > 0) {
+      const payload = classNames.map((className) => ({
+        teacher_id: teacherId,
+        class_name: className,
+      }));
+
       const { error: insertError } = await supabaseService
         .from("teacher_classes")
-        .insert(
-          classNames.map((className) => ({
-            teacher_id: teacherId,
-            class_name: className,
-          }))
-        );
+        .insert(payload);
 
       if (insertError) {
         console.error("Error inserting teacher classes:", insertError);

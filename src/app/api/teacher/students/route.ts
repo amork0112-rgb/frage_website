@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { getTeacherRole } from "@/lib/auth/getTeacherRole";
 
 type Status = "waiting" | "consultation_reserved" | "consult_done" | "approved" | "promoted" | "rejected" | "hold";
 
@@ -66,31 +67,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    let role = user.app_metadata?.role;
-
-    // Fallback: If role is not a teacher role, check the teachers table
-    // (This handles cases where app_metadata might be stale or incorrect, e.g. 'parent')
-    if (!role || role === "parent") {
-      const { data: teacher } = await supabaseService
-        .from("teachers")
-        .select("role")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      if (teacher?.role) {
-        role = teacher.role;
-      }
-    }
-
-    // Fallback: Hardcoded check for master_teacher email (matching client-side logic)
-    if (user.email === "master_teacher@frage.com") {
-      role = "master_teacher";
-    }
-
-    console.log("TEACHER_STUDENTS_PARAMS", {
-      role,
-      classId,
-      campus,
-    });
+    const role = await getTeacherRole(user);
 
     const normalizedClassId = classId?.trim();
     const normalizedCampus = campus?.trim();

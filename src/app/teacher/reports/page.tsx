@@ -100,7 +100,6 @@ export default function TeacherReportsPage() {
         const res = await fetch("/api/teacher/students", { cache: "no-store", credentials: "include" });
         const data = await res.json();
         const items = Array.isArray(data?.items) ? data.items : [];
-        console.log("TeacherReportsPage loaded students:", items.slice(0, 3));
         const enrolled = items.filter((s: any) => String(s.status) !== "rejected");
         const mapped: Student[] = enrolled.map((s: any) => ({
           id: String(s.student_id || s.id || ""),
@@ -630,7 +629,6 @@ export default function TeacherReportsPage() {
                         checked={!!selectedBulk[s.id]}
                         onChange={(e) => {
                           if (!s.id || s.id === "undefined" || s.id === "null") return;
-                          console.log("Checkbox change:", s.id, e.target.checked);
                           setSelectedBulk(prev => ({ ...prev, [s.id]: e.target.checked }));
                         }}
                         onClick={(e) => e.stopPropagation()}

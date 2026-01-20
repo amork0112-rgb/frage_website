@@ -37,8 +37,8 @@ export async function GET(req: Request) {
     const guard = await requireAdmin(supabaseAuth);
     if (guard.error) return guard.error;
 
-    const { data, error } = await supabaseAuth
-      .from("classes")
+    const { data, error } = await supabaseService
+      .from("v_classes_with_schedules")
       .select("*")
       .order("name", { ascending: true });
 
