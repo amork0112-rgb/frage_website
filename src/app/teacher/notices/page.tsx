@@ -340,23 +340,27 @@ export default function TeacherNoticesPage() {
       ) : (
         <div className="grid gap-4">
           {notices.map((notice) => (
-            <div key={notice.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div key={notice.id} className="bg-white px-4 py-3 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-1 bg-frage-blue/10 text-frage-blue text-xs font-bold rounded-md">
+                  <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                    <span className="font-semibold text-frage-blue">
                       {getClassName(notice.class_id)}
                     </span>
-                    <span className="text-slate-400 text-xs">
-                      {new Date(notice.created_at).toLocaleDateString()}
+                    <span>·</span>
+                    <span>
+                      {(() => {
+                        const d = new Date(notice.created_at);
+                        return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+                      })()}
                     </span>
                   </div>
-                  <h3 className="font-bold text-lg text-slate-800 mb-1">{notice.title}</h3>
-                  <p className="text-slate-600 whitespace-pre-wrap">{notice.content}</p>
+                  <h3 className="text-base font-bold leading-tight mb-1 text-slate-800">{notice.title}</h3>
+                  <p className="text-sm text-slate-600 leading-snug line-clamp-2">{notice.content}</p>
                 </div>
                 <button
                   onClick={() => handleDelete(notice.id)}
-                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                   title="Delete Notice"
                 >
                   <Trash2 className="w-4 h-4" />
