@@ -29,9 +29,26 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("student_id") || searchParams.get("studentId") || "";
     const month = searchParams.get("month") || "";
-    if (!studentId || !month) {
-      return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
+
+    if (!month) {
+      return NextResponse.json({ ok: false, error: "missing_month" }, { status: 400 });
     }
+
+    // List mode: If studentId is missing, return all statuses for the month
+    if (!studentId) {
+      const { data, error } = await supabaseAuth
+        .from("teacher_reports")
+        .select("student_id, status")
+        .eq("month", month);
+
+      if (error) {
+        console.error("TEACHER_REPORTS_LIST_ERROR", error);
+        return NextResponse.json({ ok: false }, { status: 500 });
+      }
+
+      return NextResponse.json({ ok: true, items: data || [] }, { status: 200 });
+    }
+
     // v_teacher_reports_full 뷰 대신 teacher_reports 테이블 직접 조회하여 데이터 누락 방지
     const { data, error } = await supabaseAuth
       .from("teacher_reports")

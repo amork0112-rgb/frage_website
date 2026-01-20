@@ -143,6 +143,27 @@ export default function TeacherReportsPage() {
   }, [campusFilter]);
 
   useEffect(() => {
+    const fetchStatuses = async () => {
+      try {
+        const res = await fetch(`/api/teacher/reports?month=${encodeURIComponent(month)}`, { cache: "no-store", credentials: "include" });
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.items)) {
+          const map: Record<string, Status> = {};
+          data.items.forEach((item: any) => {
+            if (item.student_id) map[item.student_id] = item.status;
+          });
+          setStatusMap(map);
+        } else {
+          setStatusMap({});
+        }
+      } catch {
+        setStatusMap({});
+      }
+    };
+    fetchStatuses();
+  }, [month]);
+
+  useEffect(() => {
     if (!selected || !selected.id) return;
     (async () => {
       try {
