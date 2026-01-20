@@ -58,6 +58,8 @@ export async function GET(request: Request) {
   const pageSize = Math.max(parseInt(url.searchParams.get("pageSize") || "200", 10), 1);
   const classId = url.searchParams.get("classId");
   const campus = url.searchParams.get("campus");
+  const nameQuery = url.searchParams.get("name");
+
   try {
     const supabaseAuth = createSupabaseServer();
     const {
@@ -116,6 +118,13 @@ export async function GET(request: Request) {
       ) {
         query = query.eq("campus", normalizedCampus);
       }
+
+      if (nameQuery) {
+        query = query.or(`student_name.ilike.%${nameQuery}%,english_first_name.ilike.%${nameQuery}%`);
+      }
+      
+      // Exclude rejected students by default to match frontend behavior
+      query = query.neq("status", "rejected");
 
       const { data, error } = await query.order("student_name", { ascending: true });
       
@@ -192,6 +201,13 @@ export async function GET(request: Request) {
       ) {
         query = query.eq("campus", normalizedCampus);
       }
+
+      if (nameQuery) {
+        query = query.or(`student_name.ilike.%${nameQuery}%,english_first_name.ilike.%${nameQuery}%`);
+      }
+
+      // Exclude rejected students by default to match frontend behavior
+      query = query.neq("status", "rejected");
 
       const { data, error } = await query.order("student_name", { ascending: true });
 
