@@ -68,7 +68,9 @@ export default function AdminTeacherClassesPage() {
         setTeachers([]);
       }
       try {
-        const { data } = await supabase.from("teacher_classes").select("*");
+        const res = await fetch("/api/admin/teacher-classes");
+        const json = await res.json();
+        const data = json.ok ? json.data : [];
         const map: Record<string, string[]> = {};
         (Array.isArray(data) ? data : []).forEach((row: any) => {
           const tid = String(row.teacher_id);

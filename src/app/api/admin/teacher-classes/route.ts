@@ -4,6 +4,29 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { supabaseService } from "@/lib/supabase/service";
 
+export async function GET(req: Request) {
+  try {
+    const supabaseAuth = createSupabaseServer();
+    const guard = await requireAdmin(supabaseAuth);
+    if ("error" in guard) return guard.error;
+
+    // Use supabaseService to bypass RLS
+    const { data, error } = await supabaseService
+      .from("teacher_classes")
+      .select("*");
+
+    if (error) {
+      console.error("Error fetching teacher classes:", error);
+      return NextResponse.json({ ok: false, error: "fetch_failed" }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true, data }, { status: 200 });
+  } catch (e) {
+    console.error("API Error:", e);
+    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
