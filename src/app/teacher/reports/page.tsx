@@ -146,7 +146,7 @@ export default function TeacherReportsPage() {
     if (!selected || !selected.id) return;
     (async () => {
       try {
-        const res = await fetch(`/api/teacher/reports?studentId=${selected.id}&month=${encodeURIComponent(month)}`);
+        const res = await fetch(`/api/teacher/reports?student_id=${selected.id}&month=${encodeURIComponent(month)}`);
         const data = await res.json();
         const obj = data?.item || null;
         if (obj) {
@@ -237,14 +237,13 @@ export default function TeacherReportsPage() {
 
   useEffect(() => {
     const timer = setTimeout(async () => {
-      if (!selected) return;
+      if (!selected?.id || selected.id === "undefined" || selected.id === "null") return;
       setAutoSave("saving");
       try {
         const payload = {
-          studentId: selected.id,
+          student_id: selected.id,
           month,
           className: selected.className,
-          gender,
           scores,
           comments,
           videoScores,
@@ -460,7 +459,7 @@ export default function TeacherReportsPage() {
       await fetch("/api/teacher/reports", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentId: selected.id, month, status: next })
+        body: JSON.stringify({ student_id: selected.id, month, status: next })
       });
       setStatusMap(prev => ({ ...prev, [selected.id]: next === "발송요청" ? "발송완료" : next }));
     } catch {}
@@ -474,7 +473,7 @@ export default function TeacherReportsPage() {
           await fetch("/api/teacher/reports", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ studentId: id, month, status: "발송요청" })
+            body: JSON.stringify({ student_id: id, month, status: "발송요청" })
           });
         })
       );
@@ -657,10 +656,6 @@ export default function TeacherReportsPage() {
                     {month} | {selected.className} | {selected.name} ({selected.englishName})
                   </div>
                   <div className="flex items-center gap-2">
-                    <select value={gender} onChange={(e) => setGender(e.target.value as Gender)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                      <option value="M">M</option>
-                      <option value="F">F</option>
-                    </select>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => setAiMode("off")}

@@ -27,7 +27,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "teacher_profile_not_found" }, { status: 403 });
     }
     const { searchParams } = new URL(req.url);
-    const studentId = searchParams.get("studentId") || "";
+    const studentId = searchParams.get("student_id") || searchParams.get("studentId") || "";
     const month = searchParams.get("month") || "";
     if (!studentId || !month) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
@@ -39,10 +39,15 @@ export async function GET(req: Request) {
       .eq("student_id", studentId)
       .eq("month", month)
       .limit(1);
+    
     if (error) {
+      // PGRST116 means multiple rows (should be limit 1), but standard error is different.
+      // If it's just "not found", data might be empty array.
+      // If real error, log it.
       console.error(error);
       return NextResponse.json({ ok: false }, { status: 500 });
     }
+    
     const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
     const item = row
       ? {
@@ -59,6 +64,8 @@ export async function GET(req: Request) {
           updatedAt: String(row.updated_at || new Date().toISOString()),
         }
       : null;
+    
+    // Always return 200, even if item is null
     return NextResponse.json({ ok: true, item }, { status: 200 });
   } catch (e) {
     console.error(e);
@@ -104,7 +111,9 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { studentId, month, scores, comments, videoScores, overall } = body || {};
+    const { studentId: bodyStudentId, student_id: bodyStudent_id, month, scores, comments, videoScores, overall } = body || {};
+    const studentId = bodyStudent_id || bodyStudentId;
+
     if (
       !studentId ||
       !month ||
@@ -183,7 +192,9 @@ export async function PUT(req: Request) {
 
     if (!["teacher", "master_teacher"].includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
     const body = await req.json();
-    const { studentId, month, status } = body || {};
+    const { studentId: bodyStudentId, student_id: bodyStudent_id, month, status } = body || {};
+    const studentId = bodyStudent_id || bodyStudentId;
+
     if (!studentId || !month || !status) {
       return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
     }
