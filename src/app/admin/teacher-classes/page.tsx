@@ -80,7 +80,15 @@ export default function AdminTeacherClassesPage() {
       } catch {
         setAssign({});
       }
-      setClassCatalog([]);
+      try {
+        const res = await fetch("/api/admin/classes");
+        const data = await res.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const names = items.map((c: any) => c.name).filter(Boolean);
+        setClassCatalog(names);
+      } catch {
+        setClassCatalog([]);
+      }
     })();
   }, []);
 
@@ -107,7 +115,7 @@ export default function AdminTeacherClassesPage() {
 
   const classes = useMemo(() => {
     const set = new Set<string>([...students.map(s => s.className), ...classCatalog]);
-    return Array.from(set);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [students, classCatalog]);
 
   const filtered = useMemo(() => {
