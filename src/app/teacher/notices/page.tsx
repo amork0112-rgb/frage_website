@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
-import { Bell, Plus, Trash2, X, AlertCircle, Smile } from "lucide-react";
+import { Bell, Plus, Trash2, X, AlertCircle, Smile, ChevronDown, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 
@@ -12,7 +12,7 @@ type Notice = {
   created_at: string;
   class_id: string;
   scope: string;
-  author_id: string;
+  creator_id: string;
   // We might want to join class name, but for now let's show class_id or rely on mapping
   // If the API returns class name, that would be better. 
   // For now let's assume we need to map class_id to name on client if possible, 
@@ -23,24 +23,37 @@ type Student = {
   id: string;
   className: string;
   classId: string; // Assuming we can get classId from students API or similar
+  classSortOrder?: number;
 };
 
 export default function TeacherNoticesPage() {
   const router = useRouter();
   const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [classes, setClasses] = useState<{id: string, name: string}[]>([]);
+  const [classes, setClasses] = useState<{id: string, name: string, sortOrder: number}[]>([]);
   
   // New Notice State
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
-  const [selectedClassId, setSelectedClassId] = useState("");
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const fetchData = async () => {
@@ -64,18 +77,25 @@ export default function TeacherNoticesPage() {
         const students: any[] = Array.isArray(data) ? data : data.items || [];
         
         // Map unique classes
-        const classMap = new Map<string, string>();
+        const classMap = new Map<string, { name: string, sortOrder: number }>();
         students.forEach(s => {
             // Assuming s.class_id and s.className exists
             // The previous code showed s.className, need to check if s.class_id (or classId) is available
             const cId = s.classId || s.class_id;
             const cName = s.className;
+            const cSort = s.classSortOrder ?? 9999;
             if (cId && cName) {
-                classMap.set(cId, cName);
+                if (!classMap.has(cId)) {
+                    classMap.set(cId, { name: cName, sortOrder: cSort });
+                }
             }
         });
         
-        setClasses(Array.from(classMap.entries()).map(([id, name]) => ({ id, name })));
+        const sortedClasses = Array.from(classMap.entries())
+            .map(([id, { name, sortOrder }]) => ({ id, name, sortOrder }))
+            .sort((a, b) => (a.sortOrder - b.sortOrder) || a.name.localeCompare(b.name));
+
+        setClasses(sortedClasses);
       }
     } catch (e) {
       console.error("Failed to fetch data", e);
@@ -88,31 +108,48 @@ export default function TeacherNoticesPage() {
     setNewContent((prev) => prev + emojiData.emoji);
   };
 
+  const toggleClassSelection = (classId: string) => {
+    setSelectedClassIds(prev => {
+        if (prev.includes(classId)) {
+            return prev.filter(id => id !== classId);
+        } else {
+            return [...prev, classId];
+        }
+    });
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClassId) return alert("Please select a class");
+    if (selectedClassIds.length === 0) return alert("Please select at least one class");
     
     try {
       setSubmitting(true);
-      const res = await fetch("/api/teacher/notices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newTitle,
-          content: newContent,
-          scope: "class",
-          class_id: selectedClassId
-        })
-      });
+      
+      const promises = selectedClassIds.map(classId => 
+          fetch("/api/teacher/notices", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: newTitle,
+              content: newContent,
+              scope: "class",
+              class_id: classId
+            })
+          }).then(async res => {
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || `Failed to create notice for class ${classId}`);
+            }
+            return res.json();
+          })
+      );
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to create notice");
-      }
+      await Promise.all(promises);
 
       // Reset and reload
       setNewTitle("");
       setNewContent("");
+      setSelectedClassIds([]);
       setIsCreating(false);
       fetchData();
     } catch (err: any) {
@@ -175,18 +212,49 @@ export default function TeacherNoticesPage() {
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Target Class</label>
-                <select
-                  required
-                  value={selectedClassId}
-                  onChange={(e) => setSelectedClassId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-frage-blue/20 text-slate-700 bg-white"
-                >
-                  <option value="">Select a class...</option>
-                  {classes.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Target Classes</label>
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-frage-blue/20 text-slate-700 bg-white text-left flex justify-between items-center"
+                  >
+                    <span className="truncate">
+                      {selectedClassIds.length === 0 
+                        ? "Select classes..." 
+                        : selectedClassIds.length === 1
+                          ? classes.find(c => c.id === selectedClassIds[0])?.name
+                          : `${selectedClassIds.length} classes selected`
+                      }
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  </button>
+                  
+                  {isDropdownOpen && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                      {classes.length === 0 ? (
+                        <div className="p-3 text-sm text-slate-500 text-center">No classes found</div>
+                      ) : (
+                        classes.map(c => (
+                          <div 
+                            key={c.id} 
+                            onClick={() => toggleClassSelection(c.id)}
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm"
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                              selectedClassIds.includes(c.id) 
+                                ? "bg-frage-blue border-frage-blue text-white" 
+                                : "border-slate-300 bg-white"
+                            }`}>
+                              {selectedClassIds.includes(c.id) && <Check className="w-3 h-3" />}
+                            </div>
+                            <span className="text-slate-700">{c.name}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">Title</label>
