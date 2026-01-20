@@ -181,9 +181,12 @@ export default function AdminTeacherClassesPage() {
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Users className="w-6 h-6 text-frage-orange" />
-          <h1 className="text-2xl font-black text-slate-900">교사 반 지정</h1>
+        <div>
+          <div className="flex items-center gap-2">
+            <Users className="w-6 h-6 text-frage-orange" />
+            <h1 className="text-2xl font-black text-slate-900">교사 반 지정</h1>
+          </div>
+          <p className="text-sm text-slate-500 mt-1 ml-8">반 추가 후 꼭 저장해야 반영이 됩니다</p>
         </div>
         <Link href="/admin/teachers" className="text-sm font-bold text-frage-blue">계정 관리</Link>
       </div>
