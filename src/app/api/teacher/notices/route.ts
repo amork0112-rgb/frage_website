@@ -39,7 +39,16 @@ export async function GET(request: Request) {
     // 3. Build Query
     let query = supabaseService
       .from("posts")
-      .select("*")
+      .select(`
+        id,
+        title,
+        content,
+        category,
+        scope,
+        class_id,
+        creator_id,
+        created_at
+      `)
       .eq("category", "notice")
       .eq("scope", "class")
       .order("created_at", { ascending: false });
@@ -129,14 +138,10 @@ export async function POST(request: Request) {
       title: body.title,
       content: body.content,
       category: "notice",
-      notice_type: "class",
       scope: "class",
       class_id: class_id,
-      campus: null,
       creator_id: user.id,
       published: true,
-      is_pinned: body.is_pinned || false,
-      is_archived: false,
     };
 
     const { data, error } = await supabaseService
