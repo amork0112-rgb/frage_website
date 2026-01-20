@@ -47,8 +47,9 @@ export async function GET(req: Request) {
     if (!studentId || !month) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
+    // v_teacher_reports_full 뷰 대신 teacher_reports 테이블 직접 조회하여 데이터 누락 방지
     const { data, error } = await supabaseAuth
-      .from("v_teacher_reports_full")
+      .from("teacher_reports")
       .select("*")
       .eq("student_id", studentId)
       .eq("month", month)
@@ -62,8 +63,9 @@ export async function GET(req: Request) {
       ? {
           studentId: String(row.student_id || ""),
           month: String(row.month || ""),
-          className: String(row.student_class_name || row.class_name || ""),
-          gender: (row.gender === "F" || row.gender === "Female") ? "F" : "M",
+          // 테이블 직접 조회 시 조인 정보 없음 -> 프론트엔드 fallback 사용
+          className: "",
+          gender: "M", 
           scores: row.scores || { Reading: 0, Listening: 0, Speaking: 0, Writing: 0 },
           comments: row.comments || { Reading: "", Listening: "", Speaking: "", Writing: "" },
           videoScores: row.video_scores || { fluency: 0, volume: 0, speed: 0, pronunciation: 0, performance: 0 },
