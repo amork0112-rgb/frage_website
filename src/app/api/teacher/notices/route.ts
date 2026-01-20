@@ -101,59 +101,69 @@ export async function POST(request: Request) {
     }
 
     const role = await getTeacherRole(user);
-    let teacherId: string | null = null;
-
-    if (role === "teacher") {
-      const { data: teacher } = await supabaseService
-        .from("teachers")
-        .select("id")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      if (teacher) teacherId = teacher.id;
-    }
-
     if (!["teacher", "master_teacher", "admin"].includes(role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const body = await request.json();
-    const { class_id } = body;
+    const json = await request.json();
+    const { title, content, class_ids } = json;
 
-    if (!class_id) return NextResponse.json({ error: "class_id is required" }, { status: 400 });
-
-    // Verify Class Access
-    if (role === "teacher" && teacherId) {
-      const { data: access } = await supabaseService
-        .from("teacher_classes")
-        .select("class_id")
-        .eq("teacher_id", teacherId)
-        .eq("class_id", class_id)
-        .maybeSingle();
-
-      if (!access) return NextResponse.json({ error: "You do not have access to this class" }, { status: 403 });
+    if (!title || !content || !class_ids || !Array.isArray(class_ids)) {
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
-    // Insert
-    const payload = {
-      title: body.title,
-      content: body.content,
+    // Insert for each class
+    // Notice type: 'notice' (default)
+    // Scope: 'class'
+    const payload = class_ids.map((classId: string) => ({
+      title,
+      content,
+      class_id: classId,
+      creator_id: user.id,
       category: "notice",
       scope: "class",
-      class_id: class_id,
-      creator_id: user.id,
       published: true,
-    };
+      created_at: new Date().toISOString(),
+    }));
 
-    const { data, error } = await supabaseService
-      .from("posts")
-      .insert(payload)
-      .select()
-      .single();
+    const { error } = await supabaseService.from("posts").insert(payload);
 
-    if (error) throw error;
-    return NextResponse.json({ data });
+    if (error) {
+      console.error("INSERT ERROR:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
+    return NextResponse.json({ ok: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+export async function DELETE(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json(
+      { error: "Missing id" },
+      { status: 400 }
+    );
+  }
+
+  const supabase = createSupabaseServer();
+
+  const { error } = await supabase
+    .from("posts")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error("DELETE ERROR:", error);
+    return NextResponse.json(
+      { error: error.message },
+      { status: 403 }
+    );
+  }
+
+  return NextResponse.json({ ok: true });
 }
