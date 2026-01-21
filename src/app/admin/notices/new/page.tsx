@@ -1,29 +1,19 @@
 //app/admin/notices/new
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
-  Bold,
-  Italic,
-  Underline,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  List,
   Eye,
-  FilePlus2,
-  Table,
   Info,
   X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import Editor from "@/components/Editor";
 
 export default function AdminNewNoticePage() {
   const router = useRouter();
-  const editorRef = useRef<HTMLDivElement>(null);
-  const selectionRef = useRef<Range | null>(null);
 
   const [campus, setCampus] = useState("All");
   const [title, setTitle] = useState("");
@@ -48,63 +38,8 @@ export default function AdminNewNoticePage() {
     })();
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      if (process.env.NODE_ENV !== "development") return;
-      const { data } = await supabase.auth.getSession();
-      const tok = data.session?.access_token || "";
-      if (tok) {
-        const masked = `${tok.slice(0, 12)}...${tok.slice(-6)}`;
-        console.log("JWT(access_token):", masked);
-      }
-    })();
-  }, []);
-
-  /* ---------------- editor utils ---------------- */
-  const exec = (cmd: string, value?: string) => {
-    document.execCommand(cmd, false, value);
-    setRichHtml(editorRef.current?.innerHTML || "");
-  };
-
-  const saveSelection = () => {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) {
-      selectionRef.current = sel.getRangeAt(0).cloneRange();
-    }
-  };
-
-  const restoreSelection = () => {
-    const sel = window.getSelection();
-    if (sel && selectionRef.current) {
-      sel.removeAllRanges();
-      sel.addRange(selectionRef.current);
-    }
-  };
-
-  const insertImageAtCaret = (url: string, alt = "") => {
-    restoreSelection();
-    const html = `<img src="${url}" alt="${alt}" style="max-width:100%;height:auto;" />`;
-    document.execCommand("insertHTML", false, html);
-    setRichHtml(editorRef.current?.innerHTML || "");
-  };
-
-  const insertTable = () => {
-    const html = `
-      <table style="width:100%;border-collapse:collapse;">
-        <tr>
-          <th style="border:1px solid #ddd;padding:8px;">Header</th>
-          <th style="border:1px solid #ddd;padding:8px;">Header</th>
-        </tr>
-        <tr>
-          <td style="border:1px solid #ddd;padding:8px;">Cell</td>
-          <td style="border:1px solid #ddd;padding:8px;">Cell</td>
-        </tr>
-      </table>`;
-    document.execCommand("insertHTML", false, html);
-    setRichHtml(editorRef.current?.innerHTML || "");
-  };
-
   const plainText = (html: string) => {
+    if (typeof window === "undefined") return "";
     const div = document.createElement("div");
     div.innerHTML = html;
     return div.textContent || div.innerText || "";
@@ -114,7 +49,7 @@ export default function AdminNewNoticePage() {
     if (!title.trim()) return false;
     if (!campus) return false;
     if (!category) return false;
-    if (!plainText(editorRef.current?.innerHTML || "").trim()) return false;
+    if (!plainText(richHtml).trim()) return false;
     return true;
   };
 
@@ -130,18 +65,18 @@ export default function AdminNewNoticePage() {
     setLoading(true);
 
     try {
-      const contentHtml = editorRef.current?.innerHTML || "";
-      const contentText = plainText(contentHtml);
+      const contentText = plainText(richHtml);
 
       const { data: inserted, error } = await supabase
         .from("posts")
         .insert({
           title,
-          content: contentText,
+          content: richHtml, 
           category: "notice",
           published: true,
           is_pinned: false,
           image_url: null,
+          scope: role === "admin" ? "global" : "class", // Explicitly set scope
         })
         .select()
         .single();
@@ -249,62 +184,7 @@ export default function AdminNewNoticePage() {
 
         {/* editor */}
         <div>
-          <div className="flex flex-wrap gap-2 mb-2">
-            <button type="button" onClick={() => exec("bold")}><Bold /></button>
-            <button type="button" onClick={() => exec("italic")}><Italic /></button>
-            <button type="button" onClick={() => exec("underline")}><Underline /></button>
-            <button type="button" onClick={() => exec("justifyLeft")}><AlignLeft /></button>
-            <button type="button" onClick={() => exec("justifyCenter")}><AlignCenter /></button>
-            <button type="button" onClick={() => exec("justifyRight")}><AlignRight /></button>
-            <button type="button" onClick={() => exec("insertUnorderedList")}><List /></button>
-            <button type="button" onClick={insertTable}><Table /></button>
-            <button type="button" onClick={() => setPreviewOpen(!previewOpen)}><Eye /></button>
-          </div>
-
-          <div
-            ref={editorRef}
-            contentEditable
-            onInput={() => {
-              setRichHtml(editorRef.current?.innerHTML || "");
-              saveSelection();
-            }}
-            onMouseUp={saveSelection}
-            onKeyUp={saveSelection}
-            onFocus={saveSelection}
-            className="min-h-[180px] border rounded-xl p-4"
-          />
-
-          {previewOpen && (
-            <div className="mt-3 border rounded-xl p-4 bg-slate-50"
-              dangerouslySetInnerHTML={{ __html: richHtml }} />
-          )}
-        </div>
-
-        {/* image insert */}
-        <div className="grid sm:grid-cols-2 gap-6">
-          <div className="rounded-xl border border-dashed p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-bold">이미지 삽입</span>
-              <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer">
-                <FilePlus2 className="w-4 h-4" />
-                선택
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    const filesArr = Array.from(e.target.files || []);
-                    filesArr.forEach((f) => {
-                      const url = URL.createObjectURL(f);
-                      insertImageAtCaret(url, f.name);
-                    });
-                  }}
-                />
-              </label>
-            </div>
-            <div className="text-xs text-slate-500">선택한 이미지는 커서 위치에 바로 삽입됩니다.</div>
-          </div>
+          <Editor value={richHtml} onChange={setRichHtml} />
         </div>
 
         {/* submit */}

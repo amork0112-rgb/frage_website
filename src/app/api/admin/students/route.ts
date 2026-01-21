@@ -66,6 +66,7 @@ export async function GET(req: Request) {
       class_name,
       class_id,
       class_sort_order,
+      parent_name,
       parent_phone,
       dajim_enabled,
       use_bus

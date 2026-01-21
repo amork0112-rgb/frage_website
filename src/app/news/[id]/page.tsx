@@ -28,31 +28,25 @@ export default function NewsPostPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const load = async () => {
       const idNum = Number(params.id);
-      const { data, error } = await supabase
-        .from("notice_promotions")
-        .select(`
-          id,
-          title,
-          pinned,
-          push_enabled,
-          created_at,
-          posts (
-            id,
-            title,
-            content,
-            created_at,
-            image_url
-          )
-        `)
-        .eq("id", Number.isNaN(idNum) ? params.id : idNum)
-        .single();
-      if (error || !data) {
-        setLoading(false);
+      if (Number.isNaN(idNum)) {
         router.push("/news");
         return;
       }
-      setPromotion(data as any);
-      setLoading(false);
+
+      try {
+        const res = await fetch(`/api/news/${idNum}`, { cache: "no-store" });
+        const json = await res.json();
+        if (!json.ok || !json.data) {
+          setLoading(false);
+          // router.push("/news"); // Optional: redirect on error
+          return;
+        }
+        setPromotion(json.data);
+      } catch (err) {
+        console.error("Error fetching news detail:", err);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, [params.id, router]);

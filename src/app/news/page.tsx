@@ -26,31 +26,19 @@ export default function NewsPage() {
 
   useEffect(() => {
     async function fetchPromotions() {
-      const { data, error } = await supabase
-        .from("notice_promotions")
-        .select(`
-          id,
-          title,
-          pinned,
-          push_enabled,
-          created_at,
-          posts (
-            id,
-            title,
-            content,
-            created_at
-          )
-        `)
-        .eq("archived", false)
-        .order("pinned", { ascending: false })
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching promotions:", error);
-      } else {
-        setPromotions((data as any) || []);
+      try {
+        const res = await fetch("/api/news", { cache: "no-store" });
+        const json = await res.json();
+        if (json.ok && Array.isArray(json.data)) {
+          setPromotions(json.data);
+        } else {
+          console.error("Error fetching promotions:", json.error);
+        }
+      } catch (err) {
+        console.error("Error fetching promotions:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
 
     fetchPromotions();

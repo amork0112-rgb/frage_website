@@ -22,6 +22,20 @@ export async function POST(req: Request) {
         : { is_pinned: false, is_archived: false };
     const numId = Number(id);
     if (!Number.isNaN(numId)) {
+      const { data: post, error: fetchError } = await supabaseAuth
+        .from("posts")
+        .select("scope")
+        .eq("id", numId)
+        .single();
+      if (fetchError || !post) {
+        return NextResponse.json({ ok: false, error: "post_not_found" }, { status: 404 });
+      }
+      if (post.scope !== "global") {
+        return NextResponse.json({
+          error: "CLASS notice cannot be managed by admin",
+        }, { status: 403 });
+      }
+
       const { error } = await supabaseAuth.from("posts").update(map).eq("id", numId);
       if (error) {
         return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

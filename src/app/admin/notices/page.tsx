@@ -17,6 +17,8 @@ export default function AdminNoticesPage() {
           .from("posts")
           .select("*")
           .eq("category", "notice")
+          .eq("scope", "global") // Admin scope
+          .eq("is_archived", false)
           .order("created_at", { ascending: false });
         if (!error && Array.isArray(data)) {
           const ids = data
@@ -46,7 +48,7 @@ export default function AdminNoticesPage() {
               title: p.title,
               date: p.created_at,
               category: "Schedule",
-              campus: "All",
+              campus: p.campus ?? "All",
               summary: p.content || "",
               richHtml: "",
               images: [],
@@ -54,7 +56,7 @@ export default function AdminNoticesPage() {
               viewCount: 0,
               isPinned: !!p.is_pinned,
               isArchived: !!p.is_archived,
-              hasNews: !!promo,
+              hasNews: p.scope === "global" && !!promo,
               newsPinned: !!promo?.pinned,
               newsPushEnabled: !!promo?.push_enabled,
             };

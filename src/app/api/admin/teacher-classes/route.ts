@@ -59,6 +59,8 @@ export async function POST(req: Request) {
         class_name: className,
       }));
 
+      console.log("Inserting teacher_classes payload:", payload);
+
       const { error: insertError } = await supabaseService
         .from("teacher_classes")
         .insert(payload);
