@@ -83,22 +83,19 @@ export default function NewsClient() {
              <div className="text-center py-20 text-slate-400">등록된 소식이 없습니다.</div>
         ) : (
             <>
-                <div className="grid gap-6">
+                <div className="grid gap-3">
                 {currentItems.map((item) => (
-                    <Link href={`/news/${item.post_id}`} key={item.post_id} className="group flex flex-col md:flex-row gap-6 p-6 rounded-xl border border-slate-100 hover:border-frage-blue/30 transition-colors bg-white hover:shadow-sm cursor-pointer">
+                    <Link href={`/news/${item.post_id}`} key={item.post_id} className="group flex flex-col md:flex-row items-center gap-4 p-5 rounded-xl border border-slate-100 hover:border-frage-blue/30 transition-colors bg-white hover:shadow-sm cursor-pointer">
                     <div className="md:w-32 flex-shrink-0 flex flex-col justify-center">
                         <span className={`inline-block w-fit px-2 py-1 text-xs font-semibold rounded ${getCategoryStyle()}`}>
                         NEWS
                         </span>
-                        <span className="mt-2 text-sm text-slate-400">{formatDate(item.posts?.created_at || item.created_at)}</span>
+                        <span className="mt-1 text-sm text-slate-400">{formatDate(item.posts?.created_at || item.created_at)}</span>
                     </div>
                     <div className="flex-grow">
-                        <h3 className="text-xl font-bold text-slate-900 group-hover:text-frage-blue transition-colors">
+                        <h3 className="text-lg font-bold text-slate-900 group-hover:text-frage-blue transition-colors">
                         {item.title || item.posts?.title}
                         </h3>
-                        <p className="mt-2 text-slate-600 line-clamp-2">
-                        {item.posts?.content || ""}
-                        </p>
                     </div>
                     </Link>
                 ))}

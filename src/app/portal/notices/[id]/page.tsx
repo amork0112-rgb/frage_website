@@ -50,7 +50,7 @@ export default function NoticeDetailPage() {
           category: data.category || "Academic",
           campus: "All",
           summary: data.content || "",
-          content: String(data.content || "").split(/\n+/),
+          content: data.content || "",
           isPinned: !!data.is_pinned,
           isArchived: !!data.is_archived,
           viewCount: data.view_count || 0,
@@ -219,13 +219,10 @@ export default function NoticeDetailPage() {
             {/* Content */}
             <div className="p-6 md:p-8">
                 {notice && (
-                  <div className="prose prose-slate max-w-none">
-                    {(notice.content || []).map((paragraph: string, index: number) => (
-                      <p key={index} className="mb-4 text-slate-700 leading-relaxed last:mb-0">
-                        {paragraph}
-                      </p>
-                    ))}
-                  </div>
+                  <div 
+                    className="prose prose-slate max-w-none"
+                    dangerouslySetInnerHTML={{ __html: notice.content || "" }}
+                  />
                 )}
 
                 {/* Reaction Section */}

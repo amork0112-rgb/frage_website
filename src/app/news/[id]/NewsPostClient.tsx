@@ -80,7 +80,7 @@ export default function NewsPostClient({ params }: { params: { id: string } }) {
         <div className="container mx-auto px-6 h-16 flex items-center">
           <Link href="/news" className="flex items-center gap-2 text-slate-500 hover:text-frage-blue transition-colors text-sm font-bold">
             <ArrowLeft className="w-4 h-4" />
-            Back to News
+            목록으로 돌아가기
           </Link>
         </div>
       </header>
@@ -102,14 +102,10 @@ export default function NewsPostClient({ params }: { params: { id: string } }) {
           </div>
         )}
 
-        <div className="prose prose-lg max-w-none prose-slate prose-headings:font-bold prose-a:text-frage-blue">
-          {(promotion.posts?.content || "")
-            .split("\n")
-            .filter((line) => line.trim().length > 0)
-            .map((line, i) => (
-              <p key={i}>{line}</p>
-            ))}
-        </div>
+        <div 
+          className="prose prose-lg max-w-none prose-slate prose-headings:font-bold prose-a:text-frage-blue"
+          dangerouslySetInnerHTML={{ __html: promotion.posts?.content || "" }}
+        />
       </article>
     </div>
   );

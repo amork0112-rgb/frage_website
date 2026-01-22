@@ -63,13 +63,13 @@ export default function AdminNewNoticePage() {
       const fileName = `notices/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("images")
+        .from("notice-images")
         .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from("images")
+        .from("notice-images")
         .getPublicUrl(fileName);
 
       setImageUrl(publicUrl);
@@ -213,15 +213,8 @@ export default function AdminNewNoticePage() {
         {/* editor */}
         <div>
           <label className="block text-sm font-bold mb-2">대표 이미지</label>
-          <div className="flex items-center gap-3 mb-4">
-            <input
-              type="text"
-              value={imageUrl}
-              readOnly
-              placeholder="이미지를 선택하면 자동으로 등록됩니다"
-              className="flex-1 border rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-500"
-            />
-            <label className={`px-4 py-2 bg-slate-200 rounded-lg cursor-pointer text-sm font-bold hover:bg-slate-300 transition-colors ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}>
+          <div className="mb-4">
+            <label className={`inline-block px-4 py-2 bg-slate-200 rounded-lg cursor-pointer text-sm font-bold hover:bg-slate-300 transition-colors ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}>
               {uploading ? "업로드 중..." : "이미지 선택"}
               <input 
                 type="file" 
@@ -231,6 +224,25 @@ export default function AdminNewNoticePage() {
                 disabled={uploading}
               />
             </label>
+            {imageUrl && (
+              <div className="mt-3 relative w-full max-w-sm">
+                <img 
+                  src={imageUrl} 
+                  alt="Representative" 
+                  className="w-full rounded-lg border"
+                />
+                <button
+                  type="button"
+                  onClick={() => setImageUrl("")}
+                  className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70"
+                  title="이미지 삭제"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
           <Editor value={richHtml} onChange={setRichHtml} />
         </div>
