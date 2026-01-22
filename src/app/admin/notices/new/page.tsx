@@ -19,6 +19,7 @@ export default function AdminNewNoticePage() {
   const [richHtml, setRichHtml] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const [role, setRole] = useState<"admin" | "teacher">("admin");
 
@@ -49,6 +50,35 @@ export default function AdminNewNoticePage() {
     if (!category) return false;
     if (!plainText(richHtml).trim()) return false;
     return true;
+  };
+
+  /* ---------------- upload ---------------- */
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const fileExt = file.name.split(".").pop();
+      const fileName = `notices/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("images")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("images")
+        .getPublicUrl(fileName);
+
+      setImageUrl(publicUrl);
+    } catch (error) {
+      console.error(error);
+      alert("이미지 업로드 실패");
+    } finally {
+      setUploading(false);
+    }
   };
 
   /* ---------------- submit ---------------- */
@@ -182,13 +212,26 @@ export default function AdminNewNoticePage() {
 
         {/* editor */}
         <div>
-          <label className="block text-sm font-bold mb-2">대표 이미지 URL (선택)</label>
-          <input
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            className="w-full border rounded-lg px-4 py-3 mb-4 text-sm"
-            placeholder="https://..."
-          />
+          <label className="block text-sm font-bold mb-2">대표 이미지</label>
+          <div className="flex items-center gap-3 mb-4">
+            <input
+              type="text"
+              value={imageUrl}
+              readOnly
+              placeholder="이미지를 선택하면 자동으로 등록됩니다"
+              className="flex-1 border rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-500"
+            />
+            <label className={`px-4 py-2 bg-slate-200 rounded-lg cursor-pointer text-sm font-bold hover:bg-slate-300 transition-colors ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}>
+              {uploading ? "업로드 중..." : "이미지 선택"}
+              <input 
+                type="file" 
+                accept="image/*" 
+                hidden 
+                onChange={handleImageUpload}
+                disabled={uploading}
+              />
+            </label>
+          </div>
           <Editor value={richHtml} onChange={setRichHtml} />
         </div>
 
