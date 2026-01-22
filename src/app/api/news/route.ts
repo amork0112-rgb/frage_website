@@ -35,7 +35,7 @@ export async function GET() {
 
     const { data: posts, error: postError } = await supabaseService
       .from("posts")
-      .select("id, title, content, created_at, image_url")
+      .select("id, title, created_at")
       .in("id", postIds)
       .eq("published", true)
       .eq("is_archived", false);

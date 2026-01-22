@@ -14,7 +14,6 @@ type PromotionRow = {
   posts: {
     id: number;
     title: string;
-    content: string;
     created_at: string;
   } | null;
 };
@@ -58,8 +57,6 @@ export default function NewsClient() {
     setCurrentPage(pageNumber);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  const getCategoryStyle = () => 'bg-blue-50 text-blue-600';
 
   const formatDate = (dateString: string) => {
       return new Date(dateString).toLocaleDateString("ko-KR", {
@@ -128,7 +125,7 @@ export default function NewsClient() {
                         <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-bold rounded bg-slate-100 text-slate-600`}>
                           NEWS
                         </span>
-                        <span className="text-slate-700 font-medium truncate group-hover:text-frage-blue transition-colors">
+                        <span className="font-bold text-slate-800 truncate group-hover:text-frage-blue transition-colors">
                           {item.title || item.posts?.title}
                         </span>
                       </div>
