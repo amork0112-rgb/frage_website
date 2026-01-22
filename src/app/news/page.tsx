@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -27,7 +28,7 @@ export default function NewsPage() {
   useEffect(() => {
     async function fetchPromotions() {
       try {
-        const res = await fetch("/api/news", { cache: "no-store" });
+        const res = await fetch("/api/news", { next: { revalidate: 0 } });
         const json = await res.json();
         if (json.ok && Array.isArray(json.data)) {
           setPromotions(json.data);

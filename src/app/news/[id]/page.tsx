@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -34,7 +35,7 @@ export default function NewsPostPage({ params }: { params: { id: string } }) {
       }
 
       try {
-        const res = await fetch(`/api/news/${idNum}`, { cache: "no-store" });
+        const res = await fetch(`/api/news/${idNum}`, { next: { revalidate: 0 } });
         const json = await res.json();
         if (!json.ok || !json.data) {
           setLoading(false);
