@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useEffect, useCallback } from "react";
 import "react-quill/dist/quill.snow.css";
 
 // Dynamic import to avoid SSR issues
@@ -17,7 +17,43 @@ interface EditorProps {
 export default function Editor({ value, onChange }: EditorProps) {
   const quillRef = useRef<any>(null);
 
-  const imageHandler = () => {
+  const uploadImage = useCallback(async (file: File) => {
+    const fileName = `notices/${Date.now()}-${file.name}`;
+
+    try {
+      const { error } = await supabase.storage
+        .from("notice-images")
+        .upload(fileName, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Upload error:", error);
+        alert("이미지 업로드 실패: " + error.message);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("notice-images")
+        .getPublicUrl(fileName);
+
+      const editor = quillRef.current?.getEditor();
+      if (!editor) return;
+
+      const range = editor.getSelection();
+      // If no selection, append to the end
+      const index = range ? range.index : editor.getLength();
+      
+      editor.insertEmbed(index, "image", urlData.publicUrl);
+      editor.setSelection(index + 1);
+    } catch (e) {
+      console.error("Image upload failed", e);
+      alert("이미지 업로드 중 오류가 발생했습니다.");
+    }
+  }, []);
+
+  const imageHandler = useCallback(() => {
     const input = document.createElement("input");
     input.setAttribute("type", "file");
     input.setAttribute("accept", "image/*");
@@ -25,38 +61,54 @@ export default function Editor({ value, onChange }: EditorProps) {
 
     input.onchange = async () => {
       if (!input.files?.[0]) return;
-      const file = input.files[0];
-      const fileName = `notices/${Date.now()}-${file.name}`;
+      await uploadImage(input.files[0]);
+    };
+  }, [uploadImage]);
 
-      try {
-        const { error } = await supabase.storage
-          .from("notice-images")
-          .upload(fileName, file, {
-            cacheControl: "3600",
-            upsert: false,
-          });
+  useEffect(() => {
+    const handlePaste = async (e: any) => {
+      const clipboardData = e.clipboardData || (window as any).clipboardData;
+      if (!clipboardData) return;
+      
+      const items = clipboardData.items;
+      if (!items) return;
 
-        if (error) {
-          console.error("Upload error:", error);
-          alert("이미지 업로드 실패: " + error.message);
-          return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          e.preventDefault();
+          const file = items[i].getAsFile();
+          if (file) {
+            await uploadImage(file);
+          }
         }
-
-        const { data: urlData } = supabase.storage
-          .from("notice-images")
-          .getPublicUrl(fileName);
-
-        const editor = quillRef.current?.getEditor();
-        const range = editor?.getSelection();
-        if (editor && range) {
-          editor.insertEmbed(range.index, "image", urlData.publicUrl);
-        }
-      } catch (e) {
-        console.error("Image upload failed", e);
-        alert("이미지 업로드 중 오류가 발생했습니다.");
       }
     };
-  };
+
+    const attachListener = () => {
+      const editor = quillRef.current?.getEditor();
+      if (editor) {
+        editor.root.addEventListener('paste', handlePaste);
+        return true;
+      }
+      return false;
+    };
+
+    if (!attachListener()) {
+      const interval = setInterval(() => {
+        if (attachListener()) {
+          clearInterval(interval);
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    }
+    
+    return () => {
+      const editor = quillRef.current?.getEditor();
+      if (editor) {
+        editor.root.removeEventListener('paste', handlePaste);
+      }
+    };
+  }, [uploadImage]);
 
   const modules = useMemo(() => ({
     toolbar: {
@@ -73,7 +125,7 @@ export default function Editor({ value, onChange }: EditorProps) {
         image: imageHandler,
       },
     },
-  }), []);
+  }), [imageHandler]);
 
   return (
     <div className="bg-white">

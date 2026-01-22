@@ -217,7 +217,7 @@ export default function AdminNoticesPage() {
                             <td className="p-4">
                                 <span className={`px-2 py-1 rounded text-[10px] font-bold border ${notice.category === 'Schedule' ? 'bg-orange-50 text-frage-orange border-orange-100' : notice.category === 'Academic' ? 'bg-blue-50 text-blue-600 border-blue-100' : notice.category === 'Event' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{notice.category}</span>
                             </td>
-                            <td className="p-4 text-slate-600 font-medium">
+                            <td className="p-4 text-slate-600 font-medium whitespace-nowrap">
                                 {formatDate(notice.date)}
                             </td>
                             <td className="p-4 text-center text-slate-600">
