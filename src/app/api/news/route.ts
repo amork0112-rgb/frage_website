@@ -2,13 +2,9 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabase/service";
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(req.url);
-    const page = Number(searchParams.get("page") || "1");
-    const limit = Number(searchParams.get("limit") || "100"); // Fetch all/many by default for client-side pagination or set reasonable limit
-
-    // 1. Fetch promotions (without join)
+    // 1️⃣ promotions 먼저 가져오기
     const { data: promotions, error } = await supabaseService
       .from("notice_promotions")
       .select(`
@@ -24,38 +20,43 @@ export async function GET(req: Request) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching news:", error);
-      return NextResponse.json({ ok: false, error: "fetch_failed" }, { status: 500 });
+      console.error("promotions error:", error);
+      // ❗ public 페이지는 빈 배열이라도 반환
+      return NextResponse.json({ ok: true, data: [] });
     }
 
-    // 2. Fetch related posts
-    const postIds = promotions.map((p) => p.post_id).filter((id) => id !== null) as number[];
-    
-    let posts: any[] = [];
-    if (postIds.length > 0) {
-      const { data: postsData, error: postsError } = await supabaseService
-        .from("posts")
-        .select("id, title, content, created_at, image_url")
-        .in("id", postIds);
-        
-      if (postsError) {
-         console.error("Error fetching posts:", postsError);
-      } else {
-         posts = postsData || [];
-      }
+    if (!promotions || promotions.length === 0) {
+      return NextResponse.json({ ok: true, data: [] });
     }
 
-    // 3. Merge
-    const postMap = Object.fromEntries(posts.map((p) => [p.id, p]));
+    // 2️⃣ posts 가져오기
+    const postIds = promotions
+      .map(p => p.post_id)
+      .filter(Boolean);
 
-    const data = promotions.map((p) => ({
+    const { data: posts, error: postError } = await supabaseService
+      .from("posts")
+      .select("id, title, content, created_at, image_url")
+      .in("id", postIds);
+
+    if (postError) {
+      console.error("posts error:", postError);
+      return NextResponse.json({ ok: true, data: [] });
+    }
+
+    // 3️⃣ merge
+    const postMap = Object.fromEntries(
+      (posts ?? []).map(p => [p.id, p])
+    );
+
+    const data = promotions.map(p => ({
       ...p,
-      posts: postMap[p.post_id] ?? null,
+      posts: postMap[p.post_id] ?? null, // frontend compatibility: 'posts' instead of 'post'
     }));
 
-    return NextResponse.json({ ok: true, data }, { status: 200 });
+    return NextResponse.json({ ok: true, data });
   } catch (e) {
     console.error("API Error:", e);
-    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
+    return NextResponse.json({ ok: true, data: [] });
   }
 }
