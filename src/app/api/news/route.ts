@@ -8,7 +8,6 @@ export async function GET() {
     const { data: promotions, error } = await supabaseService
       .from("notice_promotions")
       .select(`
-        id,
         title,
         pinned,
         push_enabled,
@@ -37,7 +36,9 @@ export async function GET() {
     const { data: posts, error: postError } = await supabaseService
       .from("posts")
       .select("id, title, content, created_at, image_url")
-      .in("id", postIds);
+      .in("id", postIds)
+      .eq("published", true)
+      .eq("is_archived", false);
 
     if (postError) {
       console.error("posts error:", postError);
@@ -49,10 +50,12 @@ export async function GET() {
       (posts ?? []).map(p => [p.id, p])
     );
 
-    const data = promotions.map(p => ({
-      ...p,
-      posts: postMap[p.post_id] ?? null, // frontend compatibility: 'posts' instead of 'post'
-    }));
+    const data = promotions
+      .map(p => ({
+        ...p,
+        posts: postMap[p.post_id] ?? null, // frontend compatibility: 'posts' instead of 'post'
+      }))
+      .filter(p => p.posts !== null);
 
     return NextResponse.json({ ok: true, data });
   } catch (e) {

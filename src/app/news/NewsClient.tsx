@@ -5,11 +5,12 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 type PromotionRow = {
-  id: number;
+  // id removed as it doesn't exist in notice_promotions
   title: string;
   pinned: boolean;
   push_enabled: boolean;
   created_at: string;
+  post_id: number;
   posts: {
     id: number;
     title: string;
@@ -84,7 +85,7 @@ export default function NewsClient() {
             <>
                 <div className="grid gap-6">
                 {currentItems.map((item) => (
-                    <Link href={`/news/${item.id}`} key={item.id} className="group flex flex-col md:flex-row gap-6 p-6 rounded-xl border border-slate-100 hover:border-frage-blue/30 transition-colors bg-white hover:shadow-sm cursor-pointer">
+                    <Link href={`/news/${item.post_id}`} key={item.post_id} className="group flex flex-col md:flex-row gap-6 p-6 rounded-xl border border-slate-100 hover:border-frage-blue/30 transition-colors bg-white hover:shadow-sm cursor-pointer">
                     <div className="md:w-32 flex-shrink-0 flex flex-col justify-center">
                         <span className={`inline-block w-fit px-2 py-1 text-xs font-semibold rounded ${getCategoryStyle()}`}>
                         NEWS

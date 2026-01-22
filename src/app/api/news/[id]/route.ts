@@ -13,14 +13,13 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const { data: promotion, error } = await supabaseService
       .from("notice_promotions")
       .select(`
-        id,
         title,
         pinned,
         push_enabled,
         created_at,
         post_id
       `)
-      .eq("id", id)
+      .eq("post_id", id)
       .eq("archived", false)
       .single();
 
@@ -35,9 +34,15 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         .from("posts")
         .select("id, title, content, created_at, image_url")
         .eq("id", promotion.post_id)
+        .eq("published", true)
+        .eq("is_archived", false)
         .single();
       
       post = postData;
+    }
+
+    if (!post) {
+       return NextResponse.json({ ok: false, error: "post_not_found_or_hidden" }, { status: 404 });
     }
 
     // 3. Merge

@@ -5,11 +5,12 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 type PromotionDetail = {
-  id: number;
+  // id removed
   title: string;
   pinned: boolean;
   push_enabled: boolean;
   created_at: string;
+  post_id: number;
   posts: {
     id: number;
     title: string;
