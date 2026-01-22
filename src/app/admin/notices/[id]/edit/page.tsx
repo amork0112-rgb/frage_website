@@ -16,6 +16,7 @@ export default function AdminEditNoticePage() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Schedule");
   const [richHtml, setRichHtml] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<"admin" | "teacher" | "unknown">("unknown");
   const [promote, setPromote] = useState(false);
@@ -36,6 +37,7 @@ export default function AdminEditNoticePage() {
         setCategory("Schedule");
         // Use content directly as HTML. If it was plain text, it will still render fine.
         setRichHtml(row.content || "");
+        setImageUrl(row.image_url || "");
       }
       const auth = await supabase.auth.getUser();
       const appRole = (auth.data?.user?.app_metadata as any)?.role ?? null;
@@ -73,6 +75,7 @@ export default function AdminEditNoticePage() {
           title,
           content: richHtml, // Save HTML content
           category: "notice",
+          image_url: imageUrl || null,
         })
         .eq("id", Number(id));
 
@@ -176,6 +179,14 @@ export default function AdminEditNoticePage() {
         </div>
 
         <div>
+          <label className="block text-sm font-bold text-slate-700 mb-2">대표 이미지 URL (선택)</label>
+          <input
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-4 py-3 mb-4 text-sm bg-white"
+            placeholder="https://..."
+            disabled={!canEdit}
+          />
           <label className="block text-sm font-bold text-slate-700 mb-2">내용</label>
           <Editor value={richHtml} onChange={setRichHtml} />
         </div>

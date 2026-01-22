@@ -5,9 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
-  Eye,
   Info,
-  X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Editor from "@/components/Editor";
@@ -19,7 +17,7 @@ export default function AdminNewNoticePage() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Schedule");
   const [richHtml, setRichHtml] = useState("");
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [role, setRole] = useState<"admin" | "teacher">("admin");
@@ -75,7 +73,7 @@ export default function AdminNewNoticePage() {
           category: "notice",
           published: true,
           is_pinned: false,
-          image_url: null,
+          image_url: imageUrl || null,
           scope: role === "admin" ? "global" : "class", // Explicitly set scope
         })
         .select()
@@ -184,6 +182,13 @@ export default function AdminNewNoticePage() {
 
         {/* editor */}
         <div>
+          <label className="block text-sm font-bold mb-2">대표 이미지 URL (선택)</label>
+          <input
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            className="w-full border rounded-lg px-4 py-3 mb-4 text-sm"
+            placeholder="https://..."
+          />
           <Editor value={richHtml} onChange={setRichHtml} />
         </div>
 
