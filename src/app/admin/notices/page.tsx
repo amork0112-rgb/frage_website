@@ -129,6 +129,19 @@ export default function AdminNoticesPage() {
     }, 150);
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("정말 이 공지사항을 삭제하시겠습니까?")) return;
+    try {
+      const { error } = await supabase.from("posts").delete().eq("id", id);
+      if (error) throw error;
+      setServerNotices((prev) => prev.filter((n) => n.id !== id));
+      alert("삭제되었습니다.");
+    } catch (e) {
+      console.error(e);
+      alert("삭제 중 오류가 발생했습니다.");
+    }
+  };
+
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
       
@@ -151,24 +164,24 @@ export default function AdminNoticesPage() {
             <table className="w-full text-left border-collapse">
                 <thead>
                     <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
-                        <th className="p-4 font-bold w-16 text-center">No.</th>
-                        <th className="p-4 font-bold w-24 text-center">상태</th>
-                        <th className="p-4 font-bold w-32">캠퍼스</th>
-                        <th className="p-4 font-bold">제목</th>
-                        <th className="p-4 font-bold w-32">카테고리</th>
-                        <th className="p-4 font-bold w-32">작성일</th>
-                        <th className="p-4 font-bold w-24 text-center">조회수</th>
-                        <th className="p-4 font-bold w-32 text-center">관리</th>
+                        <th className="px-3 py-3 font-bold w-16 text-center">No.</th>
+                        <th className="px-3 py-3 font-bold w-24 text-center">상태</th>
+                        <th className="px-3 py-3 font-bold w-24">캠퍼스</th>
+                        <th className="px-3 py-3 font-bold">제목</th>
+                        <th className="px-3 py-3 font-bold w-24">카테고리</th>
+                        <th className="px-3 py-3 font-bold w-28">작성일</th>
+                        <th className="px-3 py-3 font-bold w-20 text-center">조회수</th>
+                        <th className="px-3 py-3 font-bold w-24 text-center">관리</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
                     {mergedNotices.map((notice: any, idx: number) => (
                         <tr key={notice.id} className="hover:bg-slate-50 transition-colors group">
-                            <td className="p-4 text-center text-slate-400 font-mono">{idx + 1}</td>
-                            <td className="p-4 text-center">
+                            <td className="px-3 py-3 text-center text-slate-400 font-mono">{idx + 1}</td>
+                            <td className="px-3 py-3 text-center">
                                 <p
                                   onClick={() => cycleStatus(notice)}
-                                  className={`inline-flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] font-bold border transition-opacity duration-200 ${
+                                  className={`inline-flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] font-bold border transition-opacity duration-200 cursor-pointer ${
                                     animMap[notice.id] ? "opacity-0" : "opacity-100"
                                   } ${
                                     notice.isPinned
@@ -183,7 +196,7 @@ export default function AdminNoticesPage() {
                                   {notice.isPinned ? "고정됨" : notice.isArchived ? "보관됨" : "게시중"}
                                 </p>
                             </td>
-                            <td className="p-4">
+                            <td className="px-3 py-3 whitespace-nowrap">
                                 <div className="flex items-center gap-1.5">
                                     <MapPin className="w-3.5 h-3.5 text-slate-400" />
                                     <span className={`font-bold ${
@@ -199,11 +212,10 @@ export default function AdminNoticesPage() {
                                     </span>
                                 </div>
                             </td>
-                            <td className="p-4">
+                            <td className="px-3 py-3">
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="min-w-0 flex flex-col">
                                     <p className="font-bold text-slate-800 line-clamp-1">{notice.title}</p>
-                                    <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{notice.summary}</p>
                                   </div>
                                   {notice.hasNews && (
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-blue-50 text-blue-600 border-blue-100 whitespace-nowrap">
@@ -214,21 +226,25 @@ export default function AdminNoticesPage() {
                                   )}
                                 </div>
                             </td>
-                            <td className="p-4">
+                            <td className="px-3 py-3">
                                 <span className={`px-2 py-1 rounded text-[10px] font-bold border ${notice.category === 'Schedule' ? 'bg-orange-50 text-frage-orange border-orange-100' : notice.category === 'Academic' ? 'bg-blue-50 text-blue-600 border-blue-100' : notice.category === 'Event' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{notice.category}</span>
                             </td>
-                            <td className="p-4 text-slate-600 font-medium whitespace-nowrap">
+                            <td className="px-3 py-3 text-slate-600 font-medium whitespace-nowrap">
                                 {formatDate(notice.date)}
                             </td>
-                            <td className="p-4 text-center text-slate-600">
+                            <td className="px-3 py-3 text-center text-slate-600 whitespace-nowrap">
                                 {notice.viewCount}
                             </td>
-                            <td className="p-4 text-center">
+                            <td className="px-3 py-3 text-center">
                                 <div className="flex items-center justify-center gap-2">
                                     <Link href={`/admin/notices/${notice.id}/edit`} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="수정">
                                         <Edit2 className="w-4 h-4" />
                                     </Link>
-                                    <button className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="삭제">
+                                    <button 
+                                      onClick={() => handleDelete(notice.id)}
+                                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" 
+                                      title="삭제"
+                                    >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>

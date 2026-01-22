@@ -1,4 +1,3 @@
-//app/admin/notices/new
 "use client";
 
 import { useEffect, useState } from "react";
@@ -17,9 +16,7 @@ export default function AdminNewNoticePage() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Schedule");
   const [richHtml, setRichHtml] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
   const [role, setRole] = useState<"admin" | "teacher">("admin");
 
@@ -52,35 +49,6 @@ export default function AdminNewNoticePage() {
     return true;
   };
 
-  /* ---------------- upload ---------------- */
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setUploading(true);
-      const fileExt = file.name.split(".").pop();
-      const fileName = `notices/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("notice-images")
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("notice-images")
-        .getPublicUrl(fileName);
-
-      setImageUrl(publicUrl);
-    } catch (error) {
-      console.error(error);
-      alert("이미지 업로드 실패");
-    } finally {
-      setUploading(false);
-    }
-  };
-
   /* ---------------- submit ---------------- */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,8 +61,6 @@ export default function AdminNewNoticePage() {
     setLoading(true);
 
     try {
-      const contentText = plainText(richHtml);
-
       const { data: inserted, error } = await supabase
         .from("posts")
         .insert({
@@ -103,7 +69,7 @@ export default function AdminNewNoticePage() {
           category: "notice",
           published: true,
           is_pinned: false,
-          image_url: imageUrl || null,
+          image_url: null,
           scope: role === "admin" ? "global" : "class", // Explicitly set scope
         })
         .select()
@@ -212,39 +178,7 @@ export default function AdminNewNoticePage() {
 
         {/* editor */}
         <div>
-          <label className="block text-sm font-bold mb-2">대표 이미지</label>
-          <div className="mb-4">
-            <label htmlFor="file-upload" className={`inline-block px-4 py-2 bg-slate-200 rounded-lg cursor-pointer text-sm font-bold hover:bg-slate-300 transition-colors ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}>
-              {uploading ? "업로드 중..." : "이미지 선택"}
-            </label>
-            <input 
-              id="file-upload"
-              type="file" 
-              accept="image/*" 
-              className="hidden"
-              onChange={handleImageUpload}
-              disabled={uploading}
-            />
-            {imageUrl && (
-              <div className="mt-3 relative w-full max-w-sm">
-                <img 
-                  src={imageUrl} 
-                  alt="Representative" 
-                  className="w-full rounded-lg border"
-                />
-                <button
-                  type="button"
-                  onClick={() => setImageUrl("")}
-                  className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70"
-                  title="이미지 삭제"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
+          <label className="block text-sm font-bold mb-2">내용</label>
           <Editor value={richHtml} onChange={setRichHtml} />
         </div>
 
