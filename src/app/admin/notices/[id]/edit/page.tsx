@@ -210,16 +210,17 @@ export default function AdminEditNoticePage() {
         <div>
           <label className="block text-sm font-bold text-slate-700 mb-2">대표 이미지</label>
           <div className="mb-4">
-            <label className={`inline-block px-4 py-2 bg-slate-200 rounded-lg cursor-pointer text-sm font-bold hover:bg-slate-300 transition-colors ${uploading || !canEdit ? "opacity-50 cursor-not-allowed" : ""}`}>
+            <label htmlFor="file-upload" className={`inline-block px-4 py-2 bg-slate-200 rounded-lg cursor-pointer text-sm font-bold hover:bg-slate-300 transition-colors ${uploading || !canEdit ? "opacity-50 cursor-not-allowed" : ""}`}>
               {uploading ? "업로드 중..." : "이미지 선택"}
-              <input 
-                type="file" 
-                accept="image/*" 
-                hidden 
-                onChange={handleImageUpload}
-                disabled={uploading || !canEdit}
-              />
             </label>
+            <input 
+              id="file-upload"
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={handleImageUpload}
+              disabled={uploading || !canEdit}
+            />
             {imageUrl && (
               <div className="mt-3 relative w-full max-w-sm">
                 <img 
