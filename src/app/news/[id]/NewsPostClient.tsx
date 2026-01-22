@@ -75,8 +75,8 @@ export default function NewsPostClient({ params }: { params: { id: string } }) {
   const categoryStyle = "bg-blue-50 text-blue-600";
 
   return (
-    <div className="min-h-screen bg-white">
-      <header className="bg-white border-b border-slate-100 sticky top-0 z-10">
+    <div className="min-h-screen bg-white pt-24">
+      <header className="bg-white border-b border-slate-100">
         <div className="container mx-auto px-6 h-16 flex items-center">
           <Link href="/news" className="flex items-center gap-2 text-slate-500 hover:text-frage-blue transition-colors text-sm font-bold">
             <ArrowLeft className="w-4 h-4" />
