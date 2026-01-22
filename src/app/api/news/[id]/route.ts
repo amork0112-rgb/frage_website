@@ -9,7 +9,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ ok: false, error: "invalid_id" }, { status: 400 });
     }
 
-    const { data, error } = await supabaseService
+    // 1. Fetch promotion (without join)
+    const { data: promotion, error } = await supabaseService
       .from("notice_promotions")
       .select(`
         id,
@@ -17,21 +18,33 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         pinned,
         push_enabled,
         created_at,
-        posts (
-          id,
-          title,
-          content,
-          created_at,
-          image_url
-        )
+        post_id
       `)
       .eq("id", id)
       .eq("archived", false)
       .single();
 
-    if (error || !data) {
+    if (error || !promotion) {
       return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
     }
+
+    // 2. Fetch related post
+    let post = null;
+    if (promotion.post_id) {
+      const { data: postData } = await supabaseService
+        .from("posts")
+        .select("id, title, content, created_at, image_url")
+        .eq("id", promotion.post_id)
+        .single();
+      
+      post = postData;
+    }
+
+    // 3. Merge
+    const data = {
+      ...promotion,
+      posts: post,
+    };
 
     return NextResponse.json({ ok: true, data }, { status: 200 });
   } catch (e) {
