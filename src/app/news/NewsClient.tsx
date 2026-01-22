@@ -45,12 +45,14 @@ export default function NewsClient() {
     fetchPromotions();
   }, []);
 
-  // Calculate pagination
-  const sorted = useMemo(() => promotions.slice(), [promotions]);
+  // Calculate pagination for Normal Items only
+  const pinnedItems = useMemo(() => promotions.filter(p => p.pinned), [promotions]);
+  const normalItems = useMemo(() => promotions.filter(p => !p.pinned), [promotions]);
+  
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = sorted.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(sorted.length / itemsPerPage);
+  const currentItems = normalItems.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(normalItems.length / itemsPerPage);
 
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
@@ -83,20 +85,56 @@ export default function NewsClient() {
              <div className="text-center py-20 text-slate-400">등록된 소식이 없습니다.</div>
         ) : (
             <>
-                <div className="grid gap-3">
+                {/* Pinned Section */}
+                {pinnedItems.length > 0 && (
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-lg">📌</span>
+                      <h2 className="text-lg font-bold text-slate-800">중요 공지</h2>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+                      {pinnedItems.map((item) => (
+                        <Link 
+                          href={`/news/${item.post_id}`} 
+                          key={item.post_id} 
+                          className="group flex items-center justify-between px-6 py-4 hover:bg-slate-100 transition-colors cursor-pointer gap-4"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="flex-shrink-0 px-2 py-0.5 text-xs font-bold bg-frage-navy text-white rounded">
+                              공지
+                            </span>
+                            <span className="font-bold text-slate-900 truncate group-hover:text-frage-blue transition-colors">
+                              {item.title || item.posts?.title}
+                            </span>
+                          </div>
+                          <span className="flex-shrink-0 text-sm text-slate-500 font-medium">
+                            {formatDate(item.posts?.created_at || item.created_at)}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* General List Section */}
+                <div className="space-y-2">
                 {currentItems.map((item) => (
-                    <Link href={`/news/${item.post_id}`} key={item.post_id} className="group flex flex-col md:flex-row items-center gap-4 p-5 rounded-xl border border-slate-100 hover:border-frage-blue/30 transition-colors bg-white hover:shadow-sm cursor-pointer">
-                    <div className="md:w-32 flex-shrink-0 flex flex-col justify-center">
-                        <span className={`inline-block w-fit px-2 py-1 text-xs font-semibold rounded ${getCategoryStyle()}`}>
-                        NEWS
+                    <Link 
+                      href={`/news/${item.post_id}`} 
+                      key={item.post_id} 
+                      className="group flex items-center justify-between px-4 py-4 rounded-lg border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer gap-4"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-bold rounded bg-slate-100 text-slate-600`}>
+                          NEWS
                         </span>
-                        <span className="mt-1 text-sm text-slate-400">{formatDate(item.posts?.created_at || item.created_at)}</span>
-                    </div>
-                    <div className="flex-grow">
-                        <h3 className="text-lg font-bold text-slate-900 group-hover:text-frage-blue transition-colors">
-                        {item.title || item.posts?.title}
-                        </h3>
-                    </div>
+                        <span className="text-slate-700 font-medium truncate group-hover:text-frage-blue transition-colors">
+                          {item.title || item.posts?.title}
+                        </span>
+                      </div>
+                      <span className="flex-shrink-0 text-sm text-slate-400">
+                        {formatDate(item.posts?.created_at || item.created_at)}
+                      </span>
                     </Link>
                 ))}
                 </div>
