@@ -66,7 +66,7 @@ export async function GET(req: Request) {
     subjects = Array.from(new Map(subjects.map(s => [s.id, s])).values());
 
     // 4. Fetch Existing Commitments
-    const { data: commitments, error: commitError } = await supabase
+    const { data: commitments, error: commitError } = await supabaseService
       .from("student_commitments")
       .select("student_id, book_id, status")
       .eq("class_id", classId)
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { error } = await supabase
+    const { error } = await supabaseService
       .from("student_commitments")
       .upsert({
         student_id,
