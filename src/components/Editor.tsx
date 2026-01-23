@@ -17,40 +17,21 @@ interface EditorProps {
 export default function Editor({ value, onChange }: EditorProps) {
   const quillRef = useRef<any>(null);
 
-  const uploadImage = useCallback(async (file: File) => {
-    const fileName = `notices/${Date.now()}-${file.name}`;
+  const uploadImageToSupabase = useCallback(async (file: File) => {
+    const ext = file.name.split('.').pop();
+    const fileName = `editor/${Date.now()}_${Math.random()}.${ext}`;
 
-    try {
-      const { error } = await supabase.storage
-        .from("notice-images")
-        .upload(fileName, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+    const { error } = await supabase.storage
+      .from("notice-images")
+      .upload(fileName, file);
 
-      if (error) {
-        console.error("Upload error:", error);
-        alert("이미지 업로드 실패: " + error.message);
-        return;
-      }
+    if (error) throw error;
 
-      const { data: urlData } = supabase.storage
-        .from("notice-images")
-        .getPublicUrl(fileName);
+    const { data } = supabase.storage
+      .from("notice-images")
+      .getPublicUrl(fileName);
 
-      const editor = quillRef.current?.getEditor();
-      if (!editor) return;
-
-      const range = editor.getSelection();
-      // If no selection, append to the end
-      const index = range ? range.index : editor.getLength();
-      
-      editor.insertEmbed(index, "image", urlData.publicUrl);
-      editor.setSelection(index + 1);
-    } catch (e) {
-      console.error("Image upload failed", e);
-      alert("이미지 업로드 중 오류가 발생했습니다.");
-    }
+    return data.publicUrl;
   }, []);
 
   const imageHandler = useCallback(() => {
@@ -61,9 +42,23 @@ export default function Editor({ value, onChange }: EditorProps) {
 
     input.onchange = async () => {
       if (!input.files?.[0]) return;
-      await uploadImage(input.files[0]);
+      
+      try {
+        const url = await uploadImageToSupabase(input.files[0]);
+        const editor = quillRef.current?.getEditor();
+        if (!editor) return;
+
+        const range = editor.getSelection();
+        const index = range ? range.index : editor.getLength();
+        
+        editor.insertEmbed(index, "image", url);
+        editor.setSelection(index + 1);
+      } catch (e) {
+        console.error("Image upload failed", e);
+        alert("이미지 업로드 중 오류가 발생했습니다.");
+      }
     };
-  }, [uploadImage]);
+  }, [uploadImageToSupabase]);
 
   useEffect(() => {
     // Register LinkCard Blot
@@ -136,18 +131,22 @@ export default function Editor({ value, onChange }: EditorProps) {
       if (!clipboardData) return;
       
       // 1. Handle Image Paste
-      const items = clipboardData.items;
-      if (items) {
-        for (let i = 0; i < items.length; i++) {
-          if (items[i].type.indexOf('image') !== -1) {
-            e.preventDefault();
-            const file = items[i].getAsFile();
-            if (file) {
-              await uploadImage(file);
-            }
-            return;
+      const file = clipboardData.files?.[0];
+      if (file && file.type.startsWith('image/')) {
+        e.preventDefault();
+        try {
+          const url = await uploadImageToSupabase(file);
+          const editor = quillRef.current?.getEditor();
+          if (editor) {
+             const range = editor.getSelection();
+             const index = range ? range.index : editor.getLength();
+             editor.insertEmbed(index, "image", url);
+             editor.setSelection(index + 1);
           }
+        } catch (e) {
+          console.error("Paste upload failed", e);
         }
+        return;
       }
 
       // 2. Handle URL Paste
@@ -223,7 +222,7 @@ export default function Editor({ value, onChange }: EditorProps) {
         editor.root.removeEventListener('paste', handlePaste);
       }
     };
-  }, [uploadImage]);
+  }, [uploadImageToSupabase]);
 
   const modules = useMemo(() => ({
     toolbar: {
