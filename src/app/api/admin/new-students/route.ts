@@ -1,7 +1,5 @@
 // api/admin/new-students/route.ts
 import { NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { supabaseService } from "@/lib/supabase/service";
 
 const json = (data: any, status = 200) =>
@@ -12,9 +10,6 @@ const json = (data: any, status = 200) =>
 
 export async function GET() {
   try {
-    const supabaseAuth = createSupabaseServer();
-    const guard = await requireAdmin(supabaseAuth);
-    if ((guard as any).error) return (guard as any).error;
     const { data: students, error: e1 } = await supabaseService
       .from("new_students")
       .select("*")
@@ -126,9 +121,6 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const supabaseAuth = createSupabaseServer();
-    const guard = await requireAdmin(supabaseAuth);
-    if ((guard as any).error) return (guard as any).error;
     const body = await req.json();
     const studentId = String(body.studentId ?? body.student_id ?? "");
     const key = String(body.key ?? body.stepKey ?? body.step_key ?? "");
@@ -173,9 +165,6 @@ export async function PUT(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const supabaseAuth = createSupabaseServer();
-    const guard = await requireAdmin(supabaseAuth);
-    if ((guard as any).error) return (guard as any).error;
     const body = await req.json();
     const action = String(body.action || "");
     if (action === "finalize") {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, FileText, Home, LogOut, Menu, UserPlus, Users, Video, X } from "lucide-react";
+import { Bell, FileText, Home, LogOut, Menu, UserPlus, Users, Video, X, CheckSquare } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function TeacherHeader() {
@@ -69,6 +69,7 @@ export default function TeacherHeader() {
         { name: "Manage", href: "/teacher/video-management", icon: Video },
       ],
     },
+    { name: "Commitment", href: "/teacher/dagym", icon: CheckSquare },
     { name: "Reports", href: "/teacher/reports", icon: FileText },
     { name: "Notices", href: "/teacher/notices", icon: Bell },
   ];
