@@ -31,21 +31,27 @@ export default function Editor({ value, onChange }: EditorProps) {
       .from("notice-images")
       .getPublicUrl(fileName);
 
+    if (!data?.publicUrl) {
+      throw new Error("publicUrl not generated");
+    }
+
     return data.publicUrl;
   }, []);
 
   const imageHandler = useCallback(() => {
+    console.log("🟢 imageHandler called");
     const input = document.createElement("input");
     input.setAttribute("type", "file");
     input.setAttribute("accept", "image/*");
     input.click();
 
     input.onchange = async () => {
+      console.log("🟢 file selected", input.files?.[0]);
       if (!input.files?.[0]) return;
       
       try {
         const url = await uploadImageToSupabase(input.files[0]);
-        const editor = quillRef.current?.getEditor();
+        const editor = quillRef.current?.getEditor?.();
         if (!editor) return;
 
         const range = editor.getSelection();
@@ -136,7 +142,7 @@ export default function Editor({ value, onChange }: EditorProps) {
         e.preventDefault();
         try {
           const url = await uploadImageToSupabase(file);
-          const editor = quillRef.current?.getEditor();
+          const editor = quillRef.current?.getEditor?.();
           if (editor) {
              const range = editor.getSelection();
              const index = range ? range.index : editor.getLength();
@@ -161,7 +167,7 @@ export default function Editor({ value, onChange }: EditorProps) {
         // For now, just wait for API
         try {
           // Insert loading text
-          const editor = quillRef.current?.getEditor();
+          const editor = quillRef.current?.getEditor?.();
           const range = editor?.getSelection();
           const index = range ? range.index : editor?.getLength();
           
@@ -189,7 +195,7 @@ export default function Editor({ value, onChange }: EditorProps) {
         } catch (err) {
           console.error("Link preview failed", err);
           // Fallback
-          const editor = quillRef.current?.getEditor();
+          const editor = quillRef.current?.getEditor?.();
           const range = editor?.getSelection();
           if (editor && range) {
              editor.insertText(range.index, url, 'link', url);
@@ -199,7 +205,7 @@ export default function Editor({ value, onChange }: EditorProps) {
     };
 
     const attachListener = () => {
-      const editor = quillRef.current?.getEditor();
+      const editor = quillRef.current?.getEditor?.();
       if (editor) {
         editor.root.addEventListener('paste', handlePaste);
         return true;
@@ -217,14 +223,14 @@ export default function Editor({ value, onChange }: EditorProps) {
     }
     
     return () => {
-      const editor = quillRef.current?.getEditor();
+      const editor = quillRef.current?.getEditor?.();
       if (editor) {
         editor.root.removeEventListener('paste', handlePaste);
       }
     };
   }, [uploadImageToSupabase]);
 
-  const modules = useMemo(() => ({
+  const modules = {
     toolbar: {
       container: [
         [{ header: [1, 2, 3, false] }],
@@ -239,7 +245,7 @@ export default function Editor({ value, onChange }: EditorProps) {
         image: imageHandler,
       },
     },
-  }), [imageHandler]);
+  };
 
   return (
     <div className="bg-white">
