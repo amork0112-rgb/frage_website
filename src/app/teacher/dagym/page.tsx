@@ -37,7 +37,7 @@ const NEXT_STATUS: Record<CommitmentStatus, CommitmentStatus> = {
   not_done: "unchecked",
 };
 
-export default function TeacherCommitmentPage() {
+export default function TeacherCoachingPage() {
   // State
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>("");
@@ -150,7 +150,7 @@ export default function TeacherCommitmentPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4 w-full sm:w-auto">
-            <h1 className="text-xl font-bold text-slate-900 hidden sm:block">Today's Commitments</h1>
+            <h1 className="text-xl font-bold text-slate-900 hidden sm:block">Today's Coaching</h1>
             
             {/* Class Selector */}
             <div className="relative flex-1 sm:flex-none">
@@ -248,7 +248,7 @@ export default function TeacherCommitmentPage() {
 
         {/* Footer Hint */}
         <div className="mt-6 text-center text-sm text-slate-500">
-          <p>Click each cell to mark the student's commitment status.</p>
+          <p>Click each cell to mark the student's coaching status.</p>
           <p>Results will be sent to parents at the end of the day.</p>
         </div>
       </main>

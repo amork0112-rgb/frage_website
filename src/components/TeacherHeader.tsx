@@ -69,7 +69,7 @@ export default function TeacherHeader() {
         { name: "Manage", href: "/teacher/video-management", icon: Video },
       ],
     },
-    { name: "Commitment", href: "/teacher/dagym", icon: CheckSquare },
+    { name: "Coaching", href: "/teacher/dagym", icon: CheckSquare },
     { name: "Reports", href: "/teacher/reports", icon: FileText },
     { name: "Notices", href: "/teacher/notices", icon: Bell },
   ];

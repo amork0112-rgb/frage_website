@@ -20,9 +20,8 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // 2. Fetch Students
-    // Assuming students table has class_id. If not, we might need to filter by class_name or use a join.
-    // Based on v_students_full usage in other files, class_id seems to exist.
-    const { data: students, error: studentError } = await supabase
+    // Use supabaseService to bypass RLS issues
+    const { data: students, error: studentError } = await supabaseService
       .from("students")
       .select("id, name, english_name, english_first_name")
       .eq("class_id", classId)

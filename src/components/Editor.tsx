@@ -1,3 +1,4 @@
+//components/Editor.tsx
 "use client";
 
 import dynamic from "next/dynamic";
@@ -59,12 +60,15 @@ export default function Editor({ value, onChange }: EditorProps) {
         
         editor.insertEmbed(index, "image", url);
         editor.setSelection(index + 1);
+
+        // State synchronization
+        onChange(editor.root.innerHTML);
       } catch (e) {
         console.error("Image upload failed", e);
         alert("이미지 업로드 중 오류가 발생했습니다.");
       }
     };
-  }, [uploadImageToSupabase]);
+  }, [uploadImageToSupabase, onChange]);
 
   useEffect(() => {
     // Register LinkCard Blot
@@ -191,6 +195,7 @@ export default function Editor({ value, onChange }: EditorProps) {
                editor.insertText(index + 1, '\n'); // Add newline after card
                editor.setSelection(index + 2);
             }
+            onChange(editor.root.innerHTML);
           }
         } catch (err) {
           console.error("Link preview failed", err);
@@ -247,6 +252,16 @@ export default function Editor({ value, onChange }: EditorProps) {
     },
   };
 
+  const formats = [
+    "header",
+    "bold", "italic", "underline", "strike",
+    "color", "background",
+    "list", "bullet",
+    "align",
+    "link", "image",
+    "link-card"
+  ];
+
   return (
     <div className="bg-white">
       <ReactQuill
@@ -255,6 +270,7 @@ export default function Editor({ value, onChange }: EditorProps) {
         value={value}
         onChange={onChange}
         modules={modules}
+        formats={formats}
         style={{ height: "400px", marginBottom: "50px" }}
       />
     </div>
