@@ -1,3 +1,4 @@
+// app/admin/notices/new/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -76,6 +77,7 @@ export default function AdminNewNoticePage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 

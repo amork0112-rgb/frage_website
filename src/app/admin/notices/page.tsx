@@ -13,7 +13,9 @@ export default function AdminNoticesPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/admin/notices?limit=100");
+        const res = await fetch("/api/admin/notices?limit=100", {
+          credentials: "include",
+        });
         const json = await res.json();
         
         if (!res.ok) throw new Error(json.error || "Failed to fetch notices");
@@ -87,6 +89,7 @@ export default function AdminNoticesPage() {
       const res = await fetch("/api/admin/notices/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id, status })
       });
       if (!res.ok) throw new Error("sync_failed");
@@ -132,6 +135,7 @@ export default function AdminNoticesPage() {
     try {
       const res = await fetch(`/api/admin/notices?id=${id}`, {
         method: "DELETE",
+        credentials: "include",
       });
 
       if (!res.ok) {

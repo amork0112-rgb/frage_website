@@ -154,6 +154,7 @@ export default function AdminEditNoticePage() {
       const res = await fetch("/api/admin/notices", {
         method: "PUT", // We will add PUT handler
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(payload)
       });
       
