@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useRef, useEffect, useCallback } from "react";
+import { useMemo, useRef, useEffect, useCallback, useState } from "react";
 import "react-quill/dist/quill.snow.css";
 import { supabase } from "@/lib/supabase";
 
@@ -15,6 +15,7 @@ interface EditorProps {
 export default function Editor({ value, onChange }: EditorProps) {
   // ✅ 진짜 Quill editor 인스턴스
   const editorRef = useRef<any>(null);
+  const [editorReady, setEditorReady] = useState(false);
 
   /* ---------------- 이미지 업로드 ---------------- */
   const uploadImageToSupabase = useCallback(async (file: File) => {
@@ -72,8 +73,9 @@ export default function Editor({ value, onChange }: EditorProps) {
 
   /* ---------------- Paste ---------------- */
   useEffect(() => {
+    if (!editorReady || !editorRef.current) return;
+
     const editor = editorRef.current;
-    if (!editor) return;
 
     const handlePaste = async (e: any) => {
       const clipboardData = e.clipboardData || (window as any).clipboardData;
@@ -97,7 +99,7 @@ export default function Editor({ value, onChange }: EditorProps) {
 
     editor.root.addEventListener("paste", handlePaste);
     return () => editor.root.removeEventListener("paste", handlePaste);
-  }, [uploadImageToSupabase, onChange]); // Re-bind if dependencies change, but editorRef.current is mutable ref
+  }, [editorReady, uploadImageToSupabase, onChange]);
 
   /* ---------------- Toolbar ---------------- */
   const modules = useMemo(
@@ -142,8 +144,17 @@ export default function Editor({ value, onChange }: EditorProps) {
         ]}
         onChange={(content: string, delta: any, source: any, editor: any) => {
             // ✅ 여기서만 editor 확보
-            editorRef.current = editor;
+            if (!editorRef.current) {
+                editorRef.current = editor.getEditor();
+                setEditorReady(true);
+            }
             onChange(content);
+        }}
+        onFocus={(range: any, source: any, editor: any) => {
+            if (!editorRef.current) {
+                editorRef.current = editor.getEditor();
+                setEditorReady(true);
+            }
         }}
         style={{ height: 400, marginBottom: 50 }}
         />
