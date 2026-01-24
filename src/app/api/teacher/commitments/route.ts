@@ -36,30 +36,36 @@ export async function GET(req: Request) {
     // Logic: lesson_plans (class_id, date) -> book_id -> books (title)
     // We use supabaseService to ensure we can read these tables even if RLS is strict/missing for teachers
     
-    // First try: Check if lesson_plans has book_id
-    let subjects: any[] = [];
-    
-    // Querying lesson_plans directly
+    // Step 3-1: Fetch lesson_plans to get book_ids
     const { data: plans, error: planError } = await supabaseService
       .from("lesson_plans")
-      .select(`
-        book_id,
-        books (
-          id,
-          title
-        )
-      `)
+      .select("book_id")
       .eq("class_id", classId)
       .eq("date", date);
 
+    let subjects: any[] = [];
+
     if (planError) {
       console.error("Error fetching lesson plans:", planError);
-      // Fallback or specific error handling
-    } else if (plans) {
-      subjects = plans.map((p: any) => ({
-        id: p.book_id,
-        title: p.books?.title || "Unknown Book"
-      })).filter((s: any) => s.id); // Deduplicate if needed
+    } else if (plans && plans.length > 0) {
+      // Extract book IDs
+      const bookIds = plans.map((p: any) => p.book_id).filter(Boolean);
+      
+      if (bookIds.length > 0) {
+        // Step 3-2: Fetch books details explicitly (avoid implicit join which might fail if FK is missing)
+        const { data: books, error: bookError } = await supabaseService
+          .from("books")
+          .select("id, title")
+          .in("id", bookIds);
+          
+        if (bookError) {
+          console.error("Error fetching books:", bookError);
+        } else if (books) {
+          // Map back to maintain order if needed, or just use the fetched books
+          // We'll just return the books found
+          subjects = books;
+        }
+      }
     }
 
     // Deduplicate subjects by ID
