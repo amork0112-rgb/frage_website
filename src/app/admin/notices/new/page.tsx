@@ -61,57 +61,28 @@ export default function AdminNewNoticePage() {
     setLoading(true);
 
     try {
-      const { data: inserted, error } = await supabase
-        .from("posts")
-        .insert({
-          title,
-          content: richHtml, 
-          category: "notice",
-          published: true,
-          is_pinned: false,
-          image_url: null,
-          scope: role === "admin" ? "global" : "class", // Explicitly set scope
-        })
-        .select()
-        .single();
-      if (error || !inserted) {
-        console.error("NOTICE INSERT ERROR:", error);
-        alert("공지 저장 중 오류가 발생했습니다.");
-        setLoading(false);
-        return;
-      }
+      const payload = {
+        title,
+        content: richHtml, 
+        scope: role === "admin" ? "global" : "class",
+        is_pinned: false,
+        publishAsNews: promote,
+        is_pinned_news: newsFeatured,
+        push_enabled: newsPushEnabled
+      };
 
-      if (promote) {
-        const postId = Number(inserted.id);
-        const { data: existing } = await supabase
-          .from("notice_promotions")
-          .select("id")
-          .eq("post_id", postId)
-          .maybeSingle();
-        if (existing) {
-          await supabase
-            .from("notice_promotions")
-            .update({
-              title: (newsTitle || title).trim(),
-              pinned: newsFeatured,
-              push_enabled: newsPushEnabled,
-              archived: false,
-            })
-            .eq("post_id", postId);
-        } else {
-          await supabase
-            .from("notice_promotions")
-            .insert({
-              post_id: postId,
-              title: (newsTitle || title).trim(),
-              pinned: newsFeatured,
-              archived: false,
-              push_enabled: newsPushEnabled,
-            });
-        }
-      } else {
-        const postId = Number(inserted.id);
-        await supabase.from("notice_promotions").delete().eq("post_id", postId);
+      const res = await fetch("/api/admin/notices", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to create notice");
       }
 
       alert("공지 등록이 완료되었습니다.");

@@ -13,37 +13,31 @@ export default function AdminNoticesPage() {
   useEffect(() => {
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from("posts")
-          .select("*")
-          .eq("category", "notice")
-          .eq("scope", "global") // Admin scope
-          .eq("is_archived", false)
-          .order("created_at", { ascending: false });
-        if (!error && Array.isArray(data)) {
-          // ✅ Fix: Use String IDs for UUID compatibility
-          const ids = data.map((p: any) => p.id).filter((id: string) => id);
-          
-          let promoMap: Record<string, { pinned: boolean; push_enabled: boolean }> = {};
-          
-          if (ids.length > 0) {
-            const { data: promos } = await supabase
-              .from("notice_promotions")
-              .select("post_id,pinned,push_enabled")
-              .in("post_id", ids);
+        const res = await fetch("/api/admin/notices?limit=100");
+        const json = await res.json();
+        
+        if (!res.ok) throw new Error(json.error || "Failed to fetch notices");
+        
+        if (Array.isArray(json.data)) {
+          const mapped = json.data.map((p: any) => {
+            // ✅ API에서 이미 join된 notice_promotions 데이터를 사용
+            // (서버 API가 notice_promotions 정보를 포함해서 내려주도록 수정 필요)
+            // 현재 구조상 API 수정이 어렵다면, 별도 API 호출이 필요하지만
+            // 사용자 요청은 "프론트에서 직접 DB 호출 금지"이므로 
+            // API가 notice_promotions 정보를 포함해서 내려주는 것이 가장 이상적임.
+            // 하지만 /api/admin/notices/route.ts를 보면 현재는 posts만 조회함.
+            // 따라서 API 수정이 선행되어야 함.
             
-            (promos || []).forEach((row: any) => {
-              if (row.post_id) {
-                promoMap[row.post_id] = {
-                  pinned: !!row.pinned,
-                  push_enabled: !!row.push_enabled,
-                };
-              }
-            });
-          }
-
-          const mapped = data.map((p: any) => {
-            const promo = promoMap[p.id];
+            // 일단 여기서는 API 응답에 notice_promotions 정보가 포함된다고 가정하거나,
+            // 별도 API를 만들어야 함.
+            // 사용자 요청: "notice_promotions는 오직 서버 API에서만 접근"
+            
+            // 임시로 client-side join 로직을 제거하고, API가 데이터를 주도록 변경해야 함.
+            // 지금은 API가 posts만 주므로, 화면에 NEWS 배지가 안 나올 수 있음.
+            // API 수정(Todo 4)에서 이 부분을 처리해야 함.
+            
+            const promo = p.notice_promotions?.[0] || p.notice_promotions; 
+            
             return {
               id: String(p.id),
               title: p.title,
@@ -57,15 +51,17 @@ export default function AdminNoticesPage() {
               viewCount: 0,
               isPinned: !!p.is_pinned,
               isArchived: !!p.is_archived,
-              // ✅ Fix: Ensure hasNews checks actual promotion existence
-              hasNews: p.scope === "global" && !!promo,
+              // ✅ Fix: Ensure hasNews checks actual promotion existence from API response
+              hasNews: !!promo && promo.archived === false,
               newsPinned: !!promo?.pinned,
               newsPushEnabled: !!promo?.push_enabled,
             };
           });
           setServerNotices(mapped);
         }
-      } catch {}
+      } catch (err) {
+        console.error(err);
+      }
     })();
   }, []);
 

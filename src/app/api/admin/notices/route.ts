@@ -32,6 +32,21 @@ export async function GET(request: Request) {
 
   // 2. Query
   const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (id) {
+    const { data, error } = await supabaseService
+      .from("posts")
+      .select("*, notice_promotions(pinned, push_enabled, archived)")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ data });
+  }
+
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "10");
   const offset = (page - 1) * limit;
@@ -43,7 +58,7 @@ export async function GET(request: Request) {
   
   const query = supabaseService
     .from("posts")
-    .select("*", { count: "exact" })
+    .select("*, notice_promotions(pinned, push_enabled, archived)", { count: "exact" })
     .eq("category", "notice")
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -139,6 +154,107 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ data: post });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  const supabaseService = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  // 1. Auth Check
+  const authHeader = request.headers.get("Authorization");
+  if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const token = authHeader.replace("Bearer ", "");
+  const { data: { user }, error: authError } = await supabaseService.auth.getUser(token);
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: profile } = await supabaseService
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  // 2. Validation & Update
+  try {
+    const body = await request.json();
+    
+    // Check required fields
+    if (!body.id || !body.update_mode) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    }
+
+    // We assume the POSTS table update is already done by client or can be done here.
+    // The prompt says: "notice_promotions는 오직 서버 API에서만 접근"
+    // Client-side updated POSTS, now we handle notice_promotions here.
+    
+    const postId = body.id;
+    const publishAsNews = body.publishAsNews;
+
+    if (publishAsNews) {
+      // Upsert promotion
+      const { data: existing } = await supabaseService
+        .from("notice_promotions")
+        .select("id")
+        .eq("post_id", postId)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabaseService
+          .from("notice_promotions")
+          .update({
+            // title: body.title, // Title is not in notice_promotions schema based on previous code usage
+            // Wait, previous code in client had: title: (newsTitle || title).trim()
+            // But user prompt for POST logic:
+            // insert({ post_id: post.id, pinned: false, archived: false, push_enabled: ... })
+            // It seems 'title' column might not exist or user simplified it.
+            // Let's check schema or previous usage. 
+            // In /app/admin/notices/new/page.tsx: .insert({ post_id, title, ... })
+            // So 'title' column exists in notice_promotions?
+            // The user prompt example for POST didn't include title.
+            // "insert 데이터: { post_id, pinned, archived, push_enabled, created_at }"
+            // I will stick to user prompt fields. If title is needed, user would have added it.
+            // But wait, client code was inserting title.
+            // "프롬프트: /api/admin/notices/route.ts 의 POST 로직을 수정해줘... insert 데이터: { ... }"
+            // User explicitly defined the fields. I should follow that.
+            // So I will NOT include title in notice_promotions update/insert.
+            
+            pinned: body.is_pinned_news ?? false,
+            push_enabled: body.push_enabled ?? false,
+            archived: false,
+          })
+          .eq("post_id", postId);
+          
+        if (error) throw error;
+      } else {
+        const { error } = await supabaseService
+          .from("notice_promotions")
+          .insert({
+            post_id: postId,
+            pinned: body.is_pinned_news ?? false,
+            archived: false,
+            push_enabled: body.push_enabled ?? false,
+            created_at: new Date().toISOString(),
+          });
+          
+        if (error) throw error;
+      }
+    } else {
+      // Delete promotion if exists
+      const { error } = await supabaseService
+        .from("notice_promotions")
+        .delete()
+        .eq("post_id", postId);
+        
+      if (error) throw error;
+    }
+
+    return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
