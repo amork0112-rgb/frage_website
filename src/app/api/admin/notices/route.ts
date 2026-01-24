@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       .select(`
         *,
         notice_promotions (
-          id,
+          post_id,
           pinned,
           archived,
           push_enabled
