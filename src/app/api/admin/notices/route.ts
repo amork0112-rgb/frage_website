@@ -1,6 +1,7 @@
 //api/admin/notices/rout.ts
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const supabaseService = createClient(
@@ -8,13 +9,9 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // 1. Auth & Role Check
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const token = authHeader.replace("Bearer ", "");
-  const { data: { user }, error: authError } = await supabaseService.auth.getUser(token);
+  // 1. Auth & Role Check (Cookie-based)
+  const supabase = createSupabaseServer();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -37,7 +34,15 @@ export async function GET(request: Request) {
   if (id) {
     const { data, error } = await supabaseService
       .from("posts")
-      .select("*, notice_promotions(pinned, push_enabled, archived)")
+      .select(`
+        *,
+        notice_promotions (
+          id,
+          pinned,
+          archived,
+          push_enabled
+        )
+      `)
       .eq("id", id)
       .single();
 
@@ -51,14 +56,18 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get("limit") || "10");
   const offset = (page - 1) * limit;
 
-  // Filter mainly for academic/admin notices, but admins can view all if needed.
-  // The requirement says "Admin manages academic/administrative notices".
-  // So we default to filtering notice_type='academic', but allow viewing all?
-  // Let's stick to showing all notices created by admins or explicitly 'academic'.
-  
+  // Filter mainly for academic/admin notices
   const query = supabaseService
     .from("posts")
-    .select("*, notice_promotions(pinned, push_enabled, archived)", { count: "exact" })
+    .select(`
+      *,
+      notice_promotions (
+        id,
+        pinned,
+        archived,
+        push_enabled
+      )
+    `, { count: "exact" })
     .eq("category", "notice")
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
@@ -84,11 +93,10 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // 1. Auth Check
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const token = authHeader.replace("Bearer ", "");
-  const { data: { user }, error: authError } = await supabaseService.auth.getUser(token);
+  // 1. Auth Check (Cookie-based)
+  const supabase = createSupabaseServer();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { data: profile } = await supabaseService
@@ -159,17 +167,56 @@ export async function POST(request: Request) {
   }
 }
 
+export async function DELETE(request: Request) {
+  const supabaseService = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  // 1. Auth Check (Cookie-based)
+  const supabase = createSupabaseServer();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: profile } = await supabaseService
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  // 2. Delete
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ error: "ID required" }, { status: 400 });
+  }
+
+  const { error } = await supabaseService
+    .from("posts")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
+
 export async function PUT(request: Request) {
   const supabaseService = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // 1. Auth Check
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const token = authHeader.replace("Bearer ", "");
-  const { data: { user }, error: authError } = await supabaseService.auth.getUser(token);
+  // 1. Auth Check (Cookie-based)
+  const supabase = createSupabaseServer();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
   if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { data: profile } = await supabaseService

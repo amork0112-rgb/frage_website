@@ -42,13 +42,13 @@ export default function AdminNoticesPage() {
               id: String(p.id),
               title: p.title,
               date: p.created_at,
-              category: "Schedule",
+              category: p.category ?? "Schedule",
               campus: p.campus ?? "All",
               summary: p.content || "",
               richHtml: "",
               images: [],
               files: [],
-              viewCount: 0,
+              viewCount: p.view_count ?? 0,
               isPinned: !!p.is_pinned,
               isArchived: !!p.is_archived,
               // ✅ Fix: Ensure hasNews checks actual promotion existence from API response
@@ -130,8 +130,15 @@ export default function AdminNoticesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("정말 이 공지사항을 삭제하시겠습니까?")) return;
     try {
-      const { error } = await supabase.from("posts").delete().eq("id", id);
-      if (error) throw error;
+      const res = await fetch(`/api/admin/notices?id=${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || "Failed to delete");
+      }
+
       setServerNotices((prev) => prev.filter((n) => n.id !== id));
       alert("삭제되었습니다.");
     } catch (e) {
