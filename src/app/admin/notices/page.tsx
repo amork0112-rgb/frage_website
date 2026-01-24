@@ -226,13 +226,6 @@ export default function AdminNoticesPage() {
                                   <div className="min-w-0 flex flex-col">
                                     <p className="font-bold text-slate-800 line-clamp-1">{notice.title}</p>
                                   </div>
-                                  {notice.hasNews && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-blue-50 text-blue-600 border-blue-100 whitespace-nowrap">
-                                      NEWS
-                                      {notice.newsPinned && <Pin className="w-3 h-3" />}
-                                      {notice.newsPushEnabled && <Upload className="w-3 h-3" />}
-                                    </span>
-                                  )}
                                 </div>
                             </td>
                             <td className="px-3 py-3">

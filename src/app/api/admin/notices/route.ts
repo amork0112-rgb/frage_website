@@ -48,13 +48,7 @@ export async function GET(request: Request) {
   const query = supabaseService
     .from("posts")
     .select(`
-      *,
-      notice_promotions (
-        id,
-        pinned,
-        archived,
-        push_enabled
-      )
+      *
     `, { count: "exact" })
     .eq("category", "notice")
     .order("created_at", { ascending: false })
