@@ -1,3 +1,4 @@
+//app/api/admin/notices/[id]
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
@@ -27,12 +28,26 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    // Admin can update any field except maybe changing notice_type to learning if restricted
-    // But generally Admin has full control.
+    
+    // Explicit payload construction to avoid overwriting missing fields with NULL
+    // Especially important for 'content' which might contain images
+    const payload: any = {
+      updated_at: new Date().toISOString()
+    };
+
+    // Only include fields that are present in the body
+    if (body.title !== undefined) payload.title = body.title;
+    if (body.content !== undefined) payload.content = body.content;
+    if (body.scope !== undefined) payload.scope = body.scope;
+    if (body.campus !== undefined) payload.campus = body.campus;
+    if (body.category !== undefined) payload.category = body.category;
+    if (body.is_pinned !== undefined) payload.is_pinned = body.is_pinned;
+    if (body.is_archived !== undefined) payload.is_archived = body.is_archived;
+    if (body.push_enabled !== undefined) payload.push_enabled = body.push_enabled;
 
     const { data, error } = await supabaseService
       .from("posts")
-      .update(body)
+      .update(payload)
       .eq("id", id)
       .select()
       .single();

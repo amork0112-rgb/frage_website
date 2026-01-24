@@ -36,13 +36,14 @@ export default function Editor({ value, onChange }: EditorProps) {
       throw new Error("publicUrl not generated");
     }
 
-    console.log("✅ Generated Public URL:", data.publicUrl);
     return data.publicUrl;
   }, []);
 
   const imageHandler = useCallback(() => {
-    console.log("🟢 imageHandler called");
-    console.log("quillRef check:", quillRef.current);
+    const getEditorSafe = () => {
+      const editor = quillRef.current?.getEditor?.();
+      return editor || null;
+    };
 
     const input = document.createElement("input");
     input.type = "file";
@@ -50,16 +51,24 @@ export default function Editor({ value, onChange }: EditorProps) {
     input.click();
 
     input.onchange = async () => {
-      console.log("🟢 file selected", input.files?.[0]);
       const file = input.files?.[0];
       if (!file) return;
       
       try {
         const url = await uploadImageToSupabase(file);
-        const editor = quillRef.current?.getEditor?.();
+        
+        // Retry logic to wait for editor instance
+        let editor = getEditorSafe();
+        let retry = 0;
+
+        while (!editor && retry < 10) {
+          await new Promise(r => setTimeout(r, 50));
+          editor = getEditorSafe();
+          retry++;
+        }
         
         if (!editor) {
-          console.error("❌ quill editor not found");
+          console.error("❌ quill editor still not found");
           return;
         }
 
@@ -275,7 +284,9 @@ export default function Editor({ value, onChange }: EditorProps) {
   return (
     <div className="bg-white">
       <ReactQuill
-        ref={quillRef}
+        ref={(el: any) => {
+          quillRef.current = el;
+        }}
         theme="snow"
         value={value}
         onChange={onChange}

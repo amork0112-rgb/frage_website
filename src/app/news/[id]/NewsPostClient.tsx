@@ -1,3 +1,4 @@
+// app/news/[id]/NewsPostClient.tsx
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -103,7 +104,7 @@ export default function NewsPostClient({ params }: { params: { id: string } }) {
         )}
 
         <div 
-          className="prose prose-lg max-w-none prose-slate prose-headings:font-bold prose-a:text-frage-blue"
+          className="prose prose-lg max-w-none prose-slate prose-headings:font-bold prose-a:text-frage-blue [&_img]:w-full [&_img]:h-auto [&_img]:mx-auto"
           dangerouslySetInnerHTML={{ __html: promotion.posts?.content || "" }}
         />
       </article>
