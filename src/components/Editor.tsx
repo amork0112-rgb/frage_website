@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useRef, useCallback } from "react";
+import { useMemo, useRef, useCallback, useEffect } from "react";
 import "react-quill/dist/quill.snow.css";
 import { supabase } from "@/lib/supabase";
 
@@ -73,44 +73,48 @@ export default function Editor({ value, onChange }: EditorProps) {
     [uploadImageToSupabase, onChange]
   );
 
-  /* ---------------- Initialize Editor (Callback Ref) ---------------- */
-  // ✅ useEffect 대신 Callback Ref를 사용하여 마운트 시점에 즉시 인스턴스 확보
-  // dynamic import로 인해 useEffect 타이밍이 어긋날 수 있는 문제 해결
-  const handleQuillRef = useCallback((element: any) => {
-    quillComponentRef.current = element;
+  /* ---------------- Editor Instance Capture Helper ---------------- */
+  // ✅ 인스턴스 확보 로직을 별도 함수로 분리하여 여러 시점에 재사용
+  const captureEditorInstance = useCallback(() => {
+    if (editorRef.current) return; // 이미 확보됨
+    if (!quillComponentRef.current) return; // 컴포넌트 Ref 없음
 
-    if (element && typeof element.getEditor === 'function') {
-      try {
-        const editor = element.getEditor();
-        if (editor) {
-          editorRef.current = editor;
-          setupPasteHandler(editor);
-        }
-      } catch (error) {
-        // 아직 초기화되지 않았을 수 있음 (무시 가능)
-        console.warn("Ref callback: getEditor failed (initializing...)", error);
+    try {
+      // react-quill v2: component ref -> getEditor() -> Quill instance
+      if (typeof quillComponentRef.current.getEditor !== 'function') return;
+      
+      const editor = quillComponentRef.current.getEditor();
+      if (editor) {
+        editorRef.current = editor;
+        setupPasteHandler(editor);
+        console.log("✅ Editor instance captured successfully");
       }
+    } catch (e) {
+      // 아직 초기화 안됨 (무시)
     }
   }, [setupPasteHandler]);
 
+  /* ---------------- Initialize Editor (Callback Ref) ---------------- */
+  const handleQuillRef = useCallback((element: any) => {
+    quillComponentRef.current = element;
+    // 마운트 직후 즉시 시도
+    captureEditorInstance();
+  }, [captureEditorInstance]);
+
+  // ✅ Effect: 마운트 후 약간의 딜레이가 있거나 리렌더링 시에도 재시도
+  useEffect(() => {
+    captureEditorInstance();
+    // 안전장치: 약간의 지연 후 한 번 더 시도 (동적 로딩 타이밍 이슈 방지)
+    const timer = setTimeout(captureEditorInstance, 100);
+    return () => clearTimeout(timer);
+  }, [captureEditorInstance]);
+
   /* ---------------- 이미지 버튼 ---------------- */
   const imageHandler = useCallback(() => {
-    // 1. 저장된 editorRef 시도
-    let editor = editorRef.current;
-    
-    // 2. 없으면 컴포넌트 ref에서 getEditor() 재시도
-    if (!editor && quillComponentRef.current) {
-      try {
-        editor = quillComponentRef.current.getEditor();
-        if (editor) {
-          editorRef.current = editor;
-          setupPasteHandler(editor);
-        }
-      } catch (e) {
-        console.error("Failed to recover editor instance");
-      }
-    }
+    // 1. 실행 직전 재시도 (가장 중요)
+    captureEditorInstance();
 
+    const editor = editorRef.current;
     if (!editor) {
       alert("에디터가 로딩 중입니다. 잠시 후 다시 시도해주세요.");
       return;
@@ -140,7 +144,7 @@ export default function Editor({ value, onChange }: EditorProps) {
         alert(e.message);
       }
     };
-  }, [uploadImageToSupabase, onChange, setupPasteHandler]);
+  }, [uploadImageToSupabase, onChange, captureEditorInstance]);
 
   /* ---------------- Toolbar ---------------- */
   const modules = useMemo(
@@ -166,7 +170,7 @@ export default function Editor({ value, onChange }: EditorProps) {
   return (
     <div className="bg-white">
       <ReactQuill
-        ref={handleQuillRef} // ✅ Attach callback ref
+        ref={handleQuillRef}
         theme="snow"
         value={value}
         modules={modules}
@@ -186,6 +190,12 @@ export default function Editor({ value, onChange }: EditorProps) {
         ]}
         onChange={(content: string) => {
           onChange(content);
+          // ✅ 변경 시점에도 인스턴스 체크 (혹시 놓쳤을 경우 대비)
+          captureEditorInstance();
+        }}
+        onFocus={() => {
+          // ✅ 포커스 시점에도 인스턴스 체크
+          captureEditorInstance();
         }}
         style={{ height: 400, marginBottom: 50 }}
       />
