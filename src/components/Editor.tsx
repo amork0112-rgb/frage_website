@@ -110,41 +110,50 @@ export default function Editor({ value, onChange }: EditorProps) {
   }, [captureEditorInstance]);
 
   /* ---------------- 이미지 버튼 ---------------- */
-  const imageHandler = useCallback(() => {
-    // 1. 실행 직전 재시도 (가장 중요)
-    captureEditorInstance();
+  const imageHandler = useCallback(
+    function (this: any) {
+      // ✅ 1. Toolbar Handler의 'this' 바인딩을 통해 Quill 인스턴스 획득 (가장 확실한 방법)
+      let editor = this?.quill;
 
-    const editor = editorRef.current;
-    if (!editor) {
-      alert("에디터가 로딩 중입니다. 잠시 후 다시 시도해주세요.");
-      return;
-    }
-
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.click();
-
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-
-      try {
-        const url = await uploadImageToSupabase(file);
-
-        const range = editor.getSelection(true);
-        const index = range ? range.index : editor.getLength();
-
-        editor.insertEmbed(index, "image", url);
-        editor.setSelection(index + 1);
-
-        onChange(editor.root.innerHTML);
-      } catch (e: any) {
-        console.error(e);
-        alert(e.message);
+      // 2. Fallback: 기존 Ref 방식
+      if (!editor) {
+        captureEditorInstance();
+        editor = editorRef.current;
       }
-    };
-  }, [uploadImageToSupabase, onChange, captureEditorInstance]);
+
+      if (!editor) {
+        console.warn("Editor instance not found in imageHandler");
+        alert("에디터 인스턴스를 찾을 수 없습니다. 페이지를 새로고침 해주세요.");
+        return;
+      }
+
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.click();
+
+      input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+
+        try {
+          const url = await uploadImageToSupabase(file);
+
+          const range = editor.getSelection(true);
+          const index = range ? range.index : editor.getLength();
+
+          editor.insertEmbed(index, "image", url);
+          editor.setSelection(index + 1);
+
+          onChange(editor.root.innerHTML);
+        } catch (e: any) {
+          console.error(e);
+          alert(e.message);
+        }
+      };
+    },
+    [uploadImageToSupabase, onChange, captureEditorInstance]
+  );
 
   /* ---------------- Toolbar ---------------- */
   const modules = useMemo(
