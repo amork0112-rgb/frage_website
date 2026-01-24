@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useRef, useCallback } from "react";
+import { useMemo, useRef, useCallback, useEffect } from "react";
 import "react-quill/dist/quill.snow.css";
 import { supabase } from "@/lib/supabase";
 
@@ -13,8 +13,10 @@ interface EditorProps {
 }
 
 export default function Editor({ value, onChange }: EditorProps) {
-  // ✅ Quill core instance
+  // ✅ Quill core instance (for internal usage like paste handler)
   const editorRef = useRef<any>(null);
+  // ✅ ReactQuill Component ref (to access getEditor())
+  const quillComponentRef = useRef<any>(null);
 
   /* ---------------- 이미지 업로드 ---------------- */
   const uploadImageToSupabase = useCallback(async (file: File) => {
@@ -39,10 +41,9 @@ export default function Editor({ value, onChange }: EditorProps) {
   }, []);
 
   /* ---------------- Paste Handler (함수 분리) ---------------- */
-  // ✅ useEffect 제거 -> onChange/onFocus 시점에 바인딩
   const setupPasteHandler = useCallback(
     (editor: any) => {
-      // 중복 바인딩 방지용 플래그 체크 (선택사항이나 안전장치)
+      // 중복 바인딩 방지용 플래그 체크
       if (editor.__pasteHandlerAttached) return;
       editor.__pasteHandlerAttached = true;
 
@@ -72,9 +73,37 @@ export default function Editor({ value, onChange }: EditorProps) {
     [uploadImageToSupabase, onChange]
   );
 
+  /* ---------------- Initialize Editor ---------------- */
+  // ✅ Mount 시점에 getEditor()를 통해 진짜 Quill Core 가져오기
+  useEffect(() => {
+    if (quillComponentRef.current) {
+      try {
+        // react-quill v2: component ref -> getEditor() -> Quill instance
+        const editor = quillComponentRef.current.getEditor();
+        if (editor) {
+          editorRef.current = editor;
+          setupPasteHandler(editor);
+        }
+      } catch (error) {
+        console.warn("Failed to get editor instance:", error);
+      }
+    }
+  }, [setupPasteHandler]);
+
   /* ---------------- 이미지 버튼 ---------------- */
   const imageHandler = useCallback(() => {
-    const editor = editorRef.current;
+    // ✅ editorRef 대신 quillComponentRef를 통해 최신 인스턴스 확보 시도
+    let editor = editorRef.current;
+    
+    if (!editor && quillComponentRef.current) {
+      try {
+        editor = quillComponentRef.current.getEditor();
+        editorRef.current = editor;
+      } catch (e) {
+        console.error("Failed to get editor for image handler");
+      }
+    }
+
     if (!editor) {
       console.error("❌ editor not ready");
       return;
@@ -130,6 +159,7 @@ export default function Editor({ value, onChange }: EditorProps) {
   return (
     <div className="bg-white">
       <ReactQuill
+        ref={quillComponentRef} // ✅ Attach ref to component
         theme="snow"
         value={value}
         modules={modules}
@@ -147,19 +177,11 @@ export default function Editor({ value, onChange }: EditorProps) {
           "link",
           "image",
         ]}
-        onChange={(content: string, delta: any, source: any, editor: any) => {
-          if (!editorRef.current) {
-            editorRef.current = editor; // ✅ Quill core
-            setupPasteHandler(editor); // ✅ 최초 확보 시점에 바인딩
-          }
+        onChange={(content: string) => {
+          // ❌ 여기서 editor 객체를 잡지 않음 (UnprivilegedEditor 문제 방지)
           onChange(content);
         }}
-        onFocus={(range: any, source: any, editor: any) => {
-          if (!editorRef.current) {
-            editorRef.current = editor;
-            setupPasteHandler(editor); // ✅ 최초 확보 시점에 바인딩
-          }
-        }}
+        // onFocus 등에서도 editor 객체 참조 제거
         style={{ height: 400, marginBottom: 50 }}
       />
     </div>
