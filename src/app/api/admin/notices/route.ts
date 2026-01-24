@@ -2,6 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 export async function GET(request: Request) {
   const supabaseService = createClient(
@@ -9,24 +10,11 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // 1. Auth & Role Check (Cookie-based)
+  // 1. Auth & Role Check (Standardized)
   const supabase = createSupabaseServer();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { data: profile } = await supabaseService
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden: Admin only" }, { status: 403 });
-  }
-
+  const guard = await requireAdmin(supabase);
+  if ("error" in guard) return guard.error;
+  
   // 2. Query
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
@@ -93,19 +81,11 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // 1. Auth Check (Cookie-based)
+  // 1. Auth Check (Standardized)
   const supabase = createSupabaseServer();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { data: profile } = await supabaseService
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const guard = await requireAdmin(supabase);
+  if ("error" in guard) return guard.error;
+  const user = guard.user;
 
   // 2. Validation & Insert
   try {
@@ -173,19 +153,10 @@ export async function DELETE(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // 1. Auth Check (Cookie-based)
+  // 1. Auth Check (Standardized)
   const supabase = createSupabaseServer();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { data: profile } = await supabaseService
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const guard = await requireAdmin(supabase);
+  if ("error" in guard) return guard.error;
 
   // 2. Delete
   const { searchParams } = new URL(request.url);
@@ -213,19 +184,10 @@ export async function PUT(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // 1. Auth Check (Cookie-based)
+  // 1. Auth Check (Standardized)
   const supabase = createSupabaseServer();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { data: profile } = await supabaseService
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const guard = await requireAdmin(supabase);
+  if ("error" in guard) return guard.error;
 
   // 2. Validation & Update
   try {
