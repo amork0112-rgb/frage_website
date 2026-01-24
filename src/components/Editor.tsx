@@ -36,26 +36,34 @@ export default function Editor({ value, onChange }: EditorProps) {
       throw new Error("publicUrl not generated");
     }
 
+    console.log("✅ Generated Public URL:", data.publicUrl);
     return data.publicUrl;
   }, []);
 
   const imageHandler = useCallback(() => {
     console.log("🟢 imageHandler called");
+    console.log("quillRef check:", quillRef.current);
+
     const input = document.createElement("input");
-    input.setAttribute("type", "file");
-    input.setAttribute("accept", "image/*");
+    input.type = "file";
+    input.accept = "image/*";
     input.click();
 
     input.onchange = async () => {
       console.log("🟢 file selected", input.files?.[0]);
-      if (!input.files?.[0]) return;
+      const file = input.files?.[0];
+      if (!file) return;
       
       try {
-        const url = await uploadImageToSupabase(input.files[0]);
+        const url = await uploadImageToSupabase(file);
         const editor = quillRef.current?.getEditor?.();
-        if (!editor) return;
+        
+        if (!editor) {
+          console.error("❌ quill editor not found");
+          return;
+        }
 
-        const range = editor.getSelection();
+        const range = editor.getSelection(true);
         const index = range ? range.index : editor.getLength();
         
         editor.insertEmbed(index, "image", url);
@@ -65,7 +73,7 @@ export default function Editor({ value, onChange }: EditorProps) {
         onChange(editor.root.innerHTML);
       } catch (e) {
         console.error("Image upload failed", e);
-        alert("이미지 업로드 중 오류가 발생했습니다.");
+        alert("이미지 업로드 중 오류가 발생했습니다: " + (e as any).message);
       }
     };
   }, [uploadImageToSupabase, onChange]);
@@ -152,9 +160,11 @@ export default function Editor({ value, onChange }: EditorProps) {
              const index = range ? range.index : editor.getLength();
              editor.insertEmbed(index, "image", url);
              editor.setSelection(index + 1);
+             onChange(editor.root.innerHTML);
           }
         } catch (e) {
           console.error("Paste upload failed", e);
+          alert("이미지 붙여넣기 실패: " + (e as any).message);
         }
         return;
       }

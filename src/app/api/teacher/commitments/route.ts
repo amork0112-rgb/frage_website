@@ -23,9 +23,9 @@ export async function GET(req: Request) {
     // Use supabaseService to bypass RLS issues
     const { data: students, error: studentError } = await supabaseService
       .from("students")
-      .select("id, name, english_name, english_first_name")
+      .select("id, student_name, passport_english_name, english_first_name")
       .eq("class_id", classId)
-      .order("name");
+      .order("student_name");
 
     if (studentError) {
       console.error("Error fetching students:", studentError);
@@ -86,10 +86,10 @@ export async function GET(req: Request) {
     return NextResponse.json({
       students: students?.map(s => ({
         id: s.id,
-        name: s.name,
-        english_name: s.english_first_name || s.english_name // Handle variations
+        name: s.student_name, // ✅ 한글 이름
+        english_name: s.english_first_name || s.passport_english_name
       })) || [],
-      subjects: subjects,
+      subjects,
       commitments: commitments || []
     });
 
