@@ -245,7 +245,7 @@ export default function Editor({ value, onChange }: EditorProps) {
     };
   }, [uploadImageToSupabase]);
 
-  const modules = {
+  const modules = useMemo(() => ({
     toolbar: {
       container: [
         [{ header: [1, 2, 3, false] }],
@@ -260,7 +260,7 @@ export default function Editor({ value, onChange }: EditorProps) {
         image: imageHandler,
       },
     },
-  };
+  }), [imageHandler]);
 
   const formats = [
     "header",

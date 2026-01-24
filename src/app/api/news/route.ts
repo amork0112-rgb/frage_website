@@ -1,3 +1,4 @@
+// app/api/news/route.ts
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -35,7 +36,7 @@ export async function GET() {
 
     const { data: posts, error: postError } = await supabaseService
       .from("posts")
-      .select("id, title, created_at")
+      .select("id, title, content, image_url, created_at")
       .in("id", postIds)
       .eq("published", true)
       .eq("is_archived", false);
