@@ -1,3 +1,4 @@
+//api/admin/notices/rout.ts
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Admins cannot create class-scoped notices" }, { status: 400 });
     }
 
-    const { data, error } = await supabaseService
+    const { data: post, error } = await supabaseService
       .from("posts")
       .insert(payload)
       .select()
@@ -117,7 +118,27 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ data });
+    // 3. Insert into notice_promotions if publishAsNews is true
+    if (body.publishAsNews) {
+      const { error: promoError } = await supabaseService
+        .from("notice_promotions")
+        .insert({
+          post_id: post.id,
+          pinned: body.is_pinned ?? false,
+          archived: false,
+          push_enabled: body.push_enabled ?? false,
+          created_at: new Date().toISOString(),
+        });
+
+      // Rollback if promotion creation fails
+      if (promoError) {
+        console.error("Failed to create notice_promotion:", promoError);
+        await supabaseService.from("posts").delete().eq("id", post.id);
+        throw new Error("Failed to create news promotion");
+      }
+    }
+
+    return NextResponse.json({ data: post });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

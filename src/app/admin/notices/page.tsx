@@ -21,28 +21,29 @@ export default function AdminNoticesPage() {
           .eq("is_archived", false)
           .order("created_at", { ascending: false });
         if (!error && Array.isArray(data)) {
-          const ids = data
-            .map((p: any) => Number(p.id))
-            .filter((n: number) => !Number.isNaN(n));
-          let promoMap: Record<number, { pinned: boolean; push_enabled: boolean }> = {};
+          // ✅ Fix: Use String IDs for UUID compatibility
+          const ids = data.map((p: any) => p.id).filter((id: string) => id);
+          
+          let promoMap: Record<string, { pinned: boolean; push_enabled: boolean }> = {};
+          
           if (ids.length > 0) {
             const { data: promos } = await supabase
               .from("notice_promotions")
               .select("post_id,pinned,push_enabled")
               .in("post_id", ids);
+            
             (promos || []).forEach((row: any) => {
-              const pid = Number(row.post_id);
-              if (!Number.isNaN(pid)) {
-                promoMap[pid] = {
+              if (row.post_id) {
+                promoMap[row.post_id] = {
                   pinned: !!row.pinned,
                   push_enabled: !!row.push_enabled,
                 };
               }
             });
           }
+
           const mapped = data.map((p: any) => {
-            const pid = Number(p.id);
-            const promo = promoMap[pid];
+            const promo = promoMap[p.id];
             return {
               id: String(p.id),
               title: p.title,
@@ -56,6 +57,7 @@ export default function AdminNoticesPage() {
               viewCount: 0,
               isPinned: !!p.is_pinned,
               isArchived: !!p.is_archived,
+              // ✅ Fix: Ensure hasNews checks actual promotion existence
               hasNews: p.scope === "global" && !!promo,
               newsPinned: !!promo?.pinned,
               newsPushEnabled: !!promo?.push_enabled,
