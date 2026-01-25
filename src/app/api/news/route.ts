@@ -19,6 +19,13 @@ export async function GET() {
       .order("pinned", { ascending: false })
       .order("created_at", { ascending: false });
 
+    // 🔹 (A) promotions raw
+    console.log("🟢 promotions raw:", promotions?.map(p => ({ 
+      post_id: p.post_id, 
+      pinned: p.pinned, 
+      created_at: p.created_at, 
+    })));
+
     if (error) {
       console.error("promotions error:", error);
       // ❗ public 페이지는 빈 배열이라도 반환
@@ -34,12 +41,22 @@ export async function GET() {
       .map(p => p.post_id)
       .filter(Boolean);
 
+    // 🔹 (B) postIds
+    console.log("🟡 postIds:", postIds);
+
     const { data: posts, error: postError } = await supabaseService
       .from("posts")
-      .select("id, title, content, image_url, created_at")
+      .select("id, title, content, image_url, created_at, published, is_archived")
       .in("id", postIds)
       .eq("published", true)
       .eq("is_archived", false);
+
+    // 🔹 (C) posts raw
+    console.log("🔵 posts raw:", posts?.map(p => ({ 
+      id: p.id, 
+      published: p.published,
+      is_archived: p.is_archived,
+    })));
 
     if (postError) {
       console.error("posts error:", postError);
@@ -51,12 +68,21 @@ export async function GET() {
       (posts ?? []).map(p => [p.id, p])
     );
 
+    // 🔹 (D) postMap keys
+    console.log("🟣 postMap keys:", Object.keys(postMap));
+
     const data = promotions
       .map(p => ({
         ...p,
         posts: postMap[p.post_id] ?? null, // frontend compatibility: 'posts' instead of 'post'
       }))
       .filter(p => p.posts !== null);
+
+    // 🔹 (E) final merged data
+    console.log("🔴 final merged data:", data.map(d => ({ 
+      post_id: d.post_id, 
+      hasPost: !!d.posts, 
+    })));
 
     return NextResponse.json({ ok: true, data });
   } catch (e) {
