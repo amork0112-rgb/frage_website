@@ -1,3 +1,4 @@
+//api/teacher/commitments
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -25,6 +26,7 @@ export async function GET(req: Request) {
       .from("students")
       .select("id, student_name, passport_english_name, english_first_name")
       .eq("class_id", classId)
+      .eq("dagym_enabled", true)
       .order("student_name");
 
     if (studentError) {

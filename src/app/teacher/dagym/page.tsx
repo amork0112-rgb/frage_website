@@ -1,3 +1,4 @@
+//app/teacher/dagym/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -50,6 +51,12 @@ export default function TeacherCoachingPage() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
+  // Generation Status
+  const [alreadyGenerated, setAlreadyGenerated] = useState(false);
+  const [canGenerate, setCanGenerate] = useState(false); // based on schedule
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [statusLoaded, setStatusLoaded] = useState(false);
+
   // Fetch Classes on Mount
   useEffect(() => {
     async function fetchClasses() {
@@ -73,9 +80,15 @@ export default function TeacherCoachingPage() {
 
     async function fetchData() {
       setLoading(true);
+      setStatusLoaded(false);
       try {
-        const res = await fetch(`/api/teacher/commitments?class_id=${selectedClassId}&date=${date}`);
-        const data = await res.json();
+        const [resData, resStatus] = await Promise.all([
+            fetch(`/api/teacher/commitments?class_id=${selectedClassId}&date=${date}`),
+            fetch(`/api/teacher/dagym/status?class_id=${selectedClassId}&date=${date}`)
+        ]);
+
+        const data = await resData.json();
+        const status = await resStatus.json();
 
         if (data.error) throw new Error(data.error);
 
@@ -84,11 +97,25 @@ export default function TeacherCoachingPage() {
         
         const map: Record<string, CommitmentStatus> = {};
         (data.commitments || []).forEach((c: any) => {
-          map[`${c.student_id}-${c.book_id}`] = c.status;
+          // Key must include date to prevent bugs when switching dates
+          map[`${c.student_id}-${c.book_id}-${date}`] = c.status;
         });
         setCommitments(map);
+
+        // Handle Status
+        if (!status.error) {
+           setAlreadyGenerated(status.alreadyGenerated);
+           // Button Enable Rules: !alreadyGenerated AND !hasHoliday AND !hasEvent AND hasLesson
+           const available = !status.alreadyGenerated && !status.hasHoliday && !status.hasEvent && status.hasLesson;
+           setCanGenerate(available);
+        } else {
+           console.error("Status error:", status.error);
+           setCanGenerate(false);
+        }
+        setStatusLoaded(true);
+
       } catch (e) {
-        console.error("Failed to fetch commitments", e);
+        console.error("Failed to fetch data", e);
         showToast("Failed to load data", "error");
       } finally {
         setLoading(false);
@@ -98,9 +125,60 @@ export default function TeacherCoachingPage() {
     fetchData();
   }, [selectedClassId, date]);
 
+  const handleGenerate = async () => {
+    if (isGenerating || !canGenerate) return;
+    
+    setIsGenerating(true);
+    try {
+      const res = await fetch("/api/teacher/dagym/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ class_id: selectedClassId, date })
+      });
+      const json = await res.json();
+
+      if (json.ok) {
+        showToast("Today’s dagym has been generated successfully.", "success");
+        setAlreadyGenerated(true);
+        setCanGenerate(false);
+        
+        // Refresh grid
+        const resData = await fetch(`/api/teacher/commitments?class_id=${selectedClassId}&date=${date}`);
+        const data = await resData.json();
+        if (!data.error) {
+           setStudents(data.students || []);
+           setSubjects(data.subjects || []);
+           const map: Record<string, CommitmentStatus> = {};
+           (data.commitments || []).forEach((c: any) => {
+             map[`${c.student_id}-${c.book_id}-${date}`] = c.status;
+           });
+           setCommitments(map);
+        }
+      } else {
+        if (json.reason === "already_generated") {
+           showToast("Today’s dagym has already been generated.", "error");
+           setAlreadyGenerated(true);
+           setCanGenerate(false);
+        } else if (json.reason === "not_available_today") {
+           showToast("Dagym is not available today due to the schedule.", "error");
+           setCanGenerate(false);
+        } else {
+           showToast("An error occurred while generating today’s dagym.", "error");
+        }
+      }
+    } catch (e) {
+      showToast("An error occurred while generating today’s dagym.", "error");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // Handlers
   const handleCellClick = async (studentId: string, bookId: string) => {
-    const key = `${studentId}-${bookId}`;
+    // Guard: Block clicks if not generated yet
+    if (!alreadyGenerated) return;
+
+    const key = `${studentId}-${bookId}-${date}`;
     const currentStatus = commitments[key] || "unchecked";
     const nextStatus = NEXT_STATUS[currentStatus];
 
@@ -182,6 +260,25 @@ export default function TeacherCoachingPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Generator Section */}
+        {statusLoaded && (
+          <div className="mb-6 flex flex-col items-start gap-1">
+            <button
+              onClick={handleGenerate}
+              disabled={!canGenerate || isGenerating}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                !canGenerate || isGenerating
+                  ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+              }`}
+            >
+              {alreadyGenerated ? "Today’s Dagym Generated" : isGenerating ? "Generating..." : "Generate Today’s Dagym"}
+            </button>
+            <span className="text-xs text-slate-400">This action can only be performed once per day.</span>
+          </div>
+        )}
+
         {loading && students.length === 0 ? (
           <div className="flex justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -223,10 +320,14 @@ export default function TeacherCoachingPage() {
                         <td
                           key={`${student.id}-${sub.id}`}
                           onClick={() => handleCellClick(student.id, sub.id)}
-                          className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                          className={`px-6 py-4 text-center transition-colors select-none ${
+                            alreadyGenerated 
+                              ? "cursor-pointer hover:bg-slate-100" 
+                              : "cursor-not-allowed opacity-50"
+                          }`}
                         >
                           <div className="flex justify-center">
-                            {renderIcon(commitments[`${student.id}-${sub.id}`] || "unchecked")}
+                            {renderIcon(commitments[`${student.id}-${sub.id}-${date}`] || "unchecked")}
                           </div>
                         </td>
                       ))}
