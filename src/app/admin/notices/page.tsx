@@ -224,7 +224,14 @@ export default function AdminNoticesPage() {
                             <td className="px-3 py-3">
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="min-w-0 flex flex-col">
-                                    <p className="font-bold text-slate-800 line-clamp-1">{notice.title}</p>
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-bold text-slate-800 line-clamp-1">{notice.title}</p>
+                                      {notice.hasNews && (
+                                        <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                          NEWS
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                             </td>
