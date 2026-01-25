@@ -5,30 +5,41 @@ import { supabaseService } from "@/lib/supabase/service";
 
 export async function GET() {
   try {
-    // 1️⃣ promotions 먼저 가져오기
+    // 1️⃣ promotions + posts JOIN
     const { data: promotions, error } = await supabaseService
       .from("notice_promotions")
       .select(`
-        title,
+        post_id,
         pinned,
         push_enabled,
         created_at,
-        post_id
+        posts!inner (
+          id,
+          title,
+          content,
+          image_url,
+          created_at,
+          published,
+          is_archived
+        )
       `)
       .eq("archived", false)
+      .eq("posts.published", true)
+      .eq("posts.is_archived", false)
       .order("pinned", { ascending: false })
       .order("created_at", { ascending: false });
 
-    // 🔹 (A) promotions raw
-    console.log("🟢 promotions raw:", promotions?.map(p => ({ 
+    // 🔹 (A) Joined Data Raw
+    console.log("🟢 promotions joined raw:", promotions?.map((p: any) => ({ 
       post_id: p.post_id, 
       pinned: p.pinned, 
-      created_at: p.created_at, 
+      hasPost: !!p.posts,
+      postTitle: p.posts?.title,
+      postPublished: p.posts?.published
     })));
 
     if (error) {
       console.error("promotions error:", error);
-      // ❗ public 페이지는 빈 배열이라도 반환
       return NextResponse.json({ ok: true, data: [] });
     }
 
@@ -36,52 +47,24 @@ export async function GET() {
       return NextResponse.json({ ok: true, data: [] });
     }
 
-    // 2️⃣ posts 가져오기
-    const postIds = promotions
-      .map(p => p.post_id)
-      .filter(Boolean);
-
-    // 🔹 (B) postIds
-    console.log("🟡 postIds:", postIds);
-
-    const { data: posts, error: postError } = await supabaseService
-      .from("posts")
-      .select("id, title, content, image_url, created_at, published, is_archived")
-      .in("id", postIds)
-      .eq("published", true)
-      .eq("is_archived", false);
-
-    // 🔹 (C) posts raw
-    console.log("🔵 posts raw:", posts?.map(p => ({ 
-      id: p.id, 
-      published: p.published,
-      is_archived: p.is_archived,
-    })));
-
-    if (postError) {
-      console.error("posts error:", postError);
-      return NextResponse.json({ ok: true, data: [] });
-    }
-
-    // 3️⃣ merge
-    const postMap = Object.fromEntries(
-      (posts ?? []).map(p => [p.id, p])
-    );
-
-    // 🔹 (D) postMap keys
-    console.log("🟣 postMap keys:", Object.keys(postMap));
-
+    // 2️⃣ Format Data
+    // The JOIN returns posts as an object (or array depending on relationship inference, but usually object for FK).
+    // We filter just in case !inner didn't catch something (though it should).
     const data = promotions
-      .map(p => ({
+      .filter((p: any) => p.posts) // Safety check
+      .map((p: any) => ({
         ...p,
-        posts: postMap[p.post_id] ?? null, // frontend compatibility: 'posts' instead of 'post'
-      }))
-      .filter(p => p.posts !== null);
+        // Ensure posts is structurally consistent with what frontend expects
+        // Previous implementation returned posts: postMap[id], so it was an object.
+        // Supabase returns it as object or array. We assume object here due to singular FK.
+        // If it returns array, we take first.
+        posts: Array.isArray(p.posts) ? p.posts[0] : p.posts
+      }));
 
-    // 🔹 (E) final merged data
-    console.log("🔴 final merged data:", data.map(d => ({ 
+    // 🔹 (E) final data
+    console.log("🔴 final data:", data.map((d: any) => ({ 
       post_id: d.post_id, 
-      hasPost: !!d.posts, 
+      postTitle: d.posts?.title
     })));
 
     return NextResponse.json({ ok: true, data });
