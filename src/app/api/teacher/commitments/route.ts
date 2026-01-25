@@ -24,9 +24,13 @@ export async function GET(req: Request) {
     // Use supabaseService to bypass RLS issues
     const { data: students, error: studentError } = await supabaseService
       .from("students")
-      .select("id, student_name, passport_english_name, english_first_name")
-      .eq("class_id", classId)
-      .eq("dagym_enabled", true)
+      .select(`
+        id,
+        student_name,
+        english_first_name
+      `)
+      .eq("main_class", classId)
+      .eq("dajim_enabled", true)
       .order("student_name");
 
     if (studentError) {
@@ -89,7 +93,7 @@ export async function GET(req: Request) {
       students: students?.map(s => ({
         id: s.id,
         name: s.student_name, // ✅ 한글 이름
-        english_name: s.english_first_name || s.passport_english_name
+        english_name: s.english_first_name
       })) || [],
       subjects,
       commitments: commitments || []
