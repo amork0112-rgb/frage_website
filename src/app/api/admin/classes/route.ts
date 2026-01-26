@@ -29,29 +29,44 @@ function json(data: any, status = 200) {
   });
 }
 
- 
-
 export async function GET(req: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
     const guard = await requireAdmin(supabaseAuth);
     if (guard.error) return guard.error;
 
+    // User instruction: correct to use v_classes_with_schedules
+    // Sort by sort_order (asc), then class_name (asc)
     const { data, error } = await supabaseService
       .from("v_classes_with_schedules")
       .select("*")
-      .order("name", { ascending: true });
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("class_name", { ascending: true });
 
     if (error) {
-      console.error(error);
+      console.error("Classes View Error:", error);
       return json({ items: [] }, 500);
     }
 
-    const items = data || [];
+    const items = (data || []).map((row: any) => ({
+      id: row.class_id,
+      name: row.class_name,
+      campus: row.campus,
+      sort_order: row.sort_order,
+
+      default_pickup_slot: row.default_pickup_slot,
+      default_dropoff_slot: row.default_dropoff_slot,
+      has_transport: row.has_transport,
+
+      start_time: row.class_start_time,
+      end_time: row.class_end_time,
+      dajim_end_time: row.dajim_end_time,
+      weekdays: row.weekdays,
+    }));
 
     return json({ items }, 200);
   } catch (e) {
-    console.error(e);
+    console.error("Classes API Unexpected Error:", e);
     return json({ items: [] }, 500);
   }
 }
