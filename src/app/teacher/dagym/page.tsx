@@ -311,7 +311,7 @@ export default function TeacherCoachingPage() {
                     <tr key={student.id} className="hover:bg-slate-50 transition-colors">
                       {/* First Column - Sticky Left */}
                       <td className="sticky left-0 z-10 bg-white px-6 py-4 border-r border-slate-100 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)]">
-                        <div className="flex flex-col">
+                        <div className="flex flex-row items-center gap-1">
                           <span className="font-bold text-slate-800">{student.name}</span>
                           <span className="text-sm text-slate-500">{student.english_name ? `(${student.english_name})` : ""}</span>
                         </div>
