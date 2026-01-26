@@ -41,11 +41,16 @@ export default function TeacherNoticesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [filterClassId, setFilterClassId] = useState<string>("All");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchData();
+    fetchClasses();
   }, []);
+
+  useEffect(() => {
+    fetchNotices();
+  }, [filterClassId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -57,31 +62,15 @@ export default function TeacherNoticesPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const fetchData = async () => {
+  const fetchClasses = async () => {
     try {
-      setLoading(true);
-      // Fetch notices
-      const noticesRes = await fetch("/api/teacher/notices");
-      if (noticesRes.ok) {
-        const data = await noticesRes.json();
-        setNotices(data.items || []);
-      }
-
-      // Fetch students to extract classes
-      // Note: Ideally we should have a /api/teacher/classes endpoint. 
-      // For now, we'll infer from students or just rely on manual input if we can't get IDs easily.
-      // But wait, the API requires class_id. 
-      // Let's try to fetch students and extract unique classes with IDs.
       const studentsRes = await fetch("/api/teacher/students");
       if (studentsRes.ok) {
         const data = await studentsRes.json();
         const students: any[] = Array.isArray(data) ? data : data.items || [];
         
-        // Map unique classes
         const classMap = new Map<string, { name: string, sortOrder: number }>();
         students.forEach(s => {
-            // Assuming s.class_id and s.className exists
-            // The previous code showed s.className, need to check if s.class_id (or classId) is available
             const cId = s.classId || s.class_id;
             const cName = s.className;
             const cSort = s.classSortOrder ?? 9999;
@@ -99,10 +88,31 @@ export default function TeacherNoticesPage() {
         setClasses(sortedClasses);
       }
     } catch (e) {
-      console.error("Failed to fetch data", e);
+      console.error("Failed to fetch classes", e);
+    }
+  };
+
+  const fetchNotices = async () => {
+    try {
+      setLoading(true);
+      const query = filterClassId && filterClassId !== "All" 
+        ? `/api/teacher/notices?classId=${filterClassId}`
+        : "/api/teacher/notices";
+      
+      const noticesRes = await fetch(query);
+      if (noticesRes.ok) {
+        const data = await noticesRes.json();
+        setNotices(data.items || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch notices", e);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchData = async () => {
+    await Promise.all([fetchClasses(), fetchNotices()]);
   };
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
@@ -205,13 +215,27 @@ export default function TeacherNoticesPage() {
           </h1>
           <p className="text-slate-500 mt-1">Send notices to your specific classes.</p>
         </div>
-        <button
-          onClick={() => setIsCreating(true)}
-          className="bg-frage-blue text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-600 transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          New Notice
-        </button>
+        <div className="flex items-center gap-3">
+          <select
+            value={filterClassId}
+            onChange={(e) => setFilterClassId(e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-frage-blue/20 bg-white"
+          >
+            <option value="All">All Classes</option>
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="bg-frage-blue text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-600 transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            New Notice
+          </button>
+        </div>
       </div>
 
       {isCreating && (
