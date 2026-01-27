@@ -148,26 +148,26 @@ export default function TeacherNoticesPage() {
     try {
       setSubmitting(true);
       
-      const promises = selectedClassIds.map(classId => 
-          fetch("/api/teacher/notices", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              title: newTitle,
-              content: newContent,
-              scope: "class",
-              class_id: classId
-            })
-          }).then(async res => {
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || `Failed to create notice for class ${classId}`);
-            }
-            return res.json();
-          })
-      );
+      console.log({
+        title: newTitle,
+        content: newContent,
+        class_ids: selectedClassIds,
+      });
 
-      await Promise.all(promises);
+      const res = await fetch("/api/teacher/notices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTitle,
+          content: newContent,
+          class_ids: selectedClassIds
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create notice");
+      }
 
       // Reset and reload
       setNewTitle("");
