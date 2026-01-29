@@ -80,7 +80,7 @@ export default function TeacherHeader() {
   };
 
   return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm overflow-visible">
+    <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm overflow-visible">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between overflow-visible">
         
         {/* Logo */}
