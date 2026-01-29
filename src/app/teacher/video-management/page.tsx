@@ -17,6 +17,8 @@ const CAMPUS_LABELS: Record<string, string> = {
   Platz: "플라츠관"
 };
 
+const KINDER_CLASS_KEYWORDS = ["Kepler", "Platon", "Euclid", "Gauss", "Edison", "Thales", "Einstein", "Darwin"];
+
 export default function TeacherVideoManagementPage() {
   const router = useRouter();
   
@@ -210,7 +212,10 @@ export default function TeacherVideoManagementPage() {
       const dbItems = Array.isArray(data) ? data : [];
 
       // Merge with full class list to ensure all classes are shown
-      const allClasses = (classOptionsByCampus[targetCampus] || []).map(c => c.name);
+      // Filter only Kinder classes (explicit list) to exclude Primary classes (e.g. R-starting) in International campus
+      const allClasses = (classOptionsByCampus[targetCampus] || [])
+        .map(c => c.name)
+        .filter(name => KINDER_CLASS_KEYWORDS.some(k => name.includes(k)));
       
       const statusList = allClasses.map(className => {
         const found = dbItems.find((item: any) => item.className === className);
