@@ -1,3 +1,4 @@
+//app/api/teacher/dagym/generate/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 

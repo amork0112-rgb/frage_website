@@ -70,111 +70,40 @@ export async function POST(req: Request) {
   }
 }
 
-export async function PATCH(req: Request) {
-  try {
-    const supabase = createSupabaseServer();
-    const guard = await requireAdmin(supabase);
-    if ((guard as any).error) return (guard as any).error;
-
-    const body = await req.json();
-    const { id, teacherRead } = body;
-
-    if (!id || typeof teacherRead !== "boolean") {
-      return json({ ok: false, error: "invalid_payload" }, 400);
-    }
-
-    const { error } = await supabaseService
-      .from("portal_requests")
-      .update({ teacher_read: teacherRead })
-      .eq("id", id);
-
-    if (error) {
-      console.error("REQUEST UPDATE ERROR", error);
-      return json({ ok: false, error: error.message }, 500);
-    }
-
-    return json({ ok: true }, 200);
-  } catch (e: any) {
-    return json({ ok: false, error: "server_error" }, 500);
-  }
-}
-
 export async function GET(_req: Request) {
   try {
     const supabase = createSupabaseServer();
     const guard = await requireAdmin(supabase);
     if ((guard as any).error) return (guard as any).error;
-
-    // 1. Fetch ALL Raw Requests
-    const { data: rawRequests, error: reqError } = await supabaseService
+    const { data, error } = await supabaseService
       .from("portal_requests")
       .select("*")
       .order("created_at", { ascending: false });
-
-    if (reqError) {
-      console.error("REQUESTS FETCH ERROR", reqError);
+    if (error) {
       return json({ ok: true, items: [] }, 200);
     }
-
-    // 2. Collect Student IDs (support both child_id and student_id just in case)
-    const studentIds = Array.from(
-      new Set(
-        (rawRequests || [])
-          .map((r: any) => r.child_id || r.student_id)
-          .filter(Boolean)
-      )
-    );
-
-    // 3. Fetch Student Info from v_students_full (The standard student view)
-    let studentMap: Record<string, any> = {};
-    if (studentIds.length > 0) {
-      const { data: students } = await supabaseService
-        .from("v_students_full")
-        .select("*")
-        .in("student_id", studentIds);
-
-      (students || []).forEach((s: any) => {
-        if (s.student_id) studentMap[s.student_id] = s;
-      });
-    }
-
-    // 4. Merge & Filter (Simulate INNER JOIN)
-    const items: any[] = [];
-    (rawRequests || []).forEach((row: any) => {
-      const sId = row.child_id || row.student_id;
-      const student = studentMap[sId];
-
-      // INNER JOIN: Skip if student not found (invalid data)
-      if (!student) return;
-
-      items.push({
-        id: String(row.id),
-        childId: String(sId),
-        
-        // Data from v_students_full
-        childName: String(student.student_name ?? ""),
-        campus: String(student.campus ?? ""),
-        className: String(student.class_name ?? ""),
-        
-        type: String(row.type ?? ""),
-        dateStart: String(row.date_start ?? ""),
-        dateEnd: row.date_end ? String(row.date_end) : undefined,
-        time: row.time ? String(row.time) : undefined,
-        note: row.note ? String(row.note) : undefined,
-        changeType: row.change_type ? String(row.change_type) : undefined,
-        medName: row.med_name ? String(row.med_name) : undefined,
-        createdAt: String(row.created_at ?? new Date().toISOString()),
-        
-        name: row.name ? String(row.name) : undefined,
-        phone: row.phone ? String(row.phone) : undefined,
-        source: row.source ? String(row.source) : undefined,
-        status: row.status ? String(row.status) : undefined,
-        teacherRead: typeof row.teacher_read === "boolean" ? row.teacher_read : undefined,
-      });
-    });
-
+    const items = Array.isArray(data)
+      ? data.map((row: any) => ({
+          id: String(row.id),
+          childId: String(row.child_id ?? ""),
+          childName: String(row.child_name ?? ""),
+          campus: String(row.campus ?? ""),
+          type: String(row.type ?? ""),
+          dateStart: String(row.date_start ?? ""),
+          dateEnd: row.date_end ? String(row.date_end) : undefined,
+          time: row.time ? String(row.time) : undefined,
+          note: row.note ? String(row.note) : undefined,
+          changeType: row.change_type ? String(row.change_type) : undefined,
+          medName: row.med_name ? String(row.med_name) : undefined,
+          createdAt: String(row.created_at ?? new Date().toISOString()),
+          name: row.name ? String(row.name) : undefined,
+          phone: row.phone ? String(row.phone) : undefined,
+          source: row.source ? String(row.source) : undefined,
+          status: row.status ? String(row.status) : undefined,
+        }))
+      : [];
     return json({ ok: true, items }, 200);
-  } catch (e: any) {
-    return json({ ok: false, error: "invalid" }, 400);
+  } catch {
+    return json({ ok: false }, 500);
   }
 }

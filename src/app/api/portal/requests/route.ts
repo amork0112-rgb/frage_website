@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { createClient } from "@supabase/supabase-js";
-
-// ⭐ 핵심: Admin 권한으로 DB 접근 (RLS 우회)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseService } from "@/lib/supabase/service";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -14,12 +8,31 @@ const json = (data: any, status = 200) =>
     headers: { "Content-Type": "application/json" },
   });
 
+async function getOwnedStudent(userId: string, studentId: string) {
+  const { data: parent } = await supabaseService
+    .from("parents")
+    .select("id")
+    .eq("auth_user_id", userId)
+    .maybeSingle();
+
+  if (!parent) return null;
+
+  const { data: student } = await supabaseService
+    .from("students")
+    .select("id,campus,parent_id,teacher_id")
+    .eq("id", studentId)
+    .eq("parent_id", parent.id)
+    .maybeSingle();
+
+  return student;
+}
+
 export async function GET(req: Request) {
   try {
-    const supabase = createSupabaseServer();
+    const supabaseAuth = createSupabaseServer();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await supabaseAuth.auth.getUser();
 
     if (!user) {
       return json({ ok: false, items: [] }, 401);
@@ -37,42 +50,27 @@ export async function GET(req: Request) {
       return json({ ok: true, items: [] }, 200);
     }
 
-    const { data, error } = await supabase
-      .from("v_portal_requests_with_student")
-      .select(
-        `
-        id,
-        student_id,
-        student_name,
-        campus,
-        type,
-        date_start,
-        date_end,
-        note,
-        created_at
-      `
-      )
+    const student = await getOwnedStudent(user.id, studentId);
+    if (!student) {
+      return json({ ok: true, items: [] }, 200);
+    }
+
+    const { data, error } = await supabaseService
+      .from("portal_requests")
+      .select("id,type,payload,created_at")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false })
       .limit(5);
 
     if (error) {
-      console.error("GET ERROR:", error);
       return json({ ok: false, items: [] }, 200);
     }
 
     const rows = Array.isArray(data) ? data : [];
     const items = rows.map((row: any) => ({
       id: String(row.id ?? ""),
+      date: String(row?.payload?.dateStart || row?.created_at || ""),
       type: String(row.type || "absence"),
-      payload: row.note ?? null,
-      date_start: row.date_start ?? null,
-      date_end: row.date_end ?? null,
-      time: null,
-      created_at: row.created_at,
-      student_id: row.student_id || "",
-      student_name: row.student_name || "자녀",
-      campus: row.campus || null,
     }));
 
     return json({ ok: true, items }, 200);
@@ -83,13 +81,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    // 🧪 빠른 확인용 로그
-    console.log("SERVICE KEY:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-    const supabase = createSupabaseServer();
+    const supabaseAuth = createSupabaseServer();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await supabaseAuth.auth.getUser();
 
     if (!user) {
       return json({ ok: false, error: "unauthorized" }, 401);
@@ -105,10 +100,7 @@ export async function POST(req: Request) {
     const rawType = String(body?.type || "");
     const payload = body?.payload ?? null;
 
-    if (!studentId) {
-      return json({ ok: false, error: "student_id_missing" }, 400);
-    }
-    if (!rawType || !payload) {
+    if (!studentId || !rawType || !payload) {
       return json({ ok: false, error: "invalid_payload" }, 400);
     }
 
@@ -118,61 +110,36 @@ export async function POST(req: Request) {
       return json({ ok: false, error: "invalid_type" }, 400);
     }
 
-    const { data: student } = await supabaseAdmin
-      .from("students")
-      .select("id")
-      .eq("id", studentId)
-      .maybeSingle();
-
+    const student = await getOwnedStudent(user.id, studentId);
     if (!student) {
-      return json({ ok: false, error: "student_not_found" }, 404);
+      return json({ ok: false, error: "student_not_found" }, 403);
     }
 
-    // 2️⃣ INSERT (Admin 권한)
-    console.log("INSERT studentId", studentId);
-    console.log("INSERT payload", payload);
+    const now = new Date().toISOString();
+    const campus = String((student as any).campus || "All");
+    const teacherId = (student as any).teacher_id || null;
 
-    let dateStart: string | null = null;
-    let dateEnd: string | null = null;
-    let time: string | null = null;
-    let note: string | null = null;
-
-    if (type === "absence") {
-      dateStart = payload.dateStart || payload.date_start || null;
-      dateEnd = payload.dateEnd || payload.date_end || dateStart || null;
-      note = payload.note || null;
-    } else if (type === "early_pickup") {
-      dateStart = payload.dateStart || payload.date_start || null;
-      time = payload.time || null;
-      note = payload.note || null;
-    } else if (type === "bus_change") {
-      dateStart = payload.dateStart || payload.date_start || null;
-      note = payload.note || null;
-    } else if (type === "medication") {
-      dateStart = payload.dateStart || payload.date_start || null;
-      dateEnd = payload.dateEnd || payload.date_end || null;
-      note = payload.note || null;
-    }
-
-    const { error } = await supabaseAdmin.from("portal_requests").insert({
+    const row: any = {
       student_id: studentId,
       type,
       payload,
-      date_start: dateStart,
-      date_end: dateEnd,
-      time,
-      note,
-      created_at: new Date().toISOString(),
-    });
+      campus,
+      status: "pending",
+      created_at: now,
+    };
 
+    if (teacherId) {
+      row.teacher_id = teacherId;
+    }
+
+    const { error } = await supabaseService.from("portal_requests").insert(row);
     if (error) {
-      console.error("INSERT ERROR:", error);
-      return json({ ok: false, error: error.message }, 500);
+      return json({ ok: false, error: "db_error" }, 500);
     }
 
     return json({ ok: true }, 200);
-  } catch (e) {
-    console.error("SERVER ERROR:", e);
+  } catch {
     return json({ ok: false, error: "server_error" }, 500);
   }
 }
+

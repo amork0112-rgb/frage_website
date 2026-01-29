@@ -3,17 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Video, Upload, CheckCircle, RefreshCw, Star, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function VideoHomeworkPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const initialStatus = searchParams?.get("status") || "Pending";
-  const queryStudentId = searchParams?.get("studentId");
 
-  const [studentId, setStudentId] = useState<string | null>(queryStudentId || null);
-  
   const [homeworkData, setHomeworkData] = useState<{
     id: string;
     subject: string;
@@ -22,10 +18,14 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
     status: "Pending" | "Submitted" | "Reviewed" | string;
     feedback: {
       overall_message: string;
+      fluency_score: string;
+      volume_score: string;
+      speed_score: string;
+      pronunciation_score: string;
+      performance_score: string;
       strengths: string[];
       focus_point: string;
       next_try_guide: string;
-      details?: Record<string, string>;
     } | null;
   }>({
     id: params.id,
@@ -37,12 +37,13 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   });
 
   // State
-  const [loading, setLoading] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [studentIdState, setStudentIdState] = useState<string | null>(null);
   const [videoPath, setVideoPath] = useState<string | null>(null);
 
   // Refs
@@ -52,65 +53,6 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastBlobRef = useRef<Blob | File | null>(null);
-
-  // --- Initialization ---
-  useEffect(() => {
-    (async () => {
-      try {
-        let currentStudentId = studentId;
-
-        // 1. Resolve Student ID if missing
-        if (!currentStudentId) {
-          const homeRes = await fetch("/api/portal/home", { cache: "no-store" });
-          const homePayload = await homeRes.json();
-          const students = Array.isArray(homePayload?.students) ? homePayload.students : [];
-          const firstEnrolled = students.find((s: any) => s.type === "enrolled") || students[0] || null;
-          if (firstEnrolled && firstEnrolled.id) {
-            currentStudentId = String(firstEnrolled.id);
-            setStudentId(currentStudentId);
-          } else {
-            setLoading(false);
-            return;
-          }
-        }
-
-        // 2. Fetch Assignment Details via API
-        const res = await fetch(`/api/portal/video?studentId=${currentStudentId}&assignmentId=${params.id}`);
-        const data = await res.json();
-        const item = data.items && data.items.length > 0 ? data.items[0] : null;
-
-        if (!item) {
-          console.error("Assignment not found");
-          setLoading(false);
-          return;
-        }
-
-        // 3. Set State
-        setVideoPath(item.videoPath || null);
-        setVideoUrl(item.videoUrl || null);
-        
-        setHomeworkData({
-          id: String(item.id),
-          subject: item.title,
-          module_code: item.module,
-          due_date: item.dueDate,
-          status: item.status,
-          feedback: item.feedback
-        });
-
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    })();
-
-    return () => {
-      stopCamera();
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [params.id, studentId]);
-
 
   // --- Camera & Recording Logic ---
   const startCamera = async () => {
@@ -204,73 +146,94 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       alert("No video to submit.");
       return;
     }
-    if (!studentId) {
-      alert("Student ID not found. Please try refreshing.");
-      return;
-    }
-
     setIsSubmitting(true);
     try {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData?.user?.id || studentIdState;
+      if (!uid) {
+        throw new Error("No student session");
+      }
       const assignmentId = params.id;
       const file =
         lastBlobRef.current instanceof File
           ? lastBlobRef.current
           : new File([lastBlobRef.current], `${assignmentId}.webm`, { type: "video/webm" });
-      
-      const storagePath = `${studentId}/${assignmentId}.webm`;
-      
+      const storagePath = `${uid}/${assignmentId}.webm`;
       const { error: upErr } = await supabase.storage
         .from("student-videos")
         .upload(storagePath, file, { upsert: true });
-      
       if (upErr) throw upErr;
-
-      // Check if submission exists
       const { data: exists } = await supabase
         .from("portal_video_submissions")
         .select("*")
-        .eq("student_id", studentId)
+        .eq("student_id", uid)
         .eq("assignment_id", assignmentId)
         .limit(1);
-
       if (Array.isArray(exists) && exists.length > 0) {
         await supabase
           .from("portal_video_submissions")
-          .update({ 
-            video_path: storagePath, 
-            status: "submitted",
-            updated_at: new Date().toISOString()
-          })
-          .eq("student_id", studentId)
+          .update({ video_path: storagePath, status: "submitted" })
+          .eq("student_id", uid)
           .eq("assignment_id", assignmentId);
       } else {
         await supabase
           .from("portal_video_submissions")
-          .insert({ 
-            student_id: studentId, 
-            assignment_id: assignmentId, 
-            video_path: storagePath, 
-            status: "submitted" 
-          });
+          .insert({ student_id: uid, assignment_id: assignmentId, video_path: storagePath, status: "submitted" });
       }
-
       setVideoPath(storagePath);
-      // We can rely on the uploaded file's local URL for now, or fetch a signed one.
-      // For simplicity, we just keep the current view.
+      const { data: signed } = await supabase.storage
+        .from("student-videos")
+        .createSignedUrl(storagePath, 3600);
+      const url = signed?.signedUrl || null;
+      setVideoUrl(url);
       setHomeworkData(prev => ({ ...prev, status: "Submitted" }));
-      alert("Submitted successfully!");
-
-    } catch (err) {
-      console.error(err);
-      alert("Error submitting video.");
+    } catch {
+      alert("업로드 중 오류가 발생했습니다.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500">Loading assignment...</div>;
-  }
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const uid = userData?.user?.id || null;
+        setStudentIdState(uid);
+        const assignmentId = params.id;
+        let status: "Pending" | "Submitted" | "Reviewed" | string = initialStatus as any;
+        const { data: rows } = await supabase
+          .from("portal_video_submissions")
+          .select("*")
+          .eq("student_id", uid)
+          .eq("assignment_id", assignmentId);
+        if (Array.isArray(rows) && rows.length > 0) {
+          status = "Submitted";
+          const path = rows[0]?.video_path || null;
+          if (path) {
+            setVideoPath(path);
+            const { data: signed } = await supabase.storage
+              .from("student-videos")
+              .createSignedUrl(path, 3600);
+            const url = signed?.signedUrl || null;
+            if (url) setVideoUrl(url);
+          }
+        }
+        setHomeworkData({
+          id: assignmentId,
+          subject: "",
+          module_code: "",
+          due_date: "",
+          status,
+          feedback: null
+        });
+      } catch {}
+    })();
+    return () => {
+      stopCamera();
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
 
   // --- Render: Feedback View (Reviewed) ---
   if (homeworkData.status === "Reviewed" && homeworkData.feedback) {
@@ -278,7 +241,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
     return (
       <div className="min-h-screen bg-slate-50 font-sans pb-20">
         <header className="px-4 py-4 flex items-center gap-4 bg-white border-b border-slate-200">
-          <Link href="/portal/video" className="p-2 -ml-2 text-slate-400 hover:text-slate-600">
+          <Link href="/portal/home" className="p-2 -ml-2 text-slate-400 hover:text-slate-600">
             <ArrowLeft className="w-6 h-6" />
           </Link>
           <h1 className="font-bold text-lg text-slate-800">Review & Feedback</h1>
@@ -293,7 +256,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
               </div>
               <div>
                 <h2 className="font-bold text-slate-900">Teacher Feedback</h2>
-                <p className="text-xs text-slate-500">From Teacher</p>
+                <p className="text-xs text-slate-500">From Ms. Anna</p>
               </div>
             </div>
             <p className="text-xl font-bold text-frage-navy leading-relaxed">
@@ -335,181 +298,240 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
             </div>
           </section>
 
-          {/* [5] Details (Table) - Added for consistency */}
-          {feedback.details && (
-            <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-              <div className="px-5 py-3 bg-slate-50 border-b border-slate-100">
-                <span className="text-xs font-bold text-slate-500 uppercase">Evaluation Details</span>
-              </div>
-              <div className="divide-y divide-slate-50">
-                {Object.entries(feedback.details).map(([key, value]) => (
-                  <div key={key} className="px-5 py-3 flex justify-between items-center text-sm">
-                    <span className="text-slate-600 font-medium">{key}</span>
-                    <span className="font-bold text-frage-blue">{value}</span>
+          {/* [5] View Reading Details (Collapsed Score Table) */}
+          <section className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100">
+            <button 
+              onClick={() => setShowDetails(!showDetails)}
+              className="w-full flex items-center justify-between px-6 py-4 bg-slate-50 hover:bg-slate-100 transition-colors"
+            >
+              <span className="font-bold text-sm text-slate-500 uppercase tracking-wider">
+                View Reading Details
+              </span>
+              {showDetails ? (
+                <ChevronUp className="w-5 h-5 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-slate-400" />
+              )}
+            </button>
+            
+            {showDetails && (
+              <div className="divide-y divide-slate-50 animate-fade-in-down">
+                {[
+                  { label: "Fluency", value: feedback.fluency_score },
+                  { label: "Volume", value: feedback.volume_score },
+                  { label: "Speed", value: feedback.speed_score },
+                  { label: "Pronunciation", value: feedback.pronunciation_score },
+                  { label: "Performance", value: feedback.performance_score },
+                ].map((item, idx) => (
+                  <div key={idx} className="px-6 py-4 flex justify-between items-center">
+                    <span className="font-medium text-slate-600">{item.label}</span>
+                    <span className="font-bold text-frage-blue">{item.value}</span>
                   </div>
                 ))}
               </div>
-            </section>
-          )}
+            )}
+          </section>
 
-          {/* Submitted Video Review */}
-          {videoUrl && (
-             <section className="bg-white rounded-2xl p-4 border border-slate-200">
-               <h3 className="font-bold text-slate-700 text-sm mb-3">Submitted Video</h3>
-               <video src={videoUrl} controls className="w-full rounded-lg bg-black aspect-video" />
-             </section>
-          )}
+          <Link href="/portal/home" className="block w-full py-4 bg-slate-800 text-white font-bold text-center rounded-xl">
+            Back to Home
+          </Link>
         </main>
       </div>
     );
   }
 
-  // --- Render: Submission View (Pending / Submitted) ---
-  return (
-    <div className="min-h-screen bg-white font-sans flex flex-col">
-      {/* Header */}
-      <header className="px-4 py-4 flex items-center gap-4 border-b border-slate-100">
-        <Link href="/portal/video" className="p-2 -ml-2 text-slate-400 hover:text-slate-600">
-          <ArrowLeft className="w-6 h-6" />
+  // --- Render: Submitted View ---
+  if (homeworkData.status === "Submitted") {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6 animate-fade-in-up">
+          <CheckCircle className="w-10 h-10 text-green-600" />
+        </div>
+        <h1 className="text-2xl font-bold text-slate-900 mb-2">Video Submitted</h1>
+        <p className="text-slate-500 mb-8 font-medium">Waiting for teacher review</p>
+        
+        <Link href="/portal/home" className="px-8 py-3 bg-frage-navy text-white rounded-xl font-bold hover:bg-frage-blue transition-colors shadow-lg shadow-frage-navy/20">
+          Back to Home
         </Link>
-        <h1 className="font-bold text-lg text-slate-800">
-          {homeworkData.status === "Submitted" ? "Submitted" : "Submit Video"}
-        </h1>
+        
+        {/* Dev Helper: Toggle to Reviewed State */}
+        <button 
+          onClick={() => setHomeworkData({
+            ...homeworkData, 
+            status: "Reviewed",
+            feedback: {
+              overall_message: "Clear effort and steady reading today.",
+              fluency_score: "Developing",
+              volume_score: "Clear",
+              speed_score: "Appropriate",
+              pronunciation_score: "Mostly Accurate",
+              performance_score: "Focused",
+              strengths: ["Clear voice throughout the reading", "Good focus from start to finish"],
+              focus_point: "Try to read without pausing mid-sentence.",
+              next_try_guide: "Read one page slowly while keeping your eyes on the text."
+            }
+          })}
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-slate-300 hover:text-slate-500"
+        >
+          [Dev: Simulate Teacher Feedback]
+        </button>
+      </div>
+    );
+  }
+
+  // --- Render: Recording View (Pending) ---
+  return (
+    <div className="min-h-screen bg-black font-sans text-white flex flex-col">
+      {/* Header */}
+      <header className="px-4 py-4 flex items-center justify-between z-10">
+        <Link href="/portal/home" className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+          <ArrowLeft className="w-6 h-6 text-white" />
+        </Link>
+        <span className="font-bold text-sm tracking-widest uppercase text-white/70">Video Homework</span>
+        <div className="w-10"></div>
       </header>
 
-      <main className="flex-1 flex flex-col p-4 max-w-md mx-auto w-full">
-        {/* Assignment Info */}
-        <div className="mb-6">
-          <span className="inline-block bg-slate-100 text-slate-500 text-xs font-bold px-2 py-1 rounded mb-2">
-            {homeworkData.module_code}
-          </span>
-          <h2 className="text-2xl font-black text-slate-900 leading-tight mb-2">
-            {homeworkData.subject}
-          </h2>
-          <p className="text-slate-500 text-sm">
-            Due: {homeworkData.due_date}
-          </p>
-        </div>
-
-        {/* Video Area */}
-        <div className="flex-1 flex flex-col gap-4">
-          <div className="aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden relative shadow-lg ring-1 ring-black/5">
-            {videoUrl ? (
-              <video 
-                src={videoUrl} 
-                controls 
-                className="w-full h-full object-cover" 
-              />
-            ) : cameraActive ? (
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                muted 
-                className="w-full h-full object-cover transform scale-x-[-1]" 
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 gap-3">
-                <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center">
-                  <Video className="w-8 h-8 text-slate-400" />
-                </div>
-                <p className="text-sm font-medium">Ready to record</p>
-              </div>
-            )}
-
-            {/* Recording Timer Overlay */}
-            {isRecording && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/90 text-white px-3 py-1 rounded-full text-sm font-bold animate-pulse flex items-center gap-2 backdrop-blur-sm">
-                <div className="w-2 h-2 rounded-full bg-white"></div>
-                {formatTime(recordingTime)}
-              </div>
-            )}
+      {/* Main Content */}
+      <main className="flex-grow flex flex-col items-center justify-center px-4 relative pb-10">
+        
+        {/* [1] Video Task Summary (Fixed Card) */}
+        {!isRecording && !videoUrl && (
+          <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-8 animate-fade-in text-center">
+            <h2 className="text-xs font-bold text-frage-blue uppercase tracking-wider mb-2">Today&apos;s Reading Video</h2>
+            <h1 className="text-2xl font-bold text-white mb-1">{homeworkData.subject}</h1>
+            <div className="flex items-center justify-center gap-3 text-sm font-medium text-white/60 mb-4">
+              <span>{homeworkData.module_code}</span>
+              <span className="w-1 h-1 rounded-full bg-white/30"></span>
+              <span>Due: {homeworkData.due_date}</span>
+            </div>
+            <p className="text-white/80 text-sm bg-white/5 rounded-lg py-2 px-4 inline-block">
+              Please record your child reading the assigned text.
+            </p>
           </div>
+        )}
 
-          {/* Controls */}
-          <div className="mt-auto pb-8 space-y-3">
-            {!videoUrl ? (
-              !cameraActive ? (
-                <>
-                  <button 
-                    onClick={startCamera}
-                    className="w-full py-4 rounded-xl bg-frage-blue text-white font-bold text-lg shadow-lg shadow-blue-200 hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Video className="w-5 h-5" />
-                    Start Camera
-                  </button>
-                  <div className="text-center">
-                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">or</span>
-                  </div>
-                  <label className="block w-full py-3 rounded-xl border-2 border-dashed border-slate-300 text-slate-500 font-bold text-center hover:bg-slate-50 hover:border-slate-400 transition-all cursor-pointer">
-                    <input 
-                      ref={fileInputRef}
-                      type="file" 
-                      accept="video/*" 
-                      className="hidden" 
-                      onChange={handleFileUpload}
-                    />
-                    <div className="flex items-center justify-center gap-2">
-                      <Upload className="w-5 h-5" />
-                      Upload Video File
-                    </div>
-                  </label>
-                </>
+        {/* [2] Record / Upload Area */}
+        <div className="w-full max-w-md aspect-[3/4] bg-slate-900 rounded-3xl border border-white/10 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl transition-all">
+          
+          {videoUrl ? (
+            // Preview
+            <video src={videoUrl} controls className="w-full h-full object-cover" playsInline />
+          ) : (
+            // Camera / Initial State
+            <>
+              {cameraActive ? (
+                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1]" />
               ) : (
-                !isRecording ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <button 
-                      onClick={stopCamera}
-                      className="py-4 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      onClick={startRecording}
-                      className="py-4 rounded-xl bg-red-500 text-white font-bold shadow-lg shadow-red-200 hover:bg-red-600 transition-all flex items-center justify-center gap-2"
-                    >
-                      <div className="w-3 h-3 rounded-full bg-white"></div>
-                      Record
-                    </button>
+                <div className="flex flex-col items-center gap-6 p-6 text-center w-full">
+                  <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center shadow-inner">
+                    <Video className="w-8 h-8 text-slate-500" />
                   </div>
-                ) : (
-                  <button 
-                    onClick={stopRecording}
-                    className="w-full py-4 rounded-xl bg-white border-2 border-red-500 text-red-500 font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2"
-                  >
-                    <div className="w-3 h-3 rounded-sm bg-red-500"></div>
-                    Stop Recording
-                  </button>
-                )
-              )
-            ) : (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <button 
-                    onClick={() => {
-                      setVideoUrl(null);
-                      setVideoPath(null);
-                      lastBlobRef.current = null;
-                      if (!cameraActive) startCamera();
-                    }}
-                    className="py-3 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Retake
-                  </button>
-                  <button 
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
-                    className="py-3 rounded-xl bg-frage-blue text-white font-bold hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    {isSubmitting ? "Submitting..." : "Submit Video"}
-                  </button>
+                  
+                  {/* Action Buttons */}
+                  <div className="space-y-3 w-full max-w-[240px]">
+                    <button 
+                      onClick={startCamera}
+                      className="w-full py-3.5 bg-frage-blue hover:bg-frage-navy text-white rounded-xl font-bold transition-all transform active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-frage-blue/20"
+                    >
+                      <Video className="w-5 h-5" />
+                      Record Video
+                    </button>
+                    
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-white/90 rounded-xl font-bold transition-all transform active:scale-95 flex items-center justify-center gap-2 border border-white/5"
+                    >
+                      <Upload className="w-5 h-5" />
+                      Upload Video
+                    </button>
+                    <input ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={handleFileUpload} />
+                  </div>
+
+                  {/* Helper Text (Anxiety Reduction) */}
+                  <div className="space-y-1.5 text-xs text-white/40 font-medium">
+                    <p>• Short videos are enough</p>
+                    <p>• A quiet place is recommended</p>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </>
+          )}
+
+          {/* Recording Timer */}
+          {isRecording && (
+             <div className="absolute top-6 left-1/2 transform -translate-x-1/2 bg-red-600/90 px-4 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-md animate-pulse z-20 shadow-lg">
+                <div className="w-2 h-2 bg-white rounded-full"></div>
+                <span className="font-mono font-bold text-sm tracking-widest">{formatTime(recordingTime)}</span>
+             </div>
+          )}
         </div>
+
+        {/* Controls (Bottom) */}
+        <div className="w-full max-w-md mt-6 flex flex-col gap-4 min-h-[80px] justify-center">
+            
+            {/* Recording: Stop */}
+            {isRecording && (
+                <div className="flex justify-center items-center animate-fade-in-up">
+                    <button 
+                        onClick={stopRecording}
+                        className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center relative hover:bg-white/10 transition-colors"
+                    >
+                        <div className="w-8 h-8 bg-red-500 rounded-md"></div>
+                    </button>
+                </div>
+            )}
+            
+            {/* Camera Active (Not Recording): Start / Back */}
+            {cameraActive && !isRecording && (
+                <div className="flex justify-center items-center gap-8 animate-fade-in-up">
+                    <button 
+                        onClick={() => stopCamera()}
+                        className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center hover:bg-slate-700 transition-colors border border-white/10"
+                    >
+                        <ArrowLeft className="w-6 h-6 text-white" />
+                    </button>
+
+                    <button 
+                        onClick={startRecording}
+                        className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center relative group transition-all"
+                    >
+                        <div className="w-16 h-16 bg-red-500 rounded-full group-hover:scale-95 transition-transform"></div>
+                    </button>
+                    <div className="w-14"></div>
+                </div>
+            )}
+
+            {/* [3] Submission Status & Actions */}
+            {videoUrl && (
+                <div className="flex flex-col gap-3 animate-fade-in-up">
+                    <div className="text-center mb-2">
+                       <span className="text-xs font-bold text-yellow-400 bg-yellow-400/10 px-3 py-1 rounded-full border border-yellow-400/20">
+                         Video Ready to Submit
+                       </span>
+                    </div>
+
+                    <button 
+                        onClick={handleSubmit}
+                        disabled={isSubmitting}
+                        className="w-full py-4 bg-frage-blue text-white rounded-xl font-bold text-lg hover:bg-frage-navy transition-colors flex items-center justify-center gap-2 shadow-lg shadow-frage-blue/20 disabled:opacity-50"
+                    >
+                        {isSubmitting ? "Submitting..." : "Submit Video"}
+                    </button>
+                    
+                    <button 
+                        onClick={() => {
+                            setVideoUrl(null);
+                            setCameraActive(false); 
+                        }}
+                        className="w-full py-3 bg-slate-800 text-slate-300 rounded-xl font-bold hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                        Retake / Re-upload
+                    </button>
+                </div>
+            )}
+        </div>
+
       </main>
     </div>
   );

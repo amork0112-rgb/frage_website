@@ -13,9 +13,7 @@ export default function AdminNoticesPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/admin/notices?limit=100", {
-          credentials: "include",
-        });
+        const res = await fetch("/api/admin/notices?limit=100");
         const json = await res.json();
         
         if (!res.ok) throw new Error(json.error || "Failed to fetch notices");
@@ -89,7 +87,6 @@ export default function AdminNoticesPage() {
       const res = await fetch("/api/admin/notices/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ id, status })
       });
       if (!res.ok) throw new Error("sync_failed");
@@ -135,7 +132,6 @@ export default function AdminNoticesPage() {
     try {
       const res = await fetch(`/api/admin/notices?id=${id}`, {
         method: "DELETE",
-        credentials: "include",
       });
 
       if (!res.ok) {
@@ -224,15 +220,15 @@ export default function AdminNoticesPage() {
                             <td className="px-3 py-3">
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="min-w-0 flex flex-col">
-                                    <div className="flex items-center gap-2">
-                                      <p className="font-bold text-slate-800 line-clamp-1">{notice.title}</p>
-                                      {notice.hasNews && (
-                                        <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">
-                                          NEWS
-                                        </span>
-                                      )}
-                                    </div>
+                                    <p className="font-bold text-slate-800 line-clamp-1">{notice.title}</p>
                                   </div>
+                                  {notice.hasNews && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-blue-50 text-blue-600 border-blue-100 whitespace-nowrap">
+                                      NEWS
+                                      {notice.newsPinned && <Pin className="w-3 h-3" />}
+                                      {notice.newsPushEnabled && <Upload className="w-3 h-3" />}
+                                    </span>
+                                  )}
                                 </div>
                             </td>
                             <td className="px-3 py-3">

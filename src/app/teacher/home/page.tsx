@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Video, FileText, CheckCircle2, Clock, ArrowRight, Calendar, ExternalLink } from "lucide-react";
+import { Video, FileText, CheckCircle2, Clock, ArrowRight, Calendar, Brain, ExternalLink } from "lucide-react";
 import { supabase, supabaseReady } from "@/lib/supabase";
 
 type Student = { id: string; name: string; englishName: string; className: string; campus: string };
@@ -14,7 +14,7 @@ type CalendarEvent = {
   type: ScheduleType;
   start: string;
   end: string;
-  campus?: "International" | "Andover" | "Platz" | "Atheneum" | "All";
+  campus?: "International" | "Andover" | "Platz" | "Atheneum";
   className?: string;
   place?: string;
   exposeToParent: boolean;
@@ -43,6 +43,7 @@ export default function TeacherHome() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [teacherId, setTeacherId] = useState<string | null>(null);
   const [teacherName, setTeacherName] = useState<string>("");
+  const [rememberItems, setRememberItems] = useState<string[]>([]);
   const [teacherClass, setTeacherClass] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [todayReservations, setTodayReservations] = useState<number>(0);
@@ -53,11 +54,9 @@ export default function TeacherHome() {
     (async () => {
       if (!supabaseReady) return;
       const { data } = await supabase.auth.getUser();
-      const user = data?.user;
-      const uid = user?.id || null;
+      const uid = data?.user?.id || null;
       setTeacherId(uid);
       if (!uid) return;
-      
       try {
         const { data: trow } = await supabase
           .from("teachers")
@@ -87,21 +86,39 @@ export default function TeacherHome() {
   const ym = `${y}-${String(m + 1).padStart(2, "0")}`;
 
   useEffect(() => {
+    setRememberItems([]);
+  }, [ym]);
+
+  useEffect(() => {
     const load = async () => {
       if (!supabaseReady) return;
-      try {
-        const res = await fetch(`/api/calendar?year=${y}&month=${m + 1}`, { cache: "no-store" });
-        const data = await res.json();
-        const items: CalendarEvent[] = Array.isArray(data?.items) ? data.items : [];
-        setEvents(items);
-      } catch {
-        setEvents([]);
-      }
+      const { data: evs } = await supabase
+        .from("events")
+        .select("id,title,type,start,end,campus,className,place,created_at,exposeToParent,notify,notifyDays,noticeLink")
+        .order("start", { ascending: true });
+      const mappedEvents: CalendarEvent[] = Array.isArray(evs)
+        ? evs.map((r: any) => ({
+            id: String(r.id),
+            title: String(r.title || ""),
+            type: r.type as ScheduleType,
+            start: String(r.start || ""),
+            end: String(r.end || r.start || ""),
+            campus: r.campus || undefined,
+            className: r.className || undefined,
+            place: r.place || undefined,
+            exposeToParent: !!r.exposeToParent,
+            notify: !!r.notify,
+            notifyDays: Array.isArray(r.notifyDays) ? r.notifyDays : undefined,
+            noticeLink: r.noticeLink || undefined,
+            createdAt: String(r.created_at || ""),
+          }))
+        : [];
+      setEvents(mappedEvents);
       const today = new Date();
-      const ty = today.getFullYear();
-      const tm = String(today.getMonth() + 1).padStart(2, "0");
-      const td = String(today.getDate()).padStart(2, "0");
-      const todayStr = `${ty}-${tm}-${td}`;
+      const y = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      const todayStr = `${y}-${mm}-${dd}`;
       const { data: slotsToday } = await supabase
         .from("consultation_slots")
         .select("id,date")
@@ -143,7 +160,7 @@ export default function TeacherHome() {
       setStudents(mappedStudents);
     };
     load();
-  }, [teacherId, y, m]);
+  }, [teacherId]);
 
   const myStudents = useMemo(() => {
     if (!teacherClass) return [];
@@ -168,15 +185,13 @@ export default function TeacherHome() {
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-black text-slate-900 font-serif">
-          Hello, {teacherName || "Teacher"}! 👋
-        </h1>
+        <h1 className="text-2xl font-black text-slate-900">Hello, {teacherId === "master_teacher" ? "관리자" : teacherName || "Teacher"}! 👋</h1>
         <p className="text-slate-500 mt-1">Here is your dashboard for today.</p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
-        <section className="col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2 font-serif">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-frage-orange" />
             This Month
           </h2>
@@ -201,41 +216,67 @@ export default function TeacherHome() {
           </ul>
         </section>
 
+        <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Brain className="w-5 h-5 text-purple-500" />
+            Remember
+          </h2>
+          {teacherId === "master_teacher" ? (
+            <div className="space-y-3">
+              <textarea
+                value={rememberItems.join("\n")}
+                onChange={(e) => setRememberItems(e.target.value.split("\n").map(s => s.trim()).filter(Boolean))}
+                rows={6}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white"
+                placeholder="Enter one item per line"
+              />
+              <button
+                disabled
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
+              >
+                Save Remember
+              </button>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {rememberItems.length === 0 ? (
+                <li className="text-sm text-slate-500">No reminders for this month.</li>
+              ) : (
+                rememberItems.map((txt, i) => (
+                  <li key={i} className="flex gap-2 items-start text-sm text-slate-600">
+                    <span className="text-purple-500">•</span>
+                    {txt}
+                  </li>
+                ))
+              )}
+            </ul>
+          )}
+        </section>
+
         <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2 font-serif">
+            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
               <Clock className="w-5 h-5 text-blue-500" />
               My Schedule
             </h2>
             <p className="text-sm text-slate-500 mb-4">Check your class schedule and room assignments.</p>
           </div>
-          <div className="flex flex-col gap-2">
-            <a
-              href="https://docs.google.com/spreadsheets/d/1KNS4HFPrh0nOxRaOeyKX3tMulEth8ozk/edit?gid=1147891973#gid=1147891973"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center gap-2 w-full py-2.5 bg-slate-50 text-slate-700 font-bold text-sm rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors"
-            >
-              <ExternalLink className="w-4 h-4" />
-              View Kinder Schedule
-            </a>
-            <a
-              href="https://docs.google.com/spreadsheets/d/1Kk0ik1vo8dhFmczVjTEUQgx_WtomeJV8vtCeP1QC0xk/edit?usp=sharing"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center gap-2 w-full py-2.5 bg-slate-50 text-slate-700 font-bold text-sm rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors"
-            >
-              <ExternalLink className="w-4 h-4" />
-              View Primary Schedule
-            </a>
-          </div>
+          <a
+            href="https://docs.google.com/spreadsheets/d/1KNS4HFPrh0nOxRaOeyKX3tMulEth8ozk/edit?gid=1147891973#gid=1147891973"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center gap-2 w-full py-2.5 bg-slate-50 text-slate-700 font-bold text-sm rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" />
+            View Google Sheet
+          </a>
         </section>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 font-serif">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Video className="w-5 h-5 text-slate-400" />
               My Students
             </h2>
@@ -270,17 +311,31 @@ export default function TeacherHome() {
               })
             )}
           </div>
-          <Link href="/teacher/students" className="block text-center text-sm font-bold text-slate-500 hover:text-frage-blue mt-3 py-2 font-serif">
+          <Link href="/teacher/students" className="block text-center text-sm font-bold text-slate-500 hover:text-frage-blue mt-3 py-2">
             View Students
           </Link>
         </section>
 
         <section>
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2 font-serif">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-slate-400" />
             Quick Actions
           </h2>
           <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-2">
+                <div className="text-slate-400 font-bold">오늘 예약</div>
+                <div className="text-lg font-black text-slate-900">{todayReservations}</div>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-2">
+                <div className="text-slate-400 font-bold">신규생 체크</div>
+                <div className="text-lg font-black text-slate-900">{pendingChecklists}</div>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-2">
+                <div className="text-slate-400 font-bold">학부모 요청</div>
+                <div className="text-lg font-black text-slate-900">{unreadParentRequests}</div>
+              </div>
+            </div>
             {(() => {
               const today = new Date();
               const ymStr = `${y}-${String(m + 1).padStart(2, "0")}`;
@@ -313,6 +368,21 @@ export default function TeacherHome() {
                 </Link>
               );
             })()}
+
+            <Link href="/teacher/new-students" className="group block bg-white p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900">신규생 입학 관리</h3>
+                    <p className="text-xs text-slate-500">입학 체크리스트 및 해피콜</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+              </div>
+            </Link>
           </div>
         </section>
       </div>

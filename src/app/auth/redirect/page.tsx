@@ -17,7 +17,7 @@ export default async function AuthRedirectPage() {
     redirect("/admin/home");
   }
   
-  if (role === "teacher" || role === "master_teacher" || user.email === "master_teacher@frage.com") {
+  if (role === "teacher") {
     redirect("/teacher/home");
   }
 

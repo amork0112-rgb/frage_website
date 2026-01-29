@@ -1,37 +1,14 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
-import { getTeacherRole } from "@/lib/auth/getTeacherRole";
 
 type Status = "waiting" | "consultation_reserved" | "consult_done" | "approved" | "promoted" | "rejected" | "hold";
 
-type StudentRow = {
-  student_id: string;
-  student_name: string;
-  english_first_name: string | null;
-  birth_date: string | null;
-  campus: string | null;
-  status: Status;
-  class_name: string | null;
-  class_id: string | null;
-  parent_name: string | null;
-  parent_phone: string | null;
-  parent_auth_user_id: string | null;
-  address: string | null;
-  use_bus?: boolean | null;
-  main_class?: string | null;
-  parent_id?: string | null;
-  gender?: string | null;
-  dajim_enabled?: boolean | null;
-  class_sort_order?: number | null;
-};
-
 type Student = {
-  student_id: string;
+  id: string;
   childId?: string;
   name: string;
   englishName: string;
-  classId?: string;
   birthDate: string;
   phone: string;
   className: string;
@@ -48,217 +25,80 @@ type Student = {
   dropoffLng?: number;
   pickupType?: "bus" | "self";
   dropoffType?: "bus" | "self";
-  classSortOrder?: number | null;
-  gender?: string | null;
 };
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
   const pageSize = Math.max(parseInt(url.searchParams.get("pageSize") || "200", 10), 1);
-  const classId = url.searchParams.get("classId");
-  const campus = url.searchParams.get("campus");
-  const nameQuery = url.searchParams.get("name");
-
   try {
     const supabaseAuth = createSupabaseServer();
-    const {
-      data: { user },
-    } = await supabaseAuth.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    if (!user) return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 401 });
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "teacher" && role !== "admin" && role !== "master_admin") {
+      return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 403 });
     }
 
-    const role = await getTeacherRole(user);
-
-    const normalizedClassId = classId?.trim();
-    const normalizedCampus = campus?.trim();
-
-    // 1. Master/Admin roles -> View all students
-    if (["master_teacher", "admin", "master_admin"].includes(role)) {
-      let query = supabaseService
-        .from("v_students_full")
-        .select(`
-        student_id,
+    const { data, error } = await supabaseService
+      .from("v_students_full")
+      .select(`
+        id,
         student_name,
         english_first_name,
         birth_date,
-        parent_name,
         parent_phone,
-        parent_auth_user_id,
-        address,
-        use_bus,
+        class_name,
+        grade,
         campus,
         status,
-        class_name,
-        class_id,
-        main_class,
-        parent_id,
-        gender,
-        dajim_enabled,
-        class_sort_order
-      `);
-
-      if (
-        normalizedClassId &&
-        normalizedClassId !== "All" &&
-        normalizedClassId !== "all" &&
-        normalizedClassId !== "-" &&
-        normalizedClassId !== "undefined" &&
-        normalizedClassId !== "null"
-      ) {
-        query = query.eq("main_class", normalizedClassId);
-      }
-
-      if (
-        normalizedCampus &&
-        normalizedCampus !== "All" &&
-        normalizedCampus !== "all" &&
-        normalizedCampus !== "-"
-      ) {
-        query = query.eq("campus", normalizedCampus);
-      }
-
-      if (nameQuery) {
-        query = query.or(`student_name.ilike.%${nameQuery}%,english_first_name.ilike.%${nameQuery}%`);
-      }
-      
-      // Exclude rejected students by default to match frontend behavior
-      query = query.neq("status", "rejected");
-
-      const { data, error } = await query.order("student_name", { ascending: true });
-      
-      if (error) {
-        console.error("STUDENTS SELECT ERROR", error);
-        return NextResponse.json({ error }, { status: 500 });
-      }
-
-      const rows = (data ?? []) as StudentRow[];
-      return formatResponse(rows, page, pageSize);
+        parent_name,
+        parent_user_id,
+        address,
+        bus,
+        departure_time,
+        pickup_lat,
+        pickup_lng,
+        dropoff_lat,
+        dropoff_lng,
+        pickup_type,
+        dropoff_type
+      `)
+      .order("student_name", { ascending: true });
+    if (error) {
+      console.error("TEACHER/STUDENTS SELECT ERROR:", error);
+      return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
     }
-
-    // 2. Regular Teacher -> View only assigned classes (or all if none assigned)
-    if (role === "teacher") {
-      const { data: teacher } = await supabaseService
-        .from("teachers")
-        .select("id")
-        .eq("auth_user_id", user.id)
-        .single();
-      
-      if (!teacher?.id) {
-         return NextResponse.json({ error: "teacher_profile_not_found" }, { status: 403 });
-      }
-
-      const { data: teacherClasses } = await supabaseService
-        .from("teacher_classes")
-        .select("class_name")
-        .eq("teacher_id", teacher.id);
-
-      const hasClasses = !!teacherClasses && teacherClasses.length > 0;
-      const classNames = hasClasses ? teacherClasses.map((c: any) => c.class_name) : [];
-
-      let query = supabaseService
-        .from("v_students_full")
-        .select(`
-          student_id,
-          student_name,
-          english_first_name,
-          birth_date,
-          parent_name,
-          parent_phone,
-          parent_auth_user_id,
-          address,
-          use_bus,
-          campus,
-          status,
-          class_name,
-          class_id,
-          main_class,
-          parent_id,
-          gender,
-          dajim_enabled,
-          class_sort_order
-        `);
-
-      if (hasClasses) {
-        query = query.in("class_name", classNames);
-      }
-
-      if (
-        normalizedClassId &&
-        normalizedClassId !== "All" &&
-        normalizedClassId !== "all" &&
-        normalizedClassId !== "-"
-      ) {
-        query = query.eq("main_class", normalizedClassId);
-      }
-
-      if (
-        normalizedCampus &&
-        normalizedCampus !== "All" &&
-        normalizedCampus !== "all" &&
-        normalizedCampus !== "-"
-      ) {
-        query = query.eq("campus", normalizedCampus);
-      }
-
-      if (nameQuery) {
-        query = query.or(`student_name.ilike.%${nameQuery}%,english_first_name.ilike.%${nameQuery}%`);
-      }
-
-      // Exclude rejected students by default to match frontend behavior
-      query = query.neq("status", "rejected");
-
-      const { data, error } = await query.order("student_name", { ascending: true });
-
-      if (data && data.length > 0) {
-        const missingId = data.filter(r => !r.student_id);
-        if (missingId.length > 0) {
-          console.error("TEACHER_STUDENTS: Missing student_id for rows:", missingId.length);
-        }
-      }
-
-      if (error) {
-        console.error("STUDENTS SELECT ERROR", error);
-        return NextResponse.json({ error }, { status: 500 });
-      }
-
-      const rows = (data ?? []) as StudentRow[];
-      return formatResponse(rows, page, pageSize);
-    }
-
-    // 3. Other roles -> Forbidden
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-
+    const rows = Array.isArray(data) ? data : [];
+    const base: Student[] = rows.map((r: any) => ({
+      id: String(r.id ?? ""),
+      childId: r.child_id ?? undefined,
+      name: String(r.student_name ?? ""),
+      englishName: String(r.english_first_name ?? ""),
+      birthDate: String(r.birth_date ?? ""),
+      phone: String(r.parent_phone ?? ""),
+      className: String(r.class_name ?? "미배정"),
+      campus: String(r.campus ?? "미지정"),
+      status: (String(r.status ?? "promoted") as Status),
+      parentName: String(r.parent_name ?? ""),
+      parentAccountId: String(r.parent_user_id ?? ""),
+      address: String(r.address ?? ""),
+      bus: String(r.bus ?? ""),
+      departureTime: String(r.departure_time ?? ""),
+      pickupLat: typeof r.pickup_lat === "number" ? r.pickup_lat : undefined,
+      pickupLng: typeof r.pickup_lng === "number" ? r.pickup_lng : undefined,
+      dropoffLat: typeof r.dropoff_lat === "number" ? r.dropoff_lat : undefined,
+      dropoffLng: typeof r.dropoff_lng === "number" ? r.dropoff_lng : undefined,
+      pickupType: (r.pickup_type as any) ?? "self",
+      dropoffType: (r.dropoff_type as any) ?? "self",
+    }));
+    const total = base.length;
+    const start = (page - 1) * pageSize;
+    const items = base.slice(start, start + pageSize);
+    return NextResponse.json({ items, total, page, pageSize }, { status: 200 });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
   }
 }
 
-function formatResponse(rows: StudentRow[], page: number, pageSize: number) {
-  const base: Student[] = rows.map((r) => ({
-    student_id: String(r.student_id),
-    name: String(r.student_name ?? ""),
-    englishName: String(r.english_first_name ?? ""),
-    classId: String(r.main_class ?? r.class_id ?? ""),
-    birthDate: String(r.birth_date ?? ""),
-    phone: String(r.parent_phone ?? ""),
-    className: String(r.class_name ?? ""),
-    campus: String(r.campus ?? ""),
-    status: (r.status as Status) ?? "waiting",
-    parentName: String(r.parent_name ?? ""),
-    parentAccountId: String(r.parent_auth_user_id ?? ""),
-    address: String(r.address ?? ""),
-    bus: r.use_bus ? "버스" : "",
-    departureTime: "",
-    pickupType: "self",
-    dropoffType: "self",
-    classSortOrder: typeof r.class_sort_order === "number" ? r.class_sort_order : r.class_sort_order == null ? null : Number(r.class_sort_order),
-    gender: r.gender,
-  }));
-  const total = base.length;
-  const start = (page - 1) * pageSize;
-  const items = base.slice(start, start + pageSize);
-  return NextResponse.json({ items, total, page, pageSize }, { status: 200 });
-}

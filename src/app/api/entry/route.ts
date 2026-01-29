@@ -11,11 +11,8 @@ export async function GET() {
       return NextResponse.json({ redirect: "/portal" }, { status: 200 });
     }
     const role = (user.app_metadata as any)?.role ?? "parent";
-    if (role === "master_admin" || role === "admin") {
-      return NextResponse.json({ redirect: "/admin/home" }, { status: 200 });
-    }
-    if (role === "teacher" || role === "master_teacher" || user.email === "master_teacher@frage.com") {
-      return NextResponse.json({ redirect: "/teacher/home" }, { status: 200 });
+    if (role !== "parent") {
+      return NextResponse.json({ redirect: "/portal" }, { status: 200 });
     }
     const { data: parent } = await supabase
       .from("parents")
@@ -23,7 +20,7 @@ export async function GET() {
       .eq("auth_user_id", user.id)
       .maybeSingle();
     if (!parent) {
-      return NextResponse.json({ redirect: "/portal/home" }, { status: 200 });
+      return NextResponse.json({ redirect: "/admission" }, { status: 200 });
     }
     const parentId = String(parent.id);
     const { data: students } = await supabase
@@ -32,9 +29,9 @@ export async function GET() {
       .eq("parent_id", parentId)
       .limit(1);
     const hasStudents = Array.isArray(students) && students.length > 0;
-    return NextResponse.json({ redirect: "/portal/home" }, { status: 200 });
+    return NextResponse.json({ redirect: hasStudents ? "/portal" : "/admission" }, { status: 200 });
   } catch {
-    return NextResponse.json({ redirect: "/portal/home" }, { status: 200 });
+    return NextResponse.json({ redirect: "/portal" }, { status: 200 });
   }
 }
 

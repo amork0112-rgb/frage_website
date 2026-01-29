@@ -24,19 +24,12 @@ export async function GET(req: Request) {
     const cls = String(student.class_name ?? student.className ?? "");
     const camp = String(student.campus ?? "");
 
-    const assignmentId = searchParams.get("assignmentId");
-    
-    let query = supabase
+    const { data: assignments } = await supabase
       .from("video_assignments")
       .select("*")
       .eq("class_name", cls)
-      .eq("campus", camp);
-      
-    if (assignmentId) {
-      query = query.eq("id", assignmentId);
-    }
-    
-    const { data: assignments } = await query.order("due_date", { ascending: true });
+      .eq("campus", camp)
+      .order("due_date", { ascending: true });
 
     const { data: submissions } = await supabase
       .from("portal_video_submissions")
@@ -61,18 +54,7 @@ export async function GET(req: Request) {
       }
     });
 
-    const visibleAssignments = (assignments || []).filter((a: any) => {
-      // release_at check: if release date is in the future, it's a draft
-      if (a.release_at) {
-        const release = new Date(a.release_at);
-        const now = new Date();
-        if (now < release) return false;
-      }
-
-      return true;
-    });
-
-    const items = await Promise.all(visibleAssignments.map(async (a: any) => {
+    const items = await Promise.all((assignments || []).map(async (a: any) => {
       const aid = String(a.id ?? a.assignment_id ?? "");
       const sub = subByAssign[aid] || null;
       const fb = fbByAssign[aid] || null;
@@ -88,7 +70,7 @@ export async function GET(req: Request) {
         } catch {}
       }
       return {
-        id: aid,
+        id: `hw_${studentId}_${aid}`,
         title: String(a.title || ""),
         module: String(a.module || ""),
         dueDate: String(a.due_date ?? a.dueDate ?? ""),
@@ -110,7 +92,6 @@ export async function GET(req: Request) {
             }
           : null,
         videoUrl: signedUrl,
-        videoPath: vp,
       };
     }));
 

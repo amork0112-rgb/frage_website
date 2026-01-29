@@ -1,17 +1,15 @@
 // lib/supabase/service.ts
 import { createClient } from "@supabase/supabase-js";
 
-const serviceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export const supabaseService = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
+);
 
-if (!serviceKey) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
-}
-
-export const supabaseService = createClient(serviceUrl, serviceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
 

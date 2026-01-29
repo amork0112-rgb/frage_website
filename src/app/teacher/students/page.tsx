@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Users, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, Search } from "lucide-react";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 
@@ -27,15 +27,8 @@ type Student = {
 
 export default function TeacherStudentsPage() {
   const [query, setQuery] = useState<string>("");
-  const [debouncedQuery, setDebouncedQuery] = useState<string>("");
   const [teacherClass, setTeacherClass] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
-  
-  // Pagination State
-  const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(50);
-  const [totalCount, setTotalCount] = useState<number>(0);
-
   const [updates, setUpdates] = useState<Record<string, { className?: string; status?: Status; englishName?: string; bus?: string; departureTime?: string }>>({});
   const [memos, setMemos] = useState<Record<string, { text: string; author: string; at: string; tag?: "상담" | "결제" | "특이사항" | "기타" }[]>>({});
   const [infoStudent, setInfoStudent] = useState<Student | null>(null);
@@ -67,44 +60,23 @@ export default function TeacherStudentsPage() {
     init();
   }, []);
 
-  // Debounce query
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(query);
-      setPage(1); // Reset to page 1 on search
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [query]);
-
   useEffect(() => {
     const load = async () => {
       try {
         const normalizedClassId = !teacherClass || teacherClass === "-" || teacherClass === "all" ? undefined : teacherClass;
-        
-        const params = new URLSearchParams();
-        if (normalizedClassId) params.set("classId", normalizedClassId);
-        if (selectedCampus !== "All") params.set("campus", selectedCampus);
-        if (debouncedQuery) params.set("name", debouncedQuery);
-        params.set("page", String(page));
-        params.set("pageSize", String(pageSize));
-
-        const res = await fetch(`/api/teacher/students?${params.toString()}`, { cache: "no-store", credentials: "include" });
+        const res = await fetch(`/api/teacher/students?classId=${normalizedClassId ?? ""}&campus=${selectedCampus}`, { cache: "no-store", credentials: "include" });
         if (!res.ok) {
           console.error("Failed to load students", res.status);
           setStudents([]);
-          setTotalCount(0);
           return;
         }
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.items || [];
-        const total = data.total || items.length;
-
         setStudents(items);
-        setTotalCount(total);
       } catch {}
     };
     load();
-  }, [teacherClass, selectedCampus, debouncedQuery, page, pageSize]);
+  }, [teacherClass, selectedCampus]);
 
   useEffect(() => {
     const load = async () => {
@@ -134,11 +106,11 @@ export default function TeacherStudentsPage() {
   }, [students, updates]);
 
   const filtered = useMemo(() => {
-    // Server-side filtering handles class and query. 
-    // We only filter status locally if updates change it, 
-    // or if server returned rejected students (which it shouldn't, but for safety).
-    return merged.filter(s => !["rejected"].includes(s.status));
-  }, [merged]);
+    return merged
+      .filter(s => !["rejected"].includes(s.status))
+      .filter(s => !teacherClass || s.className === teacherClass)
+      .filter(s => query === "" || s.name.includes(query) || s.englishName.toLowerCase().includes(query.toLowerCase()));
+  }, [merged, teacherClass, query]);
 
   const previewText = (s: string) => {
     const t = (s || "").trim();
@@ -243,49 +215,6 @@ export default function TeacherStudentsPage() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-        <div className="text-sm text-slate-600 font-bold">
-          총 <span className="text-frage-blue">{totalCount}</span>명 중 {totalCount > 0 ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, totalCount)}명 표시
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-bold bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              이전
-            </button>
-            <span className="px-3 py-1.5 text-sm font-bold text-slate-700">
-              {page} / {Math.ceil(totalCount / pageSize) || 1}
-            </span>
-            <button
-              onClick={() => setPage(p => Math.min(Math.ceil(totalCount / pageSize), p + 1))}
-              disabled={page >= Math.ceil(totalCount / pageSize)}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-bold bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              다음
-            </button>
-          </div>
-          
-          <div className="h-6 w-px bg-slate-200 mx-2"></div>
-
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPage(1);
-            }}
-            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white font-bold text-slate-700 cursor-pointer hover:border-slate-300"
-          >
-            <option value={50}>50명씩</option>
-            <option value={100}>100명씩</option>
-            <option value={200}>200명씩</option>
-          </select>
-        </div>
-      </div>
-
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -302,7 +231,7 @@ export default function TeacherStudentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map(s => (
+              {filtered.slice(0, 50).map(s => (
                 <tr key={s.student_id} className="hover:bg-slate-50 transition-colors">
                   <td className="p-3">
                     <button onClick={() => openInfoPanel(s)} className="text-slate-900 font-bold hover:underline">{s.name}</button>

@@ -3,8 +3,6 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 // RLS enforced: use SSR client only
 
-import { getTeacherRole } from "@/lib/auth/getTeacherRole";
-
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
@@ -12,7 +10,24 @@ export async function GET(req: Request) {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-    const role = await getTeacherRole(user);
+    let role = user.app_metadata?.role ?? "parent";
+
+    // Fallback: Check teachers table
+    if (role === "parent") {
+      const { data: teacher } = await supabaseService
+        .from("teachers")
+        .select("role")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+      if (teacher?.role) {
+        role = teacher.role;
+      }
+    }
+
+    // Fallback: Master teacher email
+    if (user.email === "master_teacher@frage.com") {
+      role = "master_teacher";
+    }
 
     const teacherRoles = ["teacher", "master_teacher"];
     if (!teacherRoles.includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
@@ -27,52 +42,28 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "teacher_profile_not_found" }, { status: 403 });
     }
     const { searchParams } = new URL(req.url);
-    const studentId = searchParams.get("student_id") || searchParams.get("studentId") || "";
+    const studentId = searchParams.get("studentId") || "";
     const month = searchParams.get("month") || "";
-
-    if (!month) {
-      return NextResponse.json({ ok: false, error: "missing_month" }, { status: 400 });
+    if (!studentId || !month) {
+      return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
-
-    // List mode: If studentId is missing, return all statuses for the month
-    if (!studentId) {
-      const { data, error } = await supabaseAuth
-        .from("teacher_reports")
-        .select("student_id, status")
-        .eq("month", month);
-
-      if (error) {
-        console.error("TEACHER_REPORTS_LIST_ERROR", error);
-        return NextResponse.json({ ok: false }, { status: 500 });
-      }
-
-      return NextResponse.json({ ok: true, items: data || [] }, { status: 200 });
-    }
-
-    // v_teacher_reports_full 뷰 대신 teacher_reports 테이블 직접 조회하여 데이터 누락 방지
     const { data, error } = await supabaseAuth
-      .from("teacher_reports")
+      .from("v_teacher_reports_full")
       .select("*")
       .eq("student_id", studentId)
       .eq("month", month)
       .limit(1);
-    
     if (error) {
-      // PGRST116 means multiple rows (should be limit 1), but standard error is different.
-      // If it's just "not found", data might be empty array.
-      // If real error, log it.
       console.error(error);
       return NextResponse.json({ ok: false }, { status: 500 });
     }
-    
     const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
     const item = row
       ? {
           studentId: String(row.student_id || ""),
           month: String(row.month || ""),
-          // 테이블 직접 조회 시 조인 정보 없음 -> 프론트엔드 fallback 사용
-          className: "",
-          gender: "M", 
+          className: String(row.student_class_name || row.class_name || ""),
+          gender: (row.gender === "F" || row.gender === "Female") ? "F" : "M",
           scores: row.scores || { Reading: 0, Listening: 0, Speaking: 0, Writing: 0 },
           comments: row.comments || { Reading: "", Listening: "", Speaking: "", Writing: "" },
           videoScores: row.video_scores || { fluency: 0, volume: 0, speed: 0, pronunciation: 0, performance: 0 },
@@ -81,8 +72,6 @@ export async function GET(req: Request) {
           updatedAt: String(row.updated_at || new Date().toISOString()),
         }
       : null;
-    
-    // Always return 200, even if item is null
     return NextResponse.json({ ok: true, item }, { status: 200 });
   } catch (e) {
     console.error(e);
@@ -128,9 +117,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { studentId: bodyStudentId, student_id: bodyStudent_id, month, scores, comments, videoScores, overall } = body || {};
-    const studentId = bodyStudent_id || bodyStudentId;
-
+    const { studentId, month, scores, comments, videoScores, overall } = body || {};
     if (
       !studentId ||
       !month ||
@@ -209,9 +196,7 @@ export async function PUT(req: Request) {
 
     if (!["teacher", "master_teacher"].includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
     const body = await req.json();
-    const { studentId: bodyStudentId, student_id: bodyStudent_id, month, status } = body || {};
-    const studentId = bodyStudent_id || bodyStudentId;
-
+    const { studentId, month, status } = body || {};
     if (!studentId || !month || !status) {
       return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
     }

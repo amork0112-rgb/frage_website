@@ -57,17 +57,15 @@ export async function GET(req: Request) {
   const supabase = createSupabaseServer();
 
   let query = supabase
-    .from("v_students_admin")
+    .from("v_students_full")
     .select(`
       student_id,
       student_name,
       birth_date,
-      birth_month,
       campus,
       class_name,
       class_id,
       class_sort_order,
-      parent_name,
       parent_phone,
       dajim_enabled,
       use_bus
@@ -91,7 +89,13 @@ export async function GET(req: Request) {
   }
 
   if (birthMonth && birthMonth !== "All") {
-    query = query.eq("birth_month", Number(birthMonth));
+    query = query.gte(
+      "birth_date",
+      `2000-${birthMonth.padStart(2, "0")}-01`
+    ).lte(
+      "birth_date",
+      `2000-${birthMonth.padStart(2, "0")}-31`
+    );
   }
 
   query = query

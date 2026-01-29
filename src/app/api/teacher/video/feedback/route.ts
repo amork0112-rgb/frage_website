@@ -12,7 +12,6 @@ type FeedbackPayload = {
   strengths: string[];
   focus_point: string;
   next_try_guide: string;
-  parent_report_message: string;
   average: number;
   updatedAt: string;
 };
@@ -24,32 +23,8 @@ export async function GET(req: Request) {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-    let role = user.app_metadata?.role ?? "parent";
-    if (role === "parent") {
-      const { data: teacher } = await supabaseAuth
-        .from("teachers")
-        .select("role")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      if (teacher?.role) {
-        role = teacher.role;
-      }
-    }
-    if (user.email === "master_teacher@frage.com") {
-      role = "master_teacher";
-    }
-    const teacherRoles = ["teacher", "master_teacher"];
-    if (!teacherRoles.includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
-
-    const { data: teacher } = await supabaseAuth
-      .from("teachers")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (!teacher?.id) {
-      return NextResponse.json({ ok: false, error: "teacher_profile_not_found" }, { status: 403 });
-    }
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId") || "";
     const assignmentId = searchParams.get("assignmentId") || "";
@@ -75,7 +50,6 @@ export async function GET(req: Request) {
       strengths: Array.isArray(item.strengths) ? item.strengths : [],
       focus_point: String(item.focus_point ?? ""),
       next_try_guide: String(item.next_try_guide ?? ""),
-      parent_report_message: String(item.parent_report_message ?? ""),
       average: Number(item.average ?? 0),
       updatedAt: String(item.updated_at ?? item.updatedAt ?? ""),
     };
@@ -90,35 +64,10 @@ export async function POST(req: Request) {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-    let role = user.app_metadata?.role ?? "parent";
-    if (role === "parent") {
-      const { data: teacher } = await supabaseAuth
-        .from("teachers")
-        .select("role")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      if (teacher?.role) {
-        role = teacher.role;
-      }
-    }
-    if (user.email === "master_teacher@frage.com") {
-      role = "master_teacher";
-    }
-    const teacherRoles = ["teacher", "master_teacher"];
-    if (!teacherRoles.includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
-
-    const { data: teacher } = await supabaseAuth
-      .from("teachers")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (!teacher?.id) {
-      return NextResponse.json({ ok: false, error: "teacher_profile_not_found" }, { status: 403 });
-    }
-
+    const role = user.app_metadata?.role ?? "parent";
+    if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const body = await req.json();
-    const { studentId, assignmentId, feedback, attachments } = body || {};
+    const { studentId, assignmentId, teacherId, feedback, attachments } = body || {};
     if (
       !studentId ||
       !assignmentId ||
@@ -131,7 +80,7 @@ export async function POST(req: Request) {
     const row = {
       assignment_id: assignmentId,
       student_id: studentId,
-      teacher_id: String(user.id),
+      teacher_id: teacherId ?? null,
       overall_message: feedback.overall_message,
       fluency: feedback.fluency,
       volume: feedback.volume,
@@ -141,7 +90,6 @@ export async function POST(req: Request) {
       strengths: feedback.strengths,
       focus_point: feedback.focus_point,
       next_try_guide: feedback.next_try_guide,
-      parent_report_message: feedback.parent_report_message ?? "",
       average: feedback.average,
       updated_at: feedback.updatedAt,
       attachments: Array.isArray(attachments) ? attachments : ([] as AttachMeta),

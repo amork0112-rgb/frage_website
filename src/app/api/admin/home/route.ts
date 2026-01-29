@@ -19,31 +19,31 @@ export async function GET(req: Request) {
     const guard = await requireAdmin(supabase);
     if ("error" in guard) return guard.error;
 
-    const allowedRequestTypes = ["absence", "early_pickup", "bus_change", "medication"];
+    // 1. Portal Requests (New Requests)
     let requestsQuery = supabaseService
       .from("portal_requests")
-      .select("*", { count: "exact", head: true })
-      .in("type", allowedRequestTypes);
-
+      .select("id,created_at,campus")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    
     if (campus && campus !== "All") {
       requestsQuery = requestsQuery.eq("campus", campus);
     }
+    
+    const { data: latestRequests } = await requestsQuery;
+    const newRequestsCount = Array.isArray(latestRequests) ? latestRequests.length : 0;
 
-    const { count: newRequestsCountRaw } = await requestsQuery;
-    const newRequestsCount = typeof newRequestsCountRaw === "number" ? newRequestsCountRaw : 0;
-
+    // 2. Notices (Posts)
     let postsQuery = supabaseService
       .from("posts")
-      .select("category,is_archived,campus")
-      .eq("category", "notice")
-      .not("is_archived", "eq", true);
+      .select("is_pinned,campus");
     
     if (campus && campus !== "All") {
       postsQuery = postsQuery.or(`campus.eq.All,campus.eq.${campus}`);
     }
 
     const { data: posts } = await postsQuery;
-    const noticesCount = Array.isArray(posts) ? posts.length : 0;
+    const noticesCount = Array.isArray(posts) ? posts.filter((p: any) => !!p.is_pinned).length : 0;
 
     // 3. New Students (Guest Inquiries)
     let newStudentsQuery = supabaseService

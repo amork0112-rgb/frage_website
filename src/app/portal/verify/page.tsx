@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
 
-type Step = "phone" | "otp" | "confirm" | "onboarding" | "account";
+type Step = "phone" | "otp" | "confirm" | "account";
 
 type ChildInfo = {
   id: string;
@@ -33,14 +33,6 @@ export default function ParentFirstVerificationPage() {
   const [parentId, setParentId] = useState<string | null>(null);
   const [parentName, setParentName] = useState<string | null>(null);
   const [children, setChildren] = useState<ChildInfo[]>([]);
-
-  const [arrivalMethod, setArrivalMethod] = useState<"shuttle" | "self" | "academy">("shuttle");
-  const [pickupPlace, setPickupPlace] = useState("");
-  const [departureMethod, setDepartureMethod] = useState<"shuttle" | "self" | "academy">("shuttle");
-  const [dropoffPlace, setDropoffPlace] = useState("");
-  const [pickupCoord, setPickupCoord] = useState<{ lat: string; lng: string }>({ lat: "", lng: "" });
-  const [dropoffCoord, setDropoffCoord] = useState<{ lat: string; lng: string }>({ lat: "", lng: "" });
-  const [address, setAddress] = useState("");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -273,121 +265,12 @@ export default function ParentFirstVerificationPage() {
         setParentId(verifiedParentId || null);
         setParentName(verifiedParentName);
         setChildren(verifiedChildren);
-        setArrivalMethod("shuttle");
-        setDepartureMethod("shuttle");
-        setPickupPlace("");
-        setDropoffPlace("");
-        setPickupCoord({ lat: "", lng: "" });
-        setDropoffCoord({ lat: "", lng: "" });
-        setAddress("");
 
         setStep("confirm");
         return;
       } catch {
         setError("인증번호 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
         setVerified(false); // 실패 시 재시도 허용
-      } finally {
-        setLoading(false);
-      }
-    })();
-  };
-
-  const handleOnboardingSubmit = () => {
-    if (!parentId) {
-      setError("인증 정보가 올바르지 않습니다. 처음부터 다시 진행해 주세요.");
-      return;
-    }
-
-    const useBus =
-      arrivalMethod === "shuttle" || departureMethod === "shuttle";
-
-    const addrTrim = address.trim();
-    if (useBus && addrTrim.length === 0) {
-      setError("셔틀을 이용하시는 경우 기준 주소를 입력해 주세요.");
-      return;
-    }
-
-    if (arrivalMethod === "shuttle") {
-      if (!pickupPlace.trim()) {
-        setError("셔틀 등원 장소를 입력해 주세요.");
-        return;
-      }
-      if (!pickupCoord.lat.trim() || !pickupCoord.lng.trim()) {
-        setError("셔틀 등원 좌표(위도/경도)를 모두 입력해 주세요.");
-        return;
-      }
-      const latP = parseFloat(pickupCoord.lat);
-      const lngP = parseFloat(pickupCoord.lng);
-      if (Number.isNaN(latP) || Number.isNaN(lngP)) {
-        setError("등원 좌표를 올바르게 입력해 주세요.");
-        return;
-      }
-    }
-
-    if (departureMethod === "shuttle") {
-      if (!dropoffPlace.trim()) {
-        setError("셔틀 하원 장소를 입력해 주세요.");
-        return;
-      }
-      if (!dropoffCoord.lat.trim() || !dropoffCoord.lng.trim()) {
-        setError("셔틀 하원 좌표(위도/경도)를 모두 입력해 주세요.");
-        return;
-      }
-      const latD = parseFloat(dropoffCoord.lat);
-      const lngD = parseFloat(dropoffCoord.lng);
-      if (Number.isNaN(latD) || Number.isNaN(lngD)) {
-        setError("하원 좌표를 올바르게 입력해 주세요.");
-        return;
-      }
-    }
-
-    const commuteType = useBus ? "bus" : "self";
-
-    const pickupLat =
-      arrivalMethod === "shuttle" ? parseFloat(pickupCoord.lat) : null;
-    const pickupLng =
-      arrivalMethod === "shuttle" ? parseFloat(pickupCoord.lng) : null;
-    const dropoffLat =
-      departureMethod === "shuttle" ? parseFloat(dropoffCoord.lat) : null;
-    const dropoffLng =
-      departureMethod === "shuttle" ? parseFloat(dropoffCoord.lng) : null;
-
-    setLoading(true);
-    setError(null);
-
-    (async () => {
-      try {
-        const res = await fetch("/api/otp", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            mode: "onboarding",
-            parentId,
-            use_bus: useBus,
-            commute_type: commuteType,
-            address: addrTrim.length > 0 ? addrTrim : null,
-            arrival_method: arrivalMethod,
-            departure_method: departureMethod,
-            pickup_place:
-              pickupPlace.trim().length > 0 ? pickupPlace.trim() : null,
-            dropoff_place:
-              dropoffPlace.trim().length > 0 ? dropoffPlace.trim() : null,
-            pickup_lat: pickupLat,
-            pickup_lng: pickupLng,
-            dropoff_lat: dropoffLat,
-            dropoff_lng: dropoffLng,
-          }),
-        });
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok || payload.ok === false) {
-          setError("등·하원 정보를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
-          return;
-        }
-        setStep("account");
-      } catch {
-        setError("등·하원 정보를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
       } finally {
         setLoading(false);
       }
@@ -630,7 +513,7 @@ export default function ParentFirstVerificationPage() {
                       {parentName || "학부모님"}
                     </span>
                   </div>
-                {children.map((child) => (
+                  {children.map((child) => (
                     <div
                       key={child.id}
                       className="rounded-xl bg-white border border-slate-200 p-3"
@@ -655,7 +538,7 @@ export default function ParentFirstVerificationPage() {
                 <div className="flex flex-col sm:flex-row gap-3 mt-2">
                   <button
                     type="button"
-                    onClick={() => setStep("onboarding")}
+                    onClick={() => setStep("account")}
                     className="flex-1 py-3 rounded-xl bg-frage-navy text-white font-bold text-sm hover:bg-frage-blue"
                   >
                     이 정보가 맞습니다
@@ -671,166 +554,6 @@ export default function ParentFirstVerificationPage() {
                     className="py-3 px-4 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 bg-white hover:bg-slate-50"
                   >
                     정보가 다릅니다
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {step === "onboarding" && (
-              <div className="space-y-5">
-                <div>
-                  <h2 className="text-lg font-bold text-frage-navy mb-1">
-                    등·하원 기본 정보 설정
-                  </h2>
-                  <p className="text-sm text-frage-gray">
-                    자녀의 등·하원 방법(셔틀/자가/타학원), 장소, 좌표를 설정해 주세요. 이후에도 내 자녀 메뉴에서 수정할 수 있습니다.
-                  </p>
-                </div>
-                <div className="space-y-4 bg-slate-50 rounded-2xl border border-slate-200 p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <div className="text-sm font-bold text-slate-900">
-                        등원 방법
-                      </div>
-                      <select
-                        value={arrivalMethod}
-                        onChange={(e) =>
-                          setArrivalMethod(e.target.value as "shuttle" | "self" | "academy")
-                        }
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
-                      >
-                        <option value="shuttle">셔틀 버스</option>
-                        <option value="self">자가 등원</option>
-                        <option value="academy">타학원 등원</option>
-                      </select>
-                      {arrivalMethod !== "self" && (
-                        <div className="space-y-1 mt-2">
-                          <div className="text-xs font-bold text-slate-700">
-                            등원 장소
-                          </div>
-                          <input
-                            type="text"
-                            value={pickupPlace}
-                            onChange={(e) => setPickupPlace(e.target.value)}
-                            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
-                            placeholder="예: 수성구 ○○아파트 정문"
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <div className="text-sm font-bold text-slate-900">
-                        하원 방법
-                      </div>
-                      <select
-                        value={departureMethod}
-                        onChange={(e) =>
-                          setDepartureMethod(e.target.value as "shuttle" | "self" | "academy")
-                        }
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
-                      >
-                        <option value="shuttle">셔틀 버스</option>
-                        <option value="self">자가 하원</option>
-                        <option value="academy">타학원 하원</option>
-                      </select>
-                      {departureMethod !== "self" && (
-                        <div className="space-y-1 mt-2">
-                          <div className="text-xs font-bold text-slate-700">
-                            하원 장소
-                          </div>
-                          <input
-                            type="text"
-                            value={dropoffPlace}
-                            onChange={(e) => setDropoffPlace(e.target.value)}
-                            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
-                            placeholder="예: 수성구 ○○아파트 후문"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <div className="text-xs font-bold text-slate-500">
-                        등원 좌표 (위도 / 경도)
-                      </div>
-                      <div className="flex gap-2">
-                        <input
-                          placeholder="위도"
-                          value={pickupCoord.lat}
-                          onChange={(e) =>
-                            setPickupCoord({ ...pickupCoord, lat: e.target.value })
-                          }
-                          className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
-                        />
-                        <input
-                          placeholder="경도"
-                          value={pickupCoord.lng}
-                          onChange={(e) =>
-                            setPickupCoord({ ...pickupCoord, lng: e.target.value })
-                          }
-                          className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="text-xs font-bold text-slate-500">
-                        하원 좌표 (위도 / 경도)
-                      </div>
-                      <div className="flex gap-2">
-                        <input
-                          placeholder="위도"
-                          value={dropoffCoord.lat}
-                          onChange={(e) =>
-                            setDropoffCoord({ ...dropoffCoord, lat: e.target.value })
-                          }
-                          className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
-                        />
-                        <input
-                          placeholder="경도"
-                          value={dropoffCoord.lng}
-                          onChange={(e) =>
-                            setDropoffCoord({ ...dropoffCoord, lng: e.target.value })
-                          }
-                          className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-sm font-bold text-slate-900">
-                      등·하원 기준 주소
-                    </div>
-                    <input
-                      type="text"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="예: 대구 수성구 ○○아파트 101동 101호"
-                      className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:bg-white focus:border-frage-blue focus:ring-2 focus:ring-frage-blue/20 outline-none transition-all text-frage-navy text-sm"
-                    />
-                  </div>
-                  {error && (
-                    <div className="text-sm bg-rose-50 text-rose-700 border border-rose-200 rounded-xl px-4 py-3">
-                      {error}
-                    </div>
-                  )}
-                </div>
-                <div className="flex justify-between gap-2">
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={() => setStep("confirm")}
-                    className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-40"
-                  >
-                    이전
-                  </button>
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={handleOnboardingSubmit}
-                    className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {loading ? "저장 중..." : "저장하고 계정 설정으로 이동"}
                   </button>
                 </div>
               </div>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import PortalHeader from "@/components/PortalHeader";
 import { FileText, Calendar, User, School, CheckCircle, BarChart3, MessageSquare, ChevronDown, Mic, Video, PenTool } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type PublishedSummary = { id: string; title: string; date: string; month: string };
 
@@ -14,14 +15,24 @@ export default function ReportPage() {
 
   useEffect(() => {
     (async () => {
-      try {
-        const homeRes = await fetch("/api/portal/home", { cache: "no-store" });
-        const homePayload = await homeRes.json();
-        const students = Array.isArray(homePayload?.students) ? homePayload.students : [];
-        const firstEnrolled = students.find((s: any) => s.type === "enrolled") || students[0] || null;
-        const sid = firstEnrolled && firstEnrolled.id ? String(firstEnrolled.id) : "";
-        if (sid) setStudentId(sid);
-      } catch {}
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData?.user?.id || "";
+      if (!uid) return;
+      const { data: parents } = await supabase
+        .from("parents")
+        .select("*")
+        .eq("auth_user_id", uid)
+        .limit(1);
+      const parent = Array.isArray(parents) && parents.length > 0 ? parents[0] : null;
+      if (!parent) return;
+      const { data: students } = await supabase
+        .from("students")
+        .select("*")
+        .eq("parent_account_id", parent.id)
+        .limit(1);
+      const child = Array.isArray(students) && students.length > 0 ? students[0] : null;
+      const sid = child ? String(child.id) : "";
+      if (sid) setStudentId(sid);
     })();
   }, []);
 

@@ -549,12 +549,8 @@ export default function AdminStudentsPage() {
                     />
                   </td>
                   <td className="p-3">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => openInfoPanel(s)} className="text-slate-900 font-bold hover:underline">
-                        {s.student_name}
-                      </button>
-                      <span className="text-xs text-slate-400">{s.parent_phone}</span>
-                    </div>
+                    <button onClick={() => openInfoPanel(s)} className="text-slate-900 font-bold hover:underline">{s.student_name}</button>
+                    <div className="text-xs text-slate-400">{s.parent_phone}</div>
                   </td>
                   <td className="p-3 text-slate-700">{s.class_name}</td>
                   <td className="p-3">

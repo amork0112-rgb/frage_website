@@ -9,6 +9,11 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
+    const role = (user.app_metadata as any)?.role ?? "parent";
+    if (role !== "parent") {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+
     const { data: parent } = await supabase
       .from("parents")
       .select("id,name,phone,campus")
@@ -24,11 +29,11 @@ export async function GET() {
     // 1. Fetch Enrolled Students (Promoted)
     const { data: enrolledStudents } = await supabase
       .from("v_students_full")
-      .select("student_id,student_name,english_first_name,status,campus,parent_auth_user_id,class_name")
+      .select("id,student_name,english_first_name,status,grade,campus,parent_user_id")
       .eq("parent_id", parentId);
 
     const enrolledIds = Array.isArray(enrolledStudents)
-      ? enrolledStudents.map((s: any) => s.student_id).filter((v: any) => v)
+      ? enrolledStudents.map((s: any) => s.id).filter((v: any) => v)
       : [];
 
     let onboardingMap: Record<
@@ -38,25 +43,13 @@ export async function GET() {
         use_bus: boolean | null;
         address: string | null;
         parent_auth_user_id: string | null;
-        onboarding_step: string | null;
-        pickup_method: string | null;
-        pickup_lat: number | null;
-        pickup_lng: number | null;
-        pickup_address: string | null;
-        dropoff_method: string | null;
-        dropoff_lat: number | null;
-        dropoff_lng: number | null;
-        dropoff_address: string | null;
-        default_dropoff_time: string | null;
       }
     > = {};
 
     if (enrolledIds.length > 0) {
       const { data: onboardingRows } = await supabase
         .from("students")
-        .select(
-          "id,profile_completed,use_bus,address,parent_auth_user_id,onboarding_step,pickup_method,pickup_lat,pickup_lng,pickup_address,dropoff_method,dropoff_lat,dropoff_lng,dropoff_address,default_dropoff_time"
-        )
+        .select("id,profile_completed,use_bus,address,parent_auth_user_id")
         .in("id", enrolledIds as any);
 
       onboardingMap =
@@ -75,40 +68,6 @@ export async function GET() {
                 parent_auth_user_id: row.parent_auth_user_id
                   ? String(row.parent_auth_user_id)
                   : null,
-                onboarding_step: row.onboarding_step
-                  ? String(row.onboarding_step)
-                  : null,
-                pickup_method: row.pickup_method
-                  ? String(row.pickup_method)
-                  : null,
-                pickup_lat:
-                  typeof row.pickup_lat === "number"
-                    ? row.pickup_lat
-                    : null,
-                pickup_lng:
-                  typeof row.pickup_lng === "number"
-                    ? row.pickup_lng
-                    : null,
-                pickup_address: row.pickup_address
-                  ? String(row.pickup_address)
-                  : null,
-                dropoff_method: row.dropoff_method
-                  ? String(row.dropoff_method)
-                  : null,
-                dropoff_lat:
-                  typeof row.dropoff_lat === "number"
-                    ? row.dropoff_lat
-                    : null,
-                dropoff_lng:
-                  typeof row.dropoff_lng === "number"
-                    ? row.dropoff_lng
-                    : null,
-                dropoff_address: row.dropoff_address
-                  ? String(row.dropoff_address)
-                  : null,
-                default_dropoff_time: row.default_dropoff_time
-                  ? String(row.default_dropoff_time)
-                  : null,
               };
               return acc;
             }, {} as typeof onboardingMap)
@@ -124,16 +83,16 @@ export async function GET() {
 
     const enrolledItems = Array.isArray(enrolledStudents)
       ? enrolledStudents.map((s: any) => {
-          const key = String(s.student_id || "");
+          const key = String(s.id || "");
           const onboarding = key ? onboardingMap[key] : undefined;
           return {
-            student_id: key,
+            id: key,
             name: String(s.student_name || ""),
             englishName: String(s.english_first_name || ""),
             status: String(s.status || "promoted"),
-            className: String(s.class_name || ""),
+            className: String(s.grade || ""),
             campus: String(s.campus || ""),
-            parentAccountId: String(s.parent_auth_user_id || ""),
+            parentAccountId: String(s.parent_user_id || ""),
             profile_completed: onboarding
               ? onboarding.profile_completed === true
               : null,
@@ -142,18 +101,6 @@ export async function GET() {
               : null,
             use_bus: onboarding ? onboarding.use_bus : null,
             address: onboarding ? onboarding.address : null,
-            onboarding_step: onboarding ? onboarding.onboarding_step : null,
-            pickup_method: onboarding ? onboarding.pickup_method : null,
-            pickup_lat: onboarding ? onboarding.pickup_lat : null,
-            pickup_lng: onboarding ? onboarding.pickup_lng : null,
-            pickup_address: onboarding ? onboarding.pickup_address : null,
-            dropoff_method: onboarding ? onboarding.dropoff_method : null,
-            dropoff_lat: onboarding ? onboarding.dropoff_lat : null,
-            dropoff_lng: onboarding ? onboarding.dropoff_lng : null,
-            dropoff_address: onboarding ? onboarding.dropoff_address : null,
-            default_dropoff_time: onboarding
-              ? onboarding.default_dropoff_time
-              : null,
             type: "enrolled",
           };
         })
@@ -161,7 +108,7 @@ export async function GET() {
 
     const newItems = Array.isArray(newStudents)
       ? newStudents.map((s: any) => ({
-          student_id: String(s.id || ""),
+          id: String(s.id || ""),
           name: String(s.student_name || ""),
           englishName: String(s.english_first_name || ""),
           status: String(s.status || "waiting"),

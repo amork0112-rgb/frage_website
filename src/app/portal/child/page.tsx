@@ -1,20 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import PortalHeader from "@/components/PortalHeader";
 import { User, MapPin, School, Bus, Clock, Shield, Bell, Info, Camera, Calendar, Phone, Home, Smile, Edit2, Check, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { isValidUUID } from "@/lib/uuid";
-
-declare global {
-  interface Window {
-    kakao: any;
-  }
-}
-
-const KAKAO_MAP_KEY = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
 
 export default function ChildPage() {
   // Mock Data
@@ -24,6 +15,7 @@ export default function ChildPage() {
     photoUrl: "",
     class: "",
     campus: "",
+    teacher: "",
     birthDate: "",
     gender: "",
     address: "",
@@ -58,6 +50,16 @@ export default function ChildPage() {
       const url = URL.createObjectURL(file);
       setStudentProfile(prev => ({ ...prev, photoUrl: url }));
       setEditForm(prev => ({ ...prev, photoUrl: url }));
+      (async () => {
+        try {
+          if (studentId) {
+            await supabase
+              .from("students")
+              .update({ photo_url: url })
+              .eq("id", Number(studentId));
+          }
+        } catch (e) {}
+      })();
     }
   };
 
@@ -79,9 +81,9 @@ export default function ChildPage() {
   };
 
   const [transportForm, setTransportForm] = useState({
-    arrivalMethod: "shuttle" as "shuttle" | "self" | "academy",
+    arrivalMethod: "shuttle" as "shuttle" | "self" | "guardian",
     pickupPlace: "",
-    departureMethod: "shuttle" as "shuttle" | "self" | "academy",
+    departureMethod: "shuttle" as "shuttle" | "self" | "guardian",
     dropoffPlace: "",
     pickupVerified: false,
     dropoffVerified: false,
@@ -89,9 +91,6 @@ export default function ChildPage() {
   });
   const [pickupCoord, setPickupCoord] = useState<{ lat: string; lng: string }>({ lat: "", lng: "" });
   const [dropoffCoord, setDropoffCoord] = useState<{ lat: string; lng: string }>({ lat: "", lng: "" });
-
-  const [mapOpen, setMapOpen] = useState(false);
-  const [mapTarget, setMapTarget] = useState<"pickup" | "dropoff">("pickup");
 
   const [guardianInfo, setGuardianInfo] = useState({
     name: "보호자",
@@ -120,84 +119,44 @@ export default function ChildPage() {
           name: parentName,
           accountId: user.id,
         }));
-        const parentId = parent ? String(parent.id) : null;
-        if (!parentId) {
-          return;
-        }
         const { data: studentRows } = await supabase
-          .from("v_students_full")
-          .select("student_id,student_name,english_first_name,class_name,campus,birth_date,gender,address,parent_phone")
-          .eq("parent_id", parentId)
+          .from("students")
+          .select("*")
+          .eq("parent_auth_user_id", user.id)
           .limit(1);
         const s = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
         if (s) {
-          const rawStudentId = String((s as any).student_id || "");
-          if (!isValidUUID(rawStudentId)) {
-            console.warn("유효하지 않은 studentId", rawStudentId);
-            return;
-          }
-          setStudentId(rawStudentId);
+          setStudentId(String(s.id));
           setStudentProfile({
-            name: { en: String(s.english_first_name || ""), ko: String(s.student_name || "") },
-            photoUrl: "",
+            name: { en: String(s.english_name || ""), ko: String(s.name || "") },
+            photoUrl: String(s.photo_url || ""),
             class: String(s.class_name || ""),
             campus: String(s.campus || ""),
+            teacher: String(s.teacher_name || ""),
             birthDate: String(s.birth_date || ""),
             gender: String(s.gender || ""),
             address: String(s.address || ""),
-            studentPhone: String((s as any).parent_phone || ""),
+            studentPhone: String(s.phone || ""),
           });
           setEditForm({
-            name: { en: String(s.english_first_name || ""), ko: String(s.student_name || "") },
-            photoUrl: "",
+            name: { en: String(s.english_name || ""), ko: String(s.name || "") },
+            photoUrl: String(s.photo_url || ""),
             class: String(s.class_name || ""),
             campus: String(s.campus || ""),
+            teacher: String(s.teacher_name || ""),
             birthDate: String(s.birth_date || ""),
             gender: String(s.gender || ""),
             address: String(s.address || ""),
-            studentPhone: String((s as any).parent_phone || ""),
+            studentPhone: String(s.phone || ""),
           });
-          try {
-            const homeRes = await fetch("/api/portal/home", { cache: "no-store" });
-            const homePayload = await homeRes.json().catch(() => ({}));
-            const students = Array.isArray(homePayload?.students) ? homePayload.students : [];
-            const target = students.find((st: any) => String(st.student_id) === rawStudentId);
-            if (target) {
-              const pickupMethod: "shuttle" | "academy" | "self" =
-                target.pickup_method === "academy" || target.pickup_method === "self"
-                  ? target.pickup_method
-                  : "shuttle";
-              const dropoffMethod: "shuttle" | "academy" | "self" =
-                target.dropoff_method === "academy" || target.dropoff_method === "self"
-                  ? target.dropoff_method
-                  : "shuttle";
-              const defaultTime =
-                typeof target.default_dropoff_time === "string" &&
-                target.default_dropoff_time.length >= 5
-                  ? String(target.default_dropoff_time).slice(0, 5)
-                  : "16:30";
-              setPickupCoord({
-                lat:
-                  typeof target.pickup_lat === "number" ? String(target.pickup_lat) : "",
-                lng:
-                  typeof target.pickup_lng === "number" ? String(target.pickup_lng) : "",
-              });
-              setDropoffCoord({
-                lat:
-                  typeof target.dropoff_lat === "number" ? String(target.dropoff_lat) : "",
-                lng:
-                  typeof target.dropoff_lng === "number" ? String(target.dropoff_lng) : "",
-              });
-              setTransportForm(prev => ({
-                ...prev,
-                arrivalMethod: pickupMethod,
-                departureMethod: dropoffMethod,
-                pickupPlace: target.pickup_address || prev.pickupPlace,
-                dropoffPlace: target.dropoff_address || prev.dropoffPlace,
-                defaultDepartureTime: defaultTime,
-              }));
-            }
-          } catch {}
+          setPickupCoord({
+            lat: s.pickup_lat ? String(s.pickup_lat) : "",
+            lng: s.pickup_lng ? String(s.pickup_lng) : "",
+          });
+          setDropoffCoord({
+            lat: s.dropoff_lat ? String(s.dropoff_lat) : "",
+            lng: s.dropoff_lng ? String(s.dropoff_lng) : "",
+          });
         }
       } catch (e) {}
     })();
@@ -207,36 +166,21 @@ export default function ChildPage() {
 
   const handleTransportSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmitTransport || !isValidUUID(studentId)) return;
+    if (!canSubmitTransport) return;
     (async () => {
       try {
-        const payload = {
-          studentId,
-          pickup_method: transportForm.arrivalMethod,
-          dropoff_method: transportForm.departureMethod,
-          pickup_address: transportForm.pickupPlace || null,
-          dropoff_address: transportForm.dropoffPlace || null,
-          default_dropoff_time: transportForm.defaultDepartureTime,
-          pickup_lat: pickupCoord.lat ? Number.parseFloat(pickupCoord.lat) : null,
-          pickup_lng: pickupCoord.lng ? Number.parseFloat(pickupCoord.lng) : null,
-          dropoff_lat: dropoffCoord.lat ? Number.parseFloat(dropoffCoord.lat) : null,
-          dropoff_lng: dropoffCoord.lng ? Number.parseFloat(dropoffCoord.lng) : null,
-        };
-        const res = await fetch("/api/onboarding/transport", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+        await supabase.from("portal_requests").insert({
+          child_id: studentId || null,
+          child_name: studentProfile.name.ko || studentProfile.name.en || "학생",
+          campus: studentProfile.campus || null,
+          type: "bus_change",
+          change_type: null,
+          note: `등원:${transportForm.arrivalMethod}(${transportForm.pickupPlace || "-"}) / 하원:${transportForm.departureMethod}(${transportForm.dropoffPlace || "-"})`,
+          created_at: new Date().toISOString(),
         });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok || !json.ok) {
-          alert("등·하원 / 차량 정보 저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
-          return;
-        }
-        alert("등·하원 / 차량 정보가 저장되었습니다.");
+        alert("자녀 등·하원/차량 요청이 저장되었습니다.");
         router.push("/portal/home");
-      } catch (e) {
-        alert("등·하원 / 차량 정보 저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
-      }
+      } catch (e) {}
     })();
   };
 
@@ -268,57 +212,27 @@ export default function ChildPage() {
     );
   };
 
-  const openMap = (target: "pickup" | "dropoff") => {
-    setMapTarget(target);
-    setMapOpen(true);
-  };
-
-  const handleMapSelect = (lat: number, lng: number, address: string) => {
-    if (mapTarget === "pickup") {
-      setPickupCoord({ lat: String(lat), lng: String(lng) });
-      setTransportForm(prev => ({
-        ...prev,
-        pickupPlace: prev.pickupPlace || address,
-      }));
-    } else {
-      setDropoffCoord({ lat: String(lat), lng: String(lng) });
-      setTransportForm(prev => ({
-        ...prev,
-        dropoffPlace: prev.dropoffPlace || address,
-      }));
-    }
-    setMapOpen(false);
-  };
-
   const savePickupDropoff = async () => {
-    if (!canSubmitTransport || !isValidUUID(studentId)) return;
-    try {
-      const payload = {
-        studentId,
-        pickup_method: transportForm.arrivalMethod,
-        dropoff_method: transportForm.departureMethod,
-        pickup_address: transportForm.pickupPlace || null,
-        dropoff_address: transportForm.dropoffPlace || null,
-        default_dropoff_time: transportForm.defaultDepartureTime,
-        pickup_lat: pickupCoord.lat ? Number.parseFloat(pickupCoord.lat) : null,
-        pickup_lng: pickupCoord.lng ? Number.parseFloat(pickupCoord.lng) : null,
-        dropoff_lat: dropoffCoord.lat ? Number.parseFloat(dropoffCoord.lat) : null,
-        dropoff_lng: dropoffCoord.lng ? Number.parseFloat(dropoffCoord.lng) : null,
-      };
-      const res = await fetch("/api/onboarding/transport", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.ok) {
-        alert("등·하원 / 차량 정보 저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
-        return;
-      }
-      alert("위치 정보가 저장되었습니다.");
-    } catch (e) {
-      alert("등·하원 / 차량 정보 저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
+    if (!studentId) return;
+    const latP = parseFloat(pickupCoord.lat);
+    const lngP = parseFloat(pickupCoord.lng);
+    const latD = parseFloat(dropoffCoord.lat);
+    const lngD = parseFloat(dropoffCoord.lng);
+    if (Number.isNaN(latP) || Number.isNaN(lngP) || Number.isNaN(latD) || Number.isNaN(lngD)) {
+      alert("좌표를 올바르게 입력해 주세요.");
+      return;
     }
+    await supabase
+      .from("students")
+      .update({
+        pickup_lat: latP,
+        pickup_lng: lngP,
+        dropoff_lat: latD,
+        dropoff_lng: lngD,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", Number(studentId));
+    alert("위치 정보가 저장되었습니다.");
   };
 
   return (
@@ -414,6 +328,15 @@ export default function ChildPage() {
                         <span className="font-bold text-slate-900">{studentProfile.campus}</span>
                      </div>
 
+                     <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-slate-600">
+                           <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-frage-blue shadow-sm">
+                              <User className="w-4 h-4" />
+                           </div>
+                           <span className="text-sm font-bold">Teacher</span>
+                        </div>
+                        <span className="font-bold text-slate-900">{studentProfile.teacher}</span>
+                     </div>
                  </div>
 
                  {/* Detailed Info (Editable) */}
@@ -496,9 +419,16 @@ export default function ChildPage() {
                        <div className="flex items-center gap-3">
                           <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
                           <span className="text-sm text-slate-600 w-24 flex-shrink-0">Phone</span>
-                          <span className="text-sm font-bold text-slate-800 flex-1">
-                            {studentProfile.studentPhone}
-                          </span>
+                          {isEditing ? (
+                            <input 
+                              type="tel"
+                              className="flex-1 border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-frage-blue"
+                              value={editForm.studentPhone}
+                              onChange={(e) => setEditForm({...editForm, studentPhone: e.target.value})}
+                            />
+                          ) : (
+                            <span className="text-sm font-bold text-slate-800 flex-1">{studentProfile.studentPhone}</span>
+                          )}
                        </div>
                      </div>
                  </div>
@@ -519,12 +449,12 @@ export default function ChildPage() {
                 <select
                   required
                   value={transportForm.arrivalMethod}
-                  onChange={(e) => setTransportForm({ ...transportForm, arrivalMethod: e.target.value as "shuttle" | "self" | "academy" })}
+                  onChange={(e) => setTransportForm({ ...transportForm, arrivalMethod: e.target.value as "shuttle" | "self" | "guardian" })}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
                 >
                   <option value="shuttle">셔틀 버스</option>
+                  <option value="guardian">보호자 등원</option>
                   <option value="self">자가 등원</option>
-                  <option value="academy">타학원 등원</option>
                 </select>
                </div>
                <div>
@@ -548,12 +478,12 @@ export default function ChildPage() {
                 <select
                   required
                   value={transportForm.departureMethod}
-                  onChange={(e) => setTransportForm({ ...transportForm, departureMethod: e.target.value as "shuttle" | "self" | "academy" })}
+                  onChange={(e) => setTransportForm({ ...transportForm, departureMethod: e.target.value as "shuttle" | "self" | "guardian" })}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
                 >
                   <option value="shuttle">셔틀 버스</option>
+                  <option value="guardian">보호자 하원</option>
                   <option value="self">자가 하원</option>
-                  <option value="academy">타학원 하원</option>
                 </select>
                </div>
                <div>
@@ -592,41 +522,26 @@ export default function ChildPage() {
                정보 저장 및 다음 단계로 이동
              </button>
            </form>
-          <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-5">
-            <h3 className="text-sm font-bold text-slate-700">픽업/드롭오프 좌표 설정</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="text-xs font-bold text-slate-500">픽업 좌표</div>
-                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+           <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-5">
+             <h3 className="text-sm font-bold text-slate-700">픽업/드롭오프 좌표 설정</h3>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="space-y-2">
+                 <div className="text-xs font-bold text-slate-500">픽업 좌표</div>
+                 <div className="flex gap-2">
                    <input
                      placeholder="위도"
                      value={pickupCoord.lat}
                      onChange={(e) => setPickupCoord({ ...pickupCoord, lat: e.target.value })}
-                     className="border border-slate-200 rounded px-2 py-2 text-sm bg-white w-full"
+                     className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
                    />
                    <input
                      placeholder="경도"
                      value={pickupCoord.lng}
                      onChange={(e) => setPickupCoord({ ...pickupCoord, lng: e.target.value })}
-                     className="border border-slate-200 rounded px-2 py-2 text-sm bg-white w-full"
+                     className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
                    />
                  </div>
-                 <div className="flex flex-wrap gap-2">
-                   <button
-                     type="button"
-                     onClick={setPickupCurrentLocation}
-                     className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold bg-white"
-                   >
-                     현재 위치로 설정
-                   </button>
-                   <button
-                     type="button"
-                     onClick={() => openMap("pickup")}
-                     className="px-3 py-2 rounded-lg border border-frage-blue text-xs font-bold text-frage-blue bg-white"
-                   >
-                     지도에서 선택
-                   </button>
-                 </div>
+                 <button onClick={setPickupCurrentLocation} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold bg-white">현재 위치로 설정</button>
                  {pickupCoord.lat && pickupCoord.lng && (
                    <iframe
                      title="pickup-map"
@@ -635,38 +550,23 @@ export default function ChildPage() {
                    />
                  )}
                </div>
-              <div className="space-y-2">
+               <div className="space-y-2">
                  <div className="text-xs font-bold text-slate-500">드롭오프 좌표</div>
-                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                 <div className="flex gap-2">
                    <input
                      placeholder="위도"
                      value={dropoffCoord.lat}
                      onChange={(e) => setDropoffCoord({ ...dropoffCoord, lat: e.target.value })}
-                     className="border border-slate-200 rounded px-2 py-2 text-sm bg-white w-full"
+                     className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
                    />
                    <input
                      placeholder="경도"
                      value={dropoffCoord.lng}
                      onChange={(e) => setDropoffCoord({ ...dropoffCoord, lng: e.target.value })}
-                     className="border border-slate-200 rounded px-2 py-2 text-sm bg-white w-full"
+                     className="flex-1 border border-slate-200 rounded px-2 py-2 text-sm bg-white"
                    />
                  </div>
-                 <div className="flex flex-wrap gap-2">
-                   <button
-                     type="button"
-                     onClick={setDropoffCurrentLocation}
-                     className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold bg-white"
-                   >
-                     현재 위치로 설정
-                   </button>
-                   <button
-                     type="button"
-                     onClick={() => openMap("dropoff")}
-                     className="px-3 py-2 rounded-lg border border-frage-blue text-xs font-bold text-frage-blue bg-white"
-                   >
-                     지도에서 선택
-                   </button>
-                 </div>
+                 <button onClick={setDropoffCurrentLocation} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold bg-white">현재 위치로 설정</button>
                  {dropoffCoord.lat && dropoffCoord.lng && (
                    <iframe
                      title="dropoff-map"
@@ -676,11 +576,11 @@ export default function ChildPage() {
                  )}
                </div>
              </div>
-            <div className="flex justify-end">
-              <button onClick={savePickupDropoff} className="px-4 py-2 bg-frage-navy text-white rounded-xl font-bold">좌표 저장</button>
-            </div>
-          </div>
-       </section>
+             <div className="flex justify-end">
+               <button onClick={savePickupDropoff} className="px-4 py-2 bg-frage-navy text-white rounded-xl font-bold">좌표 저장</button>
+             </div>
+           </div>
+        </section>
 
         {/* 3. Guardian Info */}
         <section>
@@ -727,171 +627,8 @@ export default function ChildPage() {
               If you notice anything incorrect, please contact the office.
            </p>
         </div>
-      
+
       </main>
-      {mapOpen && (
-        <ChildMapModal
-          target={mapTarget}
-          initialLat={
-            mapTarget === "pickup"
-              ? pickupCoord.lat
-                ? parseFloat(pickupCoord.lat)
-                : dropoffCoord.lat
-                ? parseFloat(dropoffCoord.lat)
-                : null
-              : dropoffCoord.lat
-              ? parseFloat(dropoffCoord.lat)
-              : pickupCoord.lat
-              ? parseFloat(pickupCoord.lat)
-              : null
-          }
-          initialLng={
-            mapTarget === "pickup"
-              ? pickupCoord.lng
-                ? parseFloat(pickupCoord.lng)
-                : dropoffCoord.lng
-                ? parseFloat(dropoffCoord.lng)
-                : null
-              : dropoffCoord.lng
-              ? parseFloat(dropoffCoord.lng)
-              : pickupCoord.lng
-              ? parseFloat(pickupCoord.lng)
-              : null
-          }
-          onSelect={handleMapSelect}
-          onClose={() => setMapOpen(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-type ChildMapModalProps = {
-  target: "pickup" | "dropoff";
-  initialLat: number | null;
-  initialLng: number | null;
-  onSelect: (lat: number, lng: number, address: string) => void;
-  onClose: () => void;
-};
-
-function ChildMapModal({ target, initialLat, initialLng, onSelect, onClose }: ChildMapModalProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [ready, setReady] = useState(false);
-  const [currentLat, setCurrentLat] = useState<number | null>(initialLat);
-  const [currentLng, setCurrentLng] = useState<number | null>(initialLng);
-  const [currentAddress, setCurrentAddress] = useState<string>("");
-
-  useEffect(() => {
-    const ensureScript = () =>
-      new Promise<void>((resolve, reject) => {
-        if (typeof window === "undefined") {
-          reject();
-          return;
-        }
-        if (window.kakao && window.kakao.maps) {
-          resolve();
-          return;
-        }
-        if (!KAKAO_MAP_KEY) {
-          reject();
-          return;
-        }
-        const existing = document.querySelector<HTMLScriptElement>('script[data-kakao-map="true"]');
-        if (existing) {
-          existing.addEventListener("load", () => resolve());
-          existing.addEventListener("error", () => reject());
-          return;
-        }
-        const script = document.createElement("script");
-        script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_KEY}&libraries=services&autoload=false`;
-        script.async = true;
-        script.defer = true;
-        script.dataset.kakaoMap = "true";
-        script.onload = () => resolve();
-        script.onerror = () => reject();
-        document.head.appendChild(script);
-      });
-
-    ensureScript()
-      .then(() => {
-        if (!window.kakao || !window.kakao.maps) {
-          return;
-        }
-        window.kakao.maps.load(() => {
-          if (!containerRef.current) return;
-          const centerLat = initialLat ?? 35.857;
-          const centerLng = initialLng ?? 128.626;
-          const center = new window.kakao.maps.LatLng(centerLat, centerLng);
-          const options = {
-            center,
-            level: 3,
-          };
-          const map = new window.kakao.maps.Map(containerRef.current, options);
-          const geocoder = new window.kakao.maps.services.Geocoder();
-
-          const updateCenter = () => {
-            const c = map.getCenter();
-            const lat = c.getLat();
-            const lng = c.getLng();
-            setCurrentLat(lat);
-            setCurrentLng(lng);
-            geocoder.coord2Address(lng, lat, (result: any, status: any) => {
-              if (status === window.kakao.maps.services.Status.OK && result[0]?.address) {
-                setCurrentAddress(result[0].address.address_name);
-              }
-            });
-          };
-
-          updateCenter();
-          window.kakao.maps.event.addListener(map, "center_changed", updateCenter);
-          setReady(true);
-        });
-      })
-      .catch(() => {
-        setReady(false);
-      });
-  }, [initialLat, initialLng]);
-
-  const handleConfirm = useCallback(() => {
-    if (!currentLat || !currentLng || !currentAddress) return;
-    onSelect(currentLat, currentLng, currentAddress);
-  }, [currentLat, currentLng, currentAddress, onSelect]);
-
-  const title = target === "pickup" ? "픽업 위치 설정" : "하원 위치 설정";
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-stretch justify-center">
-      <div className="relative bg-white w-full h-full max-w-md mx-auto flex flex-col">
-        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-          <div className="text-sm font-bold text-slate-900">{title}</div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-xs font-bold text-slate-500 px-2 py-1 rounded-lg hover:bg-slate-100"
-          >
-            닫기
-          </button>
-        </div>
-        <div className="flex-1 relative">
-          <div ref={containerRef} className="w-full h-full" />
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="w-6 h-6 rounded-full border-2 border-red-500 bg-red-500/80 shadow-lg -translate-y-4" />
-          </div>
-        </div>
-        <div className="border-t border-slate-200 p-4 space-y-2 bg-white">
-          <div className="text-xs text-slate-600 min-h-[32px]">
-            {ready ? currentAddress || "지도를 움직여 위치를 선택해 주세요." : "지도를 불러오는 중입니다..."}
-          </div>
-          <button
-            type="button"
-            disabled={!ready || !currentLat || !currentLng || !currentAddress}
-            onClick={handleConfirm}
-            className="w-full px-4 py-3 rounded-xl bg-frage-navy text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            이 위치로 설정
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

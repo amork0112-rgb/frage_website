@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bell, FileText, HelpCircle, CheckCircle, FileCheck, Calendar, Truck, AlertTriangle, Video } from "lucide-react";
+import { Bell, FileText, HelpCircle, CheckCircle, FileCheck, Calendar, Truck, AlertTriangle } from "lucide-react";
 import PortalHeader from "@/components/PortalHeader";
 import { supabase } from "@/lib/supabase";
 
@@ -28,7 +28,6 @@ export default function ParentPortalHome() {
   // For Enrolled Students
   const [monthlyReports, setMonthlyReports] = useState<{ id: string; title: string; date: string; status: string }[]>([]);
   const [notifications, setNotifications] = useState<{ id?: string; message: string; date?: string }[]>([]);
-  const [videoHomeworks, setVideoHomeworks] = useState<{ id: string; title: string; dueDate: string; status: "Pending" | "Submitted" | "Reviewed" }[]>([]);
   
   // For New Students
   const [currentStep, setCurrentStep] = useState("대기");
@@ -120,16 +119,12 @@ export default function ParentPortalHome() {
           setStudentStatus("enrolled");
           setStudentType("enrolled");
         }
-        if (first && first.student_id) {
-          setStudentId(String(first.student_id));
+        if (first && first.id) {
+          setStudentId(String(first.id));
         } else {
           setStudentId(null);
         }
         if (first && first.type === "enrolled") {
-          if (first.onboarding_step === "transport" && first.student_id) {
-            router.replace(`/portal/onboarding/transport?studentId=${first.student_id}`);
-            return;
-          }
           const profileCompleted = first.profile_completed === true;
           const parentAuthUserId = first.parent_auth_user_id ?? null;
           const useBus =
@@ -228,20 +223,6 @@ export default function ParentPortalHome() {
             date: n.date
           }));
           setNotifications(list);
-        }
-      } catch {}
-      try {
-        const res = await fetch(`/api/portal/video?studentId=${studentId}`);
-        const data = await res.json();
-        if (alive) {
-          const items = Array.isArray(data?.items) ? data.items : [];
-          const list = items.map((v: any) => ({
-            id: String(v.id || ""),
-            title: String(v.title || ""),
-            dueDate: String(v.dueDate || ""),
-            status: String(v.status || "Pending") as "Pending" | "Submitted" | "Reviewed"
-          }));
-          setVideoHomeworks(list);
         }
       } catch {}
     };
@@ -970,71 +951,19 @@ export default function ParentPortalHome() {
       )}
 
       <main className="px-4 py-6 max-w-2xl mx-auto space-y-8">
-        <section className="grid grid-cols-2 gap-3">
-          <Link href="/portal/notices" className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col justify-between hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-bold text-slate-500">새 공지</div>
-              <Bell className="w-5 h-5 text-frage-blue" />
-            </div>
-            <div className="flex items-end justify-between">
-              <div className="text-2xl font-black text-slate-900">{notifications.length}</div>
-              <div className="text-[11px] text-slate-400 font-medium">공지사항 전체 보기</div>
-            </div>
-          </Link>
-          <Link href="/portal/video" className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col justify-between hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-bold text-slate-500">영상 과제</div>
-              <Video className="w-5 h-5 text-frage-navy" />
-            </div>
-            <div className="flex items-end justify-between">
-              <div className="text-2xl font-black text-slate-900">
-                {videoHomeworks.filter((v) => v.status === "Pending").length}
-              </div>
-              <div className="text-[11px] text-slate-400 font-medium">미완료 과제</div>
-            </div>
-          </Link>
-          <Link href="/portal/report" className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col justify-between hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-bold text-slate-500">월간 리포트</div>
-              <FileText className="w-5 h-5 text-frage-navy" />
-            </div>
-            <div className="flex items-end justify-between">
-              <div className="text-2xl font-black text-slate-900">{monthlyReports.length}</div>
-              <div className="text-[11px] text-slate-400 font-medium">발행된 리포트</div>
-            </div>
-          </Link>
-          <Link href={studentId ? `/portal/child` : "/portal/child"} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col justify-between hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-bold text-slate-500">차량 정보</div>
-              <Truck className="w-5 h-5 text-frage-blue" />
-            </div>
-            <div className="flex items-end justify-between">
-              <div className="text-sm font-bold text-slate-900">
-                {needOnboarding ? "확인이 필요합니다" : "설정이 완료되었습니다"}
-              </div>
-              <div className="text-[11px] text-slate-400 font-medium">등·하원 정보 관리</div>
-            </div>
-          </Link>
-        </section>
-
         <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Bell className="w-5 h-5 text-frage-blue" />
-              공지사항
-            </h2>
-            <Link href="/portal/notices" className="text-xs font-bold text-frage-blue hover:underline">
-              전체 보기
-            </Link>
-          </div>
+          <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <Bell className="w-5 h-5 text-frage-blue" />
+            공지사항
+          </h2>
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 divide-y divide-slate-100">
-            {notifications.length > 0 ? notifications.slice(0, 3).map((n, idx) => (
+            {notifications.length > 0 ? notifications.map((n, idx) => (
               <div key={n.id || idx} className="p-4">
                 <p className="text-sm text-slate-800 font-medium">{n.message}</p>
                 {n.date && <p className="text-xs text-slate-400 mt-1">{n.date}</p>}
               </div>
             )) : (
-              <div className="p-4 text-sm text-slate-500">오늘은 확인할 새 소식이 없습니다 😊</div>
+              <div className="p-4 text-sm text-slate-500">현재 공지사항이 없습니다.</div>
             )}
           </div>
         </section>
@@ -1062,30 +991,31 @@ export default function ParentPortalHome() {
           </div>
         </section>
 
-        {monthlyReports.length > 0 && (
-          <section>
-            <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-frage-navy" />
-              월간 리포트 (Monthly Report)
-            </h2>
-            
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 divide-y divide-slate-100">
-              {monthlyReports.map((report) => (
-                <Link key={report.id} href="/portal/report" className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-frage-navy group-hover:text-white transition-colors">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-slate-800 text-sm">{report.title}</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">{report.date}</p>
-                    </div>
+        <section>
+          <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-frage-navy" />
+            월간 리포트 (Monthly Report)
+          </h2>
+          
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 divide-y divide-slate-100">
+            {(monthlyReports.length > 0 ? monthlyReports : []).map((report) => (
+              <Link key={report.id} href="/portal/report" className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer group">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-frage-navy group-hover:text-white transition-colors">
+                    <FileText className="w-5 h-5" />
                   </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
+                  <div>
+                    <h4 className="font-bold text-slate-800 text-sm">{report.title}</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">{report.date}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+            {monthlyReports.length === 0 && (
+              <div className="p-4 text-sm text-slate-500">아직 발행된 월간 리포트가 없습니다.</div>
+            )}
+          </div>
+        </section>
 
 
       </main>

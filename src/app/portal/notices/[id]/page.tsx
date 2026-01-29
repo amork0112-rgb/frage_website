@@ -50,7 +50,7 @@ export default function NoticeDetailPage() {
           category: data.category || "Academic",
           campus: "All",
           summary: data.content || "",
-          content: data.content || "",
+          content: String(data.content || "").split(/\n+/),
           isPinned: !!data.is_pinned,
           isArchived: !!data.is_archived,
           viewCount: data.view_count || 0,
@@ -61,34 +61,15 @@ export default function NoticeDetailPage() {
     })();
   }, [noticeId]);
 
+  // 3. Fetch Initial Reactions
   useEffect(() => {
     (async () => {
-      const numId = Number(noticeId);
-      if (Number.isNaN(numId)) return;
+      if (!noticeId) return;
       try {
-        let hasSetCounts = false;
-
-        const { data: countsRow, error: countsError } = await supabase
-          .from("v_notice_reaction_counts")
-          .select("notice_id,check_count,heart_count,smile_count")
-          .eq("notice_id", numId)
-          .maybeSingle();
-
-        if (!countsError && countsRow) {
-          setReactions({
-            check: Number((countsRow as any).check_count ?? 0),
-            heart: Number((countsRow as any).heart_count ?? 0),
-            smile: Number((countsRow as any).smile_count ?? 0),
-          });
-          hasSetCounts = true;
-        }
-
-        const res = await fetch(`/api/notices/${numId}/reactions`);
+        const res = await fetch(`/api/notices/${noticeId}/reactions`);
         const json = await res.json();
         if (json.ok) {
-          if (!hasSetCounts && json.counts) {
-            setReactions(json.counts);
-          }
+          setReactions(json.counts);
           setMyReactions(json.myReactions || []);
         }
       } catch (e) {
@@ -219,10 +200,13 @@ export default function NoticeDetailPage() {
             {/* Content */}
             <div className="p-6 md:p-8">
                 {notice && (
-                  <div 
-                    className="prose prose-slate max-w-none"
-                    dangerouslySetInnerHTML={{ __html: notice.content || "" }}
-                  />
+                  <div className="prose prose-slate max-w-none">
+                    {(notice.content || []).map((paragraph: string, index: number) => (
+                      <p key={index} className="mb-4 text-slate-700 leading-relaxed last:mb-0">
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
                 )}
 
                 {/* Reaction Section */}

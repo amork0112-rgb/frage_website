@@ -1,3 +1,4 @@
+//components/TeacherHeader.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -117,7 +118,7 @@ export default function TeacherHeader() {
                     {group.name}
                   </button>
                   <div
-                    className={`absolute left-0 top-full min-w-[180px] rounded-xl border border-slate-200 bg-white shadow-lg ${
+                    className={`absolute left-0 top-full z-50 min-w-[180px] rounded-xl border border-slate-200 bg-white shadow-lg ${
                       openGroup === group.name ? "block" : "hidden"
                     }`}
                   >

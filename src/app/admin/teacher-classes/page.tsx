@@ -34,24 +34,6 @@ export default function AdminTeacherClassesPage() {
   const [addSelect, setAddSelect] = useState<Record<string, string>>({});
   const [addInput, setAddInput] = useState<Record<string, string>>({});
 
-  const fetchAssignments = async () => {
-    try {
-      const res = await fetch("/api/admin/teacher-classes", { cache: "no-store" });
-      const json = await res.json();
-      const data = json.ok ? json.data : [];
-      const map: Record<string, string[]> = {};
-      (Array.isArray(data) ? data : []).forEach((row: any) => {
-        const tid = String(row.teacher_id);
-        const cls = String(row.class_name ?? "");
-        if (!tid || !cls) return;
-        map[tid] = Array.from(new Set([...(map[tid] || []), cls]));
-      });
-      setAssign(map);
-    } catch {
-      setAssign({});
-    }
-  };
-
   useEffect(() => {
     (async () => {
       try {
@@ -68,7 +50,7 @@ export default function AdminTeacherClassesPage() {
         setRole(null);
       }
       try {
-        const res = await fetch("/api/admin/teachers", { cache: "no-store" });
+        const res = await fetch("/api/admin/teachers");
         const data = await res.json();
         const list: Teacher[] = Array.isArray(data)
           ? data.map((row: any) => ({
@@ -85,9 +67,23 @@ export default function AdminTeacherClassesPage() {
       } catch {
         setTeachers([]);
       }
-      await fetchAssignments();
       try {
-        const res = await fetch("/api/admin/classes", { cache: "no-store" });
+        const res = await fetch("/api/admin/teacher-classes");
+        const json = await res.json();
+        const data = json.ok ? json.data : [];
+        const map: Record<string, string[]> = {};
+        (Array.isArray(data) ? data : []).forEach((row: any) => {
+          const tid = String(row.teacher_id);
+          const cls = String(row.class_name ?? "");
+          if (!tid || !cls) return;
+          map[tid] = Array.from(new Set([...(map[tid] || []), cls]));
+        });
+        setAssign(map);
+      } catch {
+        setAssign({});
+      }
+      try {
+        const res = await fetch("/api/admin/classes");
         const data = await res.json();
         const items = Array.isArray(data?.items) ? data.items : [];
         const names = items.map((c: any) => c.name).filter(Boolean);
@@ -101,7 +97,7 @@ export default function AdminTeacherClassesPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/admin/students", { cache: "no-store" });
+        const res = await fetch("/api/admin/students");
         const data = await res.json();
         const rows = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
         const mapped: Student[] = rows.map((r: any) => ({
@@ -147,7 +143,6 @@ export default function AdminTeacherClassesPage() {
           // Optionally revert state here if needed, but for now we just alert
         } else {
           alert("저장되었습니다.");
-          await fetchAssignments();
         }
       } catch {
         alert("저장 중 오류가 발생했습니다.");

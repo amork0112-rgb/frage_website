@@ -20,6 +20,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "fetch_failed" }, { status: 500 });
     }
 
+    console.log("Fetched teacher classes count:", data?.length);
+
     return NextResponse.json({ ok: true, data }, { status: 200 });
   } catch (e) {
     console.error("API Error:", e);
@@ -51,6 +53,8 @@ export async function POST(req: Request) {
       console.error("Error deleting teacher classes:", deleteError);
       return NextResponse.json({ ok: false, error: "delete_failed" }, { status: 500 });
     }
+    
+    console.log("Deleted classes for teacher:", teacherId);
 
     // 2. Insert new classes if any
     if (classNames.length > 0) {
@@ -58,8 +62,7 @@ export async function POST(req: Request) {
         teacher_id: teacherId,
         class_name: className,
       }));
-
-      console.log("Inserting teacher_classes payload:", payload);
+      console.log("Inserting classes:", payload);
 
       const { error: insertError } = await supabaseService
         .from("teacher_classes")
