@@ -1,3 +1,4 @@
+// RootLayout
 import { ReactNode } from "react";
 import { Nunito, Noto_Sans_KR } from "next/font/google";
 import MainLayout from "@/components/MainLayout";
@@ -9,7 +10,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#5B3FFF",
+  themeColor: "#8f3fff",
 };
 
 const nunito = Nunito({ 
@@ -40,6 +41,13 @@ export const dynamic = "force-dynamic";
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ko" className={`${nunito.variable} ${notoSansKr.variable}`}>
+      <head>
+        {/* iOS PWA */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="FRAGE EDU" />
+        <link rel="apple-touch-icon" href="/icon.png" />
+      </head>
       <body className="flex min-h-screen flex-col font-sans bg-white text-slate-800 antialiased selection:bg-frage-yellow selection:text-frage-blue">
         <PWARegister />
         <LanguageProvider>
