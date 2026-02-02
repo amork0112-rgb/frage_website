@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { resolveUserRole } from "@/lib/auth/resolveUserRole";
+import { resolveUserRole } from "../../../lib/auth/resolveUserRole";
 
 export default async function AuthRedirectPage() {
   const supabase = createSupabaseServer();
