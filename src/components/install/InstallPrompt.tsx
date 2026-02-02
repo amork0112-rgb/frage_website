@@ -36,12 +36,10 @@ export default function InstallPrompt() {
   const handleLater = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from("profiles")
-          .upsert({ id: user.id, pwa_prompt_seen: true }, { onConflict: "id" });
-      }
+      const res = await fetch("/api/user/onboarding/complete", {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed to complete onboarding");
     } catch (e) {
       console.error("Failed to update prompt seen status", e);
     } finally {

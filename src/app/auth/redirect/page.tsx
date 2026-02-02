@@ -10,14 +10,19 @@ export default async function AuthRedirectPage() {
 
   const role = await resolveUserRole(user);
 
-  // Check PWA Prompt Status
-  const { data: profile } = await supabase
-    .from("profiles")
+  console.log("🔐 AUTH ROLE:", role, "User ID:", user.id);
+
+  // Check PWA Prompt Status using user_onboarding table
+  const { data: onboarding } = await supabase
+    .from("user_onboarding")
     .select("pwa_prompt_seen")
-    .eq("id", user.id)
+    .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!profile?.pwa_prompt_seen) {
+  console.log("📱 Onboarding Status:", onboarding);
+
+  if (!onboarding?.pwa_prompt_seen) {
+    console.log("🚀 Redirecting to /portal/install");
     redirect("/portal/install");
   }
 

@@ -8,7 +8,15 @@ export default function AndroidInstallButton() {
     if (!deferredPrompt) return;
 
     deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      // Mark as seen if user accepted install
+      try {
+        await fetch("/api/user/onboarding/complete", { method: "POST" });
+      } catch {}
+    }
+
     (window as any).__deferredPrompt = null;
   };
 
