@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 import { isValidUUID } from "@/lib/uuid";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export async function POST(req: Request) {
   try {
@@ -11,7 +12,7 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
-    const role = (user.app_metadata as any)?.role ?? "parent";
+    const role = await resolveUserRole(user);
     if (role !== "parent") {
       return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
     }

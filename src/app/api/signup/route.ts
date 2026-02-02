@@ -35,13 +35,6 @@ export async function POST(request: Request) {
     }
 
     const authUserId = user.id;
-    try {
-      await supabaseService.auth.admin.updateUserById(authUserId, {
-        app_metadata: { role: "parent" },
-      });
-    } catch {}
-
-    
 
     /* -------------------------
        2️⃣ 기본 유효성 검사 (waiting)

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 // RLS enforced: use SSR client only
 
 export const dynamic = "force-dynamic";
@@ -10,24 +11,8 @@ export async function GET(req: Request) {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-    let role = user.app_metadata?.role ?? "parent";
-
-    // Fallback: Check teachers table
-    if (role === "parent") {
-      const { data: teacher } = await supabaseService
-        .from("teachers")
-        .select("role")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      if (teacher?.role) {
-        role = teacher.role;
-      }
-    }
-
-    // Fallback: Master teacher email
-    if (user.email === "master_teacher@frage.com") {
-      role = "master_teacher";
-    }
+    
+    const role = await resolveUserRole(user);
 
     const teacherRoles = ["teacher", "master_teacher"];
     if (!teacherRoles.includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
@@ -84,25 +69,8 @@ export async function POST(req: Request) {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-    let role = user.app_metadata?.role ?? "parent";
-
-    // Fallback: Check teachers table
-    if (role === "parent") {
-      const { data: teacher } = await supabaseService
-        .from("teachers")
-        .select("role")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      if (teacher?.role) {
-        role = teacher.role;
-      }
-    }
-
-    // Fallback: Master teacher email
-    if (user.email === "master_teacher@frage.com") {
-      role = "master_teacher";
-    }
-
+    
+    const role = await resolveUserRole(user);
     const teacherRoles = ["teacher", "master_teacher"];
     if (!teacherRoles.includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
 
@@ -175,24 +143,8 @@ export async function PUT(req: Request) {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-    let role = user.app_metadata?.role ?? "parent";
-
-    // Fallback: Check teachers table
-    if (role === "parent") {
-      const { data: teacher } = await supabaseService
-        .from("teachers")
-        .select("role")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      if (teacher?.role) {
-        role = teacher.role;
-      }
-    }
-
-    // Fallback: Master teacher email
-    if (user.email === "master_teacher@frage.com") {
-      role = "master_teacher";
-    }
+    
+    const role = await resolveUserRole(user);
 
     if (!["teacher", "master_teacher"].includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
     const body = await req.json();

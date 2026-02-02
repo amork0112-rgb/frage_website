@@ -19,13 +19,23 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
         router.replace("/portal");
         return;
       }
-      const role = (user.app_metadata as any)?.role ?? "parent";
-      const teacherRoles = ["teacher", "master_teacher"];
-      if (!teacherRoles.includes(role) && user.email !== "master_teacher@frage.com") {
+      
+      // DB-only check for teacher
+      const { data: teacher } = await supabase
+        .from("teachers")
+        .select("role")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+
+      if (teacher) {
+        setAuthorized(true);
+      } else {
+        // Double check if admin in profiles (admins usually don't use teacher layout, but just in case)
+        // Actually, requirement says master_teacher -> /teacher/home.
+        // master_teacher should be in 'teachers' table.
+        // If not found in teachers, redirect.
         router.replace("/portal");
-        return;
       }
-      setAuthorized(true);
     };
     checkUser();
   }, [router]);

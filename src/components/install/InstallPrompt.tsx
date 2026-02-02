@@ -40,13 +40,13 @@ export default function InstallPrompt() {
       if (user) {
         await supabase
           .from("profiles")
-          .update({ pwa_prompt_seen: true })
-          .eq("id", user.id);
+          .upsert({ id: user.id, pwa_prompt_seen: true }, { onConflict: "id" });
       }
     } catch (e) {
       console.error("Failed to update prompt seen status", e);
     } finally {
-      router.push("/portal");
+      // Redirect back to auth/redirect to route to the correct dashboard
+      router.push("/auth/redirect");
     }
   };
 

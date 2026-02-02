@@ -3,7 +3,9 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 import { mockAIGrading, generateFeedbackDraft } from "@/lib/ai/grading";
-import { getTeacherRole } from "@/lib/auth/getTeacherRole";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
+
+export const dynamic = "force-dynamic";
 
 function computeKinderWeekMeta(now: Date) {
   const oneJan = new Date(now.getFullYear(), 0, 1);
@@ -40,7 +42,7 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ assignments: [] }, { status: 401 });
     // Role check
-    const role = await getTeacherRole(user);
+    const role = await resolveUserRole(user);
 
     const teacherRoles = ["teacher", "master_teacher"];
     if (!teacherRoles.includes(role)) {

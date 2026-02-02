@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -16,7 +17,8 @@ export async function POST(req: Request) {
     const user = userData?.user;
 
     if (!user) return json({ error: "unauthorized" }, 401);
-    if ((user.app_metadata as any)?.role !== "parent")
+    const role = await resolveUserRole(user);
+    if (role !== "parent")
       return json({ error: "forbidden" }, 403);
 
     const body = await req.json();

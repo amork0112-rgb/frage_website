@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import type { Post, Profile } from "@/lib/types";
 
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
+
 export default async function CommunityPage() {
   const supabase = createSupabaseServer();
 
@@ -18,7 +20,8 @@ export default async function CommunityPage() {
     );
   }
 
-  const isAdmin = ((user as any).app_metadata?.role ?? "parent") === "admin";
+  const role = await resolveUserRole(user);
+  const isAdmin = role === "admin" || role === "master_admin";
 
   const { data, error } = await supabase
     .from("posts")

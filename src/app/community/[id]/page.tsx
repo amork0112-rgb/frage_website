@@ -3,6 +3,8 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import Link from "next/link";
 import type { Post, Profile } from "@/lib/types";
 
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
+
 export default async function PostPage({
   params
 }: {
@@ -22,7 +24,8 @@ export default async function PostPage({
     );
   }
 
-  const isAdmin = ((user as any).app_metadata?.role ?? "parent") === "admin";
+  const role = await resolveUserRole(user);
+  const isAdmin = role === "admin" || role === "master_admin";
 
   const { data: post, error } = await supabase
     .from("posts")

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 type Status = "waiting" | "consultation_reserved" | "consult_done" | "approved" | "promoted" | "rejected" | "hold";
 
@@ -35,8 +36,9 @@ export async function GET(request: Request) {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 401 });
-    const role = user.app_metadata?.role ?? "parent";
-    if (role !== "teacher" && role !== "admin" && role !== "master_admin") {
+    
+    const role = await resolveUserRole(user);
+    if (role !== "teacher" && role !== "admin" && role !== "master_teacher" && role !== "master_admin") {
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 403 });
     }
 

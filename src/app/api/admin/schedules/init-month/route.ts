@@ -1,6 +1,7 @@
 // api/admin/schedules/init-month
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
 
   if (!user) return json({ error: "unauthorized" }, 401);
 
-  const role = (user as any).app_metadata?.role ?? "parent";
+  const role = await resolveUserRole(user);
   if (role !== "admin" && role !== "master_admin") return json({ error: "forbidden" }, 403);
 
     /* ---------------------------------

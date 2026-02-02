@@ -4,13 +4,20 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 import { StickyNote } from "lucide-react";
 
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
+
 export default async function AdminSurveyDetailPage({ params }: { params: { studentId: string } }) {
   const studentId = String(params.studentId || "");
   const supabaseAuth = createSupabaseServer();
   const { data: userData } = await supabaseAuth.auth.getUser();
   const user = userData?.user;
-  const role = (user?.app_metadata as any)?.role ?? "";
-  if (!user || role !== "admin") {
+  
+  if (!user) {
+    redirect("/portal");
+  }
+
+  const role = await resolveUserRole(user);
+  if (role !== "admin" && role !== "master_admin") {
     redirect("/portal");
   }
 

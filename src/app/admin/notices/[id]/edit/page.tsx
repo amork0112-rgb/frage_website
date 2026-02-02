@@ -38,8 +38,11 @@ export default function AdminEditNoticePage() {
         setRichHtml(row.content || "");
       }
       const auth = await supabase.auth.getUser();
-      const appRole = (auth.data?.user?.app_metadata as any)?.role ?? null;
-      setRole(appRole === "teacher" ? "teacher" : "admin");
+      const user = auth.data?.user;
+      if (user) {
+        const { data: teacher } = await supabase.from("teachers").select("id").eq("auth_user_id", user.id).maybeSingle();
+        setRole(teacher ? "teacher" : "admin");
+      }
     })();
   }, [id]);
 

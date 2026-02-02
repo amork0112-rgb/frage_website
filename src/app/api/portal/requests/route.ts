@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -38,7 +39,7 @@ export async function GET(req: Request) {
       return json({ ok: false, items: [] }, 401);
     }
 
-    const role = user.app_metadata?.role ?? "parent";
+    const role = await resolveUserRole(user);
     if (role !== "parent") {
       return json({ ok: false, items: [] }, 403);
     }
@@ -90,7 +91,7 @@ export async function POST(req: Request) {
       return json({ ok: false, error: "unauthorized" }, 401);
     }
 
-    const role = user.app_metadata?.role ?? "parent";
+    const role = await resolveUserRole(user);
     if (role !== "parent") {
       return json({ ok: false, error: "forbidden" }, 403);
     }

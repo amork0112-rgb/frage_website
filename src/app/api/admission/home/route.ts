@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -21,7 +22,7 @@ export async function GET() {
       );
     }
 
-    const role = (user.app_metadata as any)?.role ?? "parent";
+    const role = await resolveUserRole(user);
     if (role !== "parent") {
       return NextResponse.json(
         { ok: false, error: "forbidden" },

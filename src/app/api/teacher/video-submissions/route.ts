@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -18,18 +19,10 @@ export async function GET(request: Request) {
     }
 
     // Check if user is teacher/admin
-    const role = user.app_metadata?.role;
-    if (role !== "teacher" && role !== "admin" && role !== "master_teacher" && role !== "master_admin") {
-       // Fallback check in teachers table
-       const { data: teacher } = await supabase
-         .from("teachers")
-         .select("role")
-         .eq("auth_user_id", user.id)
-         .maybeSingle();
-       
-       if (!teacher) {
-         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-       }
+    const role = await resolveUserRole(user);
+    const allowed = ["teacher", "admin", "master_teacher", "master_admin"];
+    if (!allowed.includes(role)) {
+       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Fetch Submissions

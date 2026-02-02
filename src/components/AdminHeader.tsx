@@ -23,8 +23,18 @@ export default function AdminHeader() {
           setRole(null);
           return;
         }
-        const appRole = (user.app_metadata as any)?.role ?? null;
-        setRole(appRole ? String(appRole) : null);
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+        if (profile?.role === "admin" || profile?.role === "master_admin") {
+          setRole(profile.role);
+          return;
+        }
+
+        const { data: teacher } = await supabase.from("teachers").select("role").eq("auth_user_id", user.id).maybeSingle();
+        if (teacher) {
+          setRole("teacher");
+        } else {
+          setRole(null);
+        }
       } catch {}
     })();
   }, []);

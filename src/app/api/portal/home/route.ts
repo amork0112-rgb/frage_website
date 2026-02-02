@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export async function GET() {
   try {
@@ -9,7 +10,7 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
-    const role = (user.app_metadata as any)?.role ?? "parent";
+    const role = await resolveUserRole(user);
     if (role !== "parent") {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }

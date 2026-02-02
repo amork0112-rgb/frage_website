@@ -20,25 +20,23 @@ export default function TeacherHeader() {
     (async () => {
       try {
         const { data } = await supabase.auth.getUser();
-      let appRole = (data?.user?.app_metadata as any)?.role ?? null;
-      if (data?.user?.email === "master_teacher@frage.com") {
-        appRole = "master_teacher";
-      }
-      setRole(appRole);
-      const authUserId = data?.user?.id;
+        const authUserId = data?.user?.id;
+        
         if (authUserId) {
-          const { data: rows } = await supabase
+          const { data: teacher } = await supabase
             .from("teachers")
-            .select("id,name")
-            .eq("id", authUserId)
-            .limit(1);
-          const teacher = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-          setTeacherId(teacher?.id ? String(teacher.id) : null);
-          const fallback =
-            (data?.user?.user_metadata as any)?.name ||
-            String(data?.user?.email || "").split("@")[0] ||
-            "";
-          setTeacherName(teacher?.name ? String(teacher.name) : fallback);
+            .select("id, name, role")
+            .eq("auth_user_id", authUserId)
+            .maybeSingle();
+            
+          if (teacher) {
+            setRole(teacher.role);
+            setTeacherId(String(teacher.id));
+            setTeacherName(teacher.name || "");
+          } else {
+             // Fallback or handle not found
+             setRole(null);
+          }
         }
       } catch {}
     })();

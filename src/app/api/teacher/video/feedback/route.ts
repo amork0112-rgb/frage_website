@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 // RLS enforced: use SSR client only
 
 type FeedbackPayload = {
@@ -23,8 +24,8 @@ export async function GET(req: Request) {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-    const role = user.app_metadata?.role ?? "parent";
-    if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
+    const role = await resolveUserRole(user);
+    if (!["teacher", "master_teacher"].includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId") || "";
     const assignmentId = searchParams.get("assignmentId") || "";
@@ -64,8 +65,10 @@ export async function POST(req: Request) {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-    const role = user.app_metadata?.role ?? "parent";
-    if (role !== "teacher") return NextResponse.json({ ok: false }, { status: 403 });
+    
+    const role = await resolveUserRole(user);
+    
+    if (role !== "teacher" && role !== "master_teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const body = await req.json();
     const { studentId, assignmentId, teacherId, feedback, attachments } = body || {};
     if (

@@ -38,14 +38,23 @@ export default function AdminTeacherClassesPage() {
     (async () => {
       try {
         const { data } = await supabase.auth.getUser();
-        const appRole = (data?.user?.app_metadata as any)?.role ?? null;
-        const mapped =
-          appRole === "admin" || appRole === "master_admin"
-            ? "admin"
-            : appRole === "teacher"
-            ? "teacher"
-            : null;
-        setRole(mapped);
+        const user = data?.user;
+        if (!user) {
+          setRole(null);
+          return;
+        }
+
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+        if (profile?.role === "admin" || profile?.role === "master_admin") {
+          setRole("admin");
+        } else {
+          const { data: teacher } = await supabase.from("teachers").select("role").eq("auth_user_id", user.id).maybeSingle();
+          if (teacher) {
+            setRole("teacher");
+          } else {
+            setRole(null);
+          }
+        }
       } catch {
         setRole(null);
       }

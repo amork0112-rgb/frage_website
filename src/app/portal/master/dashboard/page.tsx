@@ -34,8 +34,13 @@ export default function MasterDashboard() {
       try {
         const { data } = await supabase.auth.getUser();
         const user = data?.user;
-        const role = (user?.app_metadata as any)?.role ?? null;
-        setAuthorized(role === "master_admin");
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user?.id)
+          .maybeSingle();
+        
+        setAuthorized(profile?.role === "master_admin");
       } catch {
         setAuthorized(false);
       } finally {

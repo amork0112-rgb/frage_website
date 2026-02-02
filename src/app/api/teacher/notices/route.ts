@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
-import { getTeacherRole } from "@/lib/auth/getTeacherRole";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const role = await getTeacherRole(user);
+    const role = await resolveUserRole(user);
     let teacherId: string | null = null;
 
     if (role === "teacher") {
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const role = await getTeacherRole(user);
+    const role = await resolveUserRole(user);
     if (!["teacher", "master_teacher", "admin"].includes(role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

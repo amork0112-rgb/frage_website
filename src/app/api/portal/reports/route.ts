@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 // RLS enforced: use SSR client only
 
 export async function GET(req: Request) {
@@ -7,7 +8,7 @@ export async function GET(req: Request) {
     const supabase = createSupabaseServer();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-    const role = user.app_metadata?.role ?? "parent";
+    const role = await resolveUserRole(user);
     if (role !== "parent") return NextResponse.json({ ok: false }, { status: 403 });
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId") || "";

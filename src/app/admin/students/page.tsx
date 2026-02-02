@@ -126,8 +126,15 @@ export default function AdminStudentsPage() {
     const init = async () => {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
-      const roleMeta = (user?.app_metadata as any)?.role;
-      setRole(roleMeta === "teacher" ? "teacher" : "admin");
+      
+      let resolvedRole: "admin" | "teacher" = "admin";
+      if (user) {
+        const { data: teacher } = await supabase.from("teachers").select("id").eq("auth_user_id", user.id).maybeSingle();
+        if (teacher) {
+          resolvedRole = "teacher";
+        }
+      }
+      setRole(resolvedRole);
       setRoleClass(null);
       const { data: memRows } = await supabase
         .from("student_memos")

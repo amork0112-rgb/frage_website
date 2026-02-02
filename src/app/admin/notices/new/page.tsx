@@ -30,8 +30,11 @@ export default function AdminNewNoticePage() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
-      const appRole = (data?.user?.app_metadata as any)?.role;
-      if (appRole === "teacher") setRole("teacher");
+      const user = data?.user;
+      if (user) {
+        const { data: teacher } = await supabase.from("teachers").select("id").eq("auth_user_id", user.id).maybeSingle();
+        if (teacher) setRole("teacher");
+      }
     })();
   }, []);
 

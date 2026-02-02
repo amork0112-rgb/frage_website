@@ -34,9 +34,17 @@ export default function AdminAlertsPage() {
     const init = async () => {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
-      const role = (user?.app_metadata as any)?.role;
-      setRoleCampus(null);
-      if (!role) return;
+      const { data: teacher } = await supabase
+        .from("teachers")
+        .select("campus, role")
+        .eq("auth_user_id", user?.id)
+        .maybeSingle();
+      
+      if (teacher?.role === "campus") {
+        setRoleCampus(teacher.campus);
+      } else {
+        setRoleCampus(null);
+      }
     };
     init();
   }, []);

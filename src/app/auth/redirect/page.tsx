@@ -1,53 +1,37 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export default async function AuthRedirectPage() {
   const supabase = createSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
 
-  console.log("AUTH REDIRECT USER", user);
+  if (!user) redirect("/portal");
 
-  if (!user) {
-    redirect("/portal");
-  }
+  const role = await resolveUserRole(user);
 
-  // Check if user is a parent
-  const { data: parentData } = await supabase
-    .from("parents")
-    .select("id")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-
-  // Determine role
-  // Prioritize parent check, then fallback to app_metadata, then default to admin (as per requirement example)
-  const role = parentData ? "parent" : (user.app_metadata?.role || "admin");
-
-  // Upsert profile to ensure it exists
-  await supabase.from("profiles").upsert({
-    id: user.id,
-    role,
-    updated_at: new Date().toISOString(),
-  });
-
-  // Fetch profile to check PWA prompt status
+  // Check PWA Prompt Status
   const { data: profile } = await supabase
     .from("profiles")
-    .select("pwa_prompt_seen, role")
+    .select("pwa_prompt_seen")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  // Redirect to install page if parent and hasn't seen prompt
-  if (profile?.role === "parent" && !profile?.pwa_prompt_seen) {
+  if (!profile?.pwa_prompt_seen) {
     redirect("/portal/install");
   }
 
   if (role === "master_admin" || role === "admin") {
     redirect("/admin/home");
   }
-  
-  if (role === "teacher") {
+
+  if (["teacher", "master_teacher", "campus"].includes(role)) {
     redirect("/teacher/home");
   }
 
-  redirect("/entry");
+  if (role === "parent") {
+    redirect("/entry");
+  }
+
+  redirect("/portal");
 }

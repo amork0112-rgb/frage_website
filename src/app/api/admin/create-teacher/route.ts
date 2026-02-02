@@ -66,7 +66,6 @@ export async function POST(req: Request) {
     if (existingUser?.id) {
       userId = existingUser.id;
       await supabaseService.auth.admin.updateUserById(userId, {
-        app_metadata: { role },
         user_metadata: { name, campus },
       });
     } else {
@@ -75,7 +74,6 @@ export async function POST(req: Request) {
           email,
           password,
           email_confirm: true,
-          app_metadata: { role },
           user_metadata: { name, campus },
         });
 
@@ -116,6 +114,7 @@ export async function POST(req: Request) {
       .from("teachers")
       .insert({
         id: userId,          // auth.users.id 와 동일
+        auth_user_id: userId,
         name,
         campus,
         role,

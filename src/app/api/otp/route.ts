@@ -290,12 +290,6 @@ export async function POST(request: Request) {
         );
       }
 
-      try {
-        await supabaseService.auth.admin.updateUserById(user.id, {
-          app_metadata: { role: "parent" },
-        });
-      } catch {}
-
       await supabaseService
         .from("parents")
         .update({ auth_user_id: user.id })

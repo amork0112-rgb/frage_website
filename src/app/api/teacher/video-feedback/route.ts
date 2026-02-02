@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export async function POST(request: Request) {
   try {
@@ -11,11 +12,10 @@ export async function POST(request: Request) {
     }
 
     // Role check
-    const role = user.app_metadata?.role;
+    const role = await resolveUserRole(user);
     const isTeacher = role === "teacher" || role === "admin" || role === "master_teacher" || role === "master_admin";
     if (!isTeacher) {
-       const { data: teacher } = await supabase.from("teachers").select("role").eq("auth_user_id", user.id).maybeSingle();
-       if (!teacher) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();

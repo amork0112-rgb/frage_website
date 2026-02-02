@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
     }
 
     // Role check
-    const role = user.app_metadata?.role ?? "parent";
+    const role = await resolveUserRole(user);
     // Allow teachers and admins
     if (!["teacher", "master_teacher", "admin", "master_admin"].includes(role)) {
        return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -45,8 +45,13 @@ export default function TeacherStudentsPage() {
     const init = async () => {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
-      const roleMeta = (user?.app_metadata as any)?.role;
-      if (roleMeta === "teacher") {
+      const { data: teacher } = await supabase
+        .from("teachers")
+        .select("id")
+        .eq("auth_user_id", user?.id)
+        .maybeSingle();
+
+      if (teacher) {
         const { data: teacherClassRow } = await supabase
           .from("teacher_classes")
           .select("class_name")

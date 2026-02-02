@@ -42,8 +42,8 @@ export default function AdmissionPage() {
         router.replace("/portal");
         return;
       }
-      const role = (user.app_metadata as any)?.role ?? null;
-      if (role !== "parent") {
+      const { data: parent } = await supabase.from("parents").select("id").eq("auth_user_id", user.id).maybeSingle();
+      if (!parent) {
         router.replace("/portal");
         return;
       }

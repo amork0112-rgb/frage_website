@@ -67,8 +67,14 @@ export default function AdminTransportPage() {
     const { data } = await supabase.auth.getUser();
     const user = data?.user;
     if (!user) throw new Error("unauthenticated");
-    const appRole = (user.app_metadata as any)?.role ?? "parent";
-    return appRole as "admin" | "teacher" | "parent";
+    
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    if (profile?.role === "admin" || profile?.role === "master_admin") return "admin";
+    
+    const { data: teacher } = await supabase.from("teachers").select("role").eq("auth_user_id", user.id).maybeSingle();
+    if (teacher) return "teacher";
+    
+    return "parent";
   };
 
   useEffect(() => {
