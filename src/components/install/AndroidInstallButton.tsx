@@ -2,35 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-let deferredPrompt: any = null;
-
 export default function AndroidInstallButton() {
-  const [canInstall, setCanInstall] = useState(false);
-
-  useEffect(() => {
-    const handler = (e: any) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      setCanInstall(true);
-    };
-
-    window.addEventListener("beforeinstallprompt", handler);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler);
-    };
-  }, []);
-
   const handleInstall = async () => {
+    const deferredPrompt = (window as any).__deferredPrompt;
     if (!deferredPrompt) return;
 
     deferredPrompt.prompt();
     await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    setCanInstall(false);
+    (window as any).__deferredPrompt = null;
   };
-
-  if (!canInstall) return null;
 
   return (
     <button

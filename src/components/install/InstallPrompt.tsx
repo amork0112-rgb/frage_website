@@ -12,6 +12,7 @@ export default function InstallPrompt() {
   const [isAndroid, setIsAndroid] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [canInstall, setCanInstall] = useState(false);
 
   useEffect(() => {
     const ua = navigator.userAgent.toLowerCase();
@@ -21,8 +22,15 @@ export default function InstallPrompt() {
     setIsAndroid(isAnd);
     setIsIOS(isI);
     
-    // If neither (desktop), maybe just show iOS guide or nothing?
-    // For now, defaulting to iOS guide if not Android for better coverage
+    if (isAnd) {
+      const handler = (e: any) => {
+        e.preventDefault();
+        (window as any).__deferredPrompt = e;
+        setCanInstall(true);
+      };
+      window.addEventListener("beforeinstallprompt", handler);
+      return () => window.removeEventListener("beforeinstallprompt", handler);
+    }
   }, []);
 
   const handleLater = async () => {
@@ -58,12 +66,16 @@ export default function InstallPrompt() {
         더 편리한 기능을 사용할 수 있어요.
       </p>
 
-      <div className="mb-8">
-        {isAndroid ? (
+      <div className="mb-6">
+        {isAndroid && canInstall ? (
           <AndroidInstallButton />
-        ) : (
+        ) : isIOS ? (
           <IOSGuide />
-        )}
+        ) : null}
+      </div>
+
+      <div className="mb-8">
+        <EnableNotificationButton />
       </div>
 
       <button

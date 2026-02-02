@@ -87,55 +87,61 @@ export default function PortalPage() {
     }
   }, [showPw]);
 
+  const FeatureCards = () => (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-start gap-4 p-4 rounded-xl bg-frage-cream/50 border border-frage-cream">
+        <div className="p-2 bg-white rounded-full text-frage-blue shadow-sm">
+          <Play className="w-5 h-5 fill-current" />
+        </div>
+        <div>
+          <h4 className="font-bold text-frage-navy mb-1">Video Library</h4>
+          <p className="text-sm text-frage-gray">Access reading materials and lesson reviews.</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-4 p-4 rounded-xl bg-frage-cream/50 border border-frage-cream">
+        <div className="p-2 bg-white rounded-full text-frage-green shadow-sm">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <div>
+          <h4 className="font-bold text-frage-navy mb-1">Learning Reports</h4>
+          <p className="text-sm text-frage-gray">Track progress and monthly feedback.</p>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col min-h-screen font-sans bg-frage-cream">
       <Header />
       
-      <main className="flex-grow pt-32 pb-20">
-        <section id="portal" className="py-12 bg-white rounded-3xl mx-6 shadow-sm">
-          <div className="container mx-auto px-6 max-w-[1200px]">
-            <div className="flex flex-col md:flex-row items-center gap-16 md:gap-24">
+      <main className="flex-grow pt-24 md:pt-32 pb-20">
+        <section id="portal" className="py-8 md:py-12 bg-white rounded-3xl mx-4 md:mx-6 shadow-sm">
+          <div className="container mx-auto px-4 md:px-6 max-w-[1200px]">
+            <div className="flex flex-col md:flex-row items-center gap-8 md:gap-24">
               
               {/* Left Column: Text & Context */}
-              <div className="md:w-1/2">
-                <span className="inline-block px-4 py-1 rounded-full bg-frage-cream text-frage-navy text-xs font-bold tracking-widest uppercase mb-6">
+              <div className="md:w-1/2 w-full text-center md:text-left">
+                <span className="inline-block px-4 py-1 rounded-full bg-frage-cream text-frage-navy text-xs font-bold tracking-widest uppercase mb-4 md:mb-6">
                   Student & Parent Access
                 </span>
-                <h2 className="font-serif text-4xl md:text-5xl text-frage-navy leading-tight mb-6">
+                <h2 className="font-serif text-3xl md:text-5xl text-frage-navy leading-tight mb-4 md:mb-6">
                   {t.portal.title}
                 </h2>
-                <p className="text-xl text-frage-gray leading-relaxed mb-8">
+                <p className="text-lg md:text-xl text-frage-gray leading-relaxed mb-6 md:mb-8">
                   {t.portal.subtitle}
                 </p>
                 
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-start gap-4 p-4 rounded-xl bg-frage-cream/50 border border-frage-cream">
-                    <div className="p-2 bg-white rounded-full text-frage-blue shadow-sm">
-                       <Play className="w-5 h-5 fill-current" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-frage-navy mb-1">Video Library</h4>
-                      <p className="text-sm text-frage-gray">Access reading materials and lesson reviews.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4 p-4 rounded-xl bg-frage-cream/50 border border-frage-cream">
-                    <div className="p-2 bg-white rounded-full text-frage-green shadow-sm">
-                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                       </svg>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-frage-navy mb-1">Learning Reports</h4>
-                      <p className="text-sm text-frage-gray">Track progress and monthly feedback.</p>
-                    </div>
-                  </div>
+                <div className="hidden md:block">
+                  <FeatureCards />
                 </div>
               
               
               </div>
 
               {/* Right Column: Login Form */}
-              <div className="md:w-1/2 w-full max-w-md bg-white p-8 md:p-10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 relative">
+              <div className="md:w-1/2 w-full max-w-md bg-white p-6 md:p-10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 relative">
                 <form onSubmit={handleLogin} autoComplete="off" className="flex flex-col gap-5">
                   <div>
                     <label htmlFor="id" className="sr-only">Email</label>
@@ -224,6 +230,11 @@ export default function PortalPage() {
                 </form>
                 
                 
+              </div>
+              
+              {/* Mobile Only: Feature Cards */}
+              <div className="md:hidden w-full mt-4">
+                <FeatureCards />
               </div>
 
             </div>
