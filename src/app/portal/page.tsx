@@ -217,6 +217,17 @@ export default function PortalPage() {
                   </button>
                   
                   <div className="mt-4 text-center border-t border-gray-100 pt-6">
+                     <div className="mb-6 pb-6 border-b border-gray-100">
+                       <p className="text-frage-gray text-sm mb-3">기존 재원생 학부모님이신가요?</p>
+                       <Link 
+                         href="/portal/verify"
+                         prefetch={false}
+                         className="block w-full py-3 rounded-xl bg-frage-cream text-frage-navy font-bold hover:bg-frage-yellow transition-colors"
+                       >
+                         학부모 인증하고 시작하기
+                       </Link>
+                     </div>
+
                      <p className="text-frage-gray text-sm mb-3">{t.portal.signup_desc}</p>
                      <Link 
                        href="/signup"

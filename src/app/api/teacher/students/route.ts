@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabaseService
       .from("v_students_full")
       .select(`
-        id,
+        student_id,
         student_name,
         english_first_name,
         birth_date,

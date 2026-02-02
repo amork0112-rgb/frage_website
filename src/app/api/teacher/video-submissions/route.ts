@@ -1,13 +1,14 @@
+//app/api/teacher/video-submissions/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const assignmentId = searchParams.get("assignmentId");
+  const assignmentKey = searchParams.get("assignmentKey");
 
-  if (!assignmentId) {
-    return NextResponse.json({ error: "Missing assignmentId" }, { status: 400 });
+  if (!assignmentKey) {
+    return NextResponse.json({ error: "Missing assignmentKey" }, { status: 400 });
   }
 
   try {
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     const { data: submissions, error: subError } = await supabase
       .from("portal_video_submissions")
       .select("*")
-      .eq("assignment_id", assignmentId);
+      .eq("assignment_key", assignmentKey);
 
     if (subError) throw subError;
 
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
     const { data: feedback, error: feedError } = await supabase
       .from("portal_video_feedback")
       .select("*")
-      .eq("assignment_id", assignmentId);
+      .eq("assignment_key", assignmentKey);
 
     if (feedError) throw feedError;
 

@@ -1,3 +1,4 @@
+//app/api/teacher/video/feedback/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { resolveUserRole } from "@/lib/auth/resolveUserRole";
@@ -27,16 +28,22 @@ export async function GET(req: Request) {
     const role = await resolveUserRole(user);
     if (!["teacher", "master_teacher"].includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
     const { searchParams } = new URL(req.url);
-    const studentId = searchParams.get("studentId") || "";
-    const assignmentId = searchParams.get("assignmentId") || "";
-    if (!studentId || !assignmentId) {
-      return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
+    const assignmentKey = searchParams.get("assignmentKey") || "";
+    
+    let query = supabaseAuth.from("portal_video_feedback").select("*");
+
+    if (assignmentKey) {
+      query = query.eq("assignment_key", assignmentKey);
+    } else {
+      const studentId = searchParams.get("studentId") || "";
+      const assignmentId = searchParams.get("assignmentId") || "";
+      if (!studentId || !assignmentId) {
+        return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
+      }
+      query = query.eq("student_id", studentId).eq("assignment_id", assignmentId);
     }
-    const { data } = await supabaseAuth
-      .from("portal_video_feedback")
-      .select("*")
-      .eq("student_id", studentId)
-      .eq("assignment_id", assignmentId)
+
+    const { data } = await query
       .order("updated_at", { ascending: false })
       .limit(1);
     const item = Array.isArray(data) && data.length > 0 ? data[0] : null;
@@ -70,10 +77,10 @@ export async function POST(req: Request) {
     
     if (role !== "teacher" && role !== "master_teacher") return NextResponse.json({ ok: false }, { status: 403 });
     const body = await req.json();
-    const { studentId, assignmentId, teacherId, feedback, attachments } = body || {};
+    const { studentId, assignmentKey, teacherId, feedback, attachments } = body || {};
     if (
       !studentId ||
-      !assignmentId ||
+      !assignmentKey ||
       !feedback ||
       typeof feedback?.overall_message !== "string" ||
       !Array.isArray(feedback?.strengths)
@@ -81,7 +88,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
     }
     const row = {
-      assignment_id: assignmentId,
+      assignment_key: assignmentKey,
       student_id: studentId,
       teacher_id: teacherId ?? null,
       overall_message: feedback.overall_message,

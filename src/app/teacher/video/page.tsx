@@ -1,3 +1,4 @@
+//app/teacher/video/page.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -30,7 +31,7 @@ type Student = { id: string; name: string; englishName: string; className: strin
 type Status = "미제출" | "제출 완료" | "피드백 완료";
 type Homework = {
   id: string;
-  assignmentId: string;
+  assignmentKey: string;
   studentId: string;
   name: string;
   englishName: string;
@@ -170,42 +171,36 @@ export default function TeacherVideoPage() {
         }
 
         // 2. Fetch Dashboard Data
-        const res = await fetch("/api/teacher/video-dashboard", { cache: "no-store" });
+        const res = await fetch("/api/teacher/video/primary/dashboard", { cache: "no-store" });
         const data = await res.json();
         
-        const assigns: any[] = Array.isArray(data?.assignments) ? data.assignments : [];
-        const flattened: Homework[] = assigns.flatMap(a => {
-          const title = String(a.title || "");
-          const due = String(a.due_date || "");
-          const cls = String(a.class_name || "");
-          const campus = String(a.campus || "");
-          const aid = String(a.assignment_id || a.id || "");
-          return (Array.isArray(a.students) ? a.students : []).map((s: any) => {
-            const sid = String(s.student_id || "");
-            const name = String(s.student_name || "");
-            const eng = String(s.english_name || "");
+        const lessons: any[] = Array.isArray(data?.items) ? data.items : [];
+        const flattened: Homework[] = lessons.flatMap(lesson => {
+          return (lesson.students || []).map((s: any) => {
             const submission = s.submission || null;
             const feedback = s.feedback || null;
             const ai = s.ai_evaluation || null;
+            
             let status: Status = "미제출";
             if (submission && !feedback) status = "제출 완료";
             if (submission && feedback) status = "피드백 완료";
+            
             let videoUrl: string | null = null;
-            const vp = submission?.video_path || null;
-            if (vp) {
-              const pub = supabase.storage.from("student-videos").getPublicUrl(vp);
+            if (submission?.video_path) {
+              const pub = supabase.storage.from("student-videos").getPublicUrl(submission.video_path);
               videoUrl = pub?.data?.publicUrl || null;
             }
+
             return {
-              id: `hw_${sid}_${aid}`,
-              assignmentId: aid,
-              studentId: sid,
-              name,
-              englishName: eng,
-              className: cls,
-              campus,
-              title,
-              dueDate: due,
+              id: s.assignment_key,
+              assignmentKey: s.assignment_key,
+              studentId: s.student_id,
+              name: s.student_name,
+              englishName: s.english_name,
+              className: lesson.class_name,
+              campus: lesson.campus,
+              title: lesson.title,
+              dueDate: lesson.lesson_date,
               status,
               videoUrl,
               aiEval: ai
@@ -337,7 +332,7 @@ export default function TeacherVideoPage() {
     setAttachments([]);
     
     try {
-      const url = `/api/teacher/video/feedback?studentId=${encodeURIComponent(hw.studentId)}&assignmentId=${encodeURIComponent(hw.assignmentId)}`;
+      const url = `/api/teacher/video/feedback?assignmentKey=${encodeURIComponent(hw.assignmentKey)}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -371,7 +366,7 @@ export default function TeacherVideoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentId: openVideoFor.studentId,
-          assignmentId: openVideoFor.assignmentId,
+          assignmentKey: openVideoFor.assignmentKey,
           feedback: payload,
           attachments: attachments.map(a => ({ name: a.name, size: a.size, type: a.type }))
         })

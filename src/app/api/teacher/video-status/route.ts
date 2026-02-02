@@ -1,3 +1,4 @@
+//app/api/teacher/video-status/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
@@ -33,7 +34,8 @@ export async function GET(request: Request) {
         has_auto_video
       `)
       .eq("lesson_date", date)
-      .eq("has_auto_video", true);
+      .eq("has_auto_video", true)
+      .not("class_id", "is", null);
 
     if (error) {
       console.error("Error fetching video status:", error);

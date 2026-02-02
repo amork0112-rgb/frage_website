@@ -1,104 +1,119 @@
+
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 import { resolveUserRole } from "@/lib/auth/resolveUserRole";
-// RLS enforced: use SSR client only
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
     const supabase = createSupabaseServer();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ items: [] }, { status: 401 });
+
     const role = await resolveUserRole(user);
     if (role !== "parent") return NextResponse.json({ items: [] }, { status: 403 });
+
     const { searchParams } = new URL(req.url);
     const studentId = String(searchParams.get("studentId") || "");
     if (!studentId) return NextResponse.json({ items: [] }, { status: 200 });
 
-    const { data: studentRows } = await supabase
+    // 1. Get Student Info
+    const { data: studentRows } = await supabaseService
       .from("students")
       .select("*")
       .eq("id", studentId)
       .limit(1);
+    
     const student = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
     if (!student) return NextResponse.json({ items: [] }, { status: 200 });
 
     const cls = String(student.class_name ?? student.className ?? "");
-    const camp = String(student.campus ?? "");
+    if (!cls) return NextResponse.json({ items: [] }, { status: 200 });
 
-    const { data: assignments } = await supabase
-      .from("video_assignments")
+    // 2. Fetch Lessons from v_lesson_video_status
+    // Filter for "Primary" logic: has_auto_video = true AND class_id IS NOT NULL
+    const { data: lessons } = await supabaseService
+      .from("v_lesson_video_status")
       .select("*")
       .eq("class_name", cls)
-      .eq("campus", camp)
-      .order("due_date", { ascending: true });
+      .eq("has_auto_video", true)
+      .not("class_id", "is", null)
+      .order("lesson_date", { ascending: false });
 
-    const { data: submissions } = await supabase
+    if (!lessons || lessons.length === 0) {
+       return NextResponse.json({ items: [] }, { status: 200 });
+    }
+
+    // 3. Prepare Assignment Keys
+    const keys = lessons.map(l => `${l.lesson_plan_id}_${studentId}`);
+
+    // 4. Fetch Submissions & Feedback using assignment_key
+    const { data: submissions } = await supabaseService
       .from("portal_video_submissions")
       .select("*")
-      .eq("student_id", studentId);
+      .in("assignment_key", keys);
 
-    const { data: feedbacks } = await supabase
+    const { data: feedbacks } = await supabaseService
       .from("portal_video_feedback")
       .select("*")
-      .eq("student_id", studentId);
+      .in("assignment_key", keys);
 
-    const subByAssign: Record<string, any> = {};
-    (submissions || []).forEach((s: any) => {
-      subByAssign[String(s.assignment_id ?? s.assignmentId ?? "")] = s;
-    });
-    const fbByAssign: Record<string, any> = {};
-    (feedbacks || []).forEach((f: any) => {
-      const aid = String(f.assignment_id ?? f.assignmentId ?? "");
-      const prev = fbByAssign[aid];
-      if (!prev || new Date(f.updated_at ?? f.updatedAt ?? 0).getTime() > new Date(prev.updated_at ?? prev.updatedAt ?? 0).getTime()) {
-        fbByAssign[aid] = f;
-      }
-    });
+    const subMap = new Map();
+    (submissions || []).forEach(s => subMap.set(s.assignment_key, s));
 
-    const items = await Promise.all((assignments || []).map(async (a: any) => {
-      const aid = String(a.id ?? a.assignment_id ?? "");
-      const sub = subByAssign[aid] || null;
-      const fb = fbByAssign[aid] || null;
-      let status: "Pending" | "Submitted" | "Reviewed" = "Pending";
-      if (sub && !fb) status = "Submitted";
-      if (sub && fb) status = "Reviewed";
-      let signedUrl: string | null = null;
-      const vp = sub?.video_path || null;
-      if (vp) {
-        try {
-          const res = await supabase.storage.from("student-videos").createSignedUrl(vp, 60);
-          signedUrl = (res as any)?.data?.signedUrl || null;
-        } catch {}
-      }
-      return {
-        id: `hw_${studentId}_${aid}`,
-        title: String(a.title || ""),
-        module: String(a.module || ""),
-        dueDate: String(a.due_date ?? a.dueDate ?? ""),
-        status,
-        score: fb ? String(fb.average ?? "") : null,
-        feedback: fb
-          ? {
-              overall_message: String(fb.overall_message || ""),
-              strengths: Array.isArray(fb.strengths) ? fb.strengths : [],
-              focus_point: String(fb.focus_point || ""),
-              next_try_guide: String(fb.next_try_guide || ""),
-              details: {
-                Fluency: mapScore(Number(fb.fluency || 0), "fluency"),
-                Volume: mapScore(Number(fb.volume || 0), "volume"),
-                Speed: mapScore(Number(fb.speed || 0), "speed"),
-                Pronunciation: mapScore(Number(fb.pronunciation || 0), "pronunciation"),
-                Performance: mapScore(Number(fb.performance || 0), "performance")
-              }
-            }
-          : null,
-        videoUrl: signedUrl,
-      };
+    const fbMap = new Map();
+    (feedbacks || []).forEach(f => fbMap.set(f.assignment_key, f));
+
+    // 5. Map to Response
+    const items = await Promise.all(lessons.map(async (l) => {
+        const key = `${l.lesson_plan_id}_${studentId}`;
+        const sub = subMap.get(key);
+        const fb = fbMap.get(key);
+
+        let status: "Pending" | "Submitted" | "Reviewed" = "Pending";
+        if (sub && !fb) status = "Submitted";
+        if (sub && fb) status = "Reviewed";
+
+        let signedUrl: string | null = null;
+        if (sub?.video_path) {
+             try {
+                // Generate signed URL for playback
+                const res = await supabase.storage.from("student-videos").createSignedUrl(sub.video_path, 3600);
+                signedUrl = res.data?.signedUrl || null;
+             } catch {}
+        }
+
+        return {
+            id: key, // Use assignment_key as ID
+            title: `${l.book_id || ""} ${l.unit_no ? `Unit ${l.unit_no}` : ""}`,
+            module: l.book_id || "Reading",
+            dueDate: l.lesson_date,
+            status,
+            score: fb ? String(fb.average ?? "") : null,
+            feedback: fb ? {
+                overall_message: fb.overall_message || "",
+                strengths: fb.strengths || [],
+                focus_point: fb.focus_point || "",
+                next_try_guide: fb.next_try_guide || "",
+                details: {
+                    Fluency: mapScore(Number(fb.fluency || 0), "fluency"),
+                    Volume: mapScore(Number(fb.volume || 0), "volume"),
+                    Speed: mapScore(Number(fb.speed || 0), "speed"),
+                    Pronunciation: mapScore(Number(fb.pronunciation || 0), "pronunciation"),
+                    Performance: mapScore(Number(fb.performance || 0), "performance")
+                }
+            } : null,
+            videoUrl: signedUrl
+        };
     }));
 
     return NextResponse.json({ items }, { status: 200 });
-  } catch {
-    return NextResponse.json({ items: [] }, { status: 200 });
+
+  } catch (err) {
+      console.error("Portal Video API Error:", err);
+      return NextResponse.json({ items: [] }, { status: 500 });
   }
 }
 

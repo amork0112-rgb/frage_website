@@ -153,32 +153,32 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       if (!uid) {
         throw new Error("No student session");
       }
-      const assignmentId = params.id;
+      const assignmentKey = params.id;
       const file =
         lastBlobRef.current instanceof File
           ? lastBlobRef.current
-          : new File([lastBlobRef.current], `${assignmentId}.webm`, { type: "video/webm" });
-      const storagePath = `${uid}/${assignmentId}.webm`;
+          : new File([lastBlobRef.current], `${assignmentKey}.webm`, { type: "video/webm" });
+      const storagePath = `${uid}/${assignmentKey}.webm`;
       const { error: upErr } = await supabase.storage
         .from("student-videos")
         .upload(storagePath, file, { upsert: true });
       if (upErr) throw upErr;
+      
       const { data: exists } = await supabase
         .from("portal_video_submissions")
         .select("*")
-        .eq("student_id", uid)
-        .eq("assignment_id", assignmentId)
+        .eq("assignment_key", assignmentKey)
         .limit(1);
+
       if (Array.isArray(exists) && exists.length > 0) {
         await supabase
           .from("portal_video_submissions")
           .update({ video_path: storagePath, status: "submitted" })
-          .eq("student_id", uid)
-          .eq("assignment_id", assignmentId);
+          .eq("assignment_key", assignmentKey);
       } else {
         await supabase
           .from("portal_video_submissions")
-          .insert({ student_id: uid, assignment_id: assignmentId, video_path: storagePath, status: "submitted" });
+          .insert({ student_id: uid, assignment_key: assignmentKey, video_path: storagePath, status: "submitted" });
       }
       setVideoPath(storagePath);
       const { data: signed } = await supabase.storage
@@ -199,34 +199,39 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       try {
         const { data: userData } = await supabase.auth.getUser();
         const uid = userData?.user?.id || null;
+        if (!uid) return;
         setStudentIdState(uid);
-        const assignmentId = params.id;
-        let status: "Pending" | "Submitted" | "Reviewed" | string = initialStatus as any;
-        const { data: rows } = await supabase
-          .from("portal_video_submissions")
-          .select("*")
-          .eq("student_id", uid)
-          .eq("assignment_id", assignmentId);
-        if (Array.isArray(rows) && rows.length > 0) {
-          status = "Submitted";
-          const path = rows[0]?.video_path || null;
-          if (path) {
-            setVideoPath(path);
-            const { data: signed } = await supabase.storage
-              .from("student-videos")
-              .createSignedUrl(path, 3600);
-            const url = signed?.signedUrl || null;
-            if (url) setVideoUrl(url);
+
+        // Fetch details from the main portal API to get lesson info and status
+        const res = await fetch(`/api/portal/video?studentId=${uid}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const item = json.items?.find((i: any) => i.id === params.id);
+
+        if (item) {
+          setHomeworkData({
+            id: params.id,
+            subject: item.title,
+            module_code: item.module,
+            due_date: item.dueDate,
+            status: item.status,
+            feedback: item.feedback ? {
+              overall_message: item.feedback.overall_message,
+              fluency_score: item.feedback.details.Fluency,
+              volume_score: item.feedback.details.Volume,
+              speed_score: item.feedback.details.Speed,
+              pronunciation_score: item.feedback.details.Pronunciation,
+              performance_score: item.feedback.details.Performance,
+              strengths: item.feedback.strengths,
+              focus_point: item.feedback.focus_point,
+              next_try_guide: item.feedback.next_try_guide
+            } : null
+          });
+
+          if (item.videoUrl) {
+            setVideoUrl(item.videoUrl);
           }
         }
-        setHomeworkData({
-          id: assignmentId,
-          subject: "",
-          module_code: "",
-          due_date: "",
-          status,
-          feedback: null
-        });
       } catch {}
     })();
     return () => {
