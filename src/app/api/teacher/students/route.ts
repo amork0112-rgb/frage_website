@@ -51,7 +51,6 @@ export async function GET(request: Request) {
         birth_date,
         parent_phone,
         class_name,
-        grade,
         campus,
         status,
         parent_name,
@@ -73,7 +72,7 @@ export async function GET(request: Request) {
     }
     const rows = Array.isArray(data) ? data : [];
     const base: Student[] = rows.map((r: any) => ({
-      id: String(r.id ?? ""),
+      id: String(r.student_id ?? ""),
       childId: r.child_id ?? undefined,
       name: String(r.student_name ?? ""),
       englishName: String(r.english_first_name ?? ""),

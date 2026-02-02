@@ -30,7 +30,7 @@ export async function GET() {
     // 1. Fetch Enrolled Students (Promoted)
     const { data: enrolledStudents } = await supabase
       .from("v_students_full")
-      .select("id,student_name,english_first_name,status,grade,campus,parent_user_id")
+      .select("id,student_name,english_first_name,status,campus,parent_user_id")
       .eq("parent_id", parentId);
 
     const enrolledIds = Array.isArray(enrolledStudents)
