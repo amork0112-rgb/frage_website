@@ -85,13 +85,13 @@ export async function GET(request: Request) {
       parentAccountId: String(r.parent_auth_user_id ?? ""),
       address: String(r.address ?? ""),
       bus: String(r.use_bus ?? ""),
-      departureTime: String(r.departure_time ?? ""),
+      departureTime: "",
       pickupLat: typeof r.pickup_lat === "number" ? r.pickup_lat : undefined,
       pickupLng: typeof r.pickup_lng === "number" ? r.pickup_lng : undefined,
       dropoffLat: typeof r.dropoff_lat === "number" ? r.dropoff_lat : undefined,
       dropoffLng: typeof r.dropoff_lng === "number" ? r.dropoff_lng : undefined,
-      pickupType: (r.pickup_type as any) ?? "self",
-      dropoffType: (r.dropoff_type as any) ?? "self",
+      pickupType: "self",
+      dropoffType: "self",
     }));
     const total = base.length;
     const start = (page - 1) * pageSize;

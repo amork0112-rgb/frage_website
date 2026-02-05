@@ -42,6 +42,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ko" className={`${nunito.variable} ${notoSansKr.variable}`}>
       <head>
+        {/* PWA */}
+        <meta name="mobile-web-app-capable" content="yes" />
         {/* iOS PWA */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
