@@ -57,13 +57,10 @@ export async function GET(request: Request) {
         parent_auth_user_id,
         address,
         use_bus,
-        departure_time,
         pickup_lat,
         pickup_lng,
         dropoff_lat,
-        dropoff_lng,
-        pickup_type,
-        dropoff_type
+        dropoff_lng
       `)
       .order("student_name", { ascending: true });
     if (error) {
