@@ -30,7 +30,7 @@ export async function GET() {
     // 1. Fetch Enrolled Students (Promoted)
     const { data: enrolledStudents } = await supabase
       .from("v_students_full")
-      .select("id,student_name,english_first_name,status,campus,parent_user_id")
+      .select("id,student_name,english_first_name,status,campus,parent_auth_user_id")
       .eq("parent_id", parentId);
 
     const enrolledIds = Array.isArray(enrolledStudents)
@@ -93,7 +93,7 @@ export async function GET() {
             status: String(s.status || "promoted"),
             className: String(s.grade || ""),
             campus: String(s.campus || ""),
-            parentAccountId: String(s.parent_user_id || ""),
+            parentAccountId: String(s.parent_auth_user_id || ""),
             profile_completed: onboarding
               ? onboarding.profile_completed === true
               : null,
