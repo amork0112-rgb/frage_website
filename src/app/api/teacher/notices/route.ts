@@ -1,3 +1,4 @@
+// app/api/teacher/notices/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -70,12 +71,28 @@ export async function GET(request: Request) {
       }
       query = query.eq("class_id", classId);
     } else {
-      // If no classId, teacher sees notices they authored
-      // OR notices for their classes? 
-      // For now, let's show notices they authored to keep it simple and safe
-      // If master_teacher, maybe show all?
+      // If no classId, teacher sees notices for their assigned classes
       if (role !== "master_teacher" && role !== "admin") {
-         query = query.eq("creator_id", user.id);
+         let appliedClassFilter = false;
+
+         if (role === "teacher" && teacherId) {
+             const { data: teacherClasses } = await supabaseService 
+               .from("teacher_classes") 
+               .select("class_id") 
+               .eq("teacher_id", teacherId); 
+           
+             const classIds = teacherClasses?.map((tc: any) => tc.class_id) || []; 
+           
+             if (classIds.length > 0) { 
+               query = query.in("class_id", classIds); 
+               appliedClassFilter = true;
+             }
+         }
+         
+         if (!appliedClassFilter) {
+             // fallback: 본인이 쓴 것만
+             query = query.eq("creator_id", user.id);
+         }
       }
     }
 

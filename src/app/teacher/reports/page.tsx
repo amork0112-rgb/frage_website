@@ -97,7 +97,11 @@ export default function TeacherReportsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/teacher/students", { cache: "no-store", credentials: "include" });
+        const queryParams = new URLSearchParams();
+        if (campusFilter && campusFilter !== "All") queryParams.set("campus", campusFilter);
+        if (classFilter && classFilter !== "All") queryParams.set("classId", classFilter);
+        
+        const res = await fetch(`/api/teacher/students?${queryParams.toString()}`, { cache: "no-store", credentials: "include" });
         const data = await res.json();
         const items = Array.isArray(data?.items) ? data.items : [];
         const enrolled = items.filter((s: any) => String(s.status) !== "rejected");
@@ -116,7 +120,7 @@ export default function TeacherReportsPage() {
       }
     };
     load();
-  }, []);
+  }, [campusFilter, classFilter]);
 
   useEffect(() => {
     const loadClasses = async () => {
@@ -250,13 +254,7 @@ export default function TeacherReportsPage() {
     });
     return [{ id: "All", name: "All" }, ...Array.from(set.entries()).map(([id, name]) => ({ id, name }))];
   }, [classOptions]);
-  const campuses = useMemo(() => {
-    const set = new Set<string>();
-    students.forEach((s) => {
-      if (s.campus) set.add(s.campus);
-    });
-    return ["All", ...Array.from(set)];
-  }, [students]);
+  const campuses = ["All", "International", "Andover", "Platz", "Atheneum"];
 
   const filtered = useMemo(() => {
     return students

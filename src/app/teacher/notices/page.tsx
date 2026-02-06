@@ -64,27 +64,14 @@ export default function TeacherNoticesPage() {
 
   const fetchClasses = async () => {
     try {
-      const studentsRes = await fetch("/api/teacher/students");
-      if (studentsRes.ok) {
-        const data = await studentsRes.json();
-        const students: any[] = Array.isArray(data) ? data : data.items || [];
-        
-        const classMap = new Map<string, { name: string, sortOrder: number }>();
-        students.forEach(s => {
-            const cId = s.classId || s.class_id;
-            const cName = s.className;
-            const cSort = s.classSortOrder ?? 9999;
-            if (cId && cName) {
-                if (!classMap.has(cId)) {
-                    classMap.set(cId, { name: cName, sortOrder: cSort });
-                }
-            }
-        });
-        
-        const sortedClasses = Array.from(classMap.entries())
-            .map(([id, { name, sortOrder }]) => ({ id, name, sortOrder }))
-            .sort((a, b) => (a.sortOrder - b.sortOrder) || a.name.localeCompare(b.name));
-
+      const res = await fetch("/api/teacher/classes?campus=All", { cache: "no-store", credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        const sortedClasses = data.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          sortOrder: c.sortOrder ?? 9999,
+        }));
         setClasses(sortedClasses);
       }
     } catch (e) {

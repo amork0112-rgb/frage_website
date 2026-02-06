@@ -244,11 +244,18 @@ export default function TeacherVideoManagementPage() {
   const fetchWeeklyStatus = async () => {
     if (viewMode !== "kinder") return;
     
+    // If campus is All, we can't show weekly status for specific campus
+    // or we could default to International. For now, let's require a specific campus.
+    if (filterCampus === "All") {
+      setWeeklyClassStatus([]);
+      return;
+    }
+
     setLoadingWeeklyStatus(true);
     
     try {
-      // Fetch from API (International campus)
-      const targetCampus = "International";
+      // Fetch from API
+      const targetCampus = filterCampus;
       const res = await fetch(
         `/api/weekly-assignments?campus=${targetCampus}&week=${selectedWeek}`,
         { credentials: "include" }
@@ -289,12 +296,20 @@ export default function TeacherVideoManagementPage() {
 
   useEffect(() => {
     if (viewMode === "kinder") {
+      setFilterCampus("International");
       fetchWeeklyStatus();
     }
   }, [viewMode, selectedWeek, classOptionsByCampus]);
 
+  // Re-fetch when filterCampus changes in Kinder mode
+  useEffect(() => {
+    if (viewMode === "kinder") {
+      fetchWeeklyStatus();
+    }
+  }, [filterCampus]);
+
   const handleControlAction = async (action: "publish" | "change_date" | "skip" | "set_due_date", className: string, date?: string) => {
-    const campus = "International";
+    const campus = filterCampus === "All" ? "International" : filterCampus;
 
     // Optimistic update
     setWeeklyClassStatus(prev => prev.map(item => {
@@ -486,14 +501,12 @@ export default function TeacherVideoManagementPage() {
           <h3 className="font-bold text-slate-900 text-sm">Management Filters</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-          {viewMode === "primary" && (
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Campus</label>
-              <select value={filterCampus} onChange={(e) => setFilterCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">Campus</label>
+            <select value={filterCampus} onChange={(e) => setFilterCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+              {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
+            </select>
+          </div>
           {viewMode === "kinder" && (
             <>
               <div>

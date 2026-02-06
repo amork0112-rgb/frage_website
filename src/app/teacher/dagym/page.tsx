@@ -61,7 +61,7 @@ export default function TeacherCoachingPage() {
   useEffect(() => {
     async function fetchClasses() {
       try {
-        const res = await fetch("/api/teacher/classes");
+        const res = await fetch("/api/teacher/classes", { cache: "no-store", credentials: "include" });
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
           setClasses(data);

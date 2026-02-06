@@ -32,6 +32,9 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
   const pageSize = Math.max(parseInt(url.searchParams.get("pageSize") || "200", 10), 1);
+  const campusParam = url.searchParams.get("campus");
+  const classIdParam = url.searchParams.get("classId");
+
   try {
     const supabaseAuth = createSupabaseServer();
     const { data: { user } } = await supabaseAuth.auth.getUser();
@@ -42,7 +45,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 403 });
     }
 
-    const { data, error } = await supabaseService
+    let query = supabaseService
       .from("v_students_full")
       .select(`
         student_id,
@@ -61,8 +64,27 @@ export async function GET(request: Request) {
         pickup_lng,
         dropoff_lat,
         dropoff_lng
-      `)
-      .order("student_name", { ascending: true });
+      `, { count: "exact" });
+
+    // Filter by Campus
+    if (campusParam && campusParam !== "All") {
+      let dbCampus = campusParam;
+      if (campusParam === "International") dbCampus = "국제관";
+      else if (campusParam === "Andover") dbCampus = "앤도버관";
+      else if (campusParam === "Atheneum") dbCampus = "아테네움관";
+      else if (campusParam === "Platz") dbCampus = "플라츠관";
+      query = query.eq("campus", dbCampus);
+    }
+
+    // Filter by Class Name (passed as classId param)
+    if (classIdParam && classIdParam !== "All" && classIdParam !== "-") {
+      query = query.eq("class_name", classIdParam);
+    }
+
+    const { data, error, count } = await query
+      .order("student_name", { ascending: true })
+      .range((page - 1) * pageSize, (page - 1) * pageSize + pageSize - 1);
+
     if (error) {
       console.error("TEACHER/STUDENTS SELECT ERROR:", error);
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
@@ -98,10 +120,8 @@ export async function GET(request: Request) {
       pickupType: "self",
       dropoffType: "self",
     }));
-    const total = base.length;
-    const start = (page - 1) * pageSize;
-    const items = base.slice(start, start + pageSize);
-    return NextResponse.json({ items, total, page, pageSize }, { status: 200 });
+    const total = count ?? base.length;
+    return NextResponse.json({ items: base, total, page, pageSize }, { status: 200 });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });

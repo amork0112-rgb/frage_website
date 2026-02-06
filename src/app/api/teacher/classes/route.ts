@@ -63,6 +63,7 @@ export async function GET(request: Request) {
       id: row.id,
       name: row.name,
       campus: normalizeCampus(row.campus),
+      sortOrder: row.sort_order,
     }));
 
     // Return array directly to match client expectations
