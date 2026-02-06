@@ -68,6 +68,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
     }
     const rows = Array.isArray(data) ? data : [];
+    const normalizeCampus = (c: string) => {
+      if (!c) return "Unspecified";
+      if (c.includes("국제")) return "International";
+      if (c.includes("앤도버")) return "Andover";
+      if (c.includes("아테네움")) return "Atheneum";
+      if (c.includes("플라츠")) return "Platz";
+      return c;
+    };
     const base: Student[] = rows.map((r: any) => ({
       id: String(r.student_id ?? ""),
       childId: r.child_id ?? undefined,
@@ -75,8 +83,8 @@ export async function GET(request: Request) {
       englishName: String(r.english_first_name ?? ""),
       birthDate: String(r.birth_date ?? ""),
       phone: String(r.parent_phone ?? ""),
-      className: String(r.class_name ?? "미배정"),
-      campus: String(r.campus ?? "미지정"),
+      className: String(r.class_name ?? "Unassigned"),
+      campus: normalizeCampus(String(r.campus ?? "")),
       status: (String(r.status ?? "promoted") as Status),
       parentName: String(r.parent_name ?? ""),
       parentAccountId: String(r.parent_auth_user_id ?? ""),

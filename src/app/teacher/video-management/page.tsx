@@ -10,12 +10,33 @@ type Student = { id: string; name: string; englishName: string; className: strin
 
 const CAMPUS_VALUES = ["All", "International", "Andover", "Atheneum", "Platz"] as const;
 const CAMPUS_LABELS: Record<string, string> = {
-  All: "전체",
-  International: "국제관",
-  Andover: "앤도버관",
-  Atheneum: "아테네움관",
-  Platz: "플라츠관"
+  All: "All",
+  International: "International",
+  Andover: "Andover",
+  Atheneum: "Atheneum",
+  Platz: "Platz"
 };
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June", 
+  "July", "August", "September", "October", "November", "December"
+];
+
+// Helper to get weeks for a specific month
+const getWeeksForMonth = (year: number, monthIndex: number) => {
+  const weeks = [];
+  const monthStr = String(monthIndex + 1).padStart(2, '0');
+  
+  // Unconditionally return 4 weeks per month as requested
+  for (let i = 1; i <= 4; i++) {
+    weeks.push({
+      label: `Week ${i}`,
+      value: `${year}-${monthStr}-W${i}`
+    });
+  }
+  return weeks;
+};
+
 
 const KINDER_CLASS_KEYWORDS = ["Kepler", "Platon", "Euclid", "Gauss", "Edison", "Thales", "Einstein", "Darwin"];
 // NOTE: Kinder classes are intentionally filtered by naming convention. 
@@ -32,6 +53,9 @@ export default function TeacherVideoManagementPage() {
   const [teacherClassMap, setTeacherClassMap] = useState<Record<string, string[]>>({});
   const [filterClass, setFilterClass] = useState<string>("All");
   const [filterCampus, setFilterCampus] = useState<string>("All");
+
+  const [currentYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
 
   const [newTitle, setNewTitle] = useState("");
   const [newModule, setNewModule] = useState("");
@@ -171,11 +195,22 @@ export default function TeacherVideoManagementPage() {
   const [loadingWeeklyStatus, setLoadingWeeklyStatus] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(() => {
     const now = new Date();
-    const oneJan = new Date(now.getFullYear(), 0, 1);
-    const numberOfDays = Math.floor((now.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
-    const weekNum = Math.ceil((now.getDay() + 1 + numberOfDays) / 7);
-    return `${now.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+    const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+    return `${now.getFullYear()}-${monthStr}-W1`;
   });
+
+  const weekOptions = useMemo(() => {
+    return getWeeksForMonth(currentYear, selectedMonth);
+  }, [currentYear, selectedMonth]);
+
+  useEffect(() => {
+    if (viewMode === "kinder" && weekOptions.length > 0) {
+      const exists = weekOptions.find(w => w.value === selectedWeek);
+      if (!exists) {
+        setSelectedWeek(weekOptions[0].value);
+      }
+    }
+  }, [selectedMonth, weekOptions, viewMode, selectedWeek]);
 
   const [editingClass, setEditingClass] = useState<string | null>(null);
   const [editDate, setEditDate] = useState("");
@@ -451,27 +486,41 @@ export default function TeacherVideoManagementPage() {
           <h3 className="font-bold text-slate-900 text-sm">Management Filters</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">Campus</label>
-            <select value={filterCampus} onChange={(e) => setFilterCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
-            </select>
-          </div>
-          {viewMode === "kinder" && (
+          {viewMode === "primary" && (
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Week</label>
-              <select 
-                value={selectedWeek} 
-                onChange={(e) => setSelectedWeek(e.target.value)} 
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-              >
-                {/* Mock week options - In real app, generate dynamically */}
-                <option value="2026-W01">Week 1 (Jan 01 - Jan 07)</option>
-                <option value="2026-W02">Week 2 (Jan 08 - Jan 14)</option>
-                <option value="2026-W03">Week 3 (Jan 15 - Jan 21)</option>
-                <option value="2026-W04">Week 4 (Jan 22 - Jan 28)</option>
+              <label className="block text-xs font-bold text-slate-500 mb-1">Campus</label>
+              <select value={filterCampus} onChange={(e) => setFilterCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+                {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
               </select>
             </div>
+          )}
+          {viewMode === "kinder" && (
+            <>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Month</label>
+                <select 
+                  value={selectedMonth} 
+                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))} 
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                >
+                  {MONTHS.map((m, i) => (
+                    <option key={m} value={i}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Week</label>
+                <select 
+                  value={selectedWeek} 
+                  onChange={(e) => setSelectedWeek(e.target.value)} 
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                >
+                  {weekOptions.map(w => (
+                    <option key={w.value} value={w.value}>{w.label}</option>
+                  ))}
+                </select>
+              </div>
+            </>
           )}
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Class Filter</label>

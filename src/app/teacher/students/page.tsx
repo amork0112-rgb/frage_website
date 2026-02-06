@@ -192,14 +192,14 @@ export default function TeacherStudentsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="이름 검색"
+            placeholder="Search Name"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full pl-10 pr-3 py-2 rounded-lg bg-white border border-slate-200 text-sm focus:ring-2 focus:ring-frage-blue outline-none"
           />
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-700 whitespace-nowrap">캠퍼스</span>
+          <span className="text-sm font-bold text-slate-700 whitespace-nowrap">Campus</span>
           <select
             value={selectedCampus}
             onChange={(e) => setSelectedCampus(e.target.value)}
@@ -207,15 +207,15 @@ export default function TeacherStudentsPage() {
           >
             {CAMPUSES.map((c) => (
               <option key={c} value={c}>
-                {c === "All" ? "전체" : c === "International" ? "국제관" : c === "Andover" ? "앤도버" : c === "Platz" ? "플라츠" : "아테네움관"}
+                {c === "All" ? "All" : c}
               </option>
             ))}
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-700 whitespace-nowrap">담임 반</span>
+          <span className="text-sm font-bold text-slate-700 whitespace-nowrap">Class</span>
           <div className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white whitespace-nowrap overflow-hidden text-ellipsis">
-            {teacherClass || "전체"}
+            {teacherClass || "All"}
           </div>
         </div>
       </div>
@@ -225,14 +225,14 @@ export default function TeacherStudentsPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
-                <th className="p-3 font-bold">이름</th>
-                <th className="p-3 font-bold w-40">영어이름</th>
-                <th className="p-3 font-bold w-28">캠퍼스</th>
-                <th className="p-3 font-bold w-28">반</th>
-                <th className="p-3 font-bold w-28">재원상태</th>
-                <th className="p-3 font-bold w-24 text-center">호차</th>
-                <th className="p-3 font-bold w-24 text-center">하원 시간대</th>
-                <th className="p-3 font-bold w-24 text-center">메모</th>
+                <th className="p-3 font-bold">Name</th>
+                <th className="p-3 font-bold w-40">Eng Name</th>
+                <th className="p-3 font-bold w-28">Campus</th>
+                <th className="p-3 font-bold w-28">Class</th>
+                <th className="p-3 font-bold w-28">Status</th>
+                <th className="p-3 font-bold w-24 text-center">Bus</th>
+                <th className="p-3 font-bold w-24 text-center">Departure</th>
+                <th className="p-3 font-bold w-24 text-center">Memo</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -293,42 +293,39 @@ export default function TeacherStudentsPage() {
           <div className="absolute inset-0 bg-black/40" onClick={() => setInfoStudent(null)} />
           <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl w-[520px] max-w-[90vw] p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-black text-slate-900">학생 정보</h3>
-              <button onClick={() => setInfoStudent(null)} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">닫기</button>
+              <h3 className="text-lg font-black text-slate-900">Student Info</h3>
+              <button onClick={() => setInfoStudent(null)} className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold bg-white">Close</button>
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">학생 이름</span>
+                <span className="text-xs font-bold text-slate-400">Student Name</span>
                 <span className="text-sm font-bold text-slate-800">{infoStudent.name}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">영문명</span>
+                <span className="text-xs font-bold text-slate-400">English Name</span>
                 <span className="text-sm font-bold text-slate-800">{infoStudent.englishName}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">생년월일</span>
+                <span className="text-xs font-bold text-slate-400">Birth Date</span>
                 <span className="text-sm font-bold text-slate-800">{infoStudent.birthDate}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">전화번호</span>
+                <span className="text-xs font-bold text-slate-400">Phone</span>
                 <span className="text-sm font-bold text-slate-800">{infoStudent.phone}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">학부모 성함</span>
+                <span className="text-xs font-bold text-slate-400">Parent Name</span>
                 <span className="text-sm font-bold text-slate-800">{infoStudent.parentName}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">학부모 아이디</span>
+                <span className="text-xs font-bold text-slate-400">Parent ID</span>
                 <span className="text-sm font-bold text-slate-800">{infoStudent.parentAccountId}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">주소</span>
-                <span className="text-sm font-bold text-slate-800 text-right">{infoStudent.address}</span>
-              </div>
+              {/* Address hidden for privacy */}
               <div className="pt-3">
-                <div className="text-xs font-bold text-slate-400 mb-2">학부모 업로드 사진</div>
+                <div className="text-xs font-bold text-slate-400 mb-2">Parent Uploaded Photos</div>
                 {parentPhotos.length === 0 ? (
-                  <div className="text-sm text-slate-500">업로드된 사진이 없습니다.</div>
+                  <div className="text-sm text-slate-500">No photos uploaded.</div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2">
                     {parentPhotos.slice(0, 9).map((src, i) => (

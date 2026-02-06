@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Video, FileText, CheckCircle2, Clock, ArrowRight, Calendar, Brain, ExternalLink } from "lucide-react";
+import { Video, FileText, CheckCircle2, Clock, ArrowRight, Calendar, ExternalLink } from "lucide-react";
 import { supabase, supabaseReady } from "@/lib/supabase";
 
 type Student = { id: string; name: string; englishName: string; className: string; campus: string };
@@ -43,7 +43,6 @@ export default function TeacherHome() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [teacherId, setTeacherId] = useState<string | null>(null);
   const [teacherName, setTeacherName] = useState<string>("");
-  const [rememberItems, setRememberItems] = useState<string[]>([]);
   const [teacherClass, setTeacherClass] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [todayReservations, setTodayReservations] = useState<number>(0);
@@ -121,7 +120,7 @@ export default function TeacherHome() {
         <p className="text-slate-500 mt-1">Here is your dashboard for today.</p>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid md:grid-cols-2 gap-6 mb-8">
         <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-frage-orange" />
@@ -148,42 +147,7 @@ export default function TeacherHome() {
           </ul>
         </section>
 
-        <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <Brain className="w-5 h-5 text-purple-500" />
-            Remember
-          </h2>
-          {teacherId === "master_teacher" ? (
-            <div className="space-y-3">
-              <textarea
-                value={rememberItems.join("\n")}
-                onChange={(e) => setRememberItems(e.target.value.split("\n").map(s => s.trim()).filter(Boolean))}
-                rows={6}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white"
-                placeholder="Enter one item per line"
-              />
-              <button
-                disabled
-                className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white"
-              >
-                Save Remember
-              </button>
-            </div>
-          ) : (
-            <ul className="space-y-3">
-              {rememberItems.length === 0 ? (
-                <li className="text-sm text-slate-500">No reminders for this month.</li>
-              ) : (
-                rememberItems.map((txt, i) => (
-                  <li key={i} className="flex gap-2 items-start text-sm text-slate-600">
-                    <span className="text-purple-500">•</span>
-                    {txt}
-                  </li>
-                ))
-              )}
-            </ul>
-          )}
-        </section>
+
 
         <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
           <div>
