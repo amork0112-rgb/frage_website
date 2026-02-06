@@ -52,31 +52,43 @@ export default function TeacherHome() {
 
   useEffect(() => {
     (async () => {
-      if (!supabaseReady) return;
-      const { data } = await supabase.auth.getUser();
-      const uid = data?.user?.id || null;
-      setTeacherId(uid);
-      if (!uid) return;
       try {
-        const { data: trow } = await supabase
-          .from("teachers")
-          .select("name")
-          .eq("id", uid)
-          .limit(1);
-        const t = Array.isArray(trow) && trow.length > 0 ? trow[0] : null;
-        const fallback =
-          (data?.user?.user_metadata as any)?.name ||
-          String(data?.user?.email || "").split("@")[0] ||
-          "";
-        setTeacherName(t?.name ? String(t.name) : fallback);
-      } catch {}
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("class_name")
-        .eq("id", uid)
-        .single();
-      const cls = (profile as any)?.class_name || null;
-      setTeacherClass(cls);
+        const res = await fetch("/api/teacher/home");
+        const json = await res.json();
+        if (json.ok && json.data) {
+          const { teacherName, teacherClass, events, stats, myStudents } = json.data;
+          
+          setTeacherName(teacherName);
+          setTeacherClass(teacherClass);
+          
+          const mappedEvents: CalendarEvent[] = Array.isArray(events)
+            ? events.map((r: any) => ({
+                id: String(r.id),
+                title: String(r.title || ""),
+                type: r.type as ScheduleType,
+                start: String(r.start || ""),
+                end: String(r.end || r.start || ""),
+                campus: r.campus || undefined,
+                className: r.className || undefined,
+                place: r.place || undefined,
+                exposeToParent: !!r.exposeToParent,
+                notify: !!r.notify,
+                notifyDays: Array.isArray(r.notifyDays) ? r.notifyDays : undefined,
+                noticeLink: r.noticeLink || undefined,
+                createdAt: String(r.created_at || ""),
+              }))
+            : [];
+          setEvents(mappedEvents);
+
+          setTodayReservations(stats.todayReservations);
+          setPendingChecklists(stats.pendingChecklists);
+          setUnreadParentRequests(stats.unreadRequests);
+          
+          setStudents(myStudents);
+        }
+      } catch (e) {
+        console.error("Failed to fetch dashboard data", e);
+      }
     })();
   }, []);
 
@@ -85,87 +97,7 @@ export default function TeacherHome() {
   const m = now.getMonth();
   const ym = `${y}-${String(m + 1).padStart(2, "0")}`;
 
-  useEffect(() => {
-    setRememberItems([]);
-  }, [ym]);
-
-  useEffect(() => {
-    const load = async () => {
-      if (!supabaseReady) return;
-      const { data: evs } = await supabase
-        .from("events")
-        .select("id,title,type,start,end,campus,className,place,created_at,exposeToParent,notify,notifyDays,noticeLink")
-        .order("start", { ascending: true });
-      const mappedEvents: CalendarEvent[] = Array.isArray(evs)
-        ? evs.map((r: any) => ({
-            id: String(r.id),
-            title: String(r.title || ""),
-            type: r.type as ScheduleType,
-            start: String(r.start || ""),
-            end: String(r.end || r.start || ""),
-            campus: r.campus || undefined,
-            className: r.className || undefined,
-            place: r.place || undefined,
-            exposeToParent: !!r.exposeToParent,
-            notify: !!r.notify,
-            notifyDays: Array.isArray(r.notifyDays) ? r.notifyDays : undefined,
-            noticeLink: r.noticeLink || undefined,
-            createdAt: String(r.created_at || ""),
-          }))
-        : [];
-      setEvents(mappedEvents);
-      const today = new Date();
-      const y = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, "0");
-      const dd = String(today.getDate()).padStart(2, "0");
-      const todayStr = `${y}-${mm}-${dd}`;
-      const { data: slotsToday } = await supabase
-        .from("consultation_slots")
-        .select("id,date")
-        .eq("date", todayStr);
-      const slotIds = (slotsToday || []).map((s: any) => s.id);
-      if (slotIds.length > 0) {
-        const { data: rToday } = await supabase
-          .from("student_reservations")
-          .select("id,slot_id")
-          .in("slot_id", slotIds);
-        setTodayReservations((rToday || []).length);
-      } else {
-        setTodayReservations(0);
-      }
-      const { data: checks } = await supabase
-        .from("new_student_checklists")
-        .select("id,student_id,checked")
-        .eq("checked", false);
-      setPendingChecklists((checks || []).length);
-      const { data: reqs } = await supabase
-        .from("portal_requests")
-        .select("id,teacher_id,teacher_read")
-        .eq("teacher_read", false)
-        .eq("teacher_id", teacherId || "");
-      setUnreadParentRequests((reqs || []).length);
-      const { data: studs } = await supabase
-        .from("students")
-        .select("id,name,english_name,class_name,campus")
-        .eq("teacher_id", teacherId);
-      const mappedStudents: Student[] = Array.isArray(studs)
-        ? studs.map((s: any) => ({
-            id: String(s.id),
-            name: String(s.name || ""),
-            englishName: String(s.english_name || ""),
-            className: String(s.class_name || ""),
-            campus: String(s.campus || ""),
-          }))
-        : [];
-      setStudents(mappedStudents);
-    };
-    load();
-  }, [teacherId]);
-
-  const myStudents = useMemo(() => {
-    if (!teacherClass) return [];
-    return students.filter(s => s.className === teacherClass).slice(0, 12);
-  }, [students, teacherClass]);
+  const myStudents = students;
   const monthEvents = useMemo(() => {
     const parse = (s: string) => {
       const [yy, mm, dd] = s.split("-").map(Number);

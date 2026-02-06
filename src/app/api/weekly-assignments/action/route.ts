@@ -1,6 +1,7 @@
 //app/api/weekly-assignments/action/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export async function POST(req: Request) {
   try {
@@ -16,6 +17,11 @@ export async function POST(req: Request) {
     
     if (!user) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const role = await resolveUserRole(user);
+    if (!["teacher", "master_teacher", "admin", "master_admin"].includes(role)) {
+      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
 
     const updateData: any = {

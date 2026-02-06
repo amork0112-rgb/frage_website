@@ -1,3 +1,4 @@
+//app/api/teacher/video/primary/dashboard/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -52,8 +53,9 @@ export async function GET(req: Request) {
     const classNames = Array.from(new Set(lessons.map(l => l.class_name).filter(Boolean)));
     
     const { data: students, error: studentError } = await supabaseService
-      .from("students")
-      .select("id, student_name, english_first_name, class_name, campus")
+      .from("v_students_full")
+      .select("student_id, student_name, english_first_name, class_name, campus")
+      .eq("status", "active")
       .in("class_name", classNames);
       
     if (studentError) throw studentError;
@@ -71,7 +73,7 @@ export async function GET(req: Request) {
     lessons.forEach(l => {
       const classStudents = studentMap[l.class_name] || [];
       classStudents.forEach(s => {
-        assignmentKeys.push(`${l.lesson_plan_id}_${s.id}`);
+        assignmentKeys.push(`${l.lesson_plan_id}_${s.student_id}`);
       });
     });
 
@@ -105,9 +107,9 @@ export async function GET(req: Request) {
       const classStudents = studentMap[lesson.class_name] || [];
       
       const studentData = classStudents.map(s => {
-        const key = `${lesson.lesson_plan_id}_${s.id}`;
+        const key = `${lesson.lesson_plan_id}_${s.student_id}`;
         return {
-          student_id: s.id,
+          student_id: s.student_id,
           student_name: s.student_name,
           english_name: s.english_first_name,
           submission: subMap.get(key) || null,

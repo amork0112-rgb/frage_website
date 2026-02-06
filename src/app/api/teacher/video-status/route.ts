@@ -1,6 +1,10 @@
 //app/api/teacher/video-status/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
+import { resolveUserRole } from "@/lib/auth/resolveUserRole";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
@@ -18,9 +22,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const role = await resolveUserRole(user);
+    if (!["teacher", "master_teacher", "admin", "master_admin"].includes(role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Use a service client or direct query if RLS is an issue, but standard client should work if policies allow reading view
     // Assuming v_lesson_video_status is accessible to teachers
-    const { data, error } = await supabase
+    const { data, error } = await supabaseService
       .from("v_lesson_video_status")
       .select(`
         lesson_plan_id,
@@ -35,7 +44,9 @@ export async function GET(request: Request) {
       `)
       .eq("lesson_date", date)
       .eq("has_auto_video", true)
-      .not("class_id", "is", null);
+      .not("class_id", "is", null)
+      .order("campus", { ascending: true })
+      .order("class_name", { ascending: true });
 
     if (error) {
       console.error("Error fetching video status:", error);

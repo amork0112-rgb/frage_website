@@ -18,6 +18,8 @@ const CAMPUS_LABELS: Record<string, string> = {
 };
 
 const KINDER_CLASS_KEYWORDS = ["Kepler", "Platon", "Euclid", "Gauss", "Edison", "Thales", "Einstein", "Darwin"];
+// NOTE: Kinder classes are intentionally filtered by naming convention. 
+// This avoids adding class_level or type columns to DB.
 
 export default function TeacherVideoManagementPage() {
   const router = useRouter();
@@ -41,6 +43,14 @@ export default function TeacherVideoManagementPage() {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   useEffect(() => {
+    // Primary mode does NOT use student list from this API
+    if (viewMode === "primary") {
+      setStudents([]);
+      setClassCatalog([]);
+      setTeacherClassMap({});
+      return;
+    }
+
     const load = async () => {
       try {
         const res = await fetch("/api/teacher/students", { cache: "no-store", credentials: "include" });
@@ -54,7 +64,7 @@ export default function TeacherVideoManagementPage() {
       setTeacherClassMap({});
     };
     load();
-  }, []);
+  }, [viewMode]);
 
   const classOptionsAll = useMemo(() => {
     const map = new Map<string, number | null>();
@@ -380,7 +390,7 @@ export default function TeacherVideoManagementPage() {
       </div>
 
       {/* Primary Mode: Create Assignment Panel */}
-      {viewMode === "primary" && (
+      {viewMode === "primary" && false && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
           <div className="flex items-center gap-2 mb-4 text-sm font-bold text-slate-900">
             <Plus className="w-4 h-4 text-frage-navy" />

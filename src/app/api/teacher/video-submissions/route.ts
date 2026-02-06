@@ -6,9 +6,13 @@ import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const assignmentKey = searchParams.get("assignmentKey");
+  const assignmentId = searchParams.get("assignmentId");
 
-  if (!assignmentKey) {
-    return NextResponse.json({ error: "Missing assignmentKey" }, { status: 400 });
+  // Support both assignmentKey and assignmentId (for manual assignments where key = id)
+  const targetKey = assignmentKey || assignmentId;
+
+  if (!targetKey) {
+    return NextResponse.json({ error: "Missing assignmentKey or assignmentId" }, { status: 400 });
   }
 
   try {
@@ -30,7 +34,7 @@ export async function GET(request: Request) {
     const { data: submissions, error: subError } = await supabase
       .from("portal_video_submissions")
       .select("*")
-      .eq("assignment_key", assignmentKey);
+      .eq("assignment_key", targetKey);
 
     if (subError) throw subError;
 
@@ -38,7 +42,7 @@ export async function GET(request: Request) {
     const { data: feedback, error: feedError } = await supabase
       .from("portal_video_feedback")
       .select("*")
-      .eq("assignment_key", assignmentKey);
+      .eq("assignment_key", targetKey);
 
     if (feedError) throw feedError;
 

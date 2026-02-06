@@ -1,9 +1,12 @@
+//app/teacher/video-management/[id]/page.tsx
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Search, Filter, CheckCircle, Clock, AlertCircle, Video, Star, ChevronRight, X, Save } from "lucide-react";
+
+// This page assumes manual (Kinder-style) assignments only.
 
 type Assignment = {
   id: string;
@@ -103,6 +106,8 @@ export default function AssignmentDetailPage() {
       // 2. Fetch Students via API
       // We fetch all students (or a large page) and filter locally
       // because we need to match by class_name string
+      // NOTE: This page is used only for manually created assignments (Kinder). 
+      // Primary assignments must NOT rely on this page. 
       const resStudents = await fetch("/api/teacher/students?pageSize=1000");
       const payloadStudents = await resStudents.json();
       const allStudents = Array.isArray(payloadStudents.items) ? payloadStudents.items : [];

@@ -170,6 +170,7 @@ export default function TeacherReportsPage() {
         const res = await fetch(`/api/teacher/reports?student_id=${selected.id}&month=${encodeURIComponent(month)}`);
         const data = await res.json();
         const obj = data?.item || null;
+        
         if (obj) {
           setGender((obj.gender as Gender) || (selected?.gender ?? "M"));
           setScores(obj.scores || { Reading: 0, Listening: 0, Speaking: 0, Writing: 0 });
@@ -178,7 +179,11 @@ export default function TeacherReportsPage() {
           setOverall(obj.overall || "");
           setParticipation(obj.participation || "");
           setVideoSummary(obj.videoSummary || "");
+          
+          setVideoUrl(obj.videoUrl || null);
+          setWeeklyStatus(obj.weeklyStatus || [false, false, false, false]);
         } else {
+          // Default state for new report
           setGender(selected?.gender ?? "M");
           setScores({ Reading: 0, Listening: 0, Speaking: 0, Writing: 0 });
           setComments({ Reading: "", Listening: "", Speaking: "", Writing: "" });
@@ -186,75 +191,25 @@ export default function TeacherReportsPage() {
           setOverall("");
           setParticipation("");
           setVideoSummary("");
-        }
-      } catch {}
-      try {
-        const { data } = await supabase
-          .from("portal_video_submissions")
-          .select("*")
-          .eq("student_id", selected.id)
-          .order("created_at", { ascending: false })
-          .limit(1);
-        const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
-        if (row && row.video_path) {
-          const { data: urlData, error } = await supabase.storage
-            .from("student-videos")
-            .createSignedUrl(String(row.video_path), 60 * 60);
-          if (!error && urlData?.signedUrl) {
-            setVideoUrl(urlData.signedUrl);
-          } else {
-            setVideoUrl(null);
-          }
-        } else {
           setVideoUrl(null);
+          setWeeklyStatus([false, false, false, false]);
         }
-      } catch {
+      } catch (e) {
+        console.error("Fetch report detail error", e);
+        // Reset on error
         setVideoUrl(null);
+        setWeeklyStatus([false, false, false, false]);
       }
+      
       const defCo = getDefaultOverall(month, selected.className);
-      setOverall(defCo);
+      if (!overall) {
+         setOverall(defCo);
+      }
       hasEditedRef.current = false;
     })();
   }, [selected, month]);
 
-  useEffect(() => {
-    if (!selected) return;
-    const fridays = (() => {
-      try {
-        const [y, m] = month.split("-").map(Number);
-        const days: string[] = [];
-        const d = new Date(y, m - 1, 1);
-        while (d.getMonth() === m - 1) {
-          if (d.getDay() === 5) {
-            const dd = `${y}-${String(m).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-            days.push(dd);
-          }
-          d.setDate(d.getDate() + 1);
-        }
-        return days.slice(0, 4);
-      } catch {
-        return [];
-      }
-    })();
-    (async () => {
-      try {
-        const status: boolean[] = [];
-        for (const date of fridays) {
-          const { data } = await supabase
-            .from("portal_video_feedback")
-            .select("*")
-            .eq("student_id", selected.id)
-            .eq("due_date", date)
-            .limit(1);
-          status.push(Array.isArray(data) && data.length > 0);
-        }
-        while (status.length < 4) status.push(false);
-        setWeeklyStatus(status.slice(0, 4));
-      } catch {
-        setWeeklyStatus([false, false, false, false]);
-      }
-    })();
-  }, [selected, month]);
+  // Removed redundant useEffects for video fetching since API handles it now
 
   useEffect(() => {
     const timer = setTimeout(async () => {
