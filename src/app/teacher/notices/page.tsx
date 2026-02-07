@@ -15,10 +15,8 @@ type Notice = {
   class_id: string;
   scope: string;
   creator_id: string;
-  // We might want to join class name, but for now let's show class_id or rely on mapping
-  // If the API returns class name, that would be better. 
-  // For now let's assume we need to map class_id to name on client if possible, 
-  // or just show "Class Notice"
+  attachment_url?: string | null;
+  attachment_type?: string | null;
 };
 
 type Student = {
@@ -520,12 +518,46 @@ export default function TeacherNoticesPage() {
                       })()}
                     </span>
                   </div>
-                  <h3 className="text-base font-bold leading-tight mb-1 text-slate-800 group-hover:text-frage-blue transition-colors">{notice.title}</h3>
+                  <h3 className="text-base font-bold leading-tight mb-1 text-slate-800 group-hover:text-frage-blue transition-colors flex items-center gap-2">
+                    {notice.title}
+                    {notice.attachment_url && (
+                      <span className="text-xs text-slate-400" title="Has attachment">📎</span>
+                    )}
+                  </h3>
                   {expandedIds.has(notice.id) && (
                     <div className="mt-3 pt-3 border-t border-slate-100 animate-in fade-in slide-in-from-top-1">
                       <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
                         {notice.content}
                       </p>
+
+                      {/* Attachment UI */}
+                      {notice.attachment_url && (
+                        <div className="mt-4 flex items-center gap-3">
+                           {/* Preview (PDF only) */}
+                           {notice.attachment_type === "pdf" && (
+                             <a 
+                               href={notice.attachment_url} 
+                               target="_blank" 
+                               rel="noopener noreferrer" 
+                               className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold text-frage-blue border border-frage-blue rounded-lg hover:bg-blue-50" 
+                               onClick={(e) => e.stopPropagation()} 
+                             > 
+                               📄 PDF 미리보기 
+                             </a> 
+                           )}
+                       
+                           {/* Download */} 
+                           <a 
+                             href={notice.attachment_url} 
+                             download 
+                             target="_blank"
+                             className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold text-white bg-frage-blue rounded-lg hover:bg-blue-600" 
+                             onClick={(e) => e.stopPropagation()} 
+                           > 
+                             ⬇ 다운로드 
+                           </a> 
+                         </div> 
+                      )}
                     </div>
                   )}
                 </div>

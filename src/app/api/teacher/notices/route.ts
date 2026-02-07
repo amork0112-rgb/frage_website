@@ -48,7 +48,9 @@ export async function GET(request: Request) {
         scope,
         class_id,
         creator_id,
-        created_at
+        created_at,
+        attachment_url,
+        attachment_type
       `)
       .eq("category", "notice")
       .eq("scope", "class")
