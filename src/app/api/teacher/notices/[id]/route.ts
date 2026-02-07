@@ -1,3 +1,4 @@
+// app/api/teacher/notices/[id]/route.ts
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
@@ -20,12 +21,12 @@ export async function PATCH(
   // Verify ownership
   const { data: post } = await supabaseService
     .from("posts")
-    .select("author_id")
+    .select("creator_id")
     .eq("id", id)
     .single();
 
   if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (post.author_id !== user.id) {
+  if (post.creator_id !== user.id) {
     return NextResponse.json({ error: "Forbidden: You can only edit your own notices" }, { status: 403 });
   }
 
@@ -74,12 +75,12 @@ export async function DELETE(
   // Verify ownership
   const { data: post } = await supabaseService
     .from("posts")
-    .select("author_id")
+    .select("creator_id")
     .eq("id", id)
     .single();
 
   if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (post.author_id !== user.id) {
+  if (post.creator_id !== user.id) {
     return NextResponse.json({ error: "Forbidden: You can only delete your own notices" }, { status: 403 });
   }
 

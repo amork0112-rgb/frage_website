@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     }
 
     const json = await request.json();
-    const { title, content, class_ids } = json;
+    const { title, content, class_ids, attachment_url, attachment_type } = json;
 
     if (!title || !content || !class_ids || !Array.isArray(class_ids)) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -140,6 +140,8 @@ export async function POST(request: Request) {
       category: "notice",
       scope: "class",
       published: true,
+      attachment_url: attachment_url ?? null,
+      attachment_type: attachment_type ?? null,
       created_at: new Date().toISOString(),
     }));
 

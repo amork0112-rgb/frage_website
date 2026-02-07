@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
-import { Bell, Plus, Trash2, X, AlertCircle, Smile, ChevronDown, Check } from "lucide-react";
+import { Bell, Plus, Trash2, X, AlertCircle, Smile, ChevronDown, Check, Paperclip, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
+import { supabase } from "@/lib/supabase";
 
 type Notice = {
   id: string;
@@ -43,6 +44,9 @@ export default function TeacherNoticesPage() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [filterClassId, setFilterClassId] = useState<string>("All");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchClasses();
@@ -128,16 +132,73 @@ export default function TeacherNoticesPage() {
     });
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedClassIds.length === 0) return alert("Please select at least one class");
     
     try {
       setSubmitting(true);
+      let finalContent = newContent;
+
+      // Upload files if any
+      if (files.length > 0) {
+        setUploading(true);
+        const uploadedLinks: string[] = [];
+        
+        for (const file of files) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+          const filePath = `notices/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('notices') // Using 'notices' bucket. If it fails, we might need 'public' or 'assignments'
+            .upload(filePath, file);
+
+          if (uploadError) {
+             // Fallback to 'public' if notices bucket doesn't exist
+             console.warn("Upload to notices bucket failed, trying public...", uploadError);
+             const { error: retryError } = await supabase.storage
+                .from('public')
+                .upload(filePath, file);
+             
+             if (retryError) throw new Error(`Upload failed: ${uploadError.message}`);
+             
+             const { data } = supabase.storage.from('public').getPublicUrl(filePath);
+             uploadedLinks.push(data.publicUrl);
+          } else {
+             const { data } = supabase.storage.from('notices').getPublicUrl(filePath);
+             uploadedLinks.push(data.publicUrl);
+          }
+        }
+
+        if (uploadedLinks.length > 0) {
+           finalContent += "\n\n<hr/>\n\n**Attachments:**\n";
+           uploadedLinks.forEach((url, idx) => {
+              const file = files[idx];
+              const isImage = file.type.startsWith("image/");
+              if (isImage) {
+                 finalContent += `\n![${file.name}](${url})\n`;
+              } else {
+                 finalContent += `\n- [${file.name}](${url})\n`;
+              }
+           });
+        }
+        setUploading(false);
+      }
       
       console.log({
         title: newTitle,
-        content: newContent,
+        content: finalContent,
         class_ids: selectedClassIds,
       });
 
@@ -146,7 +207,7 @@ export default function TeacherNoticesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newTitle,
-          content: newContent,
+          content: finalContent,
           class_ids: selectedClassIds
         })
       });
@@ -160,12 +221,14 @@ export default function TeacherNoticesPage() {
       setNewTitle("");
       setNewContent("");
       setSelectedClassIds([]);
+      setFiles([]);
       setIsCreating(false);
       fetchData();
     } catch (err: any) {
       alert(err.message);
     } finally {
       setSubmitting(false);
+      setUploading(false);
     }
   };
 
@@ -281,6 +344,41 @@ export default function TeacherNoticesPage() {
                 </div>
               </div>
               <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Attachments</label>
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {files.map((file, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-sm">
+                        <Paperclip className="w-3 h-3 text-slate-400" />
+                        <span className="truncate max-w-[150px]">{file.name}</span>
+                        <button type="button" onClick={() => removeFile(idx)} className="text-slate-400 hover:text-red-500">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      multiple
+                      className="hidden"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      <Paperclip className="w-4 h-4" />
+                      Attach Files
+                    </button>
+                    <span className="text-xs text-slate-400">Images, PDF, Documents supported</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">Title</label>
                 <input
                   required
@@ -341,10 +439,22 @@ export default function TeacherNoticesPage() {
               </button>
               <button
                 type="submit"
-                disabled={submitting}
-                className="px-6 py-2 bg-frage-blue text-white font-bold rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                disabled={submitting || uploading}
+                className="px-6 py-2 bg-frage-blue text-white font-bold rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                {submitting ? "Posting..." : "Post Notice"}
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Uploading...</span>
+                  </>
+                ) : submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Posting...</span>
+                  </>
+                ) : (
+                  "Post Notice"
+                )}
               </button>
             </div>
           </form>
