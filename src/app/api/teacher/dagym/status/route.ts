@@ -1,3 +1,4 @@
+// app/api/teacher/dagym/status/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -33,7 +34,8 @@ export async function GET(req: Request) {
       .from("lesson_plans")
       .select("id", { count: "exact", head: true })
       .eq("class_id", classId)
-      .eq("date", date);
+      .gte("date", `${date}T00:00:00`)
+      .lte("date", `${date}T23:59:59`);
     
     const hasLesson = (lessonCount !== null && lessonCount > 0);
 
@@ -62,11 +64,18 @@ export async function GET(req: Request) {
     // We check if there is a special date entry that is either global (class_id is null) or specific to this class
     const { data: specialEvents } = await supabaseService
       .from("special_dates")
-      .select("id")
-      .eq("date", date)
-      .or(`class_id.eq.${classId},class_id.is.null`);
+      .select("classes")
+      .eq("date", date);
 
-    const hasEvent = (specialEvents && specialEvents.length > 0) || false;
+    let hasEvent = false;
+
+    if (specialEvents && specialEvents.length > 0) {
+      hasEvent = specialEvents.some((e: any) => {
+        const classes = e.classes;
+        if (!classes || classes.length === 0) return true; // global
+        return classes.includes(classId); // class-specific
+      });
+    }
 
     return NextResponse.json({
       alreadyGenerated,

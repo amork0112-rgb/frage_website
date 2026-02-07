@@ -18,10 +18,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
     }
 
+    // Normalize date (ensure YYYY-MM-DD)
+    const normalizedDate = date.slice(0, 10);
+
     // Call RPC
     const { data, error } = await supabase.rpc("generate_student_commitments", {
       p_class_id: class_id,
-      p_date: date
+      p_date: normalizedDate
     });
 
     if (error) {
