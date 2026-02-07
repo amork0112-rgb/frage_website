@@ -123,19 +123,39 @@ export async function POST(request: Request) {
     }
 
     const json = await request.json();
-    const { title, content, class_ids, attachment_url, attachment_type } = json;
+    console.log("POST /teacher/notices body:", json);
+    const { 
+      title, 
+      content, 
+      class_ids, 
+      class_id,
+      attachment_url, 
+      attachment_type 
+    } = json;
 
-    if (!title || !content || !class_ids || !Array.isArray(class_ids)) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    if (!title || !content) {
+      return NextResponse.json({ error: "Missing title or content" }, { status: 400 });
+    }
+
+    // ✅ class_ids OR class_id 허용
+    const targetClassIds: string[] = 
+      Array.isArray(class_ids) && class_ids.length > 0 
+        ? class_ids 
+        : class_id 
+        ? [class_id] 
+        : [];
+
+    if (targetClassIds.length === 0) {
+      return NextResponse.json({ error: "Missing class target" }, { status: 400 });
     }
 
     // Insert for each class
     // Notice type: 'notice' (default)
     // Scope: 'class'
-    const payload = class_ids.map((classId: string) => ({
+    const payload = targetClassIds.map((cid: string) => ({
       title,
       content,
-      class_id: classId,
+      class_id: cid,
       creator_id: user.id,
       category: "notice",
       scope: "class",
