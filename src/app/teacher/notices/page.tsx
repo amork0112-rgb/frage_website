@@ -1,3 +1,4 @@
+//app/teacher/notices
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
@@ -212,9 +213,16 @@ export default function TeacherNoticesPage() {
         })
       });
 
+      const text = await res.text();
+      console.log('NOTICE POST RESPONSE:', res.status, text);
+
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to create notice");
+        try {
+          const err = JSON.parse(text);
+          throw new Error(err.error || "Failed to create notice");
+        } catch {
+          throw new Error(text || "Failed to create notice");
+        }
       }
 
       // Reset and reload
