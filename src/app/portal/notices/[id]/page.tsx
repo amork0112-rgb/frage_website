@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import PortalHeader from "@/components/PortalHeader";
-import { ChevronLeft, Calendar, Eye, CheckCircle2, Heart, Smile } from "lucide-react";
+import { ChevronLeft, Calendar, Eye, CheckCircle2, Heart, Smile, FileText, Download, ImageIcon, Paperclip } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function NoticeDetailPage() {
@@ -54,6 +54,8 @@ export default function NoticeDetailPage() {
           isPinned: !!data.is_pinned,
           isArchived: !!data.is_archived,
           viewCount: data.view_count || 0,
+          attachmentUrl: data.attachment_url,
+          attachmentType: data.attachment_type,
         });
       } else {
         setServerNotice(null);
@@ -206,6 +208,68 @@ export default function NoticeDetailPage() {
                         {paragraph}
                       </p>
                     ))}
+                  </div>
+                )}
+
+                {/* Attachment Section */}
+                {notice?.attachmentUrl && (
+                  <div className="mt-8 mb-8">
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between group hover:border-blue-200 transition-colors">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                         <div className="p-2 bg-white rounded-lg shadow-sm border border-slate-100 shrink-0">
+                           {notice.attachmentType === 'pdf' ? (
+                             <FileText className="w-6 h-6 text-red-500" />
+                           ) : notice.attachmentType === 'image' ? (
+                             <ImageIcon className="w-6 h-6 text-blue-500" />
+                           ) : (
+                             <Paperclip className="w-6 h-6 text-slate-400" />
+                           )}
+                         </div>
+                         
+                         <div className="flex flex-col min-w-0">
+                           <span className="text-sm font-bold text-slate-700 truncate max-w-[150px] sm:max-w-xs">
+                             {/* Attempt to show filename, fallback to '첨부파일' */}
+                             {(() => {
+                               try {
+                                 const filename = decodeURIComponent(notice.attachmentUrl.split('/').pop()?.split('?')[0] || '');
+                                 return filename || '첨부파일';
+                               } catch {
+                                 return '첨부파일';
+                               }
+                             })()}
+                           </span>
+                           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                             {notice.attachmentType || 'FILE'}
+                           </span>
+                         </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                         {/* Preview Button (PDF only) */}
+                         {notice.attachmentType === 'pdf' && (
+                           <a 
+                             href={notice.attachmentUrl} 
+                             target="_blank" 
+                             rel="noopener noreferrer"
+                             className="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg transition-colors flex items-center gap-1.5"
+                           >
+                             <Eye className="w-3.5 h-3.5" />
+                             <span className="hidden sm:inline">미리보기</span>
+                           </a>
+                         )}
+
+                         {/* Download Button */}
+                         <a 
+                           href={notice.attachmentUrl}
+                           download
+                           target="_blank"
+                           className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                           title="다운로드"
+                         >
+                           <Download className="w-5 h-5" />
+                         </a>
+                      </div>
+                    </div>
                   </div>
                 )}
 

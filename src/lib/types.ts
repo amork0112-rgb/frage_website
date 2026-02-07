@@ -13,6 +13,8 @@ export type Post = {
   author_id: string;
   created_at: string;
   updated_at: string;
+  attachment_url?: string;
+  attachment_type?: string;
 };
 
 export type PostRevision = {

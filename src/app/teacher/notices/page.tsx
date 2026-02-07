@@ -151,6 +151,9 @@ export default function TeacherNoticesPage() {
       setSubmitting(true);
       let finalContent = newContent;
 
+      let attachmentUrl: string | null = null;
+      let attachmentType: string | null = null;
+
       // Upload files if any
       if (files.length > 0) {
         setUploading(true);
@@ -183,6 +186,7 @@ export default function TeacherNoticesPage() {
         }
 
         if (uploadedLinks.length > 0) {
+           // 1. Append to content (Markdown)
            finalContent += "\n\n<hr/>\n\n**Attachments:**\n";
            uploadedLinks.forEach((url, idx) => {
               const file = files[idx];
@@ -193,6 +197,17 @@ export default function TeacherNoticesPage() {
                  finalContent += `\n- [${file.name}](${url})\n`;
               }
            });
+
+           // 2. Set Primary Attachment (First file) for Preview/Download UI
+           attachmentUrl = uploadedLinks[0];
+           const firstFile = files[0];
+           if (firstFile.type.includes("pdf")) {
+             attachmentType = "pdf";
+           } else if (firstFile.type.startsWith("image/")) {
+             attachmentType = "image";
+           } else {
+             attachmentType = "file";
+           }
         }
         setUploading(false);
       }
@@ -201,6 +216,8 @@ export default function TeacherNoticesPage() {
         title: newTitle,
         content: finalContent,
         class_ids: selectedClassIds,
+        attachment_url: attachmentUrl,
+        attachment_type: attachmentType
       });
 
       const res = await fetch("/api/teacher/notices", {
@@ -209,7 +226,9 @@ export default function TeacherNoticesPage() {
         body: JSON.stringify({
           title: newTitle,
           content: finalContent,
-          class_ids: selectedClassIds
+          class_ids: selectedClassIds,
+          attachment_url: attachmentUrl,
+          attachment_type: attachmentType
         })
       });
 

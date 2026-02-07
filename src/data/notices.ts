@@ -19,6 +19,8 @@ export interface Notice {
     heart: number; // 좋아요
     smile: number; // 감사합니다
   };
+  attachmentUrl?: string;
+  attachmentType?: string;
 }
 
 export const notices: Notice[] = [];
