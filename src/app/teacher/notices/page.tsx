@@ -2,11 +2,10 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
-import { Bell, Plus, Trash2, X, AlertCircle, Smile, ChevronDown, Check, Paperclip, Loader2, FileText } from "lucide-react";
+import { Bell, Plus, Trash2, X, AlertCircle, Smile, ChevronDown, Check, Paperclip, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import { supabase } from "@/lib/supabase";
-import NewNoticeModal from "./NewNoticeModal";
 
 type Notice = {
   id: string;
@@ -49,7 +48,6 @@ export default function TeacherNoticesPage() {
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [isLessonPlanModalOpen, setIsLessonPlanModalOpen] = useState(false);
 
   useEffect(() => {
     fetchClasses();
@@ -288,13 +286,6 @@ export default function TeacherNoticesPage() {
               </option>
             ))}
           </select>
-          <button
-            onClick={() => setIsLessonPlanModalOpen(true)}
-            className="bg-white text-frage-blue border border-frage-blue px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-50 transition-colors shadow-sm"
-          >
-            <FileText className="w-4 h-4" />
-            Upload Lesson Plan
-          </button>
           <button
             onClick={() => setIsCreating(true)}
             className="bg-frage-blue text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-600 transition-colors shadow-sm"
@@ -539,13 +530,6 @@ export default function TeacherNoticesPage() {
           ))}
         </div>
       )}
-      {/* Lesson Plan Modal */}
-      <NewNoticeModal 
-        isOpen={isLessonPlanModalOpen} 
-        onClose={() => setIsLessonPlanModalOpen(false)} 
-        classes={classes.map(c => ({ id: c.id, name: c.name }))}
-        onSuccess={fetchNotices} 
-      />
     </div>
   );
 }

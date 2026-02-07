@@ -1,9 +1,14 @@
+// components/EnableNotificationButton.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { Bell } from "lucide-react";
 
-export default function EnableNotificationButton() {
+export default function EnableNotificationButton({ 
+  onEnabled, 
+}: { 
+  onEnabled?: () => void; 
+}) {
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [isSupported, setIsSupported] = useState(false);
 
@@ -25,10 +30,7 @@ export default function EnableNotificationButton() {
       setPermission(result);
 
       if (result === "granted") {
-        // 여기에 FCM 토큰 발급 로직 추가 가능
-        // const token = await getToken(messaging, { vapidKey: '...' });
-        // await saveTokenToServer(token);
-        alert("알림이 허용되었습니다! 🎉");
+        onEnabled?.(); // 🔥 이 한 줄이 핵심
       } else if (result === "denied") {
         alert("알림이 차단되었습니다. 설정에서 변경해주세요.");
       }

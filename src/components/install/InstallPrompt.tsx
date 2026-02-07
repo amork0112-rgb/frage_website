@@ -48,6 +48,24 @@ export default function InstallPrompt() {
     }
   };
 
+  const handleNotificationEnabled = async () => {
+    setLoading(true);
+    try {
+      await fetch("/api/user/onboarding/complete", {
+        method: "POST",
+      });
+    } catch (e) {
+      console.error("Failed to complete onboarding", e);
+    } finally {
+      router.push("/auth/redirect"); // 🔥 여기서 포털 분기
+    }
+  };
+
+  if (!isAndroid && !isIOS) return null; // Or show something else for desktop?
+  // Actually the prompt says "앱으로 더 편하게" so maybe just hide on desktop if desired, 
+  // but logic says we are showing it based on ua check results. 
+  // Let's stick to existing render logic but update the JSX.
+
   return (
     <div className="w-full max-w-md text-center bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
       <div className="w-16 h-16 bg-frage-navy rounded-2xl mx-auto mb-6 flex items-center justify-center text-white text-2xl font-black shadow-lg">
@@ -73,7 +91,9 @@ export default function InstallPrompt() {
       </div>
 
       <div className="mb-8">
-        <EnableNotificationButton />
+        <EnableNotificationButton 
+          onEnabled={handleNotificationEnabled}
+        />
       </div>
 
       <button
