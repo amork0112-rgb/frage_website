@@ -1,7 +1,7 @@
 //app/api/teacher/video-submissions/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { resolveUserRole } from "@/lib/auth/resolveUserRole";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -23,15 +23,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user is teacher/admin
-    const role = await resolveUserRole(user);
-    const allowed = ["teacher", "admin", "master_teacher", "master_admin"];
-    if (!allowed.includes(role)) {
-       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // 1. Teacher Check (DB Source of Truth)
+    // Use supabaseService for role check to avoid RLS on teachers table if needed,
+    // though createSupabaseServer() might work if RLS allows self-read.
+    // Given the pattern, let's use supabaseService for the role check to be safe and consistent.
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id, role, campus")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (!teacher) {
+      return NextResponse.json({ error: "Forbidden: Teacher only" }, { status: 403 });
     }
 
     // Fetch Submissions
-    const { data: submissions, error: subError } = await supabase
+    // NOTE: Using supabaseService here as well to ensure consistent data access without RLS blocking teacher view of student data
+    const { data: submissions, error: subError } = await supabaseService
       .from("portal_video_submissions")
       .select("*")
       .eq("assignment_key", targetKey);
@@ -39,7 +47,7 @@ export async function GET(request: Request) {
     if (subError) throw subError;
 
     // Fetch Feedback
-    const { data: feedback, error: feedError } = await supabase
+    const { data: feedback, error: feedError } = await supabaseService
       .from("portal_video_feedback")
       .select("*")
       .eq("assignment_key", targetKey);

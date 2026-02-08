@@ -1,22 +1,28 @@
 // app/api/teacher/notices/[id]/route.ts
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabaseService = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  
+  const supabaseAuth = createSupabaseServer();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const token = authHeader.replace("Bearer ", "");
-  const { data: { user }, error: authError } = await supabaseService.auth.getUser(token);
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // 1. Teacher Check (DB Source of Truth)
+  const { data: teacher } = await supabaseService
+    .from("teachers")
+    .select("id, role, campus")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (!teacher) {
+    return NextResponse.json({ error: "Forbidden: Teacher only" }, { status: 403 });
+  }
 
   // Verify ownership
   const { data: post } = await supabaseService
@@ -61,16 +67,21 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabaseService = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  
+  const supabaseAuth = createSupabaseServer();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const token = authHeader.replace("Bearer ", "");
-  const { data: { user }, error: authError } = await supabaseService.auth.getUser(token);
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // 1. Teacher Check (DB Source of Truth)
+  const { data: teacher } = await supabaseService
+    .from("teachers")
+    .select("id, role, campus")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (!teacher) {
+    return NextResponse.json({ error: "Forbidden: Teacher only" }, { status: 403 });
+  }
 
   // Verify ownership
   const { data: post } = await supabaseService

@@ -21,6 +21,8 @@ export interface Notice {
   };
   attachmentUrl?: string;
   attachmentType?: string;
+  attachment_url?: string;
+  attachment_type?: string;
 }
 
 export const notices: Notice[] = [];

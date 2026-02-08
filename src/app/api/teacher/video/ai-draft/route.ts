@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { generateFeedbackDraft } from "@/lib/ai/grading";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { resolveUserRole } from "@/lib/auth/resolveUserRole";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function POST(req: Request) {
   try {
@@ -10,9 +10,15 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const role = await resolveUserRole(user);
-    if (!["teacher", "master_teacher", "admin", "master_admin"].includes(role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // 1. Teacher Check (DB Source of Truth)
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id, role, campus")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (!teacher) {
+      return NextResponse.json({ error: "Forbidden: Teacher only" }, { status: 403 });
     }
 
     const body = await req.json();

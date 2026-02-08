@@ -28,6 +28,17 @@ export async function GET(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // 1. Teacher Check (DB Source of Truth)
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id, role, campus")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (!teacher) {
+      return NextResponse.json({ error: "Forbidden: Teacher only" }, { status: 403 });
+    }
+
     // 1. Check if already generated (any commitment exists for this class & date)
     const { data: existing } = await supabaseService
       .from("student_commitments")

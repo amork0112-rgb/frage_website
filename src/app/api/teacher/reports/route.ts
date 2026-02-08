@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
-import { resolveUserRole } from "@/lib/auth/resolveUserRole";
+
 // RLS enforced: use SSR client only
 
 export const dynamic = "force-dynamic";
@@ -12,20 +12,17 @@ export async function GET(req: Request) {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
     
-    const role = await resolveUserRole(user);
-
-    const teacherRoles = ["teacher", "master_teacher"];
-    if (!teacherRoles.includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
-
-    const { data: teacher } = await supabaseAuth
+    // 1. Teacher Check (DB Source of Truth)
+    const { data: teacher } = await supabaseService
       .from("teachers")
-      .select("id")
+      .select("id, role, campus")
       .eq("auth_user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (!teacher?.id) {
+    if (!teacher) {
       return NextResponse.json({ ok: false, error: "teacher_profile_not_found" }, { status: 403 });
     }
+
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId") || searchParams.get("student_id") || "";
     const month = searchParams.get("month") || "";
@@ -158,18 +155,15 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
     
-    const role = await resolveUserRole(user);
-    const teacherRoles = ["teacher", "master_teacher"];
-    if (!teacherRoles.includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
-
-    const { data: teacher } = await supabaseAuth
+    // 1. Teacher Check (DB Source of Truth)
+    const { data: teacher } = await supabaseService
       .from("teachers")
-      .select("id")
+      .select("id, role, campus")
       .eq("auth_user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (!teacher?.id) {
-      return NextResponse.json({ ok: false, error: "teacher_profile_not_found" }, { status: 403 });
+    if (!teacher) {
+      return NextResponse.json({ ok: false, error: "Forbidden: Teacher only" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -185,7 +179,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
     }
 
-    const { data: student, error: studentError } = await supabaseAuth
+    const { data: student, error: studentError } = await supabaseService
       .from("v_students_full")
       .select("student_id")
       .eq("student_id", studentId)
@@ -214,7 +208,7 @@ export async function POST(req: Request) {
       status: "작성중",
       updated_at: now,
     };
-    const { error } = await supabaseAuth
+    const { error } = await supabaseService
       .from("teacher_reports")
       .upsert(payload, { onConflict: "student_id,month" });
     if (error) {
@@ -234,16 +228,24 @@ export async function PUT(req: Request) {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
     
-    const role = await resolveUserRole(user);
+    // 1. Teacher Check (DB Source of Truth)
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id, role, campus")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
 
-    if (!["teacher", "master_teacher"].includes(role)) return NextResponse.json({ ok: false }, { status: 403 });
+    if (!teacher) {
+      return NextResponse.json({ ok: false, error: "Forbidden: Teacher only" }, { status: 403 });
+    }
+
     const body = await req.json();
     const { studentId, month, status } = body || {};
     if (!studentId || !month || !status) {
       return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
     }
     const now = new Date().toISOString();
-    const { error } = await supabaseAuth
+    const { error } = await supabaseService
       .from("teacher_reports")
       .update({ status, updated_at: now })
       .eq("student_id", studentId)
@@ -253,7 +255,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ ok: false }, { status: 500 });
     }
     if (status === "발송요청") {
-      await supabaseAuth
+      await supabaseService
         .from("teacher_reports")
         .update({ status: "발송완료", updated_at: now })
         .eq("student_id", studentId)

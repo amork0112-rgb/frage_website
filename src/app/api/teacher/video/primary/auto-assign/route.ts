@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
-import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +13,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const role = await resolveUserRole(user);
-    // Allow admin and master_teacher
-    if (!["admin", "master_teacher"].includes(role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // 1. Teacher Check (DB Source of Truth)
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id, role, campus")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (!teacher) {
+      return NextResponse.json({ error: "Forbidden: Teacher only" }, { status: 403 });
+    }
+    
+    // Only admin or master_teacher can auto-assign
+    if (!["admin", "master_teacher"].includes(teacher.role)) {
+       return NextResponse.json({ error: "Forbidden: Master Teacher or Admin only" }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);

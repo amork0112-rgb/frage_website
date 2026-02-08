@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
-import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 const json = (data: any, status = 200) =>
   new NextResponse(JSON.stringify(data), {
@@ -17,10 +16,14 @@ export async function GET() {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
     
-    const role = await resolveUserRole(user);
+    // 1. Teacher Check (DB Source of Truth)
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id, role, campus")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
 
-    const teacherRoles = ["teacher", "master_teacher", "admin", "master_admin"];
-    if (!teacherRoles.includes(role)) {
+    if (!teacher) {
       return json({ error: "forbidden" }, 403);
     }
 
@@ -98,62 +101,46 @@ export async function PUT(req: Request) {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return json({ error: "unauthorized" }, 401);
     
-    const role = await resolveUserRole(user);
-    
-    const teacherRoles = ["teacher", "master_teacher", "admin", "master_admin"];
-    if (!teacherRoles.includes(role)) {
+    // 1. Teacher Check (DB Source of Truth)
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id, role, campus")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (!teacher) {
       return json({ error: "forbidden" }, 403);
     }
-    let teacherId: string | null = null;
-    if (role === "teacher" || role === "master_teacher") {
-      const { data: teacher } = await supabaseService
-        .from("teachers")
-        .select("id")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      teacherId = teacher?.id ? String(teacher.id) : null;
-      if (!teacherId) {
-        return json({ error: "teacher_profile_not_found" }, 403);
-      }
-    }
-    const body = await req.json();
-    const studentId = String(body.studentId ?? body.student_id ?? "");
-    const key = String(body.key ?? body.stepKey ?? body.step_key ?? "");
-    const checked = Boolean(body.checked ?? false);
-    if (!studentId || !key) {
-      console.error("PUT /api/teacher/new-students missing params", body);
-      return json({ error: "missing studentId or step_key" }, 400);
-    }
-
-    const payload = {
-      student_id: studentId,
-      step_key: key,
-      step_label: key,
-      checked,
-      checked_at: checked ? new Date().toISOString() : null,
-      teacher_id: teacherId || String(user.id),
-    };
-
-    const { error } = await supabaseService
-      .from("new_student_checklists")
-      .upsert(payload, { onConflict: "student_id,step_key" });
-    if (error) {
-      console.error("TEACHER CHECKLIST UPSERT ERROR", error);
-      return json({ error: error.message }, 400);
-    }
-
     
+    const body = await req.json();
+    const { studentId, key, checked } = body;
+    if (!studentId || !key) return json({ error: "bad_request" }, 400);
 
-    console.log("[TEACHER_NEW_STUDENT_PROGRESS]", {
-      teacherId: teacherId || String(user.id),
-      studentId,
-      stepKey: key,
-      checked,
-      timestamp: new Date().toISOString(),
-    });
+    const now = new Date().toISOString();
+    
+    // Use supabaseService to write
+    if (checked) {
+      const { error } = await supabaseService
+        .from("new_student_checklists")
+        .upsert({
+          student_id: studentId,
+          step_key: key,
+          checked: true,
+          checked_at: now,
+          checked_by: user.id, // Keep user ID for audit, or use teacher.id
+        }, { onConflict: "student_id,step_key" });
+      if (error) return json({ error: "upsert_failed" }, 500);
+    } else {
+      const { error } = await supabaseService
+        .from("new_student_checklists")
+        .delete()
+        .eq("student_id", studentId)
+        .eq("step_key", key);
+      if (error) return json({ error: "delete_failed" }, 500);
+    }
 
     return json({ ok: true });
   } catch {
-    return json({ error: "invalid" }, 400);
+    return json({ error: "unexpected" }, 500);
   }
 }

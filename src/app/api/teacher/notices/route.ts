@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
-import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export const dynamic = "force-dynamic";
 
@@ -17,21 +16,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const role = await resolveUserRole(user);
-    let teacherId: string | null = null;
+    // 1. Teacher Check (DB Source of Truth)
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id, role, campus")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
 
-    if (role === "teacher") {
-      const { data: teacher } = await supabaseService
-        .from("teachers")
-        .select("id")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      if (teacher) teacherId = teacher.id;
-    }
-
-    if (!["teacher", "master_teacher", "admin"].includes(role)) {
+    if (!teacher) {
       return NextResponse.json({ error: "Forbidden: Teacher only" }, { status: 403 });
     }
+    const teacherId = teacher.id;
+    const role = teacher.role;
 
     // 2. Query Params
     const { searchParams } = new URL(request.url);
@@ -136,10 +132,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const role = await resolveUserRole(user);
-    if (!["teacher", "master_teacher", "admin"].includes(role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // 1. Teacher Check (DB Source of Truth)
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id, role, campus")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (!teacher) {
+      return NextResponse.json({ error: "Forbidden: Teacher only" }, { status: 403 });
     }
+    // const role = teacher.role; // not used in POST logic specifically, but we confirmed teacher existence
 
     const json = await request.json();
     console.log("POST /teacher/notices body:", json);

@@ -1,6 +1,7 @@
 //app/api/teacher/dagym/generate/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export async function POST(req: Request) {
   try {
@@ -18,11 +19,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
     }
 
+    // 1. Teacher Check (DB Source of Truth)
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id, role, campus")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (!teacher) {
+      return NextResponse.json({ ok: false, reason: "forbidden" }, { status: 403 });
+    }
+
     // Normalize date (ensure YYYY-MM-DD)
     const normalizedDate = date.slice(0, 10);
 
     // Call RPC
-    const { data, error } = await supabase.rpc("generate_student_commitments", {
+    const { data, error } = await supabaseService.rpc("generate_student_commitments", {
       p_class_id: class_id,
       p_date: normalizedDate
     });
