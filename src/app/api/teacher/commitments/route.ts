@@ -49,7 +49,6 @@ export async function GET(req: Request) {
         english_first_name
       `)
       .eq("main_class", classId)
-      .eq("dajim_enabled", true)
       .order("student_name");
 
     if (studentError) {

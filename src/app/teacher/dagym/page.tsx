@@ -56,7 +56,9 @@ export default function TeacherCoachingPage() {
 
   // Helper to get today's weekday
   const getTodayWeekday = () => {
-    const dayIndex = new Date().getDay(); // 0=Sun, 1=Mon...
+    if (!date) return "";
+    const d = new Date(date);
+    const dayIndex = d.getUTCDay(); // Use UTC day since date string is YYYY-MM-DD (UTC midnight)
     const map = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
     return map[dayIndex];
   };
@@ -343,7 +345,7 @@ export default function TeacherCoachingPage() {
                     ))}
                     {subjects.length === 0 && (
                       <th className="px-6 py-4 text-sm text-slate-400 font-normal italic">
-                        No subjects scheduled for today
+                        No subjects scheduled for this date.
                       </th>
                     )}
                   </tr>
