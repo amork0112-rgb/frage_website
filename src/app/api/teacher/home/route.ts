@@ -132,3 +132,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+/*
+// Test in Browser Console:
+fetch("/api/teacher/home", {
+  credentials: "include",
+})
+  .then(r => r.json())
+  .then(console.log)
+*/

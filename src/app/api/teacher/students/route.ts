@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
-import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 type Status = "waiting" | "consultation_reserved" | "consult_done" | "approved" | "promoted" | "rejected" | "hold";
 
@@ -41,8 +40,14 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 401 });
     
-    const role = await resolveUserRole(user);
-    if (role !== "teacher" && role !== "admin" && role !== "master_teacher" && role !== "master_admin") {
+    // 1. Teacher Check
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id, role, campus")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (!teacher) {
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 403 });
     }
 
@@ -68,20 +73,36 @@ export async function GET(request: Request) {
       `, { count: "exact" });
 
     // Filter by Campus
-    if (campusParam && campusParam !== "All") {
-      // Filter strictly by classes in the selected campus
+    // master_teacher can see all if they want, but default to their campus if not "All"
+    // regular teacher restricted to their campus
+    if (teacher.role !== "master_teacher") {
+      // Force campus filter for regular teachers
       const { data: campusClasses } = await supabaseService
         .from("classes")
         .select("id")
-        .eq("campus", campusParam);
-
-      const validClassIds = campusClasses?.map((c: any) => c.id) || [];
+        .eq("campus", teacher.campus);
       
+      const validClassIds = campusClasses?.map((c: any) => c.id) || [];
       if (validClassIds.length > 0) {
         query = query.in("main_class", validClassIds);
       } else {
-        // No classes found -> No students
         query = query.in("main_class", []);
+      }
+    } else {
+      // Master Teacher
+      if (campusParam && campusParam !== "All") {
+        const { data: campusClasses } = await supabaseService
+          .from("classes")
+          .select("id")
+          .eq("campus", campusParam);
+  
+        const validClassIds = campusClasses?.map((c: any) => c.id) || [];
+        
+        if (validClassIds.length > 0) {
+          query = query.in("main_class", validClassIds);
+        } else {
+          query = query.in("main_class", []);
+        }
       }
     }
 
