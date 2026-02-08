@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, X, Triangle, Square, ChevronDown } from "lucide-react";
+import { Check, X, Triangle, Square, ChevronDown, Bell, BellOff, BellRing } from "lucide-react";
 
 // Types
 type CommitmentStatus = "unchecked" | "done" | "partial" | "not_done";
@@ -51,12 +51,7 @@ export default function TeacherCoachingPage() {
   
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-
-  // Generation Status
-  const [alreadyGenerated, setAlreadyGenerated] = useState(false);
-  const [canGenerate, setCanGenerate] = useState(false); // based on schedule
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [statusLoaded, setStatusLoaded] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState<"disabled" | "enabled" | "sent">("disabled");
 
   // Fetch Classes on Mount or Campus Change
   useEffect(() => {
@@ -85,15 +80,9 @@ export default function TeacherCoachingPage() {
 
     async function fetchData() {
       setLoading(true);
-      setStatusLoaded(false);
       try {
-        const [resData, resStatus] = await Promise.all([
-            fetch(`/api/teacher/commitments?class_id=${selectedClassId}&date=${date}`),
-            fetch(`/api/teacher/dagym/status?class_id=${selectedClassId}&date=${date}`)
-        ]);
-
+        const resData = await fetch(`/api/teacher/commitments?class_id=${selectedClassId}&date=${date}`);
         const data = await resData.json();
-        const status = await resStatus.json();
 
         if (data.error) throw new Error(data.error);
 
@@ -107,18 +96,6 @@ export default function TeacherCoachingPage() {
         });
         setCommitments(map);
 
-        // Handle Status
-        if (!status.error) {
-           setAlreadyGenerated(status.alreadyGenerated);
-           // Button Enable Rules: !alreadyGenerated AND hasLesson
-           const available = !status.alreadyGenerated && status.hasLesson;
-           setCanGenerate(available);
-        } else {
-           console.error("Status error:", status.error);
-           setCanGenerate(false);
-        }
-        setStatusLoaded(true);
-
       } catch (e) {
         console.error("Failed to fetch data", e);
         showToast("Failed to load data", "error");
@@ -130,59 +107,25 @@ export default function TeacherCoachingPage() {
     fetchData();
   }, [selectedClassId, date]);
 
-  const handleGenerate = async () => {
-    if (isGenerating || !canGenerate) return;
-    
-    setIsGenerating(true);
-    try {
-      const res = await fetch("/api/teacher/dagym/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ class_id: selectedClassId, date })
-      });
-      const json = await res.json();
+  // Check Notification Permission
+  useEffect(() => {
+    if (Notification.permission === "granted") {
+      setNotificationsEnabled("enabled");
+    } else {
+      setNotificationsEnabled("disabled");
+    }
+  }, []);
 
-      if (json.ok) {
-        showToast("Today’s dagym has been generated successfully.", "success");
-        setAlreadyGenerated(true);
-        setCanGenerate(false);
-        
-        // Refresh grid
-        const resData = await fetch(`/api/teacher/commitments?class_id=${selectedClassId}&date=${date}`);
-        const data = await resData.json();
-        if (!data.error) {
-           setStudents(data.students || []);
-           setSubjects(data.subjects || []);
-           const map: Record<string, CommitmentStatus> = {};
-           (data.commitments || []).forEach((c: any) => {
-             map[`${c.student_id}-${c.book_id}-${date}`] = c.status;
-           });
-           setCommitments(map);
-        }
-      } else {
-        if (json.reason === "already_generated") {
-           showToast("Today’s dagym has already been generated.", "error");
-           setAlreadyGenerated(true);
-           setCanGenerate(false);
-        } else if (json.reason === "not_available_today") {
-           showToast("Dagym is not available today due to the schedule.", "error");
-           setCanGenerate(false);
-        } else {
-           showToast("An error occurred while generating today’s dagym.", "error");
-        }
-      }
-    } catch (e) {
-      showToast("An error occurred while generating today’s dagym.", "error");
-    } finally {
-      setIsGenerating(false);
+  const requestNotificationPermission = async () => {
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      setNotificationsEnabled("enabled");
+      showToast("Notifications enabled", "success");
     }
   };
 
   // Handlers
   const handleCellClick = async (studentId: string, bookId: string) => {
-    // Guard: Block clicks if not generated yet
-    if (!alreadyGenerated) return;
-
     const key = `${studentId}-${bookId}-${date}`;
     const currentStatus = commitments[key] || "unchecked";
     const nextStatus = NEXT_STATUS[currentStatus];
@@ -206,7 +149,7 @@ export default function TeacherCoachingPage() {
 
       if (!res.ok) throw new Error("Save failed");
       
-      showToast("✓ Saved", "success");
+      // Removed generic "Saved" toast to reduce noise
     } catch (e) {
       console.error(e);
       // Revert on failure
@@ -225,6 +168,39 @@ export default function TeacherCoachingPage() {
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.unchecked;
     const Icon = config.icon;
     return <Icon className={`w-6 h-6 ${config.color}`} />;
+  };
+
+  const renderNotificationStatus = () => {
+    switch (notificationsEnabled) {
+      case "enabled":
+        return (
+          <button 
+            className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors"
+            title="Notifications are enabled for this device"
+          >
+            <BellRing className="w-3.5 h-3.5" />
+            <span className="font-medium">Notifications On</span>
+          </button>
+        );
+      case "disabled":
+        return (
+          <button 
+            onClick={requestNotificationPermission}
+            className="flex items-center gap-2 text-xs text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full hover:bg-slate-200 transition-colors"
+            title="Click to enable notifications"
+          >
+            <BellOff className="w-3.5 h-3.5" />
+            <span className="font-medium">Enable Notifications</span>
+          </button>
+        );
+      case "sent":
+        return (
+          <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full">
+            <Check className="w-3.5 h-3.5" />
+            <span className="font-medium">Sent to Parents</span>
+          </div>
+        );
+    }
   };
 
   return (
@@ -276,29 +252,49 @@ export default function TeacherCoachingPage() {
               className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+          
+          {/* Right Actions */}
+          <div className="flex items-center gap-3">
+             {renderNotificationStatus()}
+          </div>
+        </div>
+        
+        {/* Today's Classes Quick Select */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 border-t border-slate-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <span className="text-xs font-bold text-slate-500 whitespace-nowrap mr-2">Today's Classes:</span>
+          {classes.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setSelectedClassId(c.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                selectedClassId === c.id
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+          {classes.length === 0 && (
+            <span className="text-xs text-slate-400 italic">No classes found</span>
+          )}
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* Generator Section */}
-        {statusLoaded && (
-          <div className="mb-6 flex flex-col items-start gap-1">
-            <button
-              onClick={handleGenerate}
-              disabled={!canGenerate || isGenerating}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
-                !canGenerate || isGenerating
-                  ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-              }`}
-            >
-              {alreadyGenerated ? "Today’s Dagym Generated" : isGenerating ? "Generating..." : "Generate Today’s Dagym"}
-            </button>
-            <span className="text-xs text-slate-400">This action can only be performed once per day.</span>
-          </div>
-        )}
+        {/* Instruction Text */}
+        <div className="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-4">
+          <h2 className="text-sm font-bold text-blue-900 mb-2">Today’s Coaching</h2>
+          <p className="text-sm text-blue-800 leading-relaxed">
+            Click each subject to record today’s coaching result.
+            <br />
+            Each click cycles through: <span className="font-bold">Done</span> → <span className="font-bold">Partial</span> → <span className="font-bold">Not done</span> → <span className="font-bold">Reset</span>.
+            <br />
+            Changes are saved automatically.
+          </p>
+        </div>
 
         {loading && students.length === 0 ? (
           <div className="flex justify-center py-20">
@@ -341,11 +337,7 @@ export default function TeacherCoachingPage() {
                         <td
                           key={`${student.id}-${sub.id}`}
                           onClick={() => handleCellClick(student.id, sub.id)}
-                          className={`px-6 py-4 text-center transition-colors select-none ${
-                            alreadyGenerated 
-                              ? "cursor-pointer hover:bg-slate-100" 
-                              : "cursor-not-allowed opacity-50"
-                          }`}
+                          className="px-6 py-4 text-center transition-colors select-none cursor-pointer hover:bg-slate-100"
                         >
                           <div className="flex justify-center">
                             {renderIcon(commitments[`${student.id}-${sub.id}-${date}`] || "unchecked")}
