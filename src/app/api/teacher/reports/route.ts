@@ -13,11 +13,16 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
     
     // 1. Teacher Check (DB Source of Truth)
-    const { data: teacher } = await supabaseService
+    const { data: teacher, error: teacherError } = await supabaseService
       .from("teachers")
       .select("id, role, campus")
       .eq("auth_user_id", user.id)
       .maybeSingle();
+
+    if (teacherError) {
+      console.error("❌ teachers query failed", teacherError);
+      return NextResponse.json({ ok: false, error: "Teacher query error" }, { status: 500 });
+    }
 
     if (!teacher) {
       return NextResponse.json({ ok: false, error: "teacher_profile_not_found" }, { status: 403 });
@@ -156,11 +161,19 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
     
     // 1. Teacher Check (DB Source of Truth)
-    const { data: teacher } = await supabaseService
+    const { data: teacher, error: teacherError } = await supabaseService
       .from("teachers")
       .select("id, role, campus")
       .eq("auth_user_id", user.id)
       .maybeSingle();
+
+    if (teacherError) {
+      console.error("❌ teachers query failed", teacherError);
+      return NextResponse.json(
+        { error: "Teacher query error" },
+        { status: 500 }
+      );
+    }
 
     if (!teacher) {
       return NextResponse.json({ ok: false, error: "Forbidden: Teacher only" }, { status: 403 });
@@ -229,11 +242,19 @@ export async function PUT(req: Request) {
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
     
     // 1. Teacher Check (DB Source of Truth)
-    const { data: teacher } = await supabaseService
+    const { data: teacher, error: teacherError } = await supabaseService
       .from("teachers")
       .select("id, role, campus")
       .eq("auth_user_id", user.id)
       .maybeSingle();
+
+    if (teacherError) {
+      console.error("❌ teachers query failed", teacherError);
+      return NextResponse.json(
+        { error: "Teacher query error" },
+        { status: 500 }
+      );
+    }
 
     if (!teacher) {
       return NextResponse.json({ ok: false, error: "Forbidden: Teacher only" }, { status: 403 });

@@ -32,11 +32,19 @@ export async function GET(req: Request) {
     // usually requires admin privileges or proper RLS.
     // Given the pattern, let's switch to supabaseService for data access to be safe
     // and rely on this explicit teacher check for security.
-    const { data: teacher } = await supabaseService
+    const { data: teacher, error: teacherError } = await supabaseService
       .from("teachers")
       .select("id, role, campus")
       .eq("auth_user_id", user.id)
       .maybeSingle();
+
+    if (teacherError) {
+      console.error("❌ teachers query failed", teacherError);
+      return NextResponse.json(
+        { error: "Teacher query error" },
+        { status: 500 }
+      );
+    }
 
     if (!teacher) {
       return NextResponse.json({ ok: false, error: "Forbidden: Teacher only" }, { status: 403 });

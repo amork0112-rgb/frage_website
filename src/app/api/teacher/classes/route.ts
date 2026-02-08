@@ -15,11 +15,19 @@ export async function GET(request: Request) {
     if (!user) return NextResponse.json([], { status: 401 });
 
     // 1️⃣ Teacher 존재 여부로 권한 판단
-    const { data: teacher } = await supabaseService
+    const { data: teacher, error: teacherError } = await supabaseService
       .from("teachers")
       .select("id, role, campus")
       .eq("auth_user_id", user.id)
       .maybeSingle();
+
+    if (teacherError) {
+      console.error("❌ teachers query failed", teacherError);
+      return NextResponse.json(
+        { error: "Teacher query error" },
+        { status: 500 }
+      );
+    }
 
     if (!teacher) {
       return NextResponse.json([], { status: 403 });

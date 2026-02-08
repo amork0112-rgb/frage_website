@@ -56,7 +56,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   if (user) {
     // Teachers/Admins are in the teachers table
-    const { data: teacher } = await supabase
+    // Use supabaseService to bypass RLS and ensure accurate role check
+    const { data: teacher } = await supabaseService
       .from("teachers")
       .select("id")
       .eq("auth_user_id", user.id)

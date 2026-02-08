@@ -17,11 +17,16 @@ export async function GET() {
     if (!user) return json({ error: "unauthorized" }, 401);
     
     // 1. Teacher Check (DB Source of Truth)
-    const { data: teacher } = await supabaseService
+    const { data: teacher, error: teacherError } = await supabaseService
       .from("teachers")
       .select("id, role, campus")
       .eq("auth_user_id", user.id)
       .maybeSingle();
+
+    if (teacherError) {
+      console.error("❌ teachers query failed", teacherError);
+      return json({ error: "Teacher query error" }, 500);
+    }
 
     if (!teacher) {
       return json({ error: "forbidden" }, 403);

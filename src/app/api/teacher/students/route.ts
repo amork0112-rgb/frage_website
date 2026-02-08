@@ -41,11 +41,16 @@ export async function GET(request: Request) {
     if (!user) return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 401 });
     
     // 1. Teacher Check
-    const { data: teacher } = await supabaseService
+    const { data: teacher, error: teacherError } = await supabaseService
       .from("teachers")
       .select("id, role, campus")
       .eq("auth_user_id", user.id)
       .maybeSingle();
+
+    if (teacherError) {
+      console.error("❌ teachers query failed", teacherError);
+      return NextResponse.json({ items: [], total: 0, page, pageSize, error: "Teacher query error" }, { status: 500 });
+    }
 
     if (!teacher) {
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 403 });

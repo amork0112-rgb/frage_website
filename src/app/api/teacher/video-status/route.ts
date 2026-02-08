@@ -22,11 +22,19 @@ export async function GET(request: Request) {
     }
 
     // 1. Teacher Check (DB Source of Truth)
-    const { data: teacher } = await supabaseService
+    const { data: teacher, error: teacherError } = await supabaseService
       .from("teachers")
       .select("id, role, campus")
       .eq("auth_user_id", user.id)
       .maybeSingle();
+
+    if (teacherError) {
+      console.error("❌ teachers query failed", teacherError);
+      return NextResponse.json(
+        { error: "Teacher query error" },
+        { status: 500 }
+      );
+    }
 
     if (!teacher) {
       return NextResponse.json({ error: "Forbidden: Teacher only" }, { status: 403 });

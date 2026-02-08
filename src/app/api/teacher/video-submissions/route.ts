@@ -27,11 +27,19 @@ export async function GET(request: Request) {
     // Use supabaseService for role check to avoid RLS on teachers table if needed,
     // though createSupabaseServer() might work if RLS allows self-read.
     // Given the pattern, let's use supabaseService for the role check to be safe and consistent.
-    const { data: teacher } = await supabaseService
+    const { data: teacher, error: teacherError } = await supabaseService
       .from("teachers")
       .select("id, role, campus")
       .eq("auth_user_id", user.id)
       .maybeSingle();
+
+    if (teacherError) {
+      console.error("❌ teachers query failed", teacherError);
+      return NextResponse.json(
+        { error: "Teacher query error" },
+        { status: 500 }
+      );
+    }
 
     if (!teacher) {
       return NextResponse.json({ error: "Forbidden: Teacher only" }, { status: 403 });

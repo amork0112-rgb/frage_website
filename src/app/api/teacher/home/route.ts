@@ -1,3 +1,4 @@
+//app/api/teacher/home/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -18,11 +19,19 @@ export async function GET(request: Request) {
     }
 
     // 2️⃣ teachers 테이블에서 권한 확인 (⭐ 핵심)
-    const { data: teacher } = await supabaseService
+    const { data: teacher, error: teacherError } = await supabaseService
       .from("teachers")
       .select("id, role, name, class_name")
       .eq("auth_user_id", user.id)
       .maybeSingle();
+
+    if (teacherError) {
+      console.error("❌ teachers query failed", teacherError);
+      return NextResponse.json(
+        { error: "Teacher query error" },
+        { status: 500 }
+      );
+    }
 
     if (!teacher) {
       return NextResponse.json({ error: "Not a teacher" }, { status: 403 });
