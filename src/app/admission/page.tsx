@@ -38,15 +38,35 @@ export default function AdmissionPage() {
     (async () => {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
+
       if (!user) {
         router.replace("/portal");
         return;
       }
-      const { data: parent } = await supabase.from("parents").select("id").eq("auth_user_id", user.id).maybeSingle();
+
+      // 🔥 역할 확인 추가
+      const { data: teacher } = await supabase
+        .from("teachers")
+        .select("id")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+
+      if (teacher) {
+        router.replace("/teacher/home"); // ✅ 여기서 바로 차단
+        return;
+      }
+
+      const { data: parent } = await supabase
+        .from("parents")
+        .select("id")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+
       if (!parent) {
         router.replace("/portal");
         return;
       }
+
       setAuthorized(true);
       setAuthChecked(true);
     })();
