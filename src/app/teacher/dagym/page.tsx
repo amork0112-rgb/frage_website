@@ -43,6 +43,7 @@ export default function TeacherCoachingPage() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [date, setDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [selectedCampus, setSelectedCampus] = useState<string>("All");
   
   const [students, setStudents] = useState<Student[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -57,22 +58,26 @@ export default function TeacherCoachingPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [statusLoaded, setStatusLoaded] = useState(false);
 
-  // Fetch Classes on Mount
+  // Fetch Classes on Mount or Campus Change
   useEffect(() => {
     async function fetchClasses() {
       try {
-        const res = await fetch("/api/teacher/classes", { cache: "no-store", credentials: "include" });
+        const res = await fetch(`/api/teacher/classes?campus=${selectedCampus}`, { cache: "no-store", credentials: "include" });
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setClasses(data);
-          setSelectedClassId(data[0].id || "");
+          if (data.length > 0) {
+            setSelectedClassId(data[0].id || "");
+          } else {
+            setSelectedClassId("");
+          }
         }
       } catch (e) {
         console.error("Failed to fetch classes", e);
       }
     }
     fetchClasses();
-  }, []);
+  }, [selectedCampus]);
 
   // Fetch Commitments when class/date changes
   useEffect(() => {
@@ -230,6 +235,22 @@ export default function TeacherCoachingPage() {
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <h1 className="text-xl font-bold text-slate-900 hidden sm:block">Today's Coaching</h1>
             
+            {/* Campus Selector */}
+            <div className="relative">
+              <select
+                value={selectedCampus}
+                onChange={(e) => setSelectedCampus(e.target.value)}
+                className="w-full sm:w-auto pl-3 pr-10 py-2 border border-slate-200 rounded-lg text-sm font-medium bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+              >
+                <option value="All">All Campuses</option>
+                <option value="International">International</option>
+                <option value="Andover">Andover</option>
+                <option value="Platz">Platz</option>
+                <option value="Atheneum">Atheneum</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+
             {/* Class Selector */}
             <div className="relative flex-1 sm:flex-none">
               <select

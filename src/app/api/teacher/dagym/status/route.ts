@@ -10,11 +10,14 @@ export async function GET(req: Request) {
     const supabase = createSupabaseServer();
     const { searchParams } = new URL(req.url);
     const classId = searchParams.get("class_id");
-    const date = searchParams.get("date");
+    const rawDate = searchParams.get("date");
 
-    if (!classId || !date) {
+    if (!classId || !rawDate) {
       return NextResponse.json({ error: "Missing class_id or date" }, { status: 400 });
     }
+
+    // Normalize date to YYYY-MM-DD
+    const normalizedDate = rawDate.slice(0, 10);
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,7 +27,7 @@ export async function GET(req: Request) {
       .from("student_commitments")
       .select("id")
       .eq("class_id", classId)
-      .eq("date", date)
+      .eq("date", normalizedDate)
       .limit(1);
     
     const alreadyGenerated = (existing && existing.length > 0) || false;
@@ -34,7 +37,7 @@ export async function GET(req: Request) {
       .from("lesson_plans")
       .select("id", { count: "exact", head: true })
       .eq("class_id", classId)
-      .eq("date", date);
+      .eq("date", normalizedDate);
     
     const hasLesson = (lessonCount !== null && lessonCount > 0);
 
@@ -44,7 +47,7 @@ export async function GET(req: Request) {
     const { data: holidays } = await supabaseService
       .from("holidays")
       .select("affected_classes")
-      .eq("date", date);
+      .eq("date", normalizedDate);
 
     let hasHoliday = false;
     if (holidays && holidays.length > 0) {
@@ -64,7 +67,7 @@ export async function GET(req: Request) {
     const { data: specialEvents } = await supabaseService
       .from("special_dates")
       .select("classes")
-      .eq("date", date);
+      .eq("date", normalizedDate);
 
     let hasEvent = false;
 
