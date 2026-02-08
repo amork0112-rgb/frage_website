@@ -6,6 +6,7 @@ import PWARegister from "@/components/PWARegister";
 import "./globals.css";
 import type { Metadata } from "next";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { createSupabaseServer } from "@/lib/supabase/server";
 
 export const viewport = {
   width: "device-width",
@@ -45,7 +46,28 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const supabase = createSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let shouldRegisterPWA = false;
+
+  if (user) {
+    // Teachers/Admins are in the teachers table
+    const { data: teacher } = await supabase
+      .from("teachers")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    // Only register PWA for parents (User exists AND NOT in teachers table)
+    if (!teacher) {
+      shouldRegisterPWA = true;
+    }
+  }
+
   return (
     <html lang="ko" className={`${nunito.variable} ${notoSansKr.variable} ${montserrat.variable}`}>
       <head>
@@ -58,7 +80,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="apple-touch-icon" href="/icon.png" />
       </head>
       <body className="flex min-h-screen flex-col font-sans bg-white text-slate-800 antialiased selection:bg-frage-yellow selection:text-frage-blue">
-        <PWARegister />
+        <PWARegister shouldRegister={shouldRegisterPWA} />
         <LanguageProvider>
           <MainLayout>
             {children}

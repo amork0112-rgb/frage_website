@@ -2,10 +2,10 @@
 
 import { useEffect } from "react";
 
-export default function PWARegister() {
+export default function PWARegister({ shouldRegister }: { shouldRegister: boolean }) {
   useEffect(() => {
     if ("serviceWorker" in navigator) {
-      if (process.env.NODE_ENV === "production") {
+      if (shouldRegister && process.env.NODE_ENV === "production") {
         navigator.serviceWorker
           .register("/sw.js")
           .then((registration) => {
@@ -15,6 +15,8 @@ export default function PWARegister() {
             console.error("Service Worker registration failed:", error);
           });
       } else {
+        // If shouldRegister is false OR we are not in production:
+        // Unregister any existing service workers to ensure clean state
         navigator.serviceWorker
           .getRegistrations()
           .then((regs) => {
@@ -23,7 +25,7 @@ export default function PWARegister() {
           .catch(() => {});
       }
     }
-  }, []);
+  }, [shouldRegister]);
 
   return null;
 }
