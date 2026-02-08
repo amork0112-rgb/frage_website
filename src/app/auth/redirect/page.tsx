@@ -36,9 +36,9 @@ export default async function AuthRedirectPage() {
     redirect("/portal/install"); 
   } 
 
-  // 4️⃣ 학부모 정상 진입 
+  // 4️⃣ 학부모 정상 진입
   if (role === "parent") { 
-    redirect("/entry"); 
+    redirect("/admission"); 
   } 
 
   redirect("/portal"); 
