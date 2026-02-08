@@ -41,7 +41,9 @@ export default function TeacherNoticesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [selectedCampus, setSelectedCampus] = useState<string>("All");
   const [filterClassId, setFilterClassId] = useState<string>("All");
+  const CAMPUSES = ["All", "International", "Andover", "Platz", "Atheneum"];
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,11 +51,12 @@ export default function TeacherNoticesPage() {
 
   useEffect(() => {
     fetchClasses();
-  }, []);
+    setFilterClassId("All");
+  }, [selectedCampus]);
 
   useEffect(() => {
     fetchNotices();
-  }, [filterClassId]);
+  }, [filterClassId, selectedCampus]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -67,7 +70,7 @@ export default function TeacherNoticesPage() {
 
   const fetchClasses = async () => {
     try {
-      const res = await fetch("/api/teacher/classes?campus=All", { cache: "no-store", credentials: "include" });
+      const res = await fetch(`/api/teacher/classes?campus=${selectedCampus}`, { cache: "no-store", credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         const sortedClasses = data.map((c: any) => ({
@@ -85,9 +88,7 @@ export default function TeacherNoticesPage() {
   const fetchNotices = async () => {
     try {
       setLoading(true);
-      const query = filterClassId && filterClassId !== "All" 
-        ? `/api/teacher/notices?classId=${filterClassId}`
-        : "/api/teacher/notices";
+      const query = `/api/teacher/notices?classId=${filterClassId}&campus=${selectedCampus}`;
       
       const noticesRes = await fetch(query);
       if (noticesRes.ok) {
@@ -291,6 +292,17 @@ export default function TeacherNoticesPage() {
           <p className="text-slate-500 mt-1">Send notices to your specific classes.</p>
         </div>
         <div className="flex items-center gap-3">
+          <select
+            value={selectedCampus}
+            onChange={(e) => setSelectedCampus(e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-frage-blue/20 bg-white"
+          >
+            {CAMPUSES.map((c) => (
+              <option key={c} value={c}>
+                {c === "All" ? "All Campuses" : c}
+              </option>
+            ))}
+          </select>
           <select
             value={filterClassId}
             onChange={(e) => setFilterClassId(e.target.value)}

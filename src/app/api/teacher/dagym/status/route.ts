@@ -12,12 +12,18 @@ export async function GET(req: Request) {
     const classId = searchParams.get("class_id");
     const rawDate = searchParams.get("date");
 
+    // Normalize date to YYYY-MM-DD
+    const normalizedDate = rawDate ? rawDate.slice(0, 10) : "";
+
+    console.log("STATUS CHECK", { 
+      rawDate, 
+      normalizedDate, 
+      classId 
+    });
+
     if (!classId || !rawDate) {
       return NextResponse.json({ error: "Missing class_id or date" }, { status: 400 });
     }
-
-    // Normalize date to YYYY-MM-DD
-    const normalizedDate = rawDate.slice(0, 10);
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,6 +39,10 @@ export async function GET(req: Request) {
     const alreadyGenerated = (existing && existing.length > 0) || false;
 
     // 2. Check for lessons
+    console.log("LESSON QUERY", { 
+      classId, 
+      normalizedDate 
+    });
     const { count: lessonCount } = await supabaseService
       .from("lesson_plans")
       .select("id", { count: "exact", head: true })

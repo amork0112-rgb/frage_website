@@ -36,6 +36,7 @@ export async function GET(request: Request) {
     // 2. Query Params
     const { searchParams } = new URL(request.url);
     const classId = searchParams.get("classId");
+    const campus = searchParams.get("campus");
 
     // 3. Build Query
     let query = supabaseService
@@ -56,8 +57,24 @@ export async function GET(request: Request) {
       .eq("scope", "class")
       .order("created_at", { ascending: false });
 
+    // Campus Filter
+    if (campus && campus !== "All") {
+      const { data: campusClasses } = await supabaseService
+        .from("classes")
+        .select("id")
+        .eq("campus", campus);
+      
+      const campusClassIds = campusClasses?.map((c: any) => c.id) || [];
+      if (campusClassIds.length > 0) {
+        query = query.in("class_id", campusClassIds);
+      } else {
+        // If campus has no classes, return empty
+        return NextResponse.json({ items: [] });
+      }
+    }
+
     // If classId provided, filter by it (and verify access if needed)
-    if (classId) {
+    if (classId && classId !== "All") {
       // Verify access if not master/admin
       if (role === "teacher" && teacherId) {
         const { data: access } = await supabaseService

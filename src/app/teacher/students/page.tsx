@@ -27,7 +27,6 @@ type Student = {
 
 export default function TeacherStudentsPage() {
   const [query, setQuery] = useState<string>("");
-  const [teacherClass, setTeacherClass] = useState<string | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [updates, setUpdates] = useState<Record<string, { className?: string; status?: Status; englishName?: string; bus?: string; departureTime?: string }>>({});
   const [memos, setMemos] = useState<Record<string, { text: string; author: string; at: string; tag?: "상담" | "결제" | "특이사항" | "기타" }[]>>({});
@@ -39,37 +38,33 @@ export default function TeacherStudentsPage() {
   const [memoPanelVisible, setMemoPanelVisible] = useState(false);
   const [parentPhotos, setParentPhotos] = useState<string[]>([]);
   const [selectedCampus, setSelectedCampus] = useState<string>("All");
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string>("All");
   const CAMPUSES = ["All", "International", "Andover", "Platz", "Atheneum"];
 
+  // Fetch classes when campus changes
   useEffect(() => {
-    const init = async () => {
-      const { data } = await supabase.auth.getUser();
-      const user = data?.user;
-      const { data: teacher } = await supabase
-        .from("teachers")
-        .select("id")
-        .eq("auth_user_id", user?.id)
-        .maybeSingle();
-
-      if (teacher) {
-        const { data: teacherClassRow } = await supabase
-          .from("teacher_classes")
-          .select("class_name")
-          .eq("teacher_id", user?.id)
-          .maybeSingle();
-        setTeacherClass((teacherClassRow as any)?.class_name || null);
-      } else {
-        setTeacherClass(null);
+    async function fetchClasses() {
+      try {
+        const res = await fetch(`/api/teacher/classes?campus=${selectedCampus}`, { cache: "no-store", credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setClasses(data);
+          setSelectedClassId("All");
+        }
+      } catch (e) {
+        console.error("Failed to fetch classes", e);
       }
-    };
-    init();
-  }, []);
+    }
+    fetchClasses();
+  }, [selectedCampus]);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const normalizedClassId = !teacherClass || teacherClass === "-" || teacherClass === "all" ? undefined : teacherClass;
-        const res = await fetch(`/api/teacher/students?classId=${normalizedClassId ?? ""}&campus=${selectedCampus}`, { cache: "no-store", credentials: "include" });
+        // Use selectedClassId (UUID) instead of teacherClass (Name)
+        const classParam = selectedClassId === "All" ? "" : selectedClassId;
+        const res = await fetch(`/api/teacher/students?classId=${classParam}&campus=${selectedCampus}`, { cache: "no-store", credentials: "include" });
         if (!res.ok) {
           console.error("Failed to load students", res.status);
           setStudents([]);
@@ -81,7 +76,7 @@ export default function TeacherStudentsPage() {
       } catch {}
     };
     load();
-  }, [teacherClass, selectedCampus]);
+  }, [selectedClassId, selectedCampus]);
 
   useEffect(() => {
     const load = async () => {
@@ -113,9 +108,8 @@ export default function TeacherStudentsPage() {
   const filtered = useMemo(() => {
     return merged
       .filter(s => !["rejected"].includes(s.status))
-      .filter(s => !teacherClass || s.className === teacherClass)
       .filter(s => query === "" || s.name.includes(query) || s.englishName.toLowerCase().includes(query.toLowerCase()));
-  }, [merged, teacherClass, query]);
+  }, [merged, query]);
 
   const previewText = (s: string) => {
     const t = (s || "").trim();
@@ -214,9 +208,18 @@ export default function TeacherStudentsPage() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-slate-700 whitespace-nowrap">Class</span>
-          <div className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white whitespace-nowrap overflow-hidden text-ellipsis">
-            {teacherClass || "All"}
-          </div>
+          <select
+            value={selectedClassId}
+            onChange={(e) => setSelectedClassId(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm focus:ring-2 focus:ring-frage-blue outline-none"
+          >
+            <option value="All">All Classes</option>
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
