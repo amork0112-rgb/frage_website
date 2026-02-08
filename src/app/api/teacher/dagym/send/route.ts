@@ -5,6 +5,23 @@ import { pushStore } from "@/server/store";
 
 export const dynamic = "force-dynamic";
 
+// Helper to simulate push trigger
+async function triggerDagymPush(students: any[], date: string) {
+  const now = new Date().toISOString();
+  for (const student of students) {
+    const pushItem = {
+      id: `push-${student.id}-${Date.now()}`,
+      studentId: student.id,
+      message: `[코칭 결과 도착] 오늘 ${student.name} 학생의 수업 코칭 리포트가 도착했습니다. 앱에서 확인해주세요! 👏`,
+      type: "today_coaching",
+      createdAt: now,
+      date: date,
+    };
+    const existingPush = pushStore.get(student.id) || [];
+    pushStore.set(student.id, [pushItem, ...existingPush].slice(0, 50));
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -20,23 +37,48 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // 2. Teacher Check (Source of Truth)
+    // 2. Teacher Check
     const { data: teacher, error: teacherError } = await supabaseService
       .from("teachers")
-      .select("id, role, campus")
+      .select("id")
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
-    if (teacherError) {
-      console.error("❌ teachers query failed", teacherError);
-      return NextResponse.json({ error: "Teacher query error" }, { status: 500 });
-    }
-
-    if (!teacher) {
+    if (teacherError || !teacher) {
       return NextResponse.json({ error: "Forbidden: Teacher only" }, { status: 403 });
     }
 
-    // 3. Fetch Eligible Students (dajim_enabled = true)
+    // 3. Check "Already Sent" (Prevention)
+    const { data: alreadySent } = await supabaseService
+      .from("daily_reports")
+      .select("id")
+      .eq("class_id", class_id)
+      .eq("date", date)
+      .eq("send_status", "sent")
+      .maybeSingle();
+
+    if (alreadySent) {
+      return NextResponse.json(
+        { error: "already_sent" },
+        { status: 409 }
+      );
+    }
+
+    // 4. Check "No Commitments" (Prevention)
+    const { count: commitmentCount } = await supabaseService
+      .from("student_commitments")
+      .select("id", { count: "exact", head: true })
+      .eq("class_id", class_id)
+      .eq("date", date);
+
+    if (!commitmentCount || commitmentCount === 0) {
+      return NextResponse.json(
+        { error: "no_commitments" },
+        { status: 400 }
+      );
+    }
+
+    // 5. Fetch Eligible Students (dajim_enabled = true)
     const { data: students, error: studentError } = await supabaseService
       .from("students")
       .select("id, name")
@@ -49,59 +91,40 @@ export async function POST(req: Request) {
     }
 
     if (!students || students.length === 0) {
-      return NextResponse.json({ sent_count: 0, message: "No eligible students found" });
+      return NextResponse.json({ error: "no_eligible_students" }, { status: 400 });
     }
 
     const now = new Date().toISOString();
-    const sentStudents = [];
-    const failedStudents = [];
 
-    // 4. Process each student
-    for (const student of students) {
-      try {
-        // 4.1 Update Database (daily_reports)
-        const { error: upsertError } = await supabaseService
-          .from("daily_reports")
-          .upsert(
-            {
-              student_id: student.id,
-              class_id: class_id,
-              date: date,
-              send_status: "sent",
-              sent_at: now,
-              updated_at: now,
-            },
-            { onConflict: "student_id, date" }
-          );
+    // 6. Bulk Upsert (Source of Truth Update)
+    const reports = students.map(s => ({
+      student_id: s.id,
+      class_id,
+      date,
+      send_status: "sent",
+      sent_at: now,
+      sent_by: user.id, // Added per user request
+      updated_at: now
+    }));
 
-        if (upsertError) throw upsertError;
+    const { error: upsertError } = await supabaseService
+      .from("daily_reports")
+      .upsert(reports, { onConflict: "student_id,class_id,date" });
 
-        // 4.2 Send Push Notification (Simulated via pushStore)
-        // Payload: type: "today_coaching"
-        const pushItem = {
-          id: `push-${student.id}-${Date.now()}`,
-          studentId: student.id,
-          message: `[코칭 결과 도착] 오늘 ${student.name} 학생의 수업 코칭 리포트가 도착했습니다. 앱에서 확인해주세요! 👏`,
-          type: "today_coaching",
-          createdAt: now,
-          date: date, // Custom field for deep linking context
-        };
-        
-        const existingPush = pushStore.get(student.id) || [];
-        pushStore.set(student.id, [pushItem, ...existingPush].slice(0, 50));
-
-        sentStudents.push(student.id);
-      } catch (err) {
-        console.error(`Failed to send to student ${student.id}:`, err);
-        failedStudents.push(student.id);
-      }
+    if (upsertError) {
+      console.error("❌ Failed to bulk upsert reports:", upsertError);
+      return NextResponse.json({ error: "Failed to save reports" }, { status: 500 });
     }
 
+    // 7. Trigger Push (Async/Separated)
+    await triggerDagymPush(students, date);
+
+    // 8. Return Standard Response
     return NextResponse.json({
       ok: true,
-      sent_count: sentStudents.length,
-      failed_count: failedStudents.length,
-      sent_students: sentStudents
+      send_status: "sent",
+      sent_at: now,
+      sent_count: students.length
     });
 
   } catch (err) {

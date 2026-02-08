@@ -224,10 +224,28 @@ export default function TeacherCoachingPage() {
         body: JSON.stringify({ class_id: selectedClassId, date }),
       });
 
+      if (res.status === 409) {
+        showToast("이미 전송된 리포트입니다.", "success");
+        setStudents((prev) => prev.map((s) => ({ ...s, send_status: "sent" })));
+        return;
+      }
+
+      if (res.status === 400) {
+        const err = await res.json();
+        if (err.error === "no_commitments") {
+          showToast("전송할 코칭 기록이 없습니다.", "error");
+        } else if (err.error === "no_eligible_students") {
+          showToast("전송 대상 학생이 없습니다.", "error");
+        } else {
+          showToast("전송 실패: " + (err.error || "Bad Request"), "error");
+        }
+        return;
+      }
+
       if (!res.ok) throw new Error("Failed to send");
 
       const data = await res.json();
-      showToast(`Successfully sent to ${data.sent_count} parents`, "success");
+      showToast(`학부모 ${data.sent_count}명에게 전송 완료!`, "success");
 
       // Optimistically update local state to "sent"
       setStudents((prev) => 
@@ -236,7 +254,7 @@ export default function TeacherCoachingPage() {
 
     } catch (e) {
       console.error(e);
-      showToast("Failed to send reports", "error");
+      showToast("전송 중 오류가 발생했습니다.", "error");
     } finally {
       setSending(false);
     }
@@ -295,6 +313,8 @@ export default function TeacherCoachingPage() {
         );
     }
   };
+
+  const isAlreadySent = students.some(s => s.send_status === "sent");
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -422,14 +442,14 @@ export default function TeacherCoachingPage() {
                         {students.length > 0 && (
                           <button
                             onClick={handleSendReports}
-                            disabled={sending}
+                            disabled={sending || isAlreadySent}
                             className={`text-xs px-2 py-1 rounded border transition-colors ${
-                              sending 
+                              sending || isAlreadySent
                                 ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
                                 : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
                             }`}
                           >
-                            {sending ? "Sending..." : "학부모 전송"}
+                            {sending ? "Sending..." : isAlreadySent ? "전송 완료" : "학부모 전송"}
                           </button>
                         )}
                       </div>
