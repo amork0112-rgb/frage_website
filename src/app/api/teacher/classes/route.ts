@@ -1,6 +1,7 @@
 // app/api/teacher/classes/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
 
@@ -9,12 +10,12 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const campusParam = searchParams.get("campus");
 
-    const supabase = createSupabaseServer();
-    const { data: { user } } = await supabase.auth.getUser();
+    const supabaseAuth = createSupabaseServer();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json([], { status: 401 });
 
     // 1️⃣ Teacher 존재 여부로 권한 판단
-    const { data: teacher } = await supabase
+    const { data: teacher } = await supabaseService
       .from("teachers")
       .select("id, role, campus")
       .eq("auth_user_id", user.id)
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     }
 
     // ✅ 캠퍼스 필터링 로직 (master_teacher 예외 처리)
-    let query = supabase
+    let query = supabaseService
       .from("classes")
       .select("id, name, campus, sort_order");
 
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
     let schedulesMap: Record<string, string[]> = {};
     
     if (classIds.length > 0) {
-      const { data: schedules } = await supabase
+      const { data: schedules } = await supabaseService
         .from("class_schedules")
         .select("class_id, weekdays")
         .in("class_id", classIds);
