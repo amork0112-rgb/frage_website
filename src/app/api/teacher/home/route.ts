@@ -5,42 +5,37 @@ import { supabaseService } from "@/lib/supabase/service";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  console.log(
-    "🔑 SERVICE ROLE KEY EXISTS:",
-    !!process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
   try {
-    const supabaseAuth = createSupabaseServer();
+    // 1️⃣ 인증 유저 확인 (쿠키 기반)
+    const supabase = createSupabaseServer();
     const {
       data: { user },
       error,
-    } = await supabaseAuth.auth.getUser();
+    } = await supabase.auth.getUser();
 
-    console.log("AUTH USER:", {
-      id: user?.id,
-      app_metadata: user?.app_metadata,
-      user_metadata: user?.user_metadata,
-    });
+    if (!user || error) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (!user) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-
-    // 1. Get Teacher Profile (DB Source of Truth)
+    // 2️⃣ teachers 테이블에서 권한 확인 (⭐ 핵심)
     const { data: teacher } = await supabaseService
       .from("teachers")
-      .select("id, name, role, class_name")
+      .select("id, role, name, class_name")
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
     if (!teacher) {
-      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Not a teacher" }, { status: 403 });
     }
 
+    // 3️⃣ 여기부터는 무조건 통과 (비즈니스 로직)
+    
     // Role check is now secondary/supplementary logic
     const teacherName = teacher.name || user.user_metadata?.name || user.email?.split("@")[0] || "Teacher";
     // master_teacher might have null class_name
     const teacherClass = teacher.class_name || null; 
     const teacherId = teacher.id;
-    const isMasterTeacher = teacher.role === "master_teacher";
+    // const isMasterTeacher = teacher.role === "master_teacher"; // Unused currently but good to know
 
     // 2. Fetch Events (This Month)
     const today = new Date();
