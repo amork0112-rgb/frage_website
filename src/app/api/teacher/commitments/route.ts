@@ -155,23 +155,39 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { error } = await supabaseService
-      .from("student_commitments")
-      .upsert({
-        student_id,
-        class_id,
-        book_id,
-        date,
-        status,
-        checked_by: user.id,
-        checked_at: new Date().toISOString()
-      }, {
-        onConflict: "student_id,book_id,date"
-      });
+    if (status === "unchecked") {
+      // ✅ Status가 unchecked이면 DB에서 삭제 (Reset)
+      const { error } = await supabaseService
+        .from("student_commitments")
+        .delete()
+        .eq("student_id", student_id)
+        .eq("book_id", book_id)
+        .eq("date", date);
 
-    if (error) {
-      console.error("Error saving commitment:", error);
-      return NextResponse.json({ error: "Failed to save" }, { status: 500 });
+      if (error) {
+        console.error("Error deleting commitment:", error);
+        return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+      }
+    } else {
+      // ✅ 그 외 상태는 Upsert
+      const { error } = await supabaseService
+        .from("student_commitments")
+        .upsert({
+          student_id,
+          class_id,
+          book_id,
+          date,
+          status,
+          checked_by: user.id,
+          checked_at: new Date().toISOString()
+        }, {
+          onConflict: "student_id,book_id,date"
+        });
+
+      if (error) {
+        console.error("Error saving commitment:", error);
+        return NextResponse.json({ error: "Failed to save" }, { status: 500 });
+      }
     }
 
     return NextResponse.json({ ok: true });
