@@ -34,8 +34,7 @@ export async function GET(req: Request) {
       .from("lesson_plans")
       .select("id", { count: "exact", head: true })
       .eq("class_id", classId)
-      .gte("date", `${date}T00:00:00`)
-      .lte("date", `${date}T23:59:59`);
+      .eq("date", date);
     
     const hasLesson = (lessonCount !== null && lessonCount > 0);
 
