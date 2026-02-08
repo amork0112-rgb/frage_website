@@ -5,6 +5,10 @@ import { supabaseService } from "@/lib/supabase/service";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  console.log(
+    "🔑 SERVICE ROLE KEY EXISTS:",
+    !!process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
   try {
     const supabaseAuth = createSupabaseServer();
     const {
