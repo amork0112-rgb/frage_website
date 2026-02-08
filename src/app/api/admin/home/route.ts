@@ -36,14 +36,14 @@ export async function GET(req: Request) {
     // 2. Notices (Posts)
     let postsQuery = supabaseService
       .from("posts")
-      .select("is_pinned,campus");
+      .select("id,campus");
     
     if (campus && campus !== "All") {
       postsQuery = postsQuery.or(`campus.eq.All,campus.eq.${campus}`);
     }
 
     const { data: posts } = await postsQuery;
-    const noticesCount = Array.isArray(posts) ? posts.filter((p: any) => !!p.is_pinned).length : 0;
+    const noticesCount = Array.isArray(posts) ? posts.length : 0;
 
     // 3. New Students (Guest Inquiries)
     let newStudentsQuery = supabaseService

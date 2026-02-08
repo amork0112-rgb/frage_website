@@ -13,12 +13,17 @@ export default async function AuthRedirectPage() {
 
   console.log("🔐 AUTH ROLE:", role, "User ID:", user.id); 
 
-  // ✅ 1️⃣ 관리자 계정은 onboarding/PWA 스킵 
+  // 1️⃣ 관리자 
   if (role === "master_admin" || role === "admin") { 
     redirect("/admin/home"); 
   } 
 
-  // ✅ 2️⃣ onboarding은 일반 사용자만 
+  // 2️⃣ 교사 계열은 onboarding 스킵 
+  if (["teacher", "master_teacher", "campus"].includes(role)) { 
+    redirect("/teacher/home"); 
+  } 
+
+  // 3️⃣ 학부모만 onboarding 체크 
   const { data: onboarding } = await supabase 
     .from("user_onboarding") 
     .select("pwa_prompt_seen") 
@@ -27,15 +32,11 @@ export default async function AuthRedirectPage() {
 
   console.log("📱 Onboarding Status:", onboarding); 
 
-  if (!onboarding?.pwa_prompt_seen) { 
+  if (role === "parent" && !onboarding?.pwa_prompt_seen) { 
     redirect("/portal/install"); 
   } 
 
-  // ✅ 3️⃣ role별 정상 분기 
-  if (["teacher", "master_teacher", "campus"].includes(role)) { 
-    redirect("/teacher/home"); 
-  } 
-
+  // 4️⃣ 학부모 정상 진입 
   if (role === "parent") { 
     redirect("/entry"); 
   } 
