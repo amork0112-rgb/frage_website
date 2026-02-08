@@ -1,3 +1,4 @@
+// app/api/teacher/classes/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -24,21 +25,7 @@ export async function GET(request: Request) {
       .select("id, name, campus, sort_order");
 
     if (campusParam && campusParam !== "All") {
-      // Map English to Korean
-      let dbCampus = campusParam;
-      if (campusParam === "International") dbCampus = "국제관";
-      else if (campusParam === "Andover") dbCampus = "앤도버관"; // Assuming 'Andover' -> '앤도버' or '앤도버관' based on other files
-      else if (campusParam === "Atheneum") dbCampus = "아테네움관";
-      else if (campusParam === "Platz") dbCampus = "플라츠관";
-      
-      // Handle the case where the parameter might already be Korean or exact match
-      // If dbCampus is still the same, maybe try to match partially or use OR logic?
-      // For now, strict mapping based on known values.
-      
-      // NOTE: In `video-management`, we saw:
-      // International: "국제관", Andover: "앤도버관", Atheneum: "아테네움관", Platz: "플라츠관"
-      
-      query = query.eq("campus", dbCampus);
+      query = query.eq("campus", campusParam);
     }
 
     const { data, error } = await query
@@ -50,19 +37,10 @@ export async function GET(request: Request) {
       return NextResponse.json([], { status: 500 });
     }
 
-    const normalizeCampus = (c: string) => {
-      if (!c) return "Unspecified";
-      if (c === "국제관") return "International";
-      if (c === "앤도버관") return "Andover";
-      if (c === "아테네움관") return "Atheneum";
-      if (c === "플라츠관") return "Platz";
-      return c;
-    };
-
     const items = (data || []).map((row: any) => ({
       id: row.id,
       name: row.name,
-      campus: normalizeCampus(row.campus),
+      campus: row.campus,
       sortOrder: row.sort_order,
     }));
 

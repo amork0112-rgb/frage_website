@@ -1,3 +1,4 @@
+//app/api/teacher/students/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -68,17 +69,25 @@ export async function GET(request: Request) {
 
     // Filter by Campus
     if (campusParam && campusParam !== "All") {
-      let dbCampus = campusParam;
-      if (campusParam === "International") dbCampus = "국제관";
-      else if (campusParam === "Andover") dbCampus = "앤도버관";
-      else if (campusParam === "Atheneum") dbCampus = "아테네움관";
-      else if (campusParam === "Platz") dbCampus = "플라츠관";
-      query = query.eq("campus", dbCampus);
+      // Filter strictly by classes in the selected campus
+      const { data: campusClasses } = await supabaseService
+        .from("classes")
+        .select("id")
+        .eq("campus", campusParam);
+
+      const validClassIds = campusClasses?.map((c: any) => c.id) || [];
+      
+      if (validClassIds.length > 0) {
+        query = query.in("main_class", validClassIds);
+      } else {
+        // No classes found -> No students
+        query = query.in("main_class", []);
+      }
     }
 
-    // Filter by Class Name (passed as classId param)
+    // Filter by Class (ID)
     if (classIdParam && classIdParam !== "All" && classIdParam !== "-") {
-      query = query.eq("class_name", classIdParam);
+      query = query.eq("main_class", classIdParam);
     }
 
     const { data, error, count } = await query
@@ -90,14 +99,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ items: [], total: 0, page, pageSize }, { status: 500 });
     }
     const rows = Array.isArray(data) ? data : [];
-    const normalizeCampus = (c: string) => {
-      if (!c) return "Unspecified";
-      if (c.includes("국제")) return "International";
-      if (c.includes("앤도버")) return "Andover";
-      if (c.includes("아테네움")) return "Atheneum";
-      if (c.includes("플라츠")) return "Platz";
-      return c;
-    };
+
     const base: Student[] = rows.map((r: any) => ({
       id: String(r.student_id ?? ""),
       childId: r.child_id ?? undefined,
@@ -106,7 +108,7 @@ export async function GET(request: Request) {
       birthDate: String(r.birth_date ?? ""),
       phone: String(r.parent_phone ?? ""),
       className: String(r.class_name ?? "Unassigned"),
-      campus: normalizeCampus(String(r.campus ?? "")),
+      campus: String(r.campus ?? ""),
       status: (String(r.status ?? "promoted") as Status),
       parentName: String(r.parent_name ?? ""),
       parentAccountId: String(r.parent_auth_user_id ?? ""),
