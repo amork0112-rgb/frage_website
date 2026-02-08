@@ -7,6 +7,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export const viewport = {
   width: "device-width",
