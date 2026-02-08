@@ -1,42 +1,44 @@
-import { redirect } from "next/navigation";
-import { createSupabaseServer } from "@/lib/supabase/server";
-import { resolveUserRole } from "../../../lib/auth/resolveUserRole";
+// /auth/redirect 
+import { redirect } from "next/navigation"; 
+import { createSupabaseServer } from "@/lib/supabase/server"; 
+import { resolveUserRole } from "../../../lib/auth/resolveUserRole"; 
 
-export default async function AuthRedirectPage() {
-  const supabase = createSupabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
+export default async function AuthRedirectPage() { 
+  const supabase = createSupabaseServer(); 
+  const { data: { user } } = await supabase.auth.getUser(); 
 
-  if (!user) redirect("/portal");
+  if (!user) redirect("/portal"); 
 
-  const role = await resolveUserRole(user);
+  const role = await resolveUserRole(user); 
 
-  console.log("🔐 AUTH ROLE:", role, "User ID:", user.id);
+  console.log("🔐 AUTH ROLE:", role, "User ID:", user.id); 
 
-  // Check PWA Prompt Status using user_onboarding table
-  const { data: onboarding } = await supabase
-    .from("user_onboarding")
-    .select("pwa_prompt_seen")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // ✅ 1️⃣ 관리자 계정은 onboarding/PWA 스킵 
+  if (role === "master_admin" || role === "admin") { 
+    redirect("/admin/home"); 
+  } 
 
-  console.log("📱 Onboarding Status:", onboarding);
+  // ✅ 2️⃣ onboarding은 일반 사용자만 
+  const { data: onboarding } = await supabase 
+    .from("user_onboarding") 
+    .select("pwa_prompt_seen") 
+    .eq("user_id", user.id) 
+    .maybeSingle(); 
 
-  if (!onboarding?.pwa_prompt_seen) {
-    console.log("🚀 Redirecting to /portal/install");
-    redirect("/portal/install");
-  }
+  console.log("📱 Onboarding Status:", onboarding); 
 
-  if (role === "master_admin" || role === "admin") {
-    redirect("/admin/home");
-  }
+  if (!onboarding?.pwa_prompt_seen) { 
+    redirect("/portal/install"); 
+  } 
 
-  if (["teacher", "master_teacher", "campus"].includes(role)) {
-    redirect("/teacher/home");
-  }
+  // ✅ 3️⃣ role별 정상 분기 
+  if (["teacher", "master_teacher", "campus"].includes(role)) { 
+    redirect("/teacher/home"); 
+  } 
 
-  if (role === "parent") {
-    redirect("/entry");
-  }
+  if (role === "parent") { 
+    redirect("/entry"); 
+  } 
 
-  redirect("/portal");
+  redirect("/portal"); 
 }
