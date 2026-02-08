@@ -11,21 +11,23 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
-    const role = await resolveUserRole(user);
-    if (!["teacher", "master_teacher", "admin", "master_admin"].includes(role)) {
-      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
-    }
-
-    // 1. Get Teacher Profile
+    // 1. Get Teacher Profile (DB Source of Truth)
     const { data: teacher } = await supabaseService
       .from("teachers")
-      .select("id, name, class_name")
+      .select("id, name, role, class_name")
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
-    const teacherName = teacher?.name || user.user_metadata?.name || user.email?.split("@")[0] || "Teacher";
-    const teacherClass = teacher?.class_name || null;
-    const teacherId = teacher?.id || null;
+    if (!teacher) {
+      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    }
+
+    // Role check is now secondary/supplementary logic
+    const teacherName = teacher.name || user.user_metadata?.name || user.email?.split("@")[0] || "Teacher";
+    // master_teacher might have null class_name
+    const teacherClass = teacher.class_name || null; 
+    const teacherId = teacher.id;
+    const isMasterTeacher = teacher.role === "master_teacher";
 
     // 2. Fetch Events (This Month)
     const today = new Date();
