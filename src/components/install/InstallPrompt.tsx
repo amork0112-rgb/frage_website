@@ -18,6 +18,16 @@ export default function InstallPrompt() {
     const ua = navigator.userAgent.toLowerCase();
     const isAnd = ua.includes("android");
     const isI = /iphone|ipad|ipod/.test(ua);
+    const isMobile = isAnd || isI;
+    
+    // Check if PWA is already installed (standalone mode)
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone;
+
+    // Redirect if not mobile OR if already installed
+    if (!isMobile || isStandalone) {
+      router.replace("/auth/redirect");
+      return;
+    }
     
     setIsAndroid(isAnd);
     setIsIOS(isI);
@@ -31,7 +41,7 @@ export default function InstallPrompt() {
       window.addEventListener("beforeinstallprompt", handler);
       return () => window.removeEventListener("beforeinstallprompt", handler);
     }
-  }, []);
+  }, [router]);
 
   const handleLater = async () => {
     setLoading(true);

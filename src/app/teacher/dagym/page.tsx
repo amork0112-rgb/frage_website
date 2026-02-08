@@ -21,6 +21,7 @@ type Subject = {
 type ClassItem = {
   id: string;
   name: string;
+  weekdays?: string[];
 };
 
 // Status Config
@@ -53,6 +54,17 @@ export default function TeacherCoachingPage() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState<"disabled" | "enabled" | "sent">("disabled");
 
+  // Helper to get today's weekday
+  const getTodayWeekday = () => {
+    const dayIndex = new Date().getDay(); // 0=Sun, 1=Mon...
+    const map = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+    return map[dayIndex];
+  };
+
+  const todayClasses = classes.filter(c => 
+    c.weekdays && c.weekdays.includes(getTodayWeekday())
+  );
+
   // Fetch Classes on Mount or Campus Change
   useEffect(() => {
     async function fetchClasses() {
@@ -61,7 +73,14 @@ export default function TeacherCoachingPage() {
         const data = await res.json();
         if (Array.isArray(data)) {
           setClasses(data);
-          if (data.length > 0) {
+          
+          // Auto-select first class from Today's Classes if available, otherwise first of all
+          const day = getTodayWeekday();
+          const todays = data.filter((c: any) => c.weekdays && c.weekdays.includes(day));
+          
+          if (todays.length > 0) {
+            setSelectedClassId(todays[0].id);
+          } else if (data.length > 0) {
             setSelectedClassId(data[0].id || "");
           } else {
             setSelectedClassId("");
@@ -262,7 +281,7 @@ export default function TeacherCoachingPage() {
         {/* Today's Classes Quick Select */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 border-t border-slate-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
           <span className="text-xs font-bold text-slate-500 whitespace-nowrap mr-2">Today's Classes:</span>
-          {classes.map((c) => (
+          {todayClasses.map((c) => (
             <button
               key={c.id}
               onClick={() => setSelectedClassId(c.id)}
@@ -275,8 +294,8 @@ export default function TeacherCoachingPage() {
               {c.name}
             </button>
           ))}
-          {classes.length === 0 && (
-            <span className="text-xs text-slate-400 italic">No classes found</span>
+          {todayClasses.length === 0 && (
+            <span className="text-xs text-slate-400 italic">No classes scheduled for today</span>
           )}
         </div>
       </header>
@@ -289,10 +308,13 @@ export default function TeacherCoachingPage() {
           <h2 className="text-sm font-bold text-blue-900 mb-2">Today’s Coaching</h2>
           <p className="text-sm text-blue-800 leading-relaxed">
             Click each subject to record today’s coaching result.
-            <br />
-            Each click cycles through: <span className="font-bold">Done</span> → <span className="font-bold">Partial</span> → <span className="font-bold">Not done</span> → <span className="font-bold">Reset</span>.
-            <br />
-            Changes are saved automatically.
+            <ul className="mt-1 ml-4 list-disc list-outside space-y-0.5">
+              <li>First click: <span className="font-bold">Done</span></li>
+              <li>Second click: <span className="font-bold">Partial</span></li>
+              <li>Third click: <span className="font-bold">Not done</span></li>
+              <li>Fourth click: <span className="font-bold">Reset</span></li>
+            </ul>
+            <span className="block mt-2 font-medium">All changes are saved automatically.</span>
           </p>
         </div>
 

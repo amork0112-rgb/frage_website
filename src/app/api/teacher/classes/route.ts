@@ -37,11 +37,29 @@ export async function GET(request: Request) {
       return NextResponse.json([], { status: 500 });
     }
 
+    // Fetch class schedules to determine weekdays
+    const classIds = (data || []).map((c: any) => c.id);
+    let schedulesMap: Record<string, string[]> = {};
+    
+    if (classIds.length > 0) {
+      const { data: schedules } = await supabaseService
+        .from("class_schedules")
+        .select("class_id, weekdays")
+        .in("class_id", classIds);
+        
+      if (schedules) {
+        schedules.forEach((s: any) => {
+          schedulesMap[s.class_id] = Array.isArray(s.weekdays) ? s.weekdays : [];
+        });
+      }
+    }
+
     const items = (data || []).map((row: any) => ({
       id: row.id,
       name: row.name,
       campus: row.campus,
       sortOrder: row.sort_order,
+      weekdays: schedulesMap[row.id] || [], // Add weekdays to response
     }));
 
     // Return array directly to match client expectations
