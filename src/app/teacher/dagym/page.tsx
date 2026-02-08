@@ -197,6 +197,39 @@ export default function TeacherCoachingPage() {
     setTimeout(() => setToast(null), 2000);
   };
 
+  const [sending, setSending] = useState(false);
+
+  // Helper to send reports
+  const handleSendReports = async () => {
+    if (!selectedClassId || !date) return;
+    if (!confirm("Are you sure you want to send today's coaching results to all parents in this class?")) return;
+
+    setSending(true);
+    try {
+      const res = await fetch("/api/teacher/dagym/send-reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ class_id: selectedClassId, date }),
+      });
+
+      if (!res.ok) throw new Error("Failed to send");
+
+      const data = await res.json();
+      showToast(`Successfully sent to ${data.sent_count} parents`, "success");
+
+      // Optimistically update local state to "sent"
+      setStudents((prev) => 
+        prev.map((s) => ({ ...s, send_status: "sent" }))
+      );
+
+    } catch (e) {
+      console.error(e);
+      showToast("Failed to send reports", "error");
+    } finally {
+      setSending(false);
+    }
+  };
+
   // Render Helpers
   const renderSendStatus = (status: string) => {
     switch (status) {
@@ -372,7 +405,22 @@ export default function TeacherCoachingPage() {
                     ))}
                     {/* Send Status Column */}
                     <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-sm font-bold text-slate-700 min-w-[120px] text-center border-b border-slate-200">
-                      Send Status
+                      <div className="flex flex-col items-center gap-1">
+                        <span>Send Status</span>
+                        {students.length > 0 && (
+                          <button
+                            onClick={handleSendReports}
+                            disabled={sending}
+                            className={`text-xs px-2 py-1 rounded border transition-colors ${
+                              sending 
+                                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+                            }`}
+                          >
+                            {sending ? "Sending..." : "학부모 전송"}
+                          </button>
+                        )}
+                      </div>
                     </th>
                     {subjects.length === 0 && (
                       <th className="px-6 py-4 text-sm text-slate-400 font-normal italic">
