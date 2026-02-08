@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     }
 
     // 3. Fetch Students in Class
+    // 🚨 CRITICAL: Only send to students with dajim_enabled = true
     const { data: students, error: studentError } = await supabaseService
       .from("students")
       .select("id")

@@ -202,7 +202,15 @@ export default function TeacherCoachingPage() {
   // Helper to send reports
   const handleSendReports = async () => {
     if (!selectedClassId || !date) return;
-    if (!confirm("Are you sure you want to send today's coaching results to all parents in this class?")) return;
+    
+    // Explicitly mention the count of students (who are dajim_enabled)
+    const count = students.length;
+    if (count === 0) {
+      showToast("No students to send reports to", "error");
+      return;
+    }
+
+    if (!confirm(`Send today's coaching results to ${count} students in this class?`)) return;
 
     setSending(true);
     try {
