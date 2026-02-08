@@ -11,6 +11,8 @@ type Student = {
   id: string;
   name: string;
   english_name: string;
+  send_status: "not_sent" | "sent" | "failed" | "sending"; // sending is UI state
+  sent_at: string | null;
 };
 
 type Subject = {
@@ -196,6 +198,20 @@ export default function TeacherCoachingPage() {
   };
 
   // Render Helpers
+  const renderSendStatus = (status: string) => {
+    switch (status) {
+      case "sent":
+        return <span className="text-green-600 font-medium">Sent</span>;
+      case "failed":
+        return <span className="text-red-600 font-medium">Failed</span>;
+      case "sending":
+        return <span className="text-blue-600 font-medium">Sending...</span>;
+      case "not_sent":
+      default:
+        return <span className="text-slate-400">Not sent</span>;
+    }
+  };
+
   const renderIcon = (status: CommitmentStatus) => {
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.unchecked;
     const Icon = config.icon;
@@ -354,6 +370,10 @@ export default function TeacherCoachingPage() {
                         {sub.title}
                       </th>
                     ))}
+                    {/* Send Status Column */}
+                    <th className="sticky top-0 z-10 bg-slate-50 px-6 py-4 text-sm font-bold text-slate-700 min-w-[120px] text-center border-b border-slate-200">
+                      Send Status
+                    </th>
                     {subjects.length === 0 && (
                       <th className="px-6 py-4 text-sm text-slate-400 font-normal italic">
                         No subjects scheduled for this date.
@@ -383,11 +403,16 @@ export default function TeacherCoachingPage() {
                         </td>
                       ))}
                       {subjects.length === 0 && <td className="px-6 py-4"></td>}
+                      
+                      {/* Send Status Cell */}
+                      <td className="px-6 py-4 text-center border-l border-slate-50">
+                        {renderSendStatus(student.send_status)}
+                      </td>
                     </tr>
                   ))}
                   {students.length === 0 && !loading && (
                     <tr>
-                      <td colSpan={subjects.length + 1} className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan={subjects.length + 2} className="px-6 py-12 text-center text-slate-500">
                         No students found for this class.
                       </td>
                     </tr>

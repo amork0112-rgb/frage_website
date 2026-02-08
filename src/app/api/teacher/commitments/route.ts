@@ -57,6 +57,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Failed to fetch students" }, { status: 500 });
     }
 
+    // 2-1. Fetch Daily Reports (Send Status)
+    const { data: reports, error: reportError } = await supabaseService
+      .from("daily_reports")
+      .select("student_id, send_status, sent_at")
+      .eq("class_id", classId)
+      .eq("date", date);
+
+    if (reportError) {
+      console.error("Error fetching daily reports:", reportError);
+      // We don't fail hard, just treat as not_sent
+    }
+
     // 3. Fetch Subjects (Books) for the day
     // Logic: lesson_plans (class_id, date) -> book_id -> books (title)
     // We use supabaseService to ensure we can read these tables even if RLS is strict/missing for teachers
@@ -110,11 +122,16 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({
-      students: students?.map(s => ({
-        id: s.id,
-        name: s.student_name, // ✅ 한글 이름
-        english_name: s.english_first_name
-      })) || [],
+      students: students?.map(s => {
+        const report = reports?.find((r: any) => r.student_id === s.id);
+        return {
+          id: s.id,
+          name: s.student_name, // ✅ 한글 이름
+          english_name: s.english_first_name,
+          send_status: report?.send_status || "not_sent",
+          sent_at: report?.sent_at || null
+        };
+      }) || [],
       subjects,
       commitments: commitments || []
     });
