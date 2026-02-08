@@ -198,9 +198,10 @@ export default function TeacherCoachingPage() {
   };
 
   const [sending, setSending] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
 
   // Helper to send reports
-  const handleSendReports = async () => {
+  const handleSendReports = () => {
     if (!selectedClassId || !date) return;
     
     // Explicitly mention the count of students (who are dajim_enabled)
@@ -210,11 +211,14 @@ export default function TeacherCoachingPage() {
       return;
     }
 
-    if (!confirm(`Send today's coaching results to ${count} students in this class?`)) return;
+    setShowSendModal(true);
+  };
 
+  const confirmSend = async () => {
+    setShowSendModal(false);
     setSending(true);
     try {
-      const res = await fetch("/api/teacher/dagym/send-reports", {
+      const res = await fetch("/api/teacher/dagym/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ class_id: selectedClassId, date }),
@@ -494,6 +498,36 @@ export default function TeacherCoachingPage() {
           }`}
         >
           {toast.message}
+        </div>
+      )}
+
+      {/* Send Confirmation Modal */}
+      {showSendModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                학부모에게 코칭 결과를 전송할까요?
+              </h3>
+              <p className="text-slate-600 leading-relaxed text-sm">
+                오늘 수업에서 기록된 코칭 결과를 해당 반의 모든 학부모에게 앱 푸시로 전송합니다.
+              </p>
+            </div>
+            <div className="bg-slate-50 px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-100">
+              <button
+                onClick={() => setShowSendModal(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmSend}
+                className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors flex items-center gap-2"
+              >
+                <span>전송하기</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
