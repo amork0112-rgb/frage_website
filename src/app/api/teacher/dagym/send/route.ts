@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     // 5. Fetch Eligible Students (dajim_enabled = true)
     const { data: students, error: studentError } = await supabaseService
       .from("students")
-      .select("id, name")
+      .select("id, student_name")
       .eq("main_class", class_id)
       .eq("dajim_enabled", true);
 
