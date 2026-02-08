@@ -1,18 +1,16 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
-import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const supabase = createSupabaseServer();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
     // 1. Get Teacher Profile (DB Source of Truth)
-    const { data: teacher } = await supabaseService
+    const { data: teacher } = await supabase
       .from("teachers")
       .select("id, name, role, class_name")
       .eq("auth_user_id", user.id)
@@ -37,7 +35,7 @@ export async function GET(request: Request) {
     const lastDay = new Date(y, m, 0).getDate();
     const endOfMonthStr = `${y}-${String(m).padStart(2, "0")}-${lastDay}`;
 
-    const { data: calendarData } = await supabaseService
+    const { data: calendarData } = await supabase
       .from("academic_calendar")
       .select("id, title, type, start_date, end_date, campus, class_name, place")
       .gte("start_date", startOfMonthStr)
@@ -62,7 +60,7 @@ export async function GET(request: Request) {
     const dd = String(today.getDate()).padStart(2, "0");
     const todayStr = `${y}-${mm}-${dd}`;
 
-    const { data: slotsToday } = await supabaseService
+    const { data: slotsToday } = await supabase
       .from("consultation_slots")
       .select("id")
       .eq("date", todayStr);
@@ -70,7 +68,7 @@ export async function GET(request: Request) {
     let todayReservationsCount = 0;
     const slotIds = (slotsToday || []).map((s: any) => s.id);
     if (slotIds.length > 0) {
-      const { count } = await supabaseService
+      const { count } = await supabase
         .from("student_reservations")
         .select("*", { count: "exact", head: true })
         .in("slot_id", slotIds);
@@ -79,7 +77,7 @@ export async function GET(request: Request) {
 
     // 4. Pending Checklists
     // Check if table exists first or handle error, but assuming it exists
-    const { count: pendingChecklistsCount } = await supabaseService
+    const { count: pendingChecklistsCount } = await supabase
       .from("new_student_checklists")
       .select("*", { count: "exact", head: true })
       .eq("checked", false);
@@ -87,7 +85,7 @@ export async function GET(request: Request) {
     // 5. Unread Portal Requests
     let unreadRequestsCount = 0;
     if (teacherId) {
-      const { count } = await supabaseService
+      const { count } = await supabase
         .from("portal_requests")
         .select("*", { count: "exact", head: true })
         .eq("teacher_id", teacherId)
@@ -98,13 +96,13 @@ export async function GET(request: Request) {
     // 6. My Students
     let myStudents: any[] = [];
     if (teacherClass) {
-      const { data: students } = await supabaseService
+      const { data: students } = await supabase
         .from("v_students_full")
         .select("student_id, student_name, english_first_name, class_name, campus")
         .eq("class_name", teacherClass)
         .limit(12);
       
-      myStudents = (students || []).map(s => ({
+      myStudents = (students || []).map((s: any) => ({
         id: s.student_id,
         name: s.student_name,
         englishName: s.english_first_name,
