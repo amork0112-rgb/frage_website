@@ -54,18 +54,34 @@ export default function TeacherCoachingPage() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState<"disabled" | "enabled" | "sent">("disabled");
 
-  // Helper to get today's weekday
-  const getTodayWeekday = () => {
-    if (!date) return "";
-    const d = new Date(date);
-    const dayIndex = d.getUTCDay(); // Use UTC day since date string is YYYY-MM-DD (UTC midnight)
-    const map = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-    return map[dayIndex];
-  };
+  const [todayClasses, setTodayClasses] = useState<ClassItem[]>([]);
+  
+  // Fetch Today's Classes
+  useEffect(() => {
+    async function fetchTodayClasses() {
+      try {
+        const res = await fetch(`/api/teacher/dagym/today-classes?date=${date}&campus=${selectedCampus}`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setTodayClasses(data);
+          // Auto-select first class if not already selected or if current selection is not in list
+          if (data.length > 0) {
+            // Check if current selectedClassId is in the new list. If not, pick the first one.
+            const exists = data.find(c => c.id === selectedClassId);
+            if (!exists && !selectedClassId) {
+              setSelectedClassId(data[0].id);
+            }
+          }
+        } else {
+            setTodayClasses([]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch today classes:", error);
+      }
+    }
 
-  const todayClasses = classes.filter(c => 
-    c.weekdays && c.weekdays.includes(getTodayWeekday())
-  );
+    fetchTodayClasses();
+  }, [date, selectedCampus]); // Update when date or campus changes
 
   // Fetch Classes on Mount or Campus Change
   useEffect(() => {
@@ -76,16 +92,11 @@ export default function TeacherCoachingPage() {
         if (Array.isArray(data)) {
           setClasses(data);
           
-          // Auto-select first class from Today's Classes if available, otherwise first of all
-          const day = getTodayWeekday();
-          const todays = data.filter((c: any) => c.weekdays && c.weekdays.includes(day));
-          
-          if (todays.length > 0) {
-            setSelectedClassId(todays[0].id);
-          } else if (data.length > 0) {
-            setSelectedClassId(data[0].id || "");
-          } else {
-            setSelectedClassId("");
+          // Note: Initial selection logic is now handled by fetchTodayClasses based on date
+          if (!selectedClassId && data.length > 0) {
+             // Fallback: if no class selected yet, pick first of all classes (though todayClasses usually takes precedence)
+             // We can leave selectedClassId empty until todayClasses loads, or set it here.
+             // To avoid conflict, let's just let the user pick or todayClasses pick.
           }
         }
       } catch (e) {
