@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
-import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export const dynamic = "force-dynamic";
 
@@ -15,17 +14,30 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json([], { status: 401 });
 
-    const role = await resolveUserRole(user);
-    if (!["teacher", "master_teacher", "admin", "master_admin"].includes(role)) {
+    // 1️⃣ Teacher 존재 여부로 권한 판단
+    const { data: teacher } = await supabaseService
+      .from("teachers")
+      .select("id, role, campus")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (!teacher) {
       return NextResponse.json([], { status: 403 });
     }
 
+    // ✅ 캠퍼스 필터링 로직 (master_teacher 예외 처리)
     let query = supabaseService
       .from("classes")
       .select("id, name, campus, sort_order");
 
-    if (campusParam && campusParam !== "All") {
-      query = query.eq("campus", campusParam);
+    // master_teacher → 전체
+    // 일반 teacher / campus → 본인 캠퍼스만
+    if (teacher.role !== "master_teacher") {
+      query = query.eq("campus", teacher.campus);
+    } else {
+      if (campusParam && campusParam !== "All") {
+        query = query.eq("campus", campusParam);
+      }
     }
 
     const { data, error } = await query

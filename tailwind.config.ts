@@ -24,6 +24,7 @@ const config: Config = {
         serif: ["var(--font-nunito)", "var(--font-noto-sans-kr)", "sans-serif"],
         sans: ["var(--font-nunito)", "var(--font-noto-sans-kr)", "sans-serif"],
         kr: ["var(--font-noto-sans-kr)", "sans-serif"],
+        montserrat: ["var(--font-montserrat)", "sans-serif"],
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

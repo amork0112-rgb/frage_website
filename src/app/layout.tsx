@@ -1,6 +1,6 @@
 // RootLayout
 import { ReactNode } from "react";
-import { Nunito, Noto_Sans_KR } from "next/font/google";
+import { Nunito, Noto_Sans_KR, Montserrat } from "next/font/google";
 import MainLayout from "@/components/MainLayout";
 import PWARegister from "@/components/PWARegister";
 import "./globals.css";
@@ -27,6 +27,13 @@ const notoSansKr = Noto_Sans_KR({
   display: "swap",
 });
 
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  variable: "--font-montserrat",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
 export const metadata: Metadata = {
   title: "FRAGE EDU | English for Thinking Minds",
   description: "Building strong readers, clear thinkers, and confident communicators.",
@@ -40,7 +47,7 @@ export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ko" className={`${nunito.variable} ${notoSansKr.variable}`}>
+    <html lang="ko" className={`${nunito.variable} ${notoSansKr.variable} ${montserrat.variable}`}>
       <head>
         {/* PWA */}
         <meta name="mobile-web-app-capable" content="yes" />

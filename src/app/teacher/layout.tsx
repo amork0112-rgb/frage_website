@@ -43,9 +43,9 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   if (!authorized) return <div className="min-h-screen bg-white" />;
 
   return (
-    <>
+    <div className="font-montserrat">
       <TeacherHeader />
       <main>{children}</main>
-    </>
+    </div>
   );
 }

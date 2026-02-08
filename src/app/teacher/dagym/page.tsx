@@ -306,16 +306,19 @@ export default function TeacherCoachingPage() {
         {/* Instruction Text */}
         <div className="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-4">
           <h2 className="text-sm font-bold text-blue-900 mb-2">Today’s Coaching</h2>
-          <p className="text-sm text-blue-800 leading-relaxed">
+          <div className="text-sm text-blue-800 leading-relaxed">
             Click each subject to record today’s coaching result.
-            <ul className="mt-1 ml-4 list-disc list-outside space-y-0.5">
-              <li>First click: <span className="font-bold">Done</span></li>
-              <li>Second click: <span className="font-bold">Partial</span></li>
-              <li>Third click: <span className="font-bold">Not done</span></li>
-              <li>Fourth click: <span className="font-bold">Reset</span></li>
-            </ul>
-            <span className="block mt-2 font-medium">All changes are saved automatically.</span>
-          </p>
+            <div className="mt-2 flex items-center gap-2 flex-wrap font-medium">
+              <span className="flex items-center gap-1"><Check className="w-4 h-4 text-green-500" /> Done</span>
+              <span className="text-blue-300">→</span>
+              <span className="flex items-center gap-1"><Triangle className="w-4 h-4 text-amber-500" /> Partial</span>
+              <span className="text-blue-300">→</span>
+              <span className="flex items-center gap-1"><X className="w-4 h-4 text-red-500" /> Not done</span>
+              <span className="text-blue-300">→</span>
+              <span className="flex items-center gap-1"><Square className="w-4 h-4 text-slate-300" /> Reset</span>
+            </div>
+            <span className="block mt-2 text-xs text-blue-600">All changes are saved automatically.</span>
+          </div>
         </div>
 
         {loading && students.length === 0 ? (
