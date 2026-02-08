@@ -61,15 +61,16 @@ export async function GET(req: Request) {
         // Step 3-2: Fetch books details explicitly (avoid implicit join which might fail if FK is missing)
         const { data: books, error: bookError } = await supabaseService
           .from("books")
-          .select("id, title")
+          .select("id, name")
           .in("id", bookIds);
           
         if (bookError) {
           console.error("Error fetching books:", bookError);
         } else if (books) {
-          // Map back to maintain order if needed, or just use the fetched books
-          // We'll just return the books found
-          subjects = books;
+          subjects = books.map(b => ({
+            id: b.id,
+            title: b.name   // ✅ 프론트는 title을 기대하므로 매핑
+          }));
         }
       }
     }
