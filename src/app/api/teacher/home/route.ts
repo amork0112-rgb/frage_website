@@ -16,10 +16,10 @@ export async function GET(request: Request) {
       error,
     } = await supabaseAuth.auth.getUser();
 
-    console.log("API AUTH CHECK", {
-      hasUser: !!user,
-      error,
-      cookies: request.headers.get("cookie"),
+    console.log("AUTH USER:", {
+      id: user?.id,
+      app_metadata: user?.app_metadata,
+      user_metadata: user?.user_metadata,
     });
 
     if (!user) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
