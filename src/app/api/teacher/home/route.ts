@@ -7,7 +7,17 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const supabaseAuth = createSupabaseServer();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabaseAuth.auth.getUser();
+
+    console.log("API AUTH CHECK", {
+      hasUser: !!user,
+      error,
+      cookies: request.headers.get("cookie"),
+    });
+
     if (!user) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
     // 1. Get Teacher Profile (DB Source of Truth)
