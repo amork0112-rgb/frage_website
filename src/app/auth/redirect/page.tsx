@@ -1,45 +1,44 @@
-// /auth/redirect 
+
 import { redirect } from "next/navigation"; 
 import { createSupabaseServer } from "@/lib/supabase/server"; 
-import { resolveUserRole } from "../../../lib/auth/resolveUserRole"; 
 
 export default async function AuthRedirectPage() { 
   const supabase = createSupabaseServer(); 
   const { data: { user } } = await supabase.auth.getUser(); 
 
-  if (!user) redirect("/portal"); 
+  if (!user) {
+    console.log("🔒 [AuthRedirect] No user found, redirecting to /portal");
+    redirect("/portal"); 
+  }
 
-  const role = await resolveUserRole(user); 
+  console.log("👤 [AuthRedirect] User found:", user.id);
 
-  console.log("🔐 AUTH ROLE:", role, "User ID:", user.id); 
+  // ✅ teachers 테이블 = 교사 / 관리자 판별 
+  const { data: teacher } = await supabase 
+    .from("teachers") 
+    .select("role") 
+    .eq("auth_user_id", user.id) 
+    .maybeSingle(); 
 
-  // 1️⃣ 관리자 
-  if (role === "master_admin" || role === "admin") { 
-    redirect("/admin/home"); 
-  } 
-
-  // 2️⃣ 교사 계열은 onboarding 스킵 
-  if (["teacher", "master_teacher", "campus"].includes(role)) { 
+  if (teacher) { 
+    console.log("👨‍🏫 [AuthRedirect] Teacher/Admin detected, redirecting to /teacher/home. Role:", teacher.role);
     redirect("/teacher/home"); 
   } 
 
-  // 3️⃣ 학부모만 onboarding 체크 
+  // ✅ parent만 onboarding 
   const { data: onboarding } = await supabase 
     .from("user_onboarding") 
     .select("pwa_prompt_seen") 
     .eq("user_id", user.id) 
     .maybeSingle(); 
+    
+  console.log("📱 [AuthRedirect] Parent detected. Onboarding status:", onboarding);
 
-  console.log("📱 Onboarding Status:", onboarding); 
-
-  if (role === "parent" && !onboarding?.pwa_prompt_seen) { 
+  if (!onboarding?.pwa_prompt_seen) { 
+    console.log("🆕 [AuthRedirect] PWA prompt not seen, redirecting to /portal/install");
     redirect("/portal/install"); 
   } 
 
-  // 4️⃣ 학부모 정상 진입
-  if (role === "parent") { 
-    redirect("/admission"); 
-  } 
-
-  redirect("/portal"); 
-}
+  console.log("✅ [AuthRedirect] Setup complete, redirecting to /admission");
+  redirect("/admission"); 
+} 
