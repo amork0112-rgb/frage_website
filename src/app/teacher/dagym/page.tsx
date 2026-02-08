@@ -110,8 +110,8 @@ export default function TeacherCoachingPage() {
         // Handle Status
         if (!status.error) {
            setAlreadyGenerated(status.alreadyGenerated);
-           // Button Enable Rules: !alreadyGenerated AND !hasHoliday AND !hasEvent AND hasLesson
-           const available = !status.alreadyGenerated && !status.hasHoliday && !status.hasEvent && status.hasLesson;
+           // Button Enable Rules: !alreadyGenerated AND hasLesson
+           const available = !status.alreadyGenerated && status.hasLesson;
            setCanGenerate(available);
         } else {
            console.error("Status error:", status.error);
