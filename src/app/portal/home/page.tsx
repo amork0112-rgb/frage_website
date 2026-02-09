@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bell, FileText, HelpCircle, CheckCircle, FileCheck, Calendar, Truck, AlertTriangle } from "lucide-react";
+import { Bell, FileText, HelpCircle, CheckCircle, FileCheck, Calendar, Truck, AlertTriangle, ChevronDown } from "lucide-react";
 import PortalHeader from "@/components/PortalHeader";
 import { supabase } from "@/lib/supabase";
 
@@ -974,26 +974,31 @@ export default function ParentPortalHome() {
         </section>
 
         <section>
-          <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-            <HelpCircle className="w-5 h-5 text-frage-navy" />
-            학부모 포털 사용방법
-          </h2>
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3 text-sm text-slate-700">
-            <p className="font-bold text-slate-900">로그인 후 이용 가능한 주요 메뉴:</p>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>영상 과제: 자녀의 오늘 과제를 녹화/확인합니다.</li>
-              <li>월간 리포트: 학습 진행과 피드백을 확인합니다.</li>
-              <li>공지사항: 학원 안내 및 공지 메시지를 확인합니다.</li>
-              <li>요청 전달: 결석/지각/문의 등 전달 사항을 등록합니다.</li>
-              <li>내 자녀: 자녀 기본 정보와 차량(등·하원) 정보를 관리합니다.</li>
-            </ul>
-            <p className="font-bold text-slate-900 mt-3">빠른 시작:</p>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>상단 메뉴에서 원하는 기능으로 이동하세요.</li>
-              <li>자녀 사진을 눌러 프로필 사진을 업로드할 수 있습니다.</li>
-              <li>차량 정보 저장 후에는 포털 홈에서 최신 공지를 우선 확인하세요.</li>
-            </ul>
-          </div>
+          <details className="group">
+            <summary className="list-none cursor-pointer">
+              <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2 group-open:mb-3">
+                <HelpCircle className="w-5 h-5 text-frage-navy" />
+                학부모 포털 사용방법
+                <ChevronDown className="w-5 h-5 ml-auto transition-transform group-open:rotate-180" />
+              </h2>
+            </summary>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3 text-sm text-slate-700">
+              <p className="font-bold text-slate-900">로그인 후 이용 가능한 주요 메뉴:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>영상 과제: 자녀의 오늘 과제를 녹화/확인합니다.</li>
+                <li>월간 리포트: 학습 진행과 피드백을 확인합니다.</li>
+                <li>공지사항: 학원 안내 및 공지 메시지를 확인합니다.</li>
+                <li>요청 전달: 결석/지각/문의 등 전달 사항을 등록합니다.</li>
+                <li>내 자녀: 자녀 기본 정보와 차량(등·하원) 정보를 관리합니다.</li>
+              </ul>
+              <p className="font-bold text-slate-900 mt-3">빠른 시작:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>상단 메뉴에서 원하는 기능으로 이동하세요.</li>
+                <li>자녀 사진을 눌러 프로필 사진을 업로드할 수 있습니다.</li>
+                <li>차량 정보 저장 후에는 포털 홈에서 최신 공지를 우선 확인하세요.</li>
+              </ul>
+            </div>
+          </details>
         </section>
 
         <section>
