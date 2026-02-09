@@ -43,6 +43,8 @@ export default function PortalPage() {
           return;
         }
         if (data?.user) {
+          // Add delay to ensure session is established before redirect
+          await new Promise(r => setTimeout(r, 300));
           router.replace("/auth/redirect");
         } else {
           setError("로그인 중 문제가 발생했습니다.");
