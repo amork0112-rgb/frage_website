@@ -39,6 +39,19 @@ export default async function AuthRedirectPage() {
     redirect("/portal/install"); 
   } 
 
-  console.log("✅ [AuthRedirect] Setup complete, redirecting to /admission");
+  // ✅ 기존 학부모 확인 (students 테이블에 parent_auth_user_id 연결 존재 여부)
+  // enrollment의 결과가 최종적으로 남는 곳이 students이므로 가장 신뢰도 높음
+  const { data: students } = await supabase
+    .from("students")
+    .select("id")
+    .eq("parent_auth_user_id", user.id)
+    .limit(1);
+
+  if (students && students.length > 0) {
+    console.log("👨‍👩‍👧 [AuthRedirect] Existing parent (has students), redirecting to /portal/home");
+    redirect("/portal/home");
+  }
+
+  console.log("✅ [AuthRedirect] New parent, redirecting to /admission");
   redirect("/admission"); 
 } 
