@@ -128,7 +128,10 @@ export async function POST(req: Request) {
     });
 
   } catch (err) {
-    console.error("❌ Unexpected error in send route:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("🔥 SEND API ERROR", err);
+    return NextResponse.json(
+      { error: String(err) },
+      { status: 500 }
+    );
   }
 }
