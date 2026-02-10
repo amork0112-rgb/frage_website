@@ -13,7 +13,21 @@ export default async function AuthRedirectPage() {
 
   console.log("👤 [AuthRedirect] User found:", user.id);
 
-  // ✅ teachers 테이블 = 교사 / 관리자 판별 
+  // ✅ 1. Admin Check (profiles table)
+  // admin / master_admin are in 'profiles' table (no role column needed, just existence)
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile) {
+    console.log("�️ [AuthRedirect] Admin detected (in profiles), redirecting to /admin/home");
+    redirect("/admin/home");
+  }
+
+  // ✅ 2. Teacher Check (teachers table)
+  // teacher / master_teacher are in 'teachers' table
   const { data: teacher } = await supabase 
     .from("teachers") 
     .select("role") 
@@ -21,7 +35,8 @@ export default async function AuthRedirectPage() {
     .maybeSingle(); 
 
   if (teacher) { 
-    console.log("👨‍🏫 [AuthRedirect] Teacher/Admin detected, redirecting to /teacher/home. Role:", teacher.role);
+    console.log("👨‍🏫 [AuthRedirect] Teacher detected. Role:", teacher.role);
+    console.log("👩‍🏫 Redirecting to Teacher Home");
     redirect("/teacher/home"); 
   } 
 
