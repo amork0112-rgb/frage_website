@@ -11,6 +11,15 @@ export type UserRole =
   | "unknown";
 
 export async function resolveUserRole(user: User) {
+  // 1. Check profiles (Admin)
+  const { data: profile } = await supabaseService
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile) return "admin";
+
   const { data: teacher } = await supabaseService
     .from("teachers")
     .select("role")

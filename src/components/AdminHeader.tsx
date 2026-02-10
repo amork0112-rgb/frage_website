@@ -23,9 +23,10 @@ export default function AdminHeader() {
           setRole(null);
           return;
         }
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-        if (profile?.role === "admin" || profile?.role === "master_admin") {
-          setRole(profile.role);
+        // profiles에 있으면 admin으로 간주 (role 컬럼 없음)
+        const { data: profile } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
+        if (profile) {
+          setRole("admin");
           return;
         }
 

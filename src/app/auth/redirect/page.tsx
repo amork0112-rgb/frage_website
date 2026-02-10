@@ -14,16 +14,16 @@ export default async function AuthRedirectPage() {
   console.log("👤 [AuthRedirect] User found:", user.id);
 
   // ✅ 1. Admin Check (profiles table)
+  // Admin & Master Admin are both in 'profiles' table.
+  // We check for existence (select 'id') because there is no 'role' column in profiles.
   const { data: profile } = await supabase 
    .from("profiles") 
-   .select("role") 
+   .select("id") 
    .eq("id", user.id) 
    .maybeSingle(); 
-   console.log("🔍 [AuthRedirect] Profile check result:", profile);
-   console.log("🔍 [AuthRedirect] Profile role:", profile?.role);
  
-  if (profile?.role === "master_admin" || profile?.role === "admin") { 
-   console.log("🛡️ [AuthRedirect] Admin detected:", profile.role); 
+  if (profile) { 
+   console.log("�️ [AuthRedirect] Admin detected (in profiles), redirecting to /admin/home"); 
    redirect("/admin/home"); 
   }
 
