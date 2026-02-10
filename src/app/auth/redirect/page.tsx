@@ -25,19 +25,6 @@ export default async function AuthRedirectPage() {
     redirect("/teacher/home"); 
   } 
 
-  // ✅ parent만 onboarding 
-  const { data: onboarding } = await supabase 
-    .from("user_onboarding") 
-    .select("pwa_prompt_seen") 
-    .eq("user_id", user.id) 
-    .maybeSingle(); 
-    
-  console.log("📱 [AuthRedirect] Parent detected. Onboarding status:", onboarding);
-
-  if (!onboarding?.pwa_prompt_seen) { 
-    console.log("🆕 [AuthRedirect] PWA prompt not seen, redirecting to /portal/install");
-    redirect("/portal/install"); 
-  } 
 
   // ✅ 기존 학부모 확인 (students 테이블에 parent_auth_user_id 연결 존재 여부)
   // enrollment의 결과가 최종적으로 남는 곳이 students이므로 가장 신뢰도 높음
