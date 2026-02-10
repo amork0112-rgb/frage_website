@@ -19,6 +19,8 @@ export default async function AuthRedirectPage() {
    .select("role") 
    .eq("id", user.id) 
    .maybeSingle(); 
+   console.log("🔍 [AuthRedirect] Profile check result:", profile);
+   console.log("🔍 [AuthRedirect] Profile role:", profile?.role);
  
   if (profile?.role === "master_admin" || profile?.role === "admin") { 
    console.log("🛡️ [AuthRedirect] Admin detected:", profile.role); 
