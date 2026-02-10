@@ -14,10 +14,19 @@ export function createSupabaseServer() {
           return cookieStore.get(name)?.value;
         },
         set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch (error) {
+            // Server Component에서 쿠키 설정 시도 시 발생하는 에러 무시
+            // (미들웨어나 Route Handler에서 처리해야 함)
+          }
         },
         remove(name: string, options: any) {
-          cookieStore.set({ name, value: "", ...options });
+          try {
+            cookieStore.set({ name, value: "", ...options });
+          } catch (error) {
+            // 에러 무시
+          }
         },
       },
     }
