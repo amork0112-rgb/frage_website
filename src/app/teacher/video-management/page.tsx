@@ -67,14 +67,6 @@ export default function TeacherVideoManagementPage() {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   useEffect(() => {
-    // Primary mode does NOT use student list from this API
-    if (viewMode === "primary") {
-      setStudents([]);
-      setClassCatalog([]);
-      setTeacherClassMap({});
-      return;
-    }
-
     const load = async () => {
       try {
         const res = await fetch("/api/teacher/students", { cache: "no-store", credentials: "include" });
@@ -88,7 +80,7 @@ export default function TeacherVideoManagementPage() {
       setTeacherClassMap({});
     };
     load();
-  }, [viewMode]);
+  }, []);
 
   const classOptionsAll = useMemo(() => {
     const map = new Map<string, number | null>();
@@ -501,12 +493,14 @@ export default function TeacherVideoManagementPage() {
           <h3 className="font-bold text-slate-900 text-sm">Management Filters</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">Campus</label>
-            <select value={filterCampus} onChange={(e) => setFilterCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
-            </select>
-          </div>
+          {viewMode !== "kinder" && (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">Campus</label>
+              <select value={filterCampus} onChange={(e) => setFilterCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+                {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
+              </select>
+            </div>
+          )}
           {viewMode === "kinder" && (
             <>
               <div>
@@ -535,13 +529,15 @@ export default function TeacherVideoManagementPage() {
               </div>
             </>
           )}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">Class Filter</label>
-            <select value={filterClass} onChange={(e) => setFilterClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-              <option value="All">All Classes</option>
-              {filterClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
-            </select>
-          </div>
+          {viewMode !== "kinder" && (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">Class Filter</label>
+              <select value={filterClass} onChange={(e) => setFilterClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
+                <option value="All">All Classes</option>
+                {filterClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
