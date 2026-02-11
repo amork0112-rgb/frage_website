@@ -11,26 +11,30 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-type Student = {
-  id: string;
-  name: string;
-  english_name: string;
-  photo_url: string;
-  class_name: string;
-  campus: string;
-  teacher_name: string;
-  birth_date: string;
-  gender: string;
-  address: string;
-  phone: string;
-  pickup_lat: number | null;
-  pickup_lng: number | null;
-  dropoff_lat: number | null;
-  dropoff_lng: number | null;
-  use_bus: boolean | null;
-  commute_type: string | null; // "bus", "self", "guardian"
-  status?: string; // e.g. "enrolled", "graduate"
-};
+type Student = { 
+  student_id: string; 
+  student_name: string; 
+  english_first_name: string; 
+  birth_date: string; 
+  gender: string; 
+  campus: string; 
+  status: string; 
+  address: string | null; 
+  use_bus: boolean | null; 
+  pickup_lat: number | null; 
+  pickup_lng: number | null; 
+  dropoff_lat: number | null; 
+  dropoff_lng: number | null; 
+  photo_url: string | null;
+  commute_type: string | null;
+
+  parent_name: string; 
+  parent_phone: string; 
+
+  class_id: string | null; 
+  class_name: string | null; 
+  class_sort_order: number | null; 
+}; 
 
 export default function ChildPage() {
   const router = useRouter();
@@ -71,20 +75,12 @@ export default function ChildPage() {
   // Derived Current Student
   const [isSaving, setIsSaving] = useState(false);
 
-  // Status & Class Logic Helpers
-  const getDisplayStatus = (status: string) => {
-    if (status === "재원") return "재원중";
-    if (status === "휴원") return "휴원중";
-    if (status === "퇴원") return "종료";
-    return status; // Default fallback, but logically should be one of the above for 'students'
-  };
-
-  const getDisplayClass = (className?: string) => {
+  const getDisplayClass = (className?: string | null) => {
     return className && className.trim() ? className : "반 배정 중";
   };
 
   const currentStudent = useMemo(() => 
-    students.find(s => s.id === currentStudentId) || null
+    students.find(s => s.student_id === currentStudentId) || null
   , [students, currentStudentId]);
 
   // Fetch Data
@@ -97,39 +93,41 @@ export default function ChildPage() {
           return;
         }
 
-        // Only fetch from 'students' table (Strictly Enrolled/Active)
+        // Use v_students_full VIEW as the single source of truth
         const { data: studentRows } = await supabase
-          .from("students")
+          .from("v_students_full")
           .select("*")
           .eq("parent_auth_user_id", user.id)
-          .order("id", { ascending: true });
+          .order("student_id", { ascending: true });
 
         if (studentRows && studentRows.length > 0) {
           const mapped: Student[] = studentRows.map(s => ({
-            id: String(s.id),
-            name: s.name || "",
-            english_name: s.english_name || "",
-            photo_url: s.photo_url || "",
-            class_name: s.class_name || "", // Will be handled by getDisplayClass
-            campus: s.campus || "",
-            teacher_name: s.teacher_name || "",
+            student_id: String(s.student_id),
+            student_name: s.student_name || "",
+            english_first_name: s.english_first_name || "",
             birth_date: s.birth_date || "",
             gender: s.gender || "",
-            address: s.address || "",
-            phone: s.phone || "",
+            campus: s.campus || "",
+            status: s.status || "",
+            address: s.address,
+            use_bus: s.use_bus,
             pickup_lat: s.pickup_lat,
             pickup_lng: s.pickup_lng,
             dropoff_lat: s.dropoff_lat,
             dropoff_lng: s.dropoff_lng,
-            use_bus: s.use_bus,
-            commute_type: s.commute_type,
-            status: s.status || "재원"
+            photo_url: s.photo_url || null,
+            commute_type: s.commute_type || null,
+            parent_name: s.parent_name || "",
+            parent_phone: s.parent_phone || "",
+            class_id: s.class_id ? String(s.class_id) : null,
+            class_name: s.class_name || null,
+            class_sort_order: s.class_sort_order || null
           }));
           setStudents(mapped);
           // Preserve selected child if possible
           setCurrentStudentId(prev => {
-             const exists = mapped.find(s => s.id === prev);
-             return exists ? prev : mapped[0].id;
+             const exists = mapped.find(s => s.student_id === prev);
+             return exists ? prev : mapped[0].student_id;
           });
         } else {
             setStudents([]);
@@ -147,7 +145,7 @@ export default function ChildPage() {
     if (currentStudent) {
       setFormData({
         address: currentStudent.address || "",
-        phone: currentStudent.phone || "",
+        phone: currentStudent.parent_phone || "", // Mapping to parent_phone as per v_students_full
         birthDate: currentStudent.birth_date || "",
         gender: currentStudent.gender || "",
         commuteType: currentStudent.commute_type || (currentStudent.use_bus ? "bus" : "self"),
@@ -170,18 +168,10 @@ export default function ChildPage() {
 
     const url = URL.createObjectURL(file);
     // Optimistic update
-    setStudents(prev => prev.map(s => s.id === currentStudentId ? { ...s, photo_url: url } : s));
+    setStudents(prev => prev.map(s => s.student_id === currentStudentId ? { ...s, photo_url: url } : s));
 
-    // Upload logic would go here (omitted for brevity, assuming URL storage)
-    // For now, just updating the DB record with the blob URL isn't persistent across devices, 
-    // but preserving existing behavior pattern.
-    // Ideally we upload to Supabase Storage.
     try {
-        // In a real app, upload to storage bucket first
-        // const { data, error } = await supabase.storage.from('avatars').upload(...)
-        
-        // Updating the record
-        // await supabase.from("students").update({ photo_url: publicUrl }).eq("id", currentStudentId);
+        // Upload logic would go here
     } catch (e) {}
   };
 
@@ -189,14 +179,14 @@ export default function ChildPage() {
     if (!currentStudentId) return;
     setSaving(true);
     try {
+      // UPDATE still targets the 'students' table directly
       const { error } = await supabase
         .from("students")
         .update({
           address: formData.address,
-          phone: formData.phone,
+          // phone: formData.phone, // Update logic for parent_phone or student_phone as needed
           birth_date: formData.birthDate,
           gender: formData.gender,
-          // Convert lat/lng strings to numbers or null if empty
           pickup_lat: formData.pickupLat ? parseFloat(formData.pickupLat) : null,
           pickup_lng: formData.pickupLng ? parseFloat(formData.pickupLng) : null,
           dropoff_lat: formData.dropoffLat ? parseFloat(formData.dropoffLat) : null,
@@ -210,10 +200,9 @@ export default function ChildPage() {
       alert("저장되었습니다.");
       
       // Update local state
-      setStudents(prev => prev.map(s => s.id === currentStudentId ? {
+      setStudents(prev => prev.map(s => s.student_id === currentStudentId ? {
         ...s,
         address: formData.address,
-        phone: formData.phone,
         birth_date: formData.birthDate,
         gender: formData.gender,
         pickup_lat: formData.pickupLat ? parseFloat(formData.pickupLat) : null,
@@ -269,7 +258,7 @@ export default function ChildPage() {
                         onClick={() => setIsSiblingDropdownOpen(!isSiblingDropdownOpen)}
                         className="flex items-center gap-2 text-2xl font-black hover:opacity-90 transition-opacity"
                     >
-                        {currentStudent.name} <span className="text-white/50 text-lg font-normal">({currentStudent.english_name})</span>
+                        {currentStudent.student_name} <span className="text-white/50 text-lg font-normal">({currentStudent.english_first_name})</span>
                         <ChevronDown className={`w-6 h-6 text-white/50 transition-transform ${isSiblingDropdownOpen ? "rotate-180" : ""}`} />
                     </button>
                     
@@ -281,15 +270,15 @@ export default function ChildPage() {
                             </div>
                             {students.map(s => (
                                 <button
-                                    key={s.id}
+                                    key={s.student_id}
                                     onClick={() => {
-                                        setCurrentStudentId(s.id);
+                                        setCurrentStudentId(s.student_id);
                                         setIsSiblingDropdownOpen(false);
                                     }}
-                                    className={`w-full text-left px-4 py-3 text-sm font-bold hover:bg-slate-50 flex items-center justify-between ${s.id === currentStudentId ? "text-frage-blue bg-blue-50" : ""}`}
+                                    className={`w-full text-left px-4 py-3 text-sm font-bold hover:bg-slate-50 flex items-center justify-between ${s.student_id === currentStudentId ? "text-frage-blue bg-blue-50" : ""}`}
                                 >
-                                    <span>{s.name} ({s.english_name})</span>
-                                    {s.id === currentStudentId && <Check className="w-4 h-4" />}
+                                    <span>{s.student_name} ({s.english_first_name})</span>
+                                    {s.student_id === currentStudentId && <Check className="w-4 h-4" />}
                                 </button>
                             ))}
                         </div>
@@ -308,7 +297,7 @@ export default function ChildPage() {
                             <img src={currentStudent.photo_url} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-white/30">
-                                {currentStudent.english_name.charAt(0)}
+                                {currentStudent.english_first_name.charAt(0)}
                             </div>
                         )}
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => fileInputRef.current?.click()}>

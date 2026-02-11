@@ -275,7 +275,6 @@ export default function NoticeDetailPage() {
 
                 {/* Reaction Section */}
                 <div className="mt-12 pt-8 border-t border-slate-100">
-                    <h4 className="text-center text-sm font-bold text-slate-400 mb-4">이 공지사항에 대해 어떻게 생각하시나요?</h4>
                     <div className="flex justify-center gap-4">
                         <button 
                             onClick={() => handleReaction('check')}
