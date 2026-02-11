@@ -75,58 +75,74 @@ export default function VideoListPage() {
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
       <PortalHeader />
       
-      <main className="px-4 py-6 max-w-2xl mx-auto space-y-8">
-        <header>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Video className="w-6 h-6 text-frage-blue" />
-            영상 과제 (Video Homework)
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            매일 읽기 연습을 영상으로 기록하고 피드백을 받아보세요.
-          </p>
+      <main className="px-4 md:px-6 py-8 max-w-6xl mx-auto space-y-10">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <Video className="w-6 h-6 text-frage-blue" />
+              영상 과제 (Video Homework)
+            </h1>
+            <p className="text-slate-500 text-sm mt-1">
+              매일 읽기 연습을 영상으로 기록하고 피드백을 받아보세요.
+            </p>
+          </div>
         </header>
 
         {/* 1. Pending Homework (To-Do) */}
         <section>
-          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3 ml-1">
+          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
             할 일 (To Do)
           </h2>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {homeworkList.filter(hw => hw.status === "Pending").map((hw) => (
               <Link 
                 key={hw.id} 
                 href={`/portal/video/${hw.id}`}
-                className="block bg-white rounded-xl p-5 shadow-sm border border-slate-200 hover:border-frage-blue hover:shadow-md transition-all group"
+                className="flex flex-col h-full bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-frage-blue hover:shadow-md transition-all group relative overflow-hidden"
               >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-red-50 text-red-500 text-[10px] font-bold px-2 py-0.5 rounded border border-red-100">
-                      {hw.isToday ? "9월 19일 마감" : `Due: ${hw.dueDate}`}
-                    </span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-frage-blue transition-colors" />
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Video className="w-24 h-24 text-frage-blue transform rotate-12" />
                 </div>
                 
-                <div>
-                  <h3 className="font-bold text-slate-900 text-lg group-hover:text-frage-blue transition-colors">
-                    {hw.title}
-                  </h3>
-                  <p className="text-slate-500 font-medium text-sm mt-0.5">
-                    {hw.module}
-                  </p>
+                <div className="relative z-10 flex-1">
+                    <div className="flex items-start justify-between mb-4">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                            hw.isToday 
+                            ? "bg-red-50 text-red-600 border-red-100" 
+                            : "bg-slate-100 text-slate-500 border-slate-200"
+                        }`}>
+                            {hw.isToday ? "오늘 마감" : `Due: ${hw.dueDate}`}
+                        </span>
+                    </div>
+                    
+                    <h3 className="font-bold text-slate-900 text-xl group-hover:text-frage-blue transition-colors mb-2 line-clamp-2">
+                        {hw.title}
+                    </h3>
+                    <p className="text-slate-500 font-medium text-sm">
+                        {hw.module}
+                    </p>
                 </div>
 
-                <div className="mt-4 flex items-center gap-2 text-sm font-bold text-frage-blue">
-                   <PlayCircle className="w-4 h-4" />
-                   녹화하러 가기
+                <div className="relative z-10 mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
+                   <span className="text-sm font-bold text-frage-blue flex items-center gap-2">
+                       <PlayCircle className="w-5 h-5" />
+                       녹화하기
+                   </span>
+                   <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-frage-blue group-hover:text-white transition-colors">
+                       <ChevronRight className="w-4 h-4" />
+                   </div>
                 </div>
               </Link>
             ))}
             
             {homeworkList.filter(hw => hw.status === "Pending").length === 0 && (
-              <div className="bg-white rounded-xl p-8 text-center border border-slate-200 border-dashed">
-                <CheckCircle className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500 font-medium">현재 제출할 과제가 없습니다.</p>
+              <div className="col-span-full bg-white rounded-2xl p-12 text-center border border-slate-200 border-dashed">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-8 h-8 text-slate-300" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-700">모든 과제를 완료했습니다!</h3>
+                <p className="text-slate-500 text-sm mt-1">새로운 과제가 등록될 때까지 기다려주세요.</p>
               </div>
             )}
           </div>
@@ -134,35 +150,39 @@ export default function VideoListPage() {
 
         {/* 2. Past Homework (History) with Toggle Feedback */}
         <section>
-          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3 ml-1 mt-8">
+          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 mt-8 flex items-center gap-2">
+             <span className="w-2 h-2 rounded-full bg-slate-300"></span>
              지난 과제 (History)
           </h2>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
              {homeworkList.filter(hw => hw.status !== "Pending").map((hw) => (
-               <div key={hw.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+               <div key={hw.id} className={`bg-white rounded-2xl shadow-sm border transition-all ${expandedId === hw.id ? "border-frage-blue ring-1 ring-frage-blue/10" : "border-slate-200"}`}>
                  {/* Header Row (Click to Toggle) */}
                  <button 
                    onClick={() => toggleExpand(hw.id)}
-                   className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors text-left"
+                   className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors text-left rounded-2xl"
                  >
                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${
                         hw.status === "Reviewed" ? "bg-green-100 text-green-600" : "bg-yellow-100 text-yellow-600"
                       }`}>
-                         {hw.status === "Reviewed" ? <CheckCircle className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+                         {hw.status === "Reviewed" ? <CheckCircle className="w-6 h-6" /> : <Clock className="w-6 h-6" />}
                       </div>
                       <div>
-                         <h3 className="font-bold text-slate-800 text-sm">{hw.title}</h3>
-                         <p className="text-xs text-slate-500">{hw.module} • {hw.dueDate}</p>
+                         <h3 className="font-bold text-slate-800 text-base mb-1">{hw.title}</h3>
+                         <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <span className="bg-slate-100 px-2 py-0.5 rounded">{hw.module}</span>
+                            <span>{hw.dueDate}</span>
+                         </div>
                       </div>
                    </div>
                    
-                   <div className="flex items-center gap-3">
-                      <div className="text-right">
+                   <div className="flex items-center gap-4">
+                      <div className="text-right hidden sm:block">
                           {hw.status === "Reviewed" ? (
-                            <span className="text-sm font-bold text-frage-navy">{hw.score}</span>
+                            <span className="text-base font-black text-frage-navy">{hw.score}</span>
                           ) : (
-                            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">제출 완료</span>
+                            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">제출됨</span>
                           )}
                       </div>
                       {expandedId === hw.id ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
@@ -171,9 +191,9 @@ export default function VideoListPage() {
                  
                  {/* Feedback Content (Toggled) */}
                  {expandedId === hw.id && (
-                   <div className="border-t border-slate-100 bg-slate-50/50 p-5 animate-fade-in-down">
+                   <div className="border-t border-slate-100 bg-slate-50/50 p-6 rounded-b-2xl animate-fade-in">
                      {hw.status === "Reviewed" && hw.feedback ? (
-                       <div className="space-y-4">
+                       <div className="space-y-5">
                          {/* [1] Overall Message */}
                          <div className="bg-white rounded-xl p-4 border border-blue-100 shadow-sm">
                            <div className="flex items-center gap-2 mb-2">

@@ -71,6 +71,82 @@ export default function PortalHeader() {
 
   return (
     <>
+      {/* PC Header */}
+      <header className="hidden lg:flex bg-white sticky top-0 z-20 px-6 py-4 border-b border-slate-200 items-center justify-between shadow-sm">
+        <div className="flex items-center gap-8">
+          <Link href="/portal/home" className="text-xl font-bold text-frage-navy">
+            FRAGE EDU
+          </Link>
+          <nav className="flex items-center gap-1">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || (item.href !== "/portal/home" && pathname.startsWith(item.href));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                    isActive 
+                      ? "bg-frage-blue/10 text-frage-blue" 
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-sm font-bold text-slate-900">{studentDisplayName || parentName}</p>
+            <p className="text-xs text-slate-500">학부모</p>
+          </div>
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="w-10 h-10 rounded-full bg-frage-blue text-white flex items-center justify-center font-bold text-sm hover:opacity-90 transition-opacity"
+          >
+            {avatarUrl ? (
+              <Image src={avatarUrl} alt={studentDisplayName || "아바타"} width={40} height={40} className="rounded-full object-cover" />
+            ) : (
+              avatarInitials
+            )}
+          </button>
+          
+          {isMenuOpen && (
+            <>
+              <div 
+                className="fixed inset-0 z-10" 
+                onClick={() => setIsMenuOpen(false)} 
+              />
+              <div className="absolute right-6 top-16 w-56 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-20 animate-fade-in-up">
+                <div className="px-4 py-3 border-b border-slate-50 mb-1">
+                  <p className="text-sm font-bold text-slate-900">{studentDisplayName || parentName}</p>
+                  <p className="text-xs text-slate-500">{isEnrolled ? "재원생 학부모" : "입학 대기중"}</p>
+                </div>
+                <Link 
+                  href="/portal/child" 
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <User className="w-4 h-4 text-slate-400" />
+                  내 자녀 프로필
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                >
+                  <LogOut className="w-4 h-4" />
+                  로그아웃
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </header>
+
       {/* Mobile Header */}
       <header className="bg-white sticky top-0 z-20 px-4 py-3 border-b border-slate-200 flex items-center justify-between shadow-sm lg:hidden">
         <h1 className="text-lg font-bold text-frage-navy">학부모 포털</h1>

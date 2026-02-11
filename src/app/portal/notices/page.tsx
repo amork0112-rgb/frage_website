@@ -97,7 +97,7 @@ export default function NoticesPage() {
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
       <PortalHeader />
       
-      <main className="px-4 py-6 max-w-xl mx-auto space-y-8">
+      <main className="px-4 md:px-6 py-6 max-w-6xl mx-auto space-y-8">
         
         {/* Page Title */}
         <div className="flex items-center gap-3 mb-6">
@@ -111,46 +111,22 @@ export default function NoticesPage() {
                 <Pin className="w-4 h-4 text-frage-orange fill-frage-orange" />
                 <h2 className="text-xs font-bold text-frage-orange uppercase tracking-wider">중요 공지</h2>
             </div>
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {pinnedNotices.map((p) => (
                 <Link href={`/portal/notices/${p.id}`} key={p.id}>
-                  <div className="bg-white p-5 rounded-2xl border-l-4 border-frage-orange shadow-sm hover:shadow-md transition-all active:scale-[0.98]">
+                  <div className="bg-white p-5 rounded-2xl border-l-4 border-frage-orange shadow-sm hover:shadow-md transition-all active:scale-[0.98] h-full flex flex-col justify-between">
                       <div className="flex justify-between items-start gap-4">
                           <div>
                               <div className="flex items-center gap-2 mb-2">
                                   {!p.isRead && (
                                       <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                                   )}
-                                  <h3 className="text-lg font-bold text-slate-900 leading-tight">{p.title}</h3>
-                                  {typeof p.pinnedOrder === "number" && (
-                                    <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded bg-orange-50 text-frage-orange border border-orange-100">#{p.pinnedOrder}</span>
-                                  )}
+                                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                                      {p.category}
+                                  </span>
                               </div>
-                              <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed">{p.summary}</p>
-                          </div>
-                      </div>
-                      <div className="mt-4 flex items-center justify-between text-xs font-bold text-slate-400">
-                          <div className="flex items-center gap-2">
-                              <span>{formatDate(p.date)}</span>
-                              <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                              <span className="text-frage-orange">{p.category}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                              <span className="flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" />
-                                {p.reactions.check}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Heart className="w-3 h-3" />
-                                {p.reactions.heart}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Smile className="w-3 h-3" />
-                                {p.reactions.smile}
-                              </span>
-                            </div>
-                            <span className="text-slate-400">조회 {p.viewCount}</span>
+                              <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-2">{p.title}</h3>
+                              <p className="text-xs text-slate-500 mt-1">{formatDate(p.date)}</p>
                           </div>
                       </div>
                   </div>
@@ -162,59 +138,57 @@ export default function NoticesPage() {
 
         {/* [2] RECENT NOTICES */}
         <section>
-          <div className="flex items-center gap-2 mb-3 px-1">
-              <Megaphone className="w-4 h-4 text-slate-400" />
-              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">최신 소식</h2>
+          <div className="flex items-center justify-between mb-3 px-1">
+              <div className="flex items-center gap-2">
+                  <Archive className="w-4 h-4 text-slate-400" />
+                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">전체 공지</h2>
+              </div>
           </div>
-
-          <div className="space-y-4">
-            {recentNotices.map((notice) => (
-              <Link href={`/portal/notices/${notice.id}`} key={notice.id} className="block group">
-                <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm hover:border-slate-300 hover:shadow-md transition-all active:bg-slate-50 relative overflow-hidden">
-                    {/* Unread Indicator */}
-                    {!notice.isRead && (
-                        <div className="absolute top-0 right-0 w-12 h-12">
-                            <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full m-3 shadow-sm animate-pulse"></div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recentNotices.map((n) => (
+              <Link href={`/portal/notices/${n.id}`} key={n.id}>
+                <div className={`bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all active:scale-[0.98] h-full flex flex-col ${!n.isRead ? 'bg-slate-50/50' : ''}`}>
+                    <div className="flex justify-between items-start gap-4 mb-4">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                                {!n.isRead && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-frage-blue"></span>
+                                )}
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                    n.category === 'Schedule' ? 'text-orange-600 bg-orange-50' :
+                                    n.category === 'Academic' ? 'text-blue-600 bg-blue-50' :
+                                    'text-slate-500 bg-slate-100'
+                                }`}>
+                                    {n.category}
+                                </span>
+                            </div>
+                            <h3 className={`text-base font-bold leading-snug line-clamp-2 ${!n.isRead ? 'text-slate-900' : 'text-slate-700'}`}>
+                                {n.title}
+                            </h3>
                         </div>
-                    )}
-
-                    <div className="flex flex-col gap-1 mb-2">
-                        <div className="flex justify-between items-center pr-4">
-                            <span className="text-xs font-bold text-slate-400">{formatDate(notice.date)}</span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                notice.category === 'Academic' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                notice.category === 'Event' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                                'bg-slate-50 text-slate-500 border-slate-100'
-                            }`}>
-                                {notice.category}
-                            </span>
-                        </div>
-                        <h3 className="text-base font-bold text-slate-900 group-hover:text-frage-blue transition-colors pr-2">{notice.title}</h3>
                     </div>
-                    <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed mb-3">
-                        {notice.summary}
-                    </p>
-                    <div className="flex items-center justify-between border-t border-slate-50 pt-2">
-                      <div className="flex items-center gap-3 text-[11px] text-slate-400">
-                        <span className="flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          {notice.reactions.check}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Heart className="w-3 h-3" />
-                          {notice.reactions.heart}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Smile className="w-3 h-3" />
-                          {notice.reactions.smile}
-                        </span>
-                      </div>
-                      <span className="text-xs text-slate-400">조회 {notice.viewCount}</span>
+                    
+                    <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400">
+                        <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>{formatDate(n.date)}</span>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-300" />
                     </div>
                 </div>
               </Link>
             ))}
           </div>
+
+          {recentNotices.length === 0 && (
+              <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
+                  <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4 text-slate-300">
+                      <Megaphone className="w-8 h-8" />
+                  </div>
+                  <p className="text-slate-400 font-bold">등록된 공지사항이 없습니다.</p>
+              </div>
+          )}
         </section>
 
         {/* [3] ARCHIVED NOTICES */}

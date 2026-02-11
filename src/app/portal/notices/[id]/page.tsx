@@ -155,7 +155,7 @@ export default function NoticeDetailPage() {
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
       <PortalHeader />
       
-      <main className="px-4 py-6 max-w-2xl mx-auto">
+      <main className="px-4 md:px-6 py-8 max-w-4xl mx-auto">
         
         {/* Back Button */}
         <Link href="/portal/notices" className="inline-flex items-center text-slate-500 hover:text-slate-800 font-bold mb-6 transition-colors">
