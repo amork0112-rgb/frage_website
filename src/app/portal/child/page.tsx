@@ -52,25 +52,37 @@ export default function ChildPage() {
     birthDate: string;
     gender: string;
     commuteType: string;
-    pickupPlace: string; // Not in DB schema directly in previous code, assuming mapping to address or note? 
-    // Wait, previous code used transportForm state for "request". 
-    // But here we are editing the PROFILE.
-    // The previous code had `pickup_lat/lng` but also a `transportForm` that sent a REQUEST.
-    // The user said "Profile + Settings".
-    // I will allow editing fields that are in the `students` table: address, phone, birth_date, gender.
-    // For transport, I'll show current status and maybe allow requesting change?
-    // The user said "Input Screen ❌", so maybe just viewing and simple edits.
-    // I'll stick to editing the fields that are directly on the student record.
+    pickupLat: string;
+    pickupLng: string;
+    dropoffLat: string;
+    dropoffLng: string;
   }>({
     address: "",
     phone: "",
     birthDate: "",
     gender: "",
     commuteType: "",
-    pickupPlace: "",
+    pickupLat: "",
+    pickupLng: "",
+    dropoffLat: "",
+    dropoffLng: "",
   });
 
   // Derived Current Student
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Status & Class Logic Helpers
+  const getDisplayStatus = (status: string) => {
+    if (status === "재원") return "재원중";
+    if (status === "휴원") return "휴원중";
+    if (status === "퇴원") return "종료";
+    return status; // Default fallback, but logically should be one of the above for 'students'
+  };
+
+  const getDisplayClass = (className?: string) => {
+    return className && className.trim() ? className : "반 배정 중";
+  };
+
   const currentStudent = useMemo(() => 
     students.find(s => s.id === currentStudentId) || null
   , [students, currentStudentId]);
@@ -85,6 +97,7 @@ export default function ChildPage() {
           return;
         }
 
+        // Only fetch from 'students' table (Strictly Enrolled/Active)
         const { data: studentRows } = await supabase
           .from("students")
           .select("*")
@@ -97,7 +110,7 @@ export default function ChildPage() {
             name: s.name || "",
             english_name: s.english_name || "",
             photo_url: s.photo_url || "",
-            class_name: s.class_name || "",
+            class_name: s.class_name || "", // Will be handled by getDisplayClass
             campus: s.campus || "",
             teacher_name: s.teacher_name || "",
             birth_date: s.birth_date || "",
@@ -110,15 +123,19 @@ export default function ChildPage() {
             dropoff_lng: s.dropoff_lng,
             use_bus: s.use_bus,
             commute_type: s.commute_type,
-            status: s.status || "Enrolled"
+            status: s.status || "재원"
           }));
           setStudents(mapped);
-          setCurrentStudentId(mapped[0].id);
+          // Preserve selected child if possible
+          setCurrentStudentId(prev => {
+             const exists = mapped.find(s => s.id === prev);
+             return exists ? prev : mapped[0].id;
+          });
         } else {
-            setLoading(false);
+            setStudents([]);
         }
-      } catch (e) {
-        console.error(e);
+      } catch (error) {
+        console.error("Error fetching students:", error);
       } finally {
         setLoading(false);
       }
@@ -134,7 +151,10 @@ export default function ChildPage() {
         birthDate: currentStudent.birth_date || "",
         gender: currentStudent.gender || "",
         commuteType: currentStudent.commute_type || (currentStudent.use_bus ? "bus" : "self"),
-        pickupPlace: "", // This would need a proper field if we want to persist it
+        pickupLat: currentStudent.pickup_lat ? String(currentStudent.pickup_lat) : "",
+        pickupLng: currentStudent.pickup_lng ? String(currentStudent.pickup_lng) : "",
+        dropoffLat: currentStudent.dropoff_lat ? String(currentStudent.dropoff_lat) : "",
+        dropoffLng: currentStudent.dropoff_lng ? String(currentStudent.dropoff_lng) : "",
       });
     }
   }, [currentStudent]);
@@ -176,7 +196,11 @@ export default function ChildPage() {
           phone: formData.phone,
           birth_date: formData.birthDate,
           gender: formData.gender,
-          // commute_type: formData.commuteType // Update if schema allows
+          // Convert lat/lng strings to numbers or null if empty
+          pickup_lat: formData.pickupLat ? parseFloat(formData.pickupLat) : null,
+          pickup_lng: formData.pickupLng ? parseFloat(formData.pickupLng) : null,
+          dropoff_lat: formData.dropoffLat ? parseFloat(formData.dropoffLat) : null,
+          dropoff_lng: formData.dropoffLng ? parseFloat(formData.dropoffLng) : null,
           updated_at: new Date().toISOString()
         })
         .eq("id", Number(currentStudentId));
@@ -192,6 +216,10 @@ export default function ChildPage() {
         phone: formData.phone,
         birth_date: formData.birthDate,
         gender: formData.gender,
+        pickup_lat: formData.pickupLat ? parseFloat(formData.pickupLat) : null,
+        pickup_lng: formData.pickupLng ? parseFloat(formData.pickupLng) : null,
+        dropoff_lat: formData.dropoffLat ? parseFloat(formData.dropoffLat) : null,
+        dropoff_lng: formData.dropoffLng ? parseFloat(formData.dropoffLng) : null,
       } : s));
       
     } catch (e) {
@@ -203,7 +231,25 @@ export default function ChildPage() {
   };
 
   if (loading) return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>;
-  if (!currentStudent) return <div className="min-h-screen bg-slate-50 flex items-center justify-center">자녀 정보가 없습니다.</div>;
+  
+  if (students.length === 0) {
+    return (
+        <div className="min-h-screen bg-slate-50 font-sans pb-32 lg:pb-10">
+            <PortalHeader />
+            <main className="max-w-3xl mx-auto px-6 py-20 text-center">
+                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <User className="w-10 h-10 text-slate-300" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800 mb-2">현재 반 배정이 진행 중입니다.</h2>
+                <p className="text-slate-500 text-sm">
+                    자녀 정보가 확인되지 않을 경우 학원으로 문의해주세요.
+                </p>
+            </main>
+        </div>
+    );
+  }
+
+  if (!currentStudent) return null;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-32 lg:pb-10">
@@ -250,11 +296,10 @@ export default function ChildPage() {
                     )}
                 </div>
 
-                {/* Status Badge */}
+                {/* Status Badge - Removed Status Text as requested */}
                 <div className="flex items-center gap-2 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 mb-6">
-                    <span className="w-2 h-2 rounded-full bg-green-400"></span>
-                    <span>FRAGE {currentStudent.campus} · {currentStudent.class_name || "반 정보 없음"}</span>
-                </div>
+                    <span>FRAGE {currentStudent.campus} · {getDisplayClass(currentStudent.class_name)}</span>
+                 </div>
 
                 {/* Profile Photo */}
                 <div className="relative group">
@@ -361,11 +406,7 @@ export default function ChildPage() {
                     </div>
                     <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                         <span className="text-xs text-slate-400 font-bold block mb-1">Class</span>
-                        <span className="text-sm font-bold text-slate-900">{currentStudent.class_name}</span>
-                    </div>
-                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 col-span-2">
-                        <span className="text-xs text-slate-400 font-bold block mb-1">Homeroom Teacher</span>
-                        <span className="text-sm font-bold text-slate-900">{currentStudent.teacher_name}</span>
+                        <span className="text-sm font-bold text-slate-900">{getDisplayClass(currentStudent.class_name)}</span>
                     </div>
                 </div>
             </section>
@@ -397,14 +438,95 @@ export default function ChildPage() {
                         </span>
                      </div>
                      
-                     {/* Location Maps or Coordinates could go here */}
-                     {(currentStudent.pickup_lat || currentStudent.dropoff_lat) && (
-                        <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                     {/* Location Settings (Show if bus is used or commute_type is bus) */}
+                     {(currentStudent.use_bus || currentStudent.commute_type === "bus") && (
+                        <div className="mt-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
                             <div className="flex items-center gap-2 mb-2">
-                                <MapPin className="w-4 h-4 text-slate-400" />
-                                <span className="text-xs font-bold text-slate-500">픽업/드롭오프 위치 설정됨</span>
+                                <MapPin className="w-4 h-4 text-frage-blue" />
+                                <span className="text-sm font-bold text-slate-700">셔틀 버스 승/하차 위치 설정</span>
                             </div>
-                            <p className="text-xs text-slate-400">위치 변경이 필요한 경우 학원으로 문의해주세요.</p>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 mb-1.5">등원 위치 (Pick-up)</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input 
+                                            type="number" 
+                                            placeholder="Latitude"
+                                            value={formData.pickupLat}
+                                            onChange={e => setFormData({...formData, pickupLat: e.target.value})}
+                                            className="w-full text-xs font-bold text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-frage-blue"
+                                        />
+                                        <input 
+                                            type="number" 
+                                            placeholder="Longitude"
+                                            value={formData.pickupLng}
+                                            onChange={e => setFormData({...formData, pickupLng: e.target.value})}
+                                            className="w-full text-xs font-bold text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-frage-blue"
+                                        />
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            if (navigator.geolocation) {
+                                                navigator.geolocation.getCurrentPosition(pos => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        pickupLat: pos.coords.latitude.toFixed(6),
+                                                        pickupLng: pos.coords.longitude.toFixed(6)
+                                                    }));
+                                                });
+                                            } else {
+                                                alert("위치 정보를 사용할 수 없습니다.");
+                                            }
+                                        }}
+                                        className="mt-2 text-xs font-bold text-frage-blue hover:underline flex items-center gap-1"
+                                    >
+                                        <MapPin className="w-3 h-3" /> 현재 위치로 설정
+                                    </button>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 mb-1.5">하원 위치 (Drop-off)</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input 
+                                            type="number" 
+                                            placeholder="Latitude"
+                                            value={formData.dropoffLat}
+                                            onChange={e => setFormData({...formData, dropoffLat: e.target.value})}
+                                            className="w-full text-xs font-bold text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-frage-blue"
+                                        />
+                                        <input 
+                                            type="number" 
+                                            placeholder="Longitude"
+                                            value={formData.dropoffLng}
+                                            onChange={e => setFormData({...formData, dropoffLng: e.target.value})}
+                                            className="w-full text-xs font-bold text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-frage-blue"
+                                        />
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            if (navigator.geolocation) {
+                                                navigator.geolocation.getCurrentPosition(pos => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        dropoffLat: pos.coords.latitude.toFixed(6),
+                                                        dropoffLng: pos.coords.longitude.toFixed(6)
+                                                    }));
+                                                });
+                                            } else {
+                                                alert("위치 정보를 사용할 수 없습니다.");
+                                            }
+                                        }}
+                                        className="mt-2 text-xs font-bold text-frage-blue hover:underline flex items-center gap-1"
+                                    >
+                                        <MapPin className="w-3 h-3" /> 현재 위치로 설정
+                                    </button>
+                                </div>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-2 bg-blue-50 text-blue-600 p-3 rounded-xl font-medium">
+                                * 정확한 위치 파악을 위해 위도(Latitude)와 경도(Longitude)를 입력하거나 '현재 위치로 설정' 버튼을 눌러주세요.
+                            </p>
                         </div>
                      )}
                 </div>
