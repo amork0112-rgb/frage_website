@@ -41,6 +41,11 @@ export default function ParentPortalHome() {
   const [monthlyReports, setMonthlyReports] = useState<{ id: string; title: string; date: string; status: string; target_month: string; published_at: string }[]>([]);
   const [notifications, setNotifications] = useState<{ id?: string; message: string; date?: string; title?: string; isRead?: boolean; category?: string; createdAt?: string }[]>([]);
   
+  const handleContact = () => {
+    // KakaoTalk Channel URL
+    window.open("http://pf.kakao.com/_TxdXxnG/chat", "_blank");
+  };
+
   // For New Students
   const [currentStep, setCurrentStep] = useState("대기");
   const [admissionOpen, setAdmissionOpen] = useState(false);
@@ -1128,12 +1133,12 @@ export default function ParentPortalHome() {
                   </div>
                   <span className="text-xs font-bold">자녀 정보</span>
                 </Link>
-                <Link href="https://frage.kr" target="_blank" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 hover:bg-frage-blue/5 hover:text-frage-blue transition-colors group">
+                <button onClick={handleContact} className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 hover:bg-frage-blue/5 hover:text-frage-blue transition-colors group">
                   <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 mb-2 group-hover:text-frage-blue group-hover:scale-110 transition-all">
                     <HelpCircle className="w-5 h-5" />
                   </div>
                   <span className="text-xs font-bold">문의하기</span>
-                </Link>
+                </button>
               </div>
             </section>
 

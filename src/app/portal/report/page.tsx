@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import PortalHeader from "@/components/PortalHeader";
-import { FileText, Calendar, User, School, CheckCircle, BarChart3, MessageSquare, ChevronDown, Mic, Video, PenTool } from "lucide-react";
+import { FileText, Calendar, User, School, CheckCircle, BarChart3, MessageSquare, ChevronDown, Mic, Video, PenTool, Sparkles } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { classGoals } from "@/data/classGoals";
 
 type PublishedSummary = { id: string; title: string; date: string; month: string };
 
@@ -139,6 +140,54 @@ export default function ReportPage() {
             </div>
           </div>
 
+          {/* Class Goal & Learning Focus */}
+          <div className="p-6 md:p-8 border-b border-slate-100">
+            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100 text-frage-orange">
+                    <CheckCircle className="w-4 h-4" />
+                </span>
+                Class Goal & Learning Focus
+            </h3>
+            {(() => {
+              const goal = report?.className ? classGoals[report.className] : null;
+              if (!goal) {
+                 return (
+                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 text-slate-500 text-sm italic">
+                        Class goals are not available for this class yet.
+                    </div>
+                 );
+              }
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                        <div className="flex items-center gap-3 mb-3 text-red-600 font-bold">
+                            <FileText className="w-5 h-5" /> Reading
+                        </div>
+                        <p className="text-sm text-slate-600 leading-relaxed">{goal.Reading}</p>
+                    </div>
+                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                        <div className="flex items-center gap-3 mb-3 text-blue-600 font-bold">
+                            <Mic className="w-5 h-5" /> Listening
+                        </div>
+                        <p className="text-sm text-slate-600 leading-relaxed">{goal.Listening}</p>
+                    </div>
+                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                        <div className="flex items-center gap-3 mb-3 text-green-600 font-bold">
+                            <MessageSquare className="w-5 h-5" /> Speaking
+                        </div>
+                        <p className="text-sm text-slate-600 leading-relaxed">{goal.Speaking}</p>
+                    </div>
+                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                        <div className="flex items-center gap-3 mb-3 text-purple-600 font-bold">
+                            <PenTool className="w-5 h-5" /> Writing
+                        </div>
+                        <p className="text-sm text-slate-600 leading-relaxed">{goal.Writing}</p>
+                    </div>
+                </div>
+              );
+            })()}
+          </div>
+
           {/* Teacher's Feedback */}
           <div className="p-6 md:p-8 border-b border-slate-100">
             <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
@@ -154,44 +203,8 @@ export default function ReportPage() {
             </div>
           </div>
 
-          {/* Learning Focus Grid */}
-          <div className="p-6 md:p-8 border-b border-slate-100">
-            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100 text-frage-orange">
-                    <CheckCircle className="w-4 h-4" />
-                </span>
-                Class Goal & Learning Focus
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                    <div className="flex items-center gap-3 mb-3 text-red-600 font-bold">
-                        <FileText className="w-5 h-5" /> Reading
-                    </div>
-                    <p className="text-sm text-slate-600 leading-relaxed">{report?.comments?.Reading || "-"}</p>
-                </div>
-                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                    <div className="flex items-center gap-3 mb-3 text-blue-600 font-bold">
-                        <Mic className="w-5 h-5" /> Listening
-                    </div>
-                    <p className="text-sm text-slate-600 leading-relaxed">{report?.comments?.Listening || "-"}</p>
-                </div>
-                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                    <div className="flex items-center gap-3 mb-3 text-green-600 font-bold">
-                        <MessageSquare className="w-5 h-5" /> Speaking
-                    </div>
-                    <p className="text-sm text-slate-600 leading-relaxed">{report?.comments?.Speaking || "-"}</p>
-                </div>
-                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                    <div className="flex items-center gap-3 mb-3 text-purple-600 font-bold">
-                        <PenTool className="w-5 h-5" /> Writing
-                    </div>
-                    <p className="text-sm text-slate-600 leading-relaxed">{report?.comments?.Writing || "-"}</p>
-                </div>
-            </div>
-          </div>
-
           {/* Video Rubric */}
-          <div className="p-6 md:p-8">
+          <div className="p-6 md:p-8 border-b border-slate-100">
             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
                 <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-yellow-100 text-yellow-600">
                     <BarChart3 className="w-4 h-4" />
@@ -231,6 +244,57 @@ export default function ReportPage() {
                         })}
                     </tbody>
                 </table>
+            </div>
+          </div>
+
+          {/* Teacher's Video Feedback */}
+          <div className="p-6 md:p-8 border-b border-slate-100">
+             <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
+                 <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-pink-100 text-pink-600">
+                     <Video className="w-4 h-4" />
+                 </span>
+                 Teacher&apos;s Video Feedback
+             </h3>
+             <div className="bg-pink-50/50 p-6 rounded-2xl border border-pink-100">
+                 <p className="text-slate-700 leading-relaxed text-sm md:text-base">
+                     {report?.videoSummary || "비디오 피드백이 없습니다."}
+                 </p>
+             </div>
+          </div>
+
+          {/* Class Participation & Skill Progress */}
+          <div className="p-6 md:p-8">
+            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600">
+                    <Sparkles className="w-4 h-4" />
+                </span>
+                Class Participation & Skill Progress
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3 text-red-600 font-bold border-b border-slate-100 pb-2">
+                        <FileText className="w-5 h-5" /> Reading
+                    </div>
+                    <p className="text-sm text-slate-700 leading-relaxed min-h-[60px]">{report?.comments?.Reading || "-"}</p>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3 text-blue-600 font-bold border-b border-slate-100 pb-2">
+                        <Mic className="w-5 h-5" /> Listening
+                    </div>
+                    <p className="text-sm text-slate-700 leading-relaxed min-h-[60px]">{report?.comments?.Listening || "-"}</p>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3 text-green-600 font-bold border-b border-slate-100 pb-2">
+                        <MessageSquare className="w-5 h-5" /> Speaking
+                    </div>
+                    <p className="text-sm text-slate-700 leading-relaxed min-h-[60px]">{report?.comments?.Speaking || "-"}</p>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3 text-purple-600 font-bold border-b border-slate-100 pb-2">
+                        <PenTool className="w-5 h-5" /> Writing
+                    </div>
+                    <p className="text-sm text-slate-700 leading-relaxed min-h-[60px]">{report?.comments?.Writing || "-"}</p>
+                </div>
             </div>
           </div>
         </div>
