@@ -113,183 +113,124 @@ export default function ReportPage() {
            </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Summary Card & Teacher's Feedback */}
-          <div className="lg:col-span-4 space-y-6">
-            <div className="bg-white shadow-xl rounded-2xl overflow-hidden border-t-8 border-frage-orange transform transition-all hover:shadow-2xl duration-300">
-                <div className="relative p-8 text-center border-b border-slate-100 overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-frage-orange via-yellow-400 to-frage-orange"></div>
-                    <div className="absolute -top-10 -left-10 w-32 h-32 bg-yellow-100 rounded-full blur-3xl opacity-50"></div>
-                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-orange-100 rounded-full blur-3xl opacity-50"></div>
-                    <div className="relative z-10">
-                        <div className="flex justify-center items-center gap-2 mb-3">
-                            <span className="text-frage-orange font-black text-2xl tracking-widest drop-shadow-sm">FRAGE KINDER</span>
-                        </div>
-                        <h2 className="text-5xl font-black text-slate-900 mb-8 font-serif tracking-tight">Monthly Report</h2>
-                        <div className="flex flex-col gap-3">
-                            <div className="flex items-center justify-between bg-slate-50 px-4 py-3 rounded-xl border border-slate-100">
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="w-4 h-4 text-frage-orange" />
-                                  <span className="text-slate-500 font-bold uppercase text-xs tracking-wider">Month</span>
-                                </div>
-                                <span className="text-slate-900 font-bold text-lg">{monthLabel}</span>
-                            </div>
-                            <div className="flex items-center justify-between bg-slate-50 px-4 py-3 rounded-xl border border-slate-100">
-                                <div className="flex items-center gap-2">
-                                  <School className="w-4 h-4 text-blue-500" />
-                                  <span className="text-slate-500 font-bold uppercase text-xs tracking-wider">Class</span>
-                                </div>
-                                <span className="text-slate-900 font-bold text-lg">{report?.className || "-"}</span>
-                            </div>
-                            <div className="flex items-center justify-between bg-slate-50 px-4 py-3 rounded-xl border border-slate-100">
-                                <div className="flex items-center gap-2">
-                                  <User className="w-4 h-4 text-green-500" />
-                                  <span className="text-slate-500 font-bold uppercase text-xs tracking-wider">ID</span>
-                                </div>
-                                <span className="text-slate-900 font-bold text-lg">{studentId}</span>
-                            </div>
-                        </div>
-                    </div>
+        {/* Report Content */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* Header Section */}
+          <div className="bg-slate-50 border-b border-slate-200 p-6 md:p-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 mb-2">Monthly Report</h2>
+                <p className="text-slate-500 font-medium">학습 성취도 및 선생님 피드백을 확인하세요.</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm text-center">
+                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Month</div>
+                  <div className="text-slate-900 font-bold">{monthLabel}</div>
                 </div>
+                <div className="px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm text-center">
+                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Class</div>
+                  <div className="text-slate-900 font-bold">{report?.className || "-"}</div>
+                </div>
+                <div className="px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm text-center">
+                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Student</div>
+                  <div className="text-slate-900 font-bold">{studentId}</div>
+                </div>
+              </div>
             </div>
+          </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
-                    <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-blue-600">
-                        <Video className="w-4 h-4" />
-                    </span>
-                    Teacher&apos;s Feedback
-                </h3>
-                <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-blue-100 rounded-full blur-2xl -mr-10 -mt-10 opacity-60"></div>
-                    <h4 className="font-bold text-sm text-blue-800 mb-2 flex items-center gap-2 relative z-10">
-                        <MessageSquare className="w-4 h-4" />
-                        Overall Comment
-                    </h4>
-                    <p className="text-slate-700 leading-relaxed text-sm relative z-10 bg-white/60 p-4 rounded-xl border border-blue-100/50">
-                        {report?.overall || "리포트 데이터가 없습니다."}
-                    </p>
+          {/* Teacher's Feedback */}
+          <div className="p-6 md:p-8 border-b border-slate-100">
+            <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
+                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-blue-600">
+                    <MessageSquare className="w-4 h-4" />
+                </span>
+                Teacher&apos;s Feedback
+            </h3>
+            <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
+                <p className="text-slate-700 leading-relaxed text-sm md:text-base">
+                    {report?.overall || "리포트 데이터가 없습니다."}
+                </p>
+            </div>
+          </div>
+
+          {/* Learning Focus Grid */}
+          <div className="p-6 md:p-8 border-b border-slate-100">
+            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100 text-frage-orange">
+                    <CheckCircle className="w-4 h-4" />
+                </span>
+                Class Goal & Learning Focus
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-3 mb-3 text-red-600 font-bold">
+                        <FileText className="w-5 h-5" /> Reading
+                    </div>
+                    <p className="text-sm text-slate-600 leading-relaxed">{report?.comments?.Reading || "-"}</p>
+                </div>
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-3 mb-3 text-blue-600 font-bold">
+                        <Mic className="w-5 h-5" /> Listening
+                    </div>
+                    <p className="text-sm text-slate-600 leading-relaxed">{report?.comments?.Listening || "-"}</p>
+                </div>
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-3 mb-3 text-green-600 font-bold">
+                        <MessageSquare className="w-5 h-5" /> Speaking
+                    </div>
+                    <p className="text-sm text-slate-600 leading-relaxed">{report?.comments?.Speaking || "-"}</p>
+                </div>
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-3 mb-3 text-purple-600 font-bold">
+                        <PenTool className="w-5 h-5" /> Writing
+                    </div>
+                    <p className="text-sm text-slate-600 leading-relaxed">{report?.comments?.Writing || "-"}</p>
                 </div>
             </div>
           </div>
 
-          {/* Right Column: Detailed Metrics */}
-          <div className="lg:col-span-8 space-y-6">
-            <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200">
-                <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                    <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-100 text-frage-orange">
-                        <CheckCircle className="w-4 h-4" />
-                    </span>
-                    Class Goal & Learning Focus
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="group bg-slate-50 p-5 rounded-2xl border border-orange-100/50 hover:bg-white hover:border-orange-200 hover:shadow-md transition-all">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2 bg-red-100 rounded-lg text-red-600"><FileText className="w-4 h-4" /></div>
-                            <span className="font-bold text-slate-800">Reading</span>
-                        </div>
-                        <p className="text-sm text-slate-600 leading-relaxed group-hover:text-slate-900">{report?.comments?.Reading || "-"}</p>
-                    </div>
-                    <div className="group bg-slate-50 p-5 rounded-2xl border border-blue-100/50 hover:bg-white hover:border-blue-200 hover:shadow-md transition-all">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><Mic className="w-4 h-4" /></div>
-                            <span className="font-bold text-slate-800">Listening</span>
-                        </div>
-                        <p className="text-sm text-slate-600 leading-relaxed group-hover:text-slate-900">{report?.comments?.Listening || "-"}</p>
-                    </div>
-                    <div className="group bg-slate-50 p-5 rounded-2xl border border-green-100/50 hover:bg-white hover:border-green-200 hover:shadow-md transition-all">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2 bg-green-100 rounded-lg text-green-600"><MessageSquare className="w-4 h-4" /></div>
-                            <span className="font-bold text-slate-800">Speaking</span>
-                        </div>
-                        <p className="text-sm text-slate-600 leading-relaxed group-hover:text-slate-900">{report?.comments?.Speaking || "-"}</p>
-                    </div>
-                    <div className="group bg-slate-50 p-5 rounded-2xl border border-purple-100/50 hover:bg-white hover:border-purple-200 hover:shadow-md transition-all">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2 bg-purple-100 rounded-lg text-purple-600"><PenTool className="w-4 h-4" /></div>
-                            <span className="font-bold text-slate-800">Writing</span>
-                        </div>
-                        <p className="text-sm text-slate-600 leading-relaxed group-hover:text-slate-900">{report?.comments?.Writing || "-"}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200">
-                <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                    <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-yellow-100 text-yellow-600">
-                        <BarChart3 className="w-4 h-4" />
-                    </span>
-                    Video Rubric
-                </h3>
-                <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
-                    <table className="w-full text-sm text-left border-collapse min-w-[500px]">
-                        <thead>
-                            <tr className="bg-slate-50 text-slate-500 uppercase text-xs tracking-wider">
-                                <th className="p-4 border-b border-slate-200 w-32 font-bold">Category</th>
-                                <th className="p-4 border-b border-slate-200 font-bold">Score</th>
+          {/* Video Rubric */}
+          <div className="p-6 md:p-8">
+            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-yellow-100 text-yellow-600">
+                    <BarChart3 className="w-4 h-4" />
+                </span>
+                Video Rubric
+            </h3>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-sm text-left border-collapse min-w-[500px]">
+                    <thead>
+                        <tr className="bg-slate-50 text-slate-500 uppercase text-xs tracking-wider">
+                            <th className="p-4 border-b border-slate-200 w-40 font-bold">Category</th>
+                            <th className="p-4 border-b border-slate-200 font-bold">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white">
+                        {["fluency","volume","speed","pronunciation","performance"].map((k) => {
+                          const v = report?.videoScores?.[k] ?? 0;
+                          const label = k.charAt(0).toUpperCase() + k.slice(1);
+                          return (
+                            <tr key={k} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
+                              <td className="p-4 font-bold text-slate-700 border-r border-slate-100">{label}</td>
+                              <td className="p-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="flex gap-1.5">
+                                    {[1,2,3,4].map((star) => (
+                                      <div
+                                        key={star}
+                                        className={`h-2.5 rounded-full transition-all duration-500 ${star <= v ? "w-10 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-sm" : "w-2.5 bg-slate-100"}`}
+                                      ></div>
+                                    ))}
+                                  </div>
+                                  <span className="text-sm font-bold text-frage-orange bg-orange-50 px-3 py-0.5 rounded-full border border-orange-100">{v}/4</span>
+                                </div>
+                              </td>
                             </tr>
-                        </thead>
-                        <tbody className="bg-white">
-                            {["fluency","volume","speed","pronunciation","performance"].map((k) => {
-                              const v = report?.videoScores?.[k] ?? 0;
-                              const label = k.charAt(0).toUpperCase() + k.slice(1);
-                              return (
-                                <tr key={k} className="group hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0">
-                                  <td className="p-4 font-bold text-slate-700 border-r border-slate-100 group-hover:text-frage-orange transition-colors">{label}</td>
-                                  <td className="p-4">
-                                    <div className="flex items-center gap-4">
-                                      <div className="flex gap-1.5">
-                                        {[1,2,3,4].map((star) => (
-                                          <div
-                                            key={star}
-                                            className={`h-2 rounded-full transition-all duration-500 ${star <= v ? "w-8 bg-gradient-to-r from-yellow-400 to-orange-500 shadow-sm" : "w-2 bg-slate-100"}`}
-                                          ></div>
-                                        ))}
-                                      </div>
-                                      <span className="text-sm font-bold text-frage-orange bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">{v}/4</span>
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200">
-                <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                    <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-100 text-purple-600">
-                        <School className="w-4 h-4" />
-                    </span>
-                    Class Participation & Skill Progress
-                </h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                    <div className="p-5 border-l-4 border-red-400 bg-slate-50 shadow-sm rounded-r-xl hover:shadow-md hover:bg-white transition-all">
-                        <div className="flex items-center gap-2 text-red-500 font-bold mb-2">
-                            <FileText className="w-4 h-4" /> Reading
-                        </div>
-                        <p className="text-sm text-slate-600 leading-relaxed">{report?.comments?.Reading || "-"}</p>
-                    </div>
-                    <div className="p-5 border-l-4 border-blue-400 bg-slate-50 shadow-sm rounded-r-xl hover:shadow-md hover:bg-white transition-all">
-                        <div className="flex items-center gap-2 text-blue-500 font-bold mb-2">
-                            <Mic className="w-4 h-4" /> Listening
-                        </div>
-                        <p className="text-sm text-slate-600 leading-relaxed">{report?.comments?.Listening || "-"}</p>
-                    </div>
-                    <div className="p-5 border-l-4 border-green-400 bg-slate-50 shadow-sm rounded-r-xl hover:shadow-md hover:bg-white transition-all">
-                        <div className="flex items-center gap-2 text-green-500 font-bold mb-2">
-                            <MessageSquare className="w-4 h-4" /> Speaking
-                        </div>
-                        <p className="text-sm text-slate-600 leading-relaxed">{report?.comments?.Speaking || "-"}</p>
-                    </div>
-                    <div className="p-5 border-l-4 border-purple-400 bg-slate-50 shadow-sm rounded-r-xl hover:shadow-md hover:bg-white transition-all">
-                        <div className="flex items-center gap-2 text-purple-500 font-bold mb-2">
-                            <PenTool className="w-4 h-4" /> Writing
-                        </div>
-                        <p className="text-sm text-slate-600 leading-relaxed">{report?.comments?.Writing || "-"}</p>
-                    </div>
-                </div>
+                          );
+                        })}
+                    </tbody>
+                </table>
             </div>
           </div>
         </div>

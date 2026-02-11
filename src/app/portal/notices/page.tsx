@@ -111,23 +111,29 @@ export default function NoticesPage() {
                 <Pin className="w-4 h-4 text-frage-orange fill-frage-orange" />
                 <h2 className="text-xs font-bold text-frage-orange uppercase tracking-wider">중요 공지</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
               {pinnedNotices.map((p) => (
-                <Link href={`/portal/notices/${p.id}`} key={p.id}>
-                  <div className="bg-white p-5 rounded-2xl border-l-4 border-frage-orange shadow-sm hover:shadow-md transition-all active:scale-[0.98] h-full flex flex-col justify-between">
-                      <div className="flex justify-between items-start gap-4">
-                          <div>
-                              <div className="flex items-center gap-2 mb-2">
-                                  {!p.isRead && (
-                                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                                  )}
-                                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                                      {p.category}
-                                  </span>
-                              </div>
-                              <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-2">{p.title}</h3>
-                              <p className="text-xs text-slate-500 mt-1">{formatDate(p.date)}</p>
-                          </div>
+                <Link href={`/portal/notices/${p.id}`} key={p.id} className="block hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-4 px-6 py-4 min-h-[64px]">
+                      {/* Left: Category */}
+                      <div className="flex-shrink-0 flex items-center gap-2 w-32">
+                          {!p.isRead && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                          )}
+                          <span className="text-[10px] font-bold text-frage-orange bg-orange-50 px-2 py-1 rounded-full border border-orange-100">
+                              {p.category}
+                          </span>
+                      </div>
+                      
+                      {/* Center: Title */}
+                      <div className="flex-grow min-w-0">
+                          <h3 className="text-sm font-bold text-slate-900 truncate pr-4">{p.title}</h3>
+                      </div>
+
+                      {/* Right: Date & Arrow */}
+                      <div className="flex-shrink-0 flex items-center gap-4 text-slate-400">
+                          <span className="text-xs font-medium">{formatDate(p.date)}</span>
+                          <ChevronRight className="w-4 h-4 text-slate-300" />
                       </div>
                   </div>
                 </Link>
@@ -145,35 +151,34 @@ export default function NoticesPage() {
               </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
             {recentNotices.map((n) => (
-              <Link href={`/portal/notices/${n.id}`} key={n.id}>
-                <div className={`bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all active:scale-[0.98] h-full flex flex-col ${!n.isRead ? 'bg-slate-50/50' : ''}`}>
-                    <div className="flex justify-between items-start gap-4 mb-4">
-                        <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                                {!n.isRead && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-frage-blue"></span>
-                                )}
-                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                    n.category === 'Schedule' ? 'text-orange-600 bg-orange-50' :
-                                    n.category === 'Academic' ? 'text-blue-600 bg-blue-50' :
-                                    'text-slate-500 bg-slate-100'
-                                }`}>
-                                    {n.category}
-                                </span>
-                            </div>
-                            <h3 className={`text-base font-bold leading-snug line-clamp-2 ${!n.isRead ? 'text-slate-900' : 'text-slate-700'}`}>
-                                {n.title}
-                            </h3>
-                        </div>
+              <Link href={`/portal/notices/${n.id}`} key={n.id} className="block hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-4 px-6 py-4 min-h-[64px]">
+                    {/* Left: Category */}
+                    <div className="flex-shrink-0 flex items-center gap-2 w-32">
+                        {!n.isRead && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-frage-blue"></span>
+                        )}
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${
+                            n.category === 'Schedule' ? 'text-orange-600 bg-orange-50 border-orange-100' :
+                            n.category === 'Academic' ? 'text-blue-600 bg-blue-50 border-blue-100' :
+                            'text-slate-500 bg-slate-100 border-slate-200'
+                        }`}>
+                            {n.category}
+                        </span>
                     </div>
                     
-                    <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400">
-                        <div className="flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>{formatDate(n.date)}</span>
-                        </div>
+                    {/* Center: Title */}
+                    <div className="flex-grow min-w-0">
+                        <h3 className={`text-sm font-bold truncate pr-4 ${!n.isRead ? 'text-slate-900' : 'text-slate-700'}`}>
+                            {n.title}
+                        </h3>
+                    </div>
+
+                    {/* Right: Date & Arrow */}
+                    <div className="flex-shrink-0 flex items-center gap-4 text-slate-400">
+                        <span className="text-xs font-medium">{formatDate(n.date)}</span>
                         <ChevronRight className="w-4 h-4 text-slate-300" />
                     </div>
                 </div>
@@ -182,7 +187,7 @@ export default function NoticesPage() {
           </div>
 
           {recentNotices.length === 0 && (
-              <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
+              <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
                   <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4 text-slate-300">
                       <Megaphone className="w-8 h-8" />
                   </div>
