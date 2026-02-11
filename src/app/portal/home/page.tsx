@@ -34,6 +34,9 @@ export default function ParentPortalHome() {
   const [onboardingUseBus, setOnboardingUseBus] = useState<boolean | null>(null);
   const [onboardingCommuteType, setOnboardingCommuteType] = useState<"bus" | "pickup" | "walk" | "">("");
   const [onboardingAddress, setOnboardingAddress] = useState("");
+  const [onboardingDetailAddress, setOnboardingDetailAddress] = useState("");
+  const [onboardingPickupPlace, setOnboardingPickupPlace] = useState("");
+  const [onboardingDropoffPlace, setOnboardingDropoffPlace] = useState("");
   const [onboardingSaving, setOnboardingSaving] = useState(false);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
   
@@ -78,6 +81,17 @@ export default function ParentPortalHome() {
       times.push(`${String(h).padStart(2, "0")}:00`);
     }
     return times;
+  }, []);
+
+  useEffect(() => {
+    // Load Daum Postcode script
+    const script = document.createElement("script");
+    script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+    script.async = true;
+    document.head.appendChild(script);
+    return () => {
+      document.head.removeChild(script);
+    };
   }, []);
 
   useEffect(() => {
@@ -170,6 +184,9 @@ export default function ParentPortalHome() {
             setOnboardingCommuteType("");
           }
           setOnboardingAddress(address);
+          setOnboardingDetailAddress("");
+          setOnboardingPickupPlace("");
+          setOnboardingDropoffPlace("");
           setOnboardingStep(1);
           setOnboardingError(null);
         } else {
@@ -182,6 +199,31 @@ export default function ParentPortalHome() {
       }
     })();
   }, [authChecked, authorized, router]);
+
+  const handleAddressSearch = () => {
+    if (typeof window !== "undefined" && (window as any).daum) {
+      new (window as any).daum.Postcode({
+        oncomplete: function (data: any) {
+          let fullAddr = data.address;
+          let extraAddr = "";
+
+          if (data.addressType === "R") {
+            if (data.bname !== "") {
+              extraAddr += data.bname;
+            }
+            if (data.buildingName !== "") {
+              extraAddr += extraAddr !== "" ? ", " + data.buildingName : data.buildingName;
+            }
+            fullAddr += extraAddr !== "" ? " (" + extraAddr + ")" : "";
+          }
+
+          setOnboardingAddress(fullAddr);
+        },
+      }).open();
+    } else {
+      alert("주소 서비스를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+    }
+  };
 
   const handleReserve = (slot: any) => {
     if (!confirm(`${slot.date} ${slot.time}에 입학 테스트를 예약하시겠습니까?`)) return;
@@ -779,6 +821,31 @@ export default function ParentPortalHome() {
                       차량 미이용 시에도 귀가 방식을 선택해 주세요.
                     </p>
                   </div>
+
+                  {onboardingUseBus === true && (
+                    <div className="pt-2 space-y-3 animate-fade-in">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">등원 정류장 (승차 위치)</label>
+                        <input
+                          type="text"
+                          value={onboardingPickupPlace}
+                          onChange={(e) => setOnboardingPickupPlace(e.target.value)}
+                          placeholder="예: ○○아파트 정문, ○○상가 앞"
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">하원 정류장 (하차 위치)</label>
+                        <input
+                          type="text"
+                          value={onboardingDropoffPlace}
+                          onChange={(e) => setOnboardingDropoffPlace(e.target.value)}
+                          placeholder="예: ○○아파트 정문, ○○상가 앞"
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-between gap-2">
                   <button
@@ -792,7 +859,8 @@ export default function ParentPortalHome() {
                     type="button"
                     disabled={
                       onboardingUseBus === null ||
-                      onboardingCommuteType === ""
+                      onboardingCommuteType === "" ||
+                      (onboardingUseBus === true && (!onboardingPickupPlace.trim() || !onboardingDropoffPlace.trim()))
                     }
                     onClick={() => setOnboardingStep(3)}
                     className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -812,13 +880,33 @@ export default function ParentPortalHome() {
                       <span className="text-xs text-red-500 ml-1">(필수)</span>
                     )}
                   </p>
+                  
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={onboardingAddress}
+                      onClick={handleAddressSearch}
+                      placeholder="주소를 검색해 주세요"
+                      className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-slate-50 cursor-pointer"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddressSearch}
+                      className="px-3 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors whitespace-nowrap"
+                    >
+                      주소 찾기
+                    </button>
+                  </div>
+
                   <input
                     type="text"
-                    value={onboardingAddress}
-                    onChange={(e) => setOnboardingAddress(e.target.value)}
-                    placeholder="예: 대구 수성구 ○○아파트 ○동 ○○호"
+                    value={onboardingDetailAddress}
+                    onChange={(e) => setOnboardingDetailAddress(e.target.value)}
+                    placeholder="상세 주소를 입력해 주세요 (동·호수 등)"
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-frage-blue bg-white"
                   />
+
                   <p className="text-[11px] text-slate-500">
                     셔틀 버스를 이용하시는 경우 등·하원 기준 주소를 입력해 주세요.
                   </p>
@@ -880,8 +968,25 @@ export default function ParentPortalHome() {
                       • 주소:{" "}
                       <span className="font-bold">
                         {onboardingAddress.trim() || "입력 없음"}
+                        {onboardingDetailAddress.trim() && ` ${onboardingDetailAddress.trim()}`}
                       </span>
                     </p>
+                    {onboardingUseBus && (
+                      <>
+                        <p>
+                          • 등원 정류장:{" "}
+                          <span className="font-bold">
+                            {onboardingPickupPlace.trim() || "-"}
+                          </span>
+                        </p>
+                        <p>
+                          • 하원 정류장:{" "}
+                          <span className="font-bold">
+                            {onboardingDropoffPlace.trim() || "-"}
+                          </span>
+                        </p>
+                      </>
+                    )}
                   </div>
                   <p className="text-[11px] text-slate-500 mt-1">
                     저장 후에도 내 자녀 메뉴에서 언제든지 수정할 수 있습니다.
@@ -908,13 +1013,17 @@ export default function ParentPortalHome() {
                       onboardingUseBus === null ||
                       onboardingCommuteType === "" ||
                       (onboardingUseBus === true &&
-                        onboardingAddress.trim().length === 0)
+                        (onboardingAddress.trim().length === 0 || !onboardingPickupPlace.trim() || !onboardingDropoffPlace.trim()))
                     }
                     onClick={async () => {
                       if (!studentId || !authUserId) return;
                       setOnboardingSaving(true);
                       setOnboardingError(null);
                       try {
+                        const finalAddress = onboardingDetailAddress.trim() 
+                          ? `${onboardingAddress.trim()} ${onboardingDetailAddress.trim()}`
+                          : onboardingAddress.trim();
+
                         const payload: any = {
                           use_bus: onboardingUseBus,
                           commute_type:
@@ -923,10 +1032,9 @@ export default function ParentPortalHome() {
                               : onboardingCommuteType === "pickup"
                               ? "self"
                               : "bus",
-                          address:
-                            onboardingAddress.trim().length > 0
-                              ? onboardingAddress.trim()
-                              : null,
+                          address: finalAddress.length > 0 ? finalAddress : null,
+                          pickup_place: onboardingPickupPlace.trim() || null,
+                          dropoff_place: onboardingDropoffPlace.trim() || null,
                           parent_auth_user_id: authUserId,
                           profile_completed: true,
                         };
@@ -985,28 +1093,6 @@ export default function ParentPortalHome() {
                  안녕하세요, <span className="text-frage-blue">{studentProfile?.englishName || studentProfile?.name || "학부모"}</span>님! 👋
               </h1>
               <p className="text-sm text-slate-500 font-medium">오늘도 즐거운 하루 보내세요.</p>
-           </div>
-           
-           {/* Quick Stats (Desktop) */}
-           <div className="hidden md:flex gap-4">
-              <div className="bg-white px-4 py-3 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-frage-blue">
-                    <FileCheck className="w-5 h-5" />
-                 </div>
-                 <div>
-                    <p className="text-xs text-slate-400 font-bold uppercase">Report</p>
-                    <p className="text-sm font-black text-slate-900">{monthlyReports.length > 0 ? "도착함" : "없음"}</p>
-                 </div>
-              </div>
-              <div className="bg-white px-4 py-3 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-frage-orange">
-                    <Bell className="w-5 h-5" />
-                 </div>
-                 <div>
-                    <p className="text-xs text-slate-400 font-bold uppercase">Notice</p>
-                    <p className="text-sm font-black text-slate-900">{notifications.filter(n => !n.isRead).length}건</p>
-                 </div>
-              </div>
            </div>
         </section>
 

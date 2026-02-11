@@ -25,6 +25,8 @@ type Student = {
   pickup_lng: number | null; 
   dropoff_lat: number | null; 
   dropoff_lng: number | null; 
+  pickup_address: string | null;
+  dropoff_address: string | null;
   photo_url: string | null;
   commute_type: string | null;
 
@@ -58,8 +60,10 @@ export default function ChildPage() {
     commuteType: string;
     pickupLat: string;
     pickupLng: string;
+    pickupAddress: string;
     dropoffLat: string;
     dropoffLng: string;
+    dropoffAddress: string;
   }>({
     address: "",
     phone: "",
@@ -68,8 +72,10 @@ export default function ChildPage() {
     commuteType: "",
     pickupLat: "",
     pickupLng: "",
+    pickupAddress: "",
     dropoffLat: "",
     dropoffLng: "",
+    dropoffAddress: "",
   });
 
   // Derived Current Student
@@ -115,6 +121,8 @@ export default function ChildPage() {
             pickup_lng: s.pickup_lng,
             dropoff_lat: s.dropoff_lat,
             dropoff_lng: s.dropoff_lng,
+            pickup_address: s.pickup_address || null,
+            dropoff_address: s.dropoff_address || null,
             photo_url: s.photo_url || null,
             commute_type: s.commute_type || null,
             parent_name: s.parent_name || "",
@@ -151,8 +159,10 @@ export default function ChildPage() {
         commuteType: currentStudent.commute_type || (currentStudent.use_bus ? "bus" : "self"),
         pickupLat: currentStudent.pickup_lat ? String(currentStudent.pickup_lat) : "",
         pickupLng: currentStudent.pickup_lng ? String(currentStudent.pickup_lng) : "",
+        pickupAddress: currentStudent.pickup_address || "",
         dropoffLat: currentStudent.dropoff_lat ? String(currentStudent.dropoff_lat) : "",
         dropoffLng: currentStudent.dropoff_lng ? String(currentStudent.dropoff_lng) : "",
+        dropoffAddress: currentStudent.dropoff_address || "",
       });
     }
   }, [currentStudent]);
@@ -185,12 +195,12 @@ export default function ChildPage() {
         .update({
           address: formData.address,
           // phone: formData.phone, // Update logic for parent_phone or student_phone as needed
-          birth_date: formData.birthDate,
-          gender: formData.gender,
           pickup_lat: formData.pickupLat ? parseFloat(formData.pickupLat) : null,
           pickup_lng: formData.pickupLng ? parseFloat(formData.pickupLng) : null,
+          pickup_address: formData.pickupAddress || null,
           dropoff_lat: formData.dropoffLat ? parseFloat(formData.dropoffLat) : null,
           dropoff_lng: formData.dropoffLng ? parseFloat(formData.dropoffLng) : null,
+          dropoff_address: formData.dropoffAddress || null,
           updated_at: new Date().toISOString()
         })
         .eq("id", Number(currentStudentId));
@@ -203,12 +213,12 @@ export default function ChildPage() {
       setStudents(prev => prev.map(s => s.student_id === currentStudentId ? {
         ...s,
         address: formData.address,
-        birth_date: formData.birthDate,
-        gender: formData.gender,
         pickup_lat: formData.pickupLat ? parseFloat(formData.pickupLat) : null,
         pickup_lng: formData.pickupLng ? parseFloat(formData.pickupLng) : null,
+        pickup_address: formData.pickupAddress || null,
         dropoff_lat: formData.dropoffLat ? parseFloat(formData.dropoffLat) : null,
         dropoff_lng: formData.dropoffLng ? parseFloat(formData.dropoffLng) : null,
+        dropoff_address: formData.dropoffAddress || null,
       } : s));
       
     } catch (e) {
@@ -331,28 +341,17 @@ export default function ChildPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-400 mb-1.5">생년월일</label>
-                            <div className="relative">
-                                <input 
-                                    type="date" 
-                                    value={formData.birthDate}
-                                    onChange={e => setFormData({...formData, birthDate: e.target.value})}
-                                    className="w-full text-sm font-bold text-slate-900 border-b border-slate-200 py-2 focus:outline-none focus:border-frage-blue bg-transparent"
-                                />
+                            <div className="text-sm font-bold text-slate-900 border-b border-slate-100 py-2 bg-slate-50/50 px-1 rounded-sm">
+                                {formData.birthDate || "-"}
                             </div>
+                            <p className="text-[10px] text-slate-400 mt-1">* 행정 정보로 수정이 불가능합니다.</p>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-400 mb-1.5">성별</label>
-                            <div className="relative">
-                                <select 
-                                    value={formData.gender}
-                                    onChange={e => setFormData({...formData, gender: e.target.value})}
-                                    className="w-full text-sm font-bold text-slate-900 border-b border-slate-200 py-2 focus:outline-none focus:border-frage-blue bg-transparent appearance-none"
-                                >
-                                    <option value="Male">Male (남)</option>
-                                    <option value="Female">Female (여)</option>
-                                </select>
-                                <ChevronDown className="absolute right-0 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
+                            <div className="text-sm font-bold text-slate-900 border-b border-slate-100 py-2 bg-slate-50/50 px-1 rounded-sm">
+                                {formData.gender === 'M' ? "남 (Male)" : formData.gender === 'F' ? "여 (Female)" : "-"}
                             </div>
+                            <p className="text-[10px] text-slate-400 mt-1">* 행정 정보로 수정이 불가능합니다.</p>
                         </div>
                     </div>
                     <div>
@@ -366,7 +365,7 @@ export default function ChildPage() {
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-1.5">학생 연락처</label>
+                        <label className="block text-xs font-bold text-slate-400 mb-1.5">학부모 연락처</label>
                         <input 
                             type="tel" 
                             value={formData.phone}
@@ -435,23 +434,30 @@ export default function ChildPage() {
                                 <span className="text-sm font-bold text-slate-700">셔틀 버스 승/하차 위치 설정</span>
                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 mb-1.5">등원 위치 (Pick-up)</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                    <label className="block text-xs font-bold text-slate-400">등원 정류장 (Pick-up Stop)</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="예: ○○아파트 정문, ○○상가 앞"
+                                        value={formData.pickupAddress}
+                                        onChange={e => setFormData({...formData, pickupAddress: e.target.value})}
+                                        className="w-full text-sm font-bold text-slate-900 border border-slate-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:border-frage-blue"
+                                    />
                                     <div className="grid grid-cols-2 gap-2">
                                         <input 
                                             type="number" 
-                                            placeholder="Latitude"
+                                            placeholder="위도 (Lat)"
                                             value={formData.pickupLat}
                                             onChange={e => setFormData({...formData, pickupLat: e.target.value})}
-                                            className="w-full text-xs font-bold text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-frage-blue"
+                                            className="w-full text-[10px] font-bold text-slate-500 border border-slate-100 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-frage-blue"
                                         />
                                         <input 
                                             type="number" 
-                                            placeholder="Longitude"
+                                            placeholder="경도 (Lng)"
                                             value={formData.pickupLng}
                                             onChange={e => setFormData({...formData, pickupLng: e.target.value})}
-                                            className="w-full text-xs font-bold text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-frage-blue"
+                                            className="w-full text-[10px] font-bold text-slate-500 border border-slate-100 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-frage-blue"
                                         />
                                     </div>
                                     <button 
@@ -469,27 +475,35 @@ export default function ChildPage() {
                                                 alert("위치 정보를 사용할 수 없습니다.");
                                             }
                                         }}
-                                        className="mt-2 text-xs font-bold text-frage-blue hover:underline flex items-center gap-1"
+                                        className="text-[10px] font-bold text-frage-blue hover:underline flex items-center gap-1"
                                     >
-                                        <MapPin className="w-3 h-3" /> 현재 위치로 설정
+                                        <MapPin className="w-3 h-3" /> 현재 위치로 위도/경도 설정
                                     </button>
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 mb-1.5">하원 위치 (Drop-off)</label>
+
+                                <div className="space-y-3">
+                                    <label className="block text-xs font-bold text-slate-400">하원 정류장 (Drop-off Stop)</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="예: ○○아파트 정문, ○○상가 앞"
+                                        value={formData.dropoffAddress}
+                                        onChange={e => setFormData({...formData, dropoffAddress: e.target.value})}
+                                        className="w-full text-sm font-bold text-slate-900 border border-slate-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:border-frage-blue"
+                                    />
                                     <div className="grid grid-cols-2 gap-2">
                                         <input 
                                             type="number" 
-                                            placeholder="Latitude"
+                                            placeholder="위도 (Lat)"
                                             value={formData.dropoffLat}
                                             onChange={e => setFormData({...formData, dropoffLat: e.target.value})}
-                                            className="w-full text-xs font-bold text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-frage-blue"
+                                            className="w-full text-[10px] font-bold text-slate-500 border border-slate-100 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-frage-blue"
                                         />
                                         <input 
                                             type="number" 
-                                            placeholder="Longitude"
+                                            placeholder="경도 (Lng)"
                                             value={formData.dropoffLng}
                                             onChange={e => setFormData({...formData, dropoffLng: e.target.value})}
-                                            className="w-full text-xs font-bold text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-frage-blue"
+                                            className="w-full text-[10px] font-bold text-slate-500 border border-slate-100 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-frage-blue"
                                         />
                                     </div>
                                     <button 
@@ -507,9 +521,9 @@ export default function ChildPage() {
                                                 alert("위치 정보를 사용할 수 없습니다.");
                                             }
                                         }}
-                                        className="mt-2 text-xs font-bold text-frage-blue hover:underline flex items-center gap-1"
+                                        className="text-[10px] font-bold text-frage-blue hover:underline flex items-center gap-1"
                                     >
-                                        <MapPin className="w-3 h-3" /> 현재 위치로 설정
+                                        <MapPin className="w-3 h-3" /> 현재 위치로 위도/경도 설정
                                     </button>
                                 </div>
                             </div>
