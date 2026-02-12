@@ -36,6 +36,7 @@ async function sendKakaoAlimtalk(phone: string, code: string) {
     body: JSON.stringify({
       message: {
         to: phone.replace(/\D/g, ""),
+        type: "ATA", // 알림톡 명시
         kakaoOptions: {
           pfId,
           templateId,
@@ -85,6 +86,7 @@ async function sendSms(phone: string, text: string) {
         to: phone.replace(/\D/g, ""),
         from,
         text,
+        type: "SMS", // SMS 명시
       },
     }),
   });
