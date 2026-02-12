@@ -334,7 +334,7 @@ export async function POST(request: Request) {
 
       await supabaseService
         .from("parents")
-        .update({ auth_user_id: user.id })
+        .update({ auth_user_id: user.id, email: user.email })
         .eq("id", parentId);
 
       await supabaseService

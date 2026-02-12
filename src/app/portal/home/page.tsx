@@ -144,7 +144,7 @@ export default function ParentPortalHome() {
         const students = Array.isArray(payload?.students) ? payload.students : [];
         
         const first = students[0] || null;
-        if (first && first.type === "applicant") {
+        if (first && (first.type === "applicant" || first.status === "대기" || first.status === "상담예약")) {
           setStudentType("applicant");
           setStudentProfile(first);
           setStudentStatus(null);
@@ -158,7 +158,7 @@ export default function ParentPortalHome() {
         } else {
           setStudentId(null);
         }
-        if (first && first.type === "enrolled") {
+        if (first && (first.type === "enrolled" || first.status === "재원")) {
           const profileCompleted = first.profile_completed === true;
           const parentAuthUserId = first.parent_auth_user_id ?? null;
           const useBus =
@@ -335,7 +335,7 @@ export default function ParentPortalHome() {
           <div className="text-center mb-8">
             <h1 className="text-2xl font-black text-slate-900">
               환영합니다,<br/>
-              <span className="text-frage-blue">{studentProfile?.englishFirstName || studentProfile?.passportEnglishName || studentProfile?.studentName}</span> 학부모님!
+              <span className="text-frage-blue">{studentProfile?.englishFirstName || studentProfile?.passportEnglishName || studentProfile?.studentName}</span>님!
             </h1>
             <p className="text-slate-500 mt-2 text-sm">현재 입학 절차가 진행 중입니다.</p>
           </div>
@@ -1090,7 +1090,7 @@ export default function ParentPortalHome() {
         <section className="flex flex-col md:flex-row md:items-end justify-between gap-4">
            <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-1">
-                 안녕하세요, <span className="text-frage-blue">{studentProfile?.englishName || studentProfile?.name || "학부모"}</span>님! 👋
+                 안녕하세요, <span className="text-frage-blue">{studentProfile?.englishName || studentProfile?.name || "학생"}</span>님! 👋
               </h1>
               <p className="text-sm text-slate-500 font-medium">오늘도 즐거운 하루 보내세요.</p>
            </div>

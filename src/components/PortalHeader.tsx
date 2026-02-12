@@ -28,22 +28,28 @@ export default function PortalHeader() {
           setIsEnrolled(students.length > 0);
           setNewStatus(null);
           const first = students[0] || null;
-          const name = String(first?.englishName || first?.name || "학부모");
-          setStudentDisplayName(name);
+          const sName = String(first?.name || "");
+          const eName = String(first?.englishName || "");
+          setStudentDisplayName(sName || "학생");
+          
+          // 학생 영어 이름 첫 글자 (없으면 한글 이름 첫 글자, 그마저도 없으면 S)
+          const initial = (eName?.[0] || sName?.[0] || "S").toUpperCase();
+          setAvatarInitials(initial);
         } else if (pathname.startsWith("/admission")) {
           const res = await fetch("/api/admission/home", { cache: "no-store" });
           const payload = await res.json();
           const items = Array.isArray(payload?.items) ? payload.items : [];
           setIsEnrolled(false);
           const ns = items[0] || null;
-          setNewStatus(String(ns?.status || ""));
-          const name = String(ns?.parent_name || "학부모");
-          setParentName(name);
-          const v = name.trim();
-          const parts = v.split(/\s+/);
-          const a = parts[0]?.[0] || "";
-          const b = parts[1]?.[0] || "";
-          setAvatarInitials(((a + b).toUpperCase() || a.toUpperCase() || "S") as string);
+          setNewStatus(null); // 상태 메시지 제거
+          
+          const sName = String(ns?.student_name || "");
+          const eName = String(ns?.english_first_name || "");
+          setStudentDisplayName(sName || "학생");
+          
+          // 학생 영어 이름 첫 글자 (없으면 한글 이름 첫 글자, 그마저도 없으면 S)
+          const initial = (eName?.[0] || sName?.[0] || "S").toUpperCase();
+          setAvatarInitials(initial);
         } else {
           setIsEnrolled(false);
           setNewStatus(null);
@@ -101,8 +107,7 @@ export default function PortalHeader() {
         
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-sm font-bold text-slate-900">{studentDisplayName || parentName}</p>
-            <p className="text-xs text-slate-500">학부모</p>
+            <p className="text-sm font-bold text-slate-900">{studentDisplayName}</p>
           </div>
           <button 
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -123,8 +128,7 @@ export default function PortalHeader() {
               />
               <div className="absolute right-6 top-16 w-56 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-20 animate-fade-in-up">
                 <div className="px-4 py-3 border-b border-slate-50 mb-1">
-                  <p className="text-sm font-bold text-slate-900">{studentDisplayName || parentName}</p>
-                  <p className="text-xs text-slate-500">{isEnrolled ? "재원생 학부모" : "입학 대기중"}</p>
+                  <p className="text-sm font-bold text-slate-900">{studentDisplayName}</p>
                 </div>
                 <Link 
                   href="/portal/child" 
