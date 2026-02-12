@@ -15,6 +15,7 @@ async function sendKakaoAlimtalk(phone: string, code: string) {
   const apiSecret = process.env.SOLAPI_API_SECRET!;
   const pfId = process.env.KAKAO_PF_ID!;
   const templateId = process.env.SOLAPI_KAKAO_TEMPLATE_OTP!;
+  const from = process.env.SOLAPI_FROM!;
 
   const date = new Date().toISOString();
   const salt = crypto.randomBytes(16).toString("hex");
@@ -42,17 +43,20 @@ async function sendKakaoAlimtalk(phone: string, code: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      message: {
-        to: phone.replace(/\D/g, ""),
-        type: "ATA", // 🔥 알림톡 명시
-        kakaoOptions: {
-          pfId,
-          templateId,
-          variables: {
-            code: code, // #{code} 정확히 일치
+      messageType: "ATA",
+      messages: [
+        {
+          to: phone.replace(/\D/g, ""),
+          from, // 알림톡 발송 시에도 발신 번호 필요
+          kakaoOptions: {
+            pfId,
+            templateId,
+            variables: {
+              code: code, // #{code}와 정확히 매칭
+            },
           },
         },
-      },
+      ],
     }),
   });
   console.log("[SOLAPI] after fetch", res.status);
@@ -90,12 +94,14 @@ async function sendSms(phone: string, text: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      message: {
-        to: phone.replace(/\D/g, ""),
-        from,
-        text,
-        type: "SMS", // 🔥 일관성 유지
-      },
+      messageType: "SMS",
+      messages: [
+        {
+          to: phone.replace(/\D/g, ""),
+          from,
+          text,
+        },
+      ],
     }),
   });
   console.log("[SOLAPI SMS] after fetch", res.status);
