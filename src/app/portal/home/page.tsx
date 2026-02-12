@@ -43,6 +43,7 @@ export default function ParentPortalHome() {
   // For Enrolled Students
   const [monthlyReports, setMonthlyReports] = useState<{ id: string; title: string; date: string; status: string; target_month: string; published_at: string }[]>([]);
   const [notifications, setNotifications] = useState<{ id?: string; message: string; date?: string; title?: string; isRead?: boolean; category?: string; createdAt?: string }[]>([]);
+  const [notices, setNotices] = useState<any[]>([]);
   
   const handleContact = () => {
     // KakaoTalk Channel URL
@@ -293,6 +294,20 @@ export default function ParentPortalHome() {
           setNotifications(list);
         }
       } catch {}
+
+      try {
+        // 공지사항 (posts 테이블) 가져오기
+        const { data } = await supabase
+          .from("posts")
+          .select("*")
+          .eq("category", "notice")
+          .order("created_at", { ascending: false })
+          .limit(2);
+        
+        if (alive && data) {
+          setNotices(data);
+        }
+      } catch {}
     };
     load();
     const timer = setInterval(load, 5000);
@@ -334,8 +349,8 @@ export default function ParentPortalHome() {
           {/* Welcome Header */}
           <div className="text-center mb-8">
             <h1 className="text-2xl font-black text-slate-900">
-              환영합니다,<br/>
-              <span className="text-frage-blue">{studentProfile?.englishFirstName || studentProfile?.passportEnglishName || studentProfile?.studentName}</span>님!
+              <span className="text-frage-blue">{studentProfile?.studentName || "학생"}</span> 학부모님!<br/>
+              환영합니다!
             </h1>
             <p className="text-slate-500 mt-2 text-sm">현재 입학 절차가 진행 중입니다.</p>
           </div>
@@ -1090,7 +1105,7 @@ export default function ParentPortalHome() {
         <section className="flex flex-col md:flex-row md:items-end justify-between gap-4">
            <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-1">
-                 안녕하세요, <span className="text-frage-blue">{studentProfile?.englishName || studentProfile?.name || "학생"}</span>님! 👋
+                 <span className="text-frage-blue">{studentProfile?.name || "학생"}</span> 학부모님! 👋
               </h1>
               <p className="text-sm text-slate-500 font-medium">오늘도 즐거운 하루 보내세요.</p>
            </div>
@@ -1100,7 +1115,48 @@ export default function ParentPortalHome() {
           {/* Left Column (Main Content) */}
           <div className="lg:col-span-2 space-y-8">
             
-            {/* 1. Monthly Report Card */}
+            {/* 1. Notices Grid */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-frage-orange" />
+                  공지사항
+                </h2>
+                <Link href="/portal/notices" className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors">
+                  더보기
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {notices.map((notice) => (
+                  <Link key={notice.id} href={`/portal/notices/${notice.id}`}>
+                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all h-full flex flex-col justify-between group">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600`}>
+                            공지
+                          </span>
+                        </div>
+                        <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-frage-blue transition-colors">
+                          {notice.title}
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-3 pt-3 border-t border-slate-50 flex justify-between items-center">
+                        <span>{new Date(notice.created_at).toLocaleDateString()}</span>
+                        <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300" />
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+                {notices.length === 0 && (
+                  <div className="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200">
+                    <p className="text-sm text-slate-400">등록된 공지사항이 없습니다.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* 2. Monthly Report Card */}
             <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-all">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-50 to-white rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
               
@@ -1145,51 +1201,6 @@ export default function ParentPortalHome() {
                     </div>
                   )}
                 </div>
-              </div>
-            </section>
-
-            {/* 2. Notices Grid */}
-            <section>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-frage-orange" />
-                  공지사항
-                </h2>
-                <Link href="/portal/notices" className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors">
-                  더보기
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {notifications.slice(0, 4).map((notice) => (
-                  <Link key={notice.id} href={`/portal/notices/${notice.id}`}>
-                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all h-full flex flex-col justify-between group">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          {!notice.isRead && <span className="w-1.5 h-1.5 rounded-full bg-frage-blue"></span>}
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                            notice.category === 'Schedule' ? 'bg-orange-50 text-orange-600' : 
-                            'bg-slate-100 text-slate-500'
-                          }`}>
-                            {notice.category}
-                          </span>
-                        </div>
-                        <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-frage-blue transition-colors">
-                          {notice.title}
-                        </h3>
-                      </div>
-                      <p className="text-xs text-slate-400 mt-3 pt-3 border-t border-slate-50 flex justify-between items-center">
-                        <span>{new Date(notice.createdAt!).toLocaleDateString()}</span>
-                        <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300" />
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-                {notifications.length === 0 && (
-                  <div className="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200">
-                    <p className="text-sm text-slate-400">등록된 공지사항이 없습니다.</p>
-                  </div>
-                )}
               </div>
             </section>
           </div>

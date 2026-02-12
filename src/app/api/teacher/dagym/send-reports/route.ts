@@ -32,6 +32,61 @@ async function sendFCMPush(tokens: string[], payload: { title: string; body: str
   }
 }
 
+/**
+ * 📝 다짐 메시지 생성 함수
+ */
+function generateDajimMessage(studentName: string, rows: any[], date: string) {
+  const done = rows.filter((r) => r.status === "done");
+  const partial = rows.filter((r) => r.status === "partial");
+  const notDone = rows.filter((r) => r.status === "not_done");
+
+  const formattedDate = new Date(date).toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  if (notDone.length === 0 && partial.length === 0) {
+    return `
+✏️ ${formattedDate} 코칭 브리핑📑
+✅ 금일 다짐활동 All completed 💚💚
+
+가정에서의 따뜻한 격려 부탁드립니다 🤍
+감사합니다 🥰
+    `.trim();
+  }
+
+  const notDoneList = notDone
+    .map((r) => `📚 ${r.books?.title || "다짐 항목"}`)
+    .join("\n");
+
+  const partialList = partial
+    .map((r) => `📚 ${r.books?.title || "다짐 항목"}`)
+    .join("\n");
+
+  let body = `✏️ ${formattedDate} 코칭 브리핑📑\n\n▶ 금일 미완료된 다짐을 안내드립니다😊\n`;
+  if (notDoneList) body += `${notDoneList}\n`;
+  if (partialList) body += `(일부 완료)\n${partialList}\n`;
+
+  body += `\n가정에서 잘 마무리할 수 있도록 지도 부탁드립니다 🤍`;
+
+  return body.trim();
+}
+
+/**
+ * 👥 학생별 그룹핑 함수
+ */
+function groupByStudent(rows: any[]) {
+  const map: Record<string, any[]> = {};
+  for (const row of rows) {
+    if (!map[row.student_id]) {
+      map[row.student_id] = [];
+    }
+    map[row.student_id].push(row);
+  }
+  return map;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -84,20 +139,46 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, sent_count: 0, push_sent: 0, push_failed: 0 });
     }
 
+    // 🔎 1. 학생별 다짐 데이터 조회
+    const { data: commitmentRows, error: commitmentError } = await supabaseService
+      .from("student_commitments")
+      .select("student_id, book_id, status, books(title)")
+      .eq("class_id", class_id)
+      .eq("date", date);
+
+    if (commitmentError) {
+      console.error("Failed to fetch commitments:", commitmentError);
+      return NextResponse.json({ error: "Failed to fetch commitments" }, { status: 500 });
+    }
+
+    // 👥 2. 학생별 그룹핑
+    const commitmentsByStudent = groupByStudent(commitmentRows || []);
+
     const now = new Date().toISOString();
 
     // 3️⃣ Upsert daily_reports (MANDATORY)
     // send_status = 'sent' (Portal Visibility ON)
     // push_status = 'pending'
-    const reports = students.map(s => ({
-      student_id: s.id,
-      class_id,
-      date,
-      send_status: "sent",
-      sent_at: now,
-      push_status: "pending", // Initial state
-      updated_at: now
-    }));
+    const reports = students.map(s => {
+      const studentRows = commitmentsByStudent[s.id] || [];
+      const messageBody = generateDajimMessage(s.student_name, studentRows, date);
+      const notDoneCount = studentRows.filter(r => r.status === "not_done").length;
+      const totalCount = studentRows.length;
+      const completionRate = totalCount > 0 ? Math.round(((totalCount - notDoneCount) / totalCount) * 100) : 0;
+
+      return {
+        student_id: s.id,
+        class_id,
+        date,
+        send_status: "sent",
+        sent_at: now,
+        push_status: "pending",
+        message_text: messageBody, // 상세 메시지 저장
+        completion_rate: completionRate,
+        not_done_count: notDoneCount,
+        updated_at: now
+      };
+    });
 
     const { error: upsertError } = await supabaseService
       .from("daily_reports")
@@ -117,12 +198,11 @@ export async function POST(req: Request) {
     await Promise.all(students.map(async (student) => {
       if (!student.parent_auth_user_id) {
         pushFailedCount++;
-        pushUpdates.push({ student_id: student.id, push_status: "failed" }); // No parent linked
+        pushUpdates.push({ student_id: student.id, push_status: "failed" });
         return;
       }
 
       // Fetch Parent FCM Token
-      // Assuming 'user_push_tokens' table exists: user_id, token
       const { data: tokens } = await supabaseService
         .from("user_push_tokens")
         .select("token")
@@ -130,15 +210,23 @@ export async function POST(req: Request) {
 
       if (!tokens || tokens.length === 0) {
         pushFailedCount++;
-        pushUpdates.push({ student_id: student.id, push_status: "failed" }); // No token found
+        pushUpdates.push({ student_id: student.id, push_status: "failed" });
         return;
       }
+
+      // 📝 학생별 메시지 생성
+      const studentRows = commitmentsByStudent[student.id] || [];
+      const messageBody = generateDajimMessage(
+        student.student_name,
+        studentRows,
+        date
+      );
 
       // Send to all tokens for this parent
       const tokenStrings = tokens.map(t => t.token);
       const result = await sendFCMPush(tokenStrings, {
-        title: "✨ 작은 다짐이 큰 성장을 만듭니다",
-        body: `오늘 ${student.student_name} 학생의 다짐 결과를 확인해 주세요.`,
+        title: "✨ 오늘의 다짐 코칭 브리핑",
+        body: messageBody,
         link: `/portal/dajim?date=${date}`
       });
 
