@@ -44,8 +44,8 @@ export default function AdminTeacherClassesPage() {
           return;
         }
 
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-        if (profile?.role === "admin" || profile?.role === "master_admin") {
+        const { data: profile } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
+        if (profile) {
           setRole("admin");
         } else {
           const { data: teacher } = await supabase.from("teachers").select("role").eq("auth_user_id", user.id).maybeSingle();

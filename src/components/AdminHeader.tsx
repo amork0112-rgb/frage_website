@@ -23,10 +23,18 @@ export default function AdminHeader() {
           setRole(null);
           return;
         }
-        // profiles에 있으면 admin으로 간주 (role 컬럼 없음)
-        const { data: profile } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
+        // profiles에 있으면 admin으로 간주
+        const { data: profile } = await supabase.from("profiles").select("id, role").eq("id", user.id).maybeSingle();
         if (profile) {
-          setRole("admin");
+          const email = user.email || "";
+          const masterEmail = process.env.NEXT_PUBLIC_MASTER_ADMIN_EMAIL || "";
+          const isMasterByEmail = email && masterEmail && email.toLowerCase() === masterEmail.toLowerCase();
+
+          if (profile.role === "master_admin" || isMasterByEmail) {
+            setRole("master_admin");
+          } else {
+            setRole(profile.role || "admin");
+          }
           return;
         }
 

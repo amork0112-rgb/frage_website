@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Bell, MessageSquare, Users, AlertCircle, ArrowRight, CheckCircle2, ChevronDown, Settings } from "lucide-react";
 import { CampusType } from "@/data/notices";
+import { supabase } from "@/lib/supabase";
 
 type Dashboard = {
   newRequestsCount: number;
@@ -30,6 +31,28 @@ export default function AdminHome() {
       setDashboard({ newRequestsCount: 0, noticesCount: 0, guestInquiriesCount: 0, todayAttendanceCount: 0 });
     }
   }, [selectedCampus]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data?.user;
+      if (user) {
+        // profiles에 있으면 admin으로 간주
+        const { data: profile } = await supabase.from("profiles").select("id, role").eq("id", user.id).maybeSingle();
+        if (profile) {
+          const email = user.email || "";
+          const masterEmail = process.env.NEXT_PUBLIC_MASTER_ADMIN_EMAIL || "";
+          const isMasterByEmail = email && masterEmail && email.toLowerCase() === masterEmail.toLowerCase();
+
+          if (profile.role === "master_admin" || isMasterByEmail) {
+            setRole("master_admin");
+          } else {
+            setRole(profile.role || "admin");
+          }
+        }
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     fetchDashboard();
@@ -192,7 +215,7 @@ export default function AdminHome() {
                             </div>
                             <div>
                                 <h3 className="font-bold text-slate-900">요청 사항 관리</h3>
-                                <p className="text-xs text-slate-500">결석 및 차량 변경 요청 확인</p>
+                                <p className="text-xs text-slate-500">결석, 조퇴 및 투약 요청 확인</p>
                             </div>
                         </div>
                         <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />

@@ -401,137 +401,23 @@ export default function ChildPage() {
 
             <div className="h-px bg-slate-100" />
 
-            {/* 3. Transport Info */}
+            {/* 3. Commute Info */}
             <section>
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
                     <div className="w-6 h-6 rounded-lg bg-yellow-50 flex items-center justify-center text-yellow-600">
-                        <Bus className="w-3.5 h-3.5" />
+                        <Clock className="w-3.5 h-3.5" />
                     </div>
-                    등·하원 / 차량
+                    등·하원 방식
                 </h3>
                 <div className="space-y-4 pl-2">
                      <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                        <span className="text-sm font-bold text-slate-600">셔틀 버스 이용</span>
-                        <div className="flex items-center gap-2">
-                            <span className={`text-sm font-bold ${currentStudent.use_bus ? "text-frage-blue" : "text-slate-400"}`}>
-                                {currentStudent.use_bus ? "이용함" : "이용 안함"}
-                            </span>
-                        </div>
-                     </div>
-                     <div className="flex items-center justify-between py-2 border-b border-slate-100">
                         <span className="text-sm font-bold text-slate-600">등하원 방식</span>
                         <span className="text-sm font-bold text-slate-900">
-                            {currentStudent.commute_type === "bus" ? "셔틀 버스" : 
-                             currentStudent.commute_type === "guardian" ? "보호자 등하원" : "자가 등하원"}
+                            {formData.commuteType === "pickup" ? "Pickup" : 
+                             formData.commuteType === "walk" ? "Walk" : 
+                             formData.commuteType === "bus" ? "셔틀 버스" : "미지정"}
                         </span>
                      </div>
-                     
-                     {/* Location Settings (Show if bus is used or commute_type is bus) */}
-                     {(currentStudent.use_bus || currentStudent.commute_type === "bus") && (
-                        <div className="mt-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                            <div className="flex items-center gap-2 mb-2">
-                                <MapPin className="w-4 h-4 text-frage-blue" />
-                                <span className="text-sm font-bold text-slate-700">셔틀 버스 승/하차 위치 설정</span>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-3">
-                                    <label className="block text-xs font-bold text-slate-400">등원 정류장 (Pick-up Stop)</label>
-                                    <input 
-                                        type="text" 
-                                        placeholder="예: ○○아파트 정문, ○○상가 앞"
-                                        value={formData.pickupAddress}
-                                        onChange={e => setFormData({...formData, pickupAddress: e.target.value})}
-                                        className="w-full text-sm font-bold text-slate-900 border border-slate-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:border-frage-blue"
-                                    />
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input 
-                                            type="number" 
-                                            placeholder="위도 (Lat)"
-                                            value={formData.pickupLat}
-                                            onChange={e => setFormData({...formData, pickupLat: e.target.value})}
-                                            className="w-full text-[10px] font-bold text-slate-500 border border-slate-100 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-frage-blue"
-                                        />
-                                        <input 
-                                            type="number" 
-                                            placeholder="경도 (Lng)"
-                                            value={formData.pickupLng}
-                                            onChange={e => setFormData({...formData, pickupLng: e.target.value})}
-                                            className="w-full text-[10px] font-bold text-slate-500 border border-slate-100 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-frage-blue"
-                                        />
-                                    </div>
-                                    <button 
-                                        type="button"
-                                        onClick={() => {
-                                            if (navigator.geolocation) {
-                                                navigator.geolocation.getCurrentPosition(pos => {
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        pickupLat: pos.coords.latitude.toFixed(6),
-                                                        pickupLng: pos.coords.longitude.toFixed(6)
-                                                    }));
-                                                });
-                                            } else {
-                                                alert("위치 정보를 사용할 수 없습니다.");
-                                            }
-                                        }}
-                                        className="text-[10px] font-bold text-frage-blue hover:underline flex items-center gap-1"
-                                    >
-                                        <MapPin className="w-3 h-3" /> 현재 위치로 위도/경도 설정
-                                    </button>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <label className="block text-xs font-bold text-slate-400">하원 정류장 (Drop-off Stop)</label>
-                                    <input 
-                                        type="text" 
-                                        placeholder="예: ○○아파트 정문, ○○상가 앞"
-                                        value={formData.dropoffAddress}
-                                        onChange={e => setFormData({...formData, dropoffAddress: e.target.value})}
-                                        className="w-full text-sm font-bold text-slate-900 border border-slate-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:border-frage-blue"
-                                    />
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input 
-                                            type="number" 
-                                            placeholder="위도 (Lat)"
-                                            value={formData.dropoffLat}
-                                            onChange={e => setFormData({...formData, dropoffLat: e.target.value})}
-                                            className="w-full text-[10px] font-bold text-slate-500 border border-slate-100 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-frage-blue"
-                                        />
-                                        <input 
-                                            type="number" 
-                                            placeholder="경도 (Lng)"
-                                            value={formData.dropoffLng}
-                                            onChange={e => setFormData({...formData, dropoffLng: e.target.value})}
-                                            className="w-full text-[10px] font-bold text-slate-500 border border-slate-100 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-frage-blue"
-                                        />
-                                    </div>
-                                    <button 
-                                        type="button"
-                                        onClick={() => {
-                                            if (navigator.geolocation) {
-                                                navigator.geolocation.getCurrentPosition(pos => {
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        dropoffLat: pos.coords.latitude.toFixed(6),
-                                                        dropoffLng: pos.coords.longitude.toFixed(6)
-                                                    }));
-                                                });
-                                            } else {
-                                                alert("위치 정보를 사용할 수 없습니다.");
-                                            }
-                                        }}
-                                        className="text-[10px] font-bold text-frage-blue hover:underline flex items-center gap-1"
-                                    >
-                                        <MapPin className="w-3 h-3" /> 현재 위치로 위도/경도 설정
-                                    </button>
-                                </div>
-                            </div>
-                            <p className="text-xs text-slate-400 mt-2 bg-blue-50 text-blue-600 p-3 rounded-xl font-medium">
-                                * 정확한 위치 파악을 위해 위도(Latitude)와 경도(Longitude)를 입력하거나 '현재 위치로 설정' 버튼을 눌러주세요.
-                            </p>
-                        </div>
-                     )}
                 </div>
             </section>
 

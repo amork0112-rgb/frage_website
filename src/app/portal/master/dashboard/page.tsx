@@ -1,47 +1,57 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CAMPUS_CONFIG } from "@/config/campus";
 import { supabase } from "@/lib/supabase";
 
-type RevenueItem = { month: string; campus?: string; amount: number };
-type CostItem = { month: string; campus?: string; fixed: number; variable: number };
-type SnapshotItem = { month: string; campus?: string; total: number; retained: number };
-type ConsultationItem = { month: string; campus?: string; completed: number; registered: number };
-type SurveyItem = { month: string; campus?: string; score: number };
-type Thresholds = { retention_min?: number; conversion_target?: number };
-type Status = "ok" | "warn" | "risk";
-
-const ymStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-const monthsBack = (n: number) => {
-  const arr: string[] = [];
-  const d = new Date();
-  for (let i = n - 1; i >= 0; i--) {
-    const c = new Date(d.getFullYear(), d.getMonth() - i, 1);
-    arr.push(ymStr(c));
-  }
-  return arr;
+type Stats = {
+  students: {
+    totalActive: number;
+    byCampus: Record<string, number>;
+    monthlyRegistrations: [string, number][];
+  };
+  conversion: {
+    totalConsultations: number;
+    totalPromoted: number;
+    overallRate: number;
+    byCampus: Record<string, number>;
+  };
+  withdrawal: {
+    count: number;
+    rate: number;
+  };
 };
 
 export default function MasterDashboard() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await supabase.auth.getUser();
-        const user = data?.user;
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setAuthorized(false);
+          setLoading(false);
+          return;
+        }
+
         const { data: profile } = await supabase
           .from("profiles")
           .select("role")
-          .eq("id", user?.id)
+          .eq("id", user.id)
           .maybeSingle();
         
-        setAuthorized(profile?.role === "master_admin");
-      } catch {
+        const email = user.email || "";
+        const masterEmail = process.env.NEXT_PUBLIC_MASTER_ADMIN_EMAIL || "";
+        const isMaster = (profile?.role === "master_admin") || (!!email && !!masterEmail && email.toLowerCase() === masterEmail.toLowerCase());
+        
+        setAuthorized(isMaster);
+      } catch (error) {
+        console.error("Auth check failed:", error);
         setAuthorized(false);
       } finally {
         setLoading(false);
@@ -49,310 +59,193 @@ export default function MasterDashboard() {
     })();
   }, []);
 
-  const [revenues, setRevenues] = useState<RevenueItem[]>([]);
-  const [costs, setCosts] = useState<CostItem[]>([]);
-  const [snapshots, setSnapshots] = useState<SnapshotItem[]>([]);
-  const [consultations, setConsultations] = useState<ConsultationItem[]>([]);
-  const [surveys, setSurveys] = useState<SurveyItem[]>([]);
-  const [thresholds, setThresholds] = useState<Thresholds>({});
-  const [campus, setCampus] = useState<string>("전체");
-  const [period, setPeriod] = useState<"month" | "quarter">("month");
-  const last6 = monthsBack(6);
-  const month = ymStr(new Date());
-  const prev = ymStr(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1));
-
   useEffect(() => {
-    try {
-      const rv = JSON.parse(localStorage.getItem("monthly_revenue") || "[]");
-      const cs = JSON.parse(localStorage.getItem("monthly_costs") || "[]");
-      const ss = JSON.parse(localStorage.getItem("student_monthly_snapshot") || "[]");
-      const ct = JSON.parse(localStorage.getItem("consultations") || "[]");
-      const sv = JSON.parse(localStorage.getItem("survey_responses") || "[]");
-      const th = JSON.parse(localStorage.getItem("kpi_thresholds") || "{}");
-      setRevenues(Array.isArray(rv) ? rv : []);
-      setCosts(Array.isArray(cs) ? cs : []);
-      setSnapshots(Array.isArray(ss) ? ss : []);
-      setConsultations(Array.isArray(ct) ? ct : []);
-      setSurveys(Array.isArray(sv) ? sv : []);
-      setThresholds(typeof th === "object" && th ? th : {});
-    } catch {
-      setRevenues([]);
-      setCosts([]);
-      setSnapshots([]);
-      setConsultations([]);
-      setSurveys([]);
-      setThresholds({});
-    }
-  }, []);
-
-  const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
-  const filterCampus = useCallback(<T extends { campus?: string }>(arr: T[]) => (campus === "전체" ? arr : arr.filter((a) => a.campus === campus)), [campus]);
-
-  const profitMargin = useMemo(() => {
-    const rv = filterCampus(revenues).filter((r) => r.month === month).map((r) => r.amount);
-    const cs = filterCampus(costs).filter((c) => c.month === month).map((c) => (c.fixed || 0) + (c.variable || 0));
-    const revenue = sum(rv);
-    const totalCost = sum(cs);
-    if (!revenue) return { value: 0, delta: 0, status: "risk" as Status };
-    const value = ((revenue - totalCost) / revenue) * 100;
-    const prevRv = filterCampus(revenues).filter((r) => r.month === prev).map((r) => r.amount);
-    const prevCs = filterCampus(costs).filter((c) => c.month === prev).map((c) => (c.fixed || 0) + (c.variable || 0));
-    const prevRevenue = sum(prevRv);
-    const prevTotalCost = sum(prevCs);
-    const prevVal = prevRevenue ? ((prevRevenue - prevTotalCost) / prevRevenue) * 100 : 0;
-    const status: Status = value >= 20 ? "ok" : value >= 10 ? "warn" : "risk";
-    return { value, delta: value - prevVal, status };
-  }, [revenues, costs, month, prev, filterCampus]);
-
-  const retentionRate = useMemo((): { value: number; delta: number; status: Status } => {
-    const ss = filterCampus(snapshots).find((s) => s.month === month);
-    const pv = filterCampus(snapshots).find((s) => s.month === prev);
-    const value = ss && ss.total ? Math.round(((ss.retained || 0) / ss.total) * 100 * 10) / 10 : 0;
-    const prevVal = pv && pv.total ? Math.round(((pv.retained || 0) / pv.total) * 100 * 10) / 10 : 0;
-    const min = typeof thresholds.retention_min === "number" ? thresholds.retention_min : 93;
-    const status: Status = value >= min ? "ok" : value >= min - 2 ? "warn" : "risk";
-    return { value, delta: value - prevVal, status };
-  }, [snapshots, thresholds, month, prev, filterCampus]);
-
-  const conversionRate = useMemo((): { value: number; delta: number; status: Status } => {
-    const ct = filterCampus(consultations).find((c) => c.month === month);
-    const pv = filterCampus(consultations).find((c) => c.month === prev);
-    const value = ct && ct.completed ? Math.round(((ct.registered || 0) / ct.completed) * 100 * 10) / 10 : 0;
-    const prevVal = pv && pv.completed ? Math.round(((pv.registered || 0) / pv.completed) * 100 * 10) / 10 : 0;
-    const target = typeof thresholds.conversion_target === "number" ? thresholds.conversion_target : 60;
-    const status: Status = value >= target ? "ok" : value >= target - 5 ? "warn" : "risk";
-    return { value, delta: value - prevVal, status };
-  }, [consultations, thresholds, month, prev, filterCampus]);
-
-  const npsScore = useMemo((): { value: number; delta: number; status: Status; breakdown: { p: number; n: number; d: number } } => {
-    const list = filterCampus(surveys).filter((s) => s.month === month).map((s) => s.score);
-    const pvList = filterCampus(surveys).filter((s) => s.month === prev).map((s) => s.score);
-    const calc = (scores: number[]) => {
-      if (!scores.length) return { score: 0, p: 0, n: 0, d: 0 };
-      const p = scores.filter((v) => v >= 9).length;
-      const d = scores.filter((v) => v <= 6).length;
-      const n = scores.length - p - d;
-      const total = scores.length;
-      const score = Math.round((p / total) * 100 - (d / total) * 100);
-      return { score, p: Math.round((p / total) * 100), n: Math.round((n / total) * 100), d: Math.round((d / total) * 100) };
+    const fetchStats = async () => {
+      try {
+        const res = await fetch("/api/admin/master/stats");
+        if (res.ok) {
+          const data = await res.json();
+          setStats(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch master stats:", error);
+      }
     };
-    const cur = calc(list);
-    const prevCur = calc(pvList);
-    const status: Status = cur.score >= 40 ? "ok" : cur.score >= 20 ? "warn" : "risk";
-    return { value: cur.score, delta: cur.score - prevCur.score, status, breakdown: { p: cur.p, n: cur.n, d: cur.d } };
-  }, [surveys, month, prev, filterCampus]);
+    if (authorized) {
+      fetchStats();
+    }
+  }, [authorized]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50">로딩 중...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 font-bold text-slate-400 text-lg animate-pulse">데이터를 불러오는 중...</div>;
   }
+
   if (!authorized) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center max-w-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center max-w-sm shadow-sm">
           <h1 className="text-xl font-black text-slate-900 mb-2">접근 권한 없음</h1>
-          <p className="text-slate-500 text-sm">Master Admin만 접근 가능합니다.</p>
+          <p className="text-slate-500 text-sm mb-6">Master Admin 전용 페이지입니다.</p>
+          <button 
+            onClick={() => router.push("/portal/admin/home")}
+            className="w-full py-2 bg-slate-900 text-white rounded-lg font-bold text-sm"
+          >
+            관리자 홈으로 이동
+          </button>
         </div>
       </div>
     );
   }
 
-  const badge = (status: Status): string =>
-    status === "ok" ? "bg-green-100 text-green-700" : status === "warn" ? "bg-yellow-100 text-yellow-700" : "bg-rose-100 text-rose-700";
+  if (!stats) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 font-bold text-slate-400">데이터가 없습니다.</div>;
+  }
 
-  const kpiSeries = (key: "profit" | "retention" | "conversion" | "nps") => {
-    return last6.map((m) => {
-      if (key === "profit") {
-        const rv = filterCampus(revenues).filter((r) => r.month === m).map((r) => r.amount);
-        const cs = filterCampus(costs).filter((c) => c.month === m).map((c) => (c.fixed || 0) + (c.variable || 0));
-        const revenue = sum(rv);
-        const totalCost = sum(cs);
-        return revenue ? ((revenue - totalCost) / revenue) * 100 : 0;
-      }
-      if (key === "retention") {
-        const ss = filterCampus(snapshots).find((s) => s.month === m);
-        return ss && ss.total ? ((ss.retained || 0) / ss.total) * 100 : 0;
-      }
-      if (key === "conversion") {
-        const ct = filterCampus(consultations).find((c) => c.month === m);
-        return ct && ct.completed ? ((ct.registered || 0) / ct.completed) * 100 : 0;
-      }
-      const list = filterCampus(surveys).filter((s) => s.month === m).map((s) => s.score);
-      if (!list.length) return 0;
-      const p = list.filter((v) => v >= 9).length;
-      const d = list.filter((v) => v <= 6).length;
-      const total = list.length;
-      return Math.round((p / total) * 100 - (d / total) * 100);
-    });
-  };
+  const campuses = Object.keys(CAMPUS_CONFIG);
 
-  const Line = ({ values }: { values: number[] }) => {
-    const max = Math.max(1, ...values);
-    const min = Math.min(0, ...values);
-    const w = 360;
-    const h = 80;
-    const step = w / (values.length - 1 || 1);
-    const norm = (v: number) => ((v - min) / (max - min || 1)) * (h - 10) + 5;
-    const d = values.map((v, i) => `${i === 0 ? "M" : "L"} ${i * step} ${h - norm(v)}`).join(" ");
+  const LineChart = ({ data, color = "stroke-slate-600" }: { data: number[], color?: string }) => {
+    if (!data.length) return <div className="h-20 flex items-center justify-center text-[10px] text-slate-300">데이터 없음</div>;
+    const max = Math.max(1, ...data);
+    const w = 300;
+    const h = 60;
+    const step = w / (data.length - 1 || 1);
+    const points = data.map((v, i) => `${i * step},${h - (v / max) * h}`).join(" ");
+    
     return (
-      <svg width={w} height={h} className="text-slate-400">
-        <rect x={0} y={0} width={w} height={h} fill="none" className="stroke-slate-200" />
-        <path d={d} className="stroke-slate-600" fill="none" strokeWidth={2} />
+      <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="overflow-visible">
+        <polyline
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={points}
+          className={color}
+        />
       </svg>
     );
   };
 
-  const campuses = Object.keys(CAMPUS_CONFIG);
-  const campusRow = (key: string) => {
-    const rv = revenues.filter((r) => r.campus === key && r.month === month).map((r) => r.amount);
-    const cs = costs.filter((c) => c.campus === key && c.month === month).map((c) => (c.fixed || 0) + (c.variable || 0));
-    const revenue = sum(rv);
-    const totalCost = sum(cs);
-    const pm = revenue ? ((revenue - totalCost) / revenue) * 100 : 0;
-    const ss = snapshots.find((s) => s.campus === key && s.month === month);
-    const ret = ss && ss.total ? Math.round(((ss.retained || 0) / ss.total) * 1000) / 10 : 0;
-    const ct = consultations.find((c) => c.campus === key && c.month === month);
-    const conv = ct && ct.completed ? Math.round(((ct.registered || 0) / ct.completed) * 1000) / 10 : 0;
-    const list = surveys.filter((s) => s.campus === key && s.month === month).map((s) => s.score);
-    const p = list.filter((v) => v >= 9).length;
-    const d = list.filter((v) => v <= 6).length;
-    const total = list.length;
-    const nps = total ? Math.round((p / total) * 100 - (d / total) * 100) : 0;
-    const cls = (v: number, type: "pm" | "ret" | "conv" | "nps") => {
-      const s: Status =
-        type === "ret"
-          ? v >= (thresholds.retention_min || 93) ? "ok" : v >= (thresholds.retention_min || 93) - 2 ? "warn" : "risk"
-          : type === "conv"
-          ? v >= (thresholds.conversion_target || 60) ? "ok" : v >= (thresholds.conversion_target || 60) - 5 ? "warn" : "risk"
-          : type === "nps"
-          ? v >= 40 ? "ok" : v >= 20 ? "warn" : "risk"
-          : v >= 20 ? "ok" : v >= 10 ? "warn" : "risk";
-      return badge(s);
-    };
-    return { pm, ret, conv, nps, cls };
-  };
-
-  const retentionAlert =
-    last6.slice(-2).every((m) => {
-      const ss = filterCampus(snapshots).find((s) => s.month === m);
-      const v = ss && ss.total ? ((ss.retained || 0) / ss.total) * 100 : 100;
-      const min = thresholds.retention_min || 93;
-      return v < min;
-    });
-
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="max-w-[1440px] mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-[1200px] mx-auto px-6 py-10">
+        <div className="flex items-center justify-between mb-10">
           <div>
-            <div className="text-xs font-bold text-slate-500 uppercase">경영 개요</div>
-            <h1 className="text-2xl font-black text-slate-900">경영 KPI 대시보드</h1>
+            <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">MANAGEMENT OVERVIEW</div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">전사 통합 대시보드</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <select value={period} onChange={(e) => setPeriod(e.target.value as any)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">
-              <option value="month">월간</option>
-              <option value="quarter">분기</option>
-            </select>
-            <select value={campus} onChange={(e) => setCampus(e.target.value)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold bg-white">
-              <option value="전체">전체</option>
-              {campuses.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+          <div className="flex items-center gap-2">
+            <button className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+              엑셀 보고서 다운로드
+            </button>
+            <div className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold">
+              실시간 데이터
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase">영업이익률</div>
-            <div className="flex items-end gap-2">
-              <div className="text-3xl font-black text-slate-900">{Math.round(profitMargin.value * 10) / 10}%</div>
-              <div className={`text-xs font-bold ${profitMargin.delta >= 0 ? "text-green-600" : "text-rose-600"}`}>
-                {profitMargin.delta >= 0 ? `+${Math.round(profitMargin.delta * 10) / 10}%` : `${Math.round(profitMargin.delta * 10) / 10}%`}
-              </div>
+        {/* 핵심 KPI 카드 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div className="text-xs font-bold text-slate-400 uppercase mb-4">전체 재원생</div>
+            <div className="flex items-baseline gap-2">
+              <div className="text-4xl font-black text-slate-900">{stats.students.totalActive.toLocaleString()}</div>
+              <div className="text-sm font-bold text-slate-500">명</div>
             </div>
-            <span className={`mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(profitMargin.status)}`}>{profitMargin.status === "ok" ? "🟢 양호" : profitMargin.status === "warn" ? "🟡 경고" : "🔴 위험"}</span>
+            <div className="mt-6">
+              <div className="text-[10px] font-bold text-slate-400 mb-2 uppercase">최근 6개월 등록 추이</div>
+              <LineChart data={stats.students.monthlyRegistrations.map(r => r[1])} color="stroke-blue-500" />
+            </div>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase">재등록율</div>
-            <div className="flex items-end gap-2">
-              <div className="text-3xl font-black text-slate-900">{retentionRate.value}%</div>
-              <div className={`text-xs font-bold ${retentionRate.delta >= 0 ? "text-green-600" : "text-rose-600"}`}>
-                {retentionRate.delta >= 0 ? `+${Math.round(retentionRate.delta * 10) / 10}%` : `${Math.round(retentionRate.delta * 10) / 10}%`}
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div className="text-xs font-bold text-slate-400 uppercase mb-4">상담 전환율</div>
+            <div className="flex items-baseline gap-2">
+              <div className="text-4xl font-black text-slate-900">{stats.conversion.overallRate.toFixed(1)}</div>
+              <div className="text-sm font-bold text-slate-500">%</div>
+            </div>
+            <div className="mt-6">
+              <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-2 uppercase">
+                <span>전환 퍼널</span>
+                <span>{stats.conversion.totalPromoted} / {stats.conversion.totalConsultations}</span>
+              </div>
+              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-1000" 
+                  style={{ width: `${stats.conversion.overallRate}%` }}
+                />
+              </div>
+              <div className="mt-2 text-[10px] text-slate-400 font-medium">
+                총 상담 {stats.conversion.totalConsultations}건 중 {stats.conversion.totalPromoted}건 등록 완료
               </div>
             </div>
-            <span className={`mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(retentionRate.status)}`}>{retentionRate.status === "ok" ? "🟢 양호" : retentionRate.status === "warn" ? "🟡 경고" : "🔴 위험"}</span>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase">상담 전환율</div>
-            <div className="flex items-end gap-2">
-              <div className="text-3xl font-black text-slate-900">{conversionRate.value}%</div>
-              <div className={`text-xs font-bold ${conversionRate.delta >= 0 ? "text-green-600" : "text-rose-600"}`}>
-                {conversionRate.delta >= 0 ? `+${Math.round(conversionRate.delta * 10) / 10}%` : `${Math.round(conversionRate.delta * 10) / 10}%`}
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div className="text-xs font-bold text-slate-400 uppercase mb-4">당월 퇴원율</div>
+            <div className="flex items-baseline gap-2">
+              <div className="text-4xl font-black text-slate-900">{stats.withdrawal.rate.toFixed(1)}</div>
+              <div className="text-sm font-bold text-slate-500">%</div>
+            </div>
+            <div className="mt-6">
+              <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-2 uppercase">
+                <span>퇴원 관리 현황</span>
+                <span>{stats.withdrawal.count}명</span>
+              </div>
+              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-1000 ${stats.withdrawal.rate > 5 ? 'bg-rose-500' : 'bg-slate-400'}`}
+                  style={{ width: `${Math.min(100, stats.withdrawal.rate * 10)}%` }}
+                />
+              </div>
+              <div className="mt-2 text-[10px] text-slate-400 font-medium">
+                전체 {stats.students.totalActive}명 중 {stats.withdrawal.count}명 퇴원 처리 (이번 달)
               </div>
             </div>
-            <span className={`mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(conversionRate.status)}`}>{conversionRate.status === "ok" ? "🟢 양호" : conversionRate.status === "warn" ? "🟡 경고" : "🔴 위험"}</span>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase">NPS</div>
-            <div className="flex items-end gap-2">
-              <div className="text-3xl font-black text-slate-900">{npsScore.value >= 0 ? `+${npsScore.value}` : `${npsScore.value}`}</div>
-              <div className={`text-xs font-bold ${npsScore.delta >= 0 ? "text-green-600" : "text-rose-600"}`}>
-                {npsScore.delta >= 0 ? `+${npsScore.delta}` : `${npsScore.delta}`}
-              </div>
-            </div>
-            <span className={`mt-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(npsScore.status)}`}>{npsScore.status === "ok" ? "🟢 양호" : npsScore.status === "warn" ? "🟡 경고" : "🔴 위험"}</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-2">영업이익률 추이</div>
-            <Line values={kpiSeries("profit")} />
+        {/* 캠퍼스별 세부 지표 */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">캠퍼스별 경영 성과 지표</h2>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-2">재등록율 추이</div>
-            <Line values={kpiSeries("retention")} />
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-2">전환율 추이</div>
-            <Line values={kpiSeries("conversion")} />
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-2">NPS 추이</div>
-            <Line values={kpiSeries("nps")} />
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-5 mb-8">
-          <div className="text-xs font-bold text-slate-500 uppercase mb-3">캠퍼스 비교</div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-slate-500">
-                  <th className="text-left p-2 font-bold">캠퍼스</th>
-                  <th className="text-left p-2 font-bold">영업이익률</th>
-                  <th className="text-left p-2 font-bold">재등록율</th>
-                  <th className="text-left p-2 font-bold">전환율</th>
-                  <th className="text-left p-2 font-bold">NPS</th>
+                <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white">
+                  <th className="text-left px-6 py-4">캠퍼스</th>
+                  <th className="text-right px-6 py-4">재원생</th>
+                  <th className="text-right px-6 py-4">상담 전환율</th>
+                  <th className="text-right px-6 py-4">상담 성과</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-50">
                 {campuses.map((c) => {
-                  const row = campusRow(c);
+                  const activeCount = stats.students.byCampus[c] || 0;
+                  const convRate = stats.conversion.byCampus[c] || 0;
                   return (
-                    <tr key={c} className="border-t border-slate-100">
-                      <td className="p-2 font-bold text-slate-800">{c}</td>
-                      <td className="p-2">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.cls(row.pm, "pm")}`}>{Math.round(row.pm * 10) / 10}%</span>
+                    <tr key={c} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <span className="font-black text-slate-900">{c}</span>
                       </td>
-                      <td className="p-2">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.cls(row.ret, "ret")}`}>{row.ret}%</span>
+                      <td className="px-6 py-4 text-right font-bold text-slate-700">
+                        {activeCount.toLocaleString()}명
                       </td>
-                      <td className="p-2">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.cls(row.conv, "conv")}`}>{row.conv}%</span>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <span className={`text-xs font-black ${convRate > 60 ? 'text-emerald-600' : convRate > 40 ? 'text-slate-900' : 'text-rose-600'}`}>
+                            {convRate.toFixed(1)}%
+                          </span>
+                        </div>
                       </td>
-                      <td className="p-2">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${row.cls(row.nps, "nps")}`}>{row.nps >= 0 ? `+${row.nps}` : row.nps}</span>
+                      <td className="px-6 py-4 text-right">
+                        <div className="w-32 ml-auto h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${convRate > 60 ? 'bg-emerald-500' : 'bg-slate-400'}`}
+                            style={{ width: `${convRate}%` }}
+                          />
+                        </div>
                       </td>
                     </tr>
                   );
@@ -362,87 +255,52 @@ export default function MasterDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-bold text-slate-500 uppercase">재등록/이탈</div>
-              <div className="text-[11px] font-bold text-slate-400">기준선 93%</div>
-            </div>
-            <Line values={kpiSeries("retention")} />
-            {retentionAlert && (
-              <div className="mt-3 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
-                2개월 연속 기준선 이하로 재등록율이 하락했습니다.
-              </div>
-            )}
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-3">전환 퍼널</div>
-            <div className="space-y-2">
-              {(() => {
-                const ct = filterCampus(consultations).find((c) => c.month === month);
-                const inquiries = (ct?.completed || 0) + Math.round((ct?.completed || 0) * 0.5);
-                const consultationsCnt = ct?.completed || 0;
-                const registrations = ct?.registered || 0;
-                const total = Math.max(1, inquiries);
-                const items = [
-                  { label: "문의", value: inquiries },
-                  { label: "상담", value: consultationsCnt },
-                  { label: "등록", value: registrations },
-                ];
-                return items.map((it, idx) => {
-                  const pct = Math.round((it.value / total) * 100);
-                  return (
-                    <div key={idx} className="flex items-center gap-3">
-                      <div className="w-28 text-xs font-bold text-slate-500 uppercase">{it.label}</div>
-                      <div className="flex-1 h-6 bg-slate-100 rounded-lg overflow-hidden">
-                        <div className="h-full bg-slate-600" style={{ width: `${pct}%` }} />
+        {/* 하단 트렌드 분석 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <h3 className="text-xs font-black text-slate-900 uppercase mb-6 tracking-tight">신규 등록 추이 (6개월)</h3>
+            <div className="h-40 flex items-end gap-2">
+              {stats.students.monthlyRegistrations.map(([month, count], i) => {
+                const max = Math.max(1, ...stats.students.monthlyRegistrations.map(r => r[1]));
+                const height = (count / max) * 100;
+                return (
+                  <div key={month} className="flex-1 flex flex-col items-center gap-2 group">
+                    <div className="w-full bg-slate-100 rounded-t-sm group-hover:bg-blue-100 transition-colors relative" style={{ height: `${height}%` }}>
+                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {count}
                       </div>
-                      <div className="w-16 text-right text-xs font-bold text-slate-700">{pct}%</div>
                     </div>
-                  );
-                });
-              })()}
+                    <div className="text-[10px] font-bold text-slate-400">
+                      {month.split('-')[1]}월
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-2">NPS 점수</div>
-            <div className="flex items-end gap-2">
-              <div className="text-4xl font-black text-slate-900">{npsScore.value >= 0 ? `+${npsScore.value}` : `${npsScore.value}`}</div>
-              <div className={`text-xs font-bold ${npsScore.delta >= 0 ? "text-green-600" : "text-rose-600"}`}>
-                {npsScore.delta >= 0 ? `+${npsScore.delta}` : `${npsScore.delta}`}
-              </div>
-              <span className={`ml-2 inline-block text-[10px] font-bold px-2 py-0.5 rounded ${badge(npsScore.status)}`}>{npsScore.status === "ok" ? "🟢 양호" : npsScore.status === "warn" ? "🟡 경고" : "🔴 위험"}</span>
-            </div>
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="w-24 text-xs font-bold text-slate-500 uppercase">추천</div>
-                <div className="flex-1 h-4 bg-slate-100 rounded">
-                  <div className="h-full bg-slate-700" style={{ width: `${npsScore.breakdown.p}%` }} />
+          
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <h3 className="text-xs font-black text-slate-900 uppercase mb-6 tracking-tight">데이터 요약 및 인사이트</h3>
+            <div className="space-y-4">
+              <div className="flex gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-lg font-bold">!</div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900 mb-1">성장 지표</div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                    현재 전체 재원생은 {stats.students.totalActive}명이며, 최근 {stats.students.monthlyRegistrations[stats.students.monthlyRegistrations.length - 1]?.[1]}명의 신규 등록이 있었습니다.
+                  </p>
                 </div>
-                <div className="w-12 text-right text-xs font-bold text-slate-700">{npsScore.breakdown.p}%</div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-24 text-xs font-bold text-slate-500 uppercase">중립</div>
-                <div className="flex-1 h-4 bg-slate-100 rounded">
-                  <div className="h-full bg-slate-500" style={{ width: `${npsScore.breakdown.n}%` }} />
+              <div className="flex gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-lg font-bold">✓</div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900 mb-1">전환 성과</div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                    평균 {stats.conversion.overallRate.toFixed(1)}%의 전환율을 기록하고 있습니다. 상담 관리 프로세스가 안정적으로 운영되고 있습니다.
+                  </p>
                 </div>
-                <div className="w-12 text-right text-xs font-bold text-slate-700">{npsScore.breakdown.n}%</div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-24 text-xs font-bold text-slate-500 uppercase">비추천</div>
-                <div className="flex-1 h-4 bg-slate-100 rounded">
-                  <div className="h-full bg-slate-400" style={{ width: `${npsScore.breakdown.d}%` }} />
-                </div>
-                <div className="w-12 text-right text-xs font-bold text-slate-700">{npsScore.breakdown.d}%</div>
               </div>
             </div>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="text-xs font-bold text-slate-500 uppercase mb-2">피드백 인사이트</div>
-            <div className="text-sm text-slate-600">최근 설문 응답 기반 인사이트는 설문 페이지에서 확인하세요.</div>
           </div>
         </div>
       </div>

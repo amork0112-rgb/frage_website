@@ -10,7 +10,6 @@ import {
   CheckCircle, 
   FileCheck, 
   Calendar, 
-  Truck, 
   AlertTriangle, 
   ChevronDown,
   MessageSquare,
@@ -643,13 +642,7 @@ export default function ParentPortalHome() {
           )}
 
           {/* Guide Links */}
-          <div className="grid grid-cols-2 gap-3">
-             <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col items-center justify-center text-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
-                    <Truck className="w-5 h-5" />
-                </div>
-                <p className="text-sm font-bold text-slate-800">셔틀버스 안내</p>
-             </div>
+          <div className="grid grid-cols-1 gap-3">
              <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col items-center justify-center text-center gap-2">
                 <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
                     <Calendar className="w-5 h-5" />
@@ -684,7 +677,7 @@ export default function ParentPortalHome() {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-slate-900">
-                    차량 배정 및 학습 안내를 위해{" "}
+                    원활한 학습 안내를 위해{" "}
                     <br className="hidden sm:block" />
                     처음 한 번만 정보를 확인해 주세요.
                   </h2>
@@ -1105,7 +1098,7 @@ export default function ParentPortalHome() {
         <section className="flex flex-col md:flex-row md:items-end justify-between gap-4">
            <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-1">
-                 <span className="text-frage-blue">{studentProfile?.name || "학생"}</span> 학부모님! 👋
+                 <span className="text-frage-blue">{studentProfile?.student_name || "학생"}</span> 학부모님! 👋
               </h1>
               <p className="text-sm text-slate-500 font-medium">오늘도 즐거운 하루 보내세요.</p>
            </div>
@@ -1235,35 +1228,6 @@ export default function ParentPortalHome() {
                     <HelpCircle className="w-5 h-5" />
                   </div>
                   <span className="text-xs font-bold">문의하기</span>
-                </button>
-              </div>
-            </section>
-
-            {/* Shuttle Bus Status (Mockup) */}
-            <section className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
-              
-              <div className="relative">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-sm">
-                    <Truck className="w-5 h-5 text-yellow-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold">셔틀 버스</h3>
-                    <p className="text-xs text-slate-400">실시간 위치 확인</p>
-                  </div>
-                </div>
-                
-                <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm mb-3">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-bold text-slate-300">현재 상태</span>
-                    <span className="text-xs font-bold text-green-400 bg-green-400/20 px-2 py-0.5 rounded-full">운행중</span>
-                  </div>
-                  <p className="text-sm font-medium">잠시 후 <span className="text-yellow-400 font-bold">정문 앞</span> 도착 예정</p>
-                </div>
-
-                <button className="w-full py-3 bg-white text-slate-900 rounded-xl text-sm font-bold hover:bg-slate-100 transition-colors">
-                  위치 보기
                 </button>
               </div>
             </section>
