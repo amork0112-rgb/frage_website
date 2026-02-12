@@ -45,9 +45,8 @@ async function sendKakaoAlimtalk(phone: string, code: string) {
     body: JSON.stringify({
       message: {
         to: phone.replace(/\D/g, ""),
-        from: from, // ⭐ 필수
-        type: "ATA", // ⭐ 여기서 ATA
-        content: `인증번호는 ${code} 입니다. 3분 이내에 입력해 주세요.`, // ⭐ 변수 치환 오류 방지용 content
+        from: from,
+        type: "ATA",
         kakaoOptions: {
           pfId,
           templateId,
