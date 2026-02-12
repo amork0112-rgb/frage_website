@@ -43,20 +43,19 @@ async function sendKakaoAlimtalk(phone: string, code: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      messageType: "ATA",
-      messages: [
-        {
-          to: phone.replace(/\D/g, ""),
-          from, // 알림톡 발송 시에도 발신 번호 필요
-          kakaoOptions: {
-            pfId,
-            templateId,
-            variables: {
-              code: code, // #{code}와 정확히 매칭
-            },
+      message: {
+        to: phone.replace(/\D/g, ""),
+        from: from, // ⭐ 필수
+        type: "ATA", // ⭐ 여기서 ATA
+        content: `인증번호는 ${code} 입니다. 3분 이내에 입력해 주세요.`, // ⭐ 변수 치환 오류 방지용 content
+        kakaoOptions: {
+          pfId,
+          templateId,
+          variables: {
+            code: code,
           },
         },
-      ],
+      },
     }),
   });
   console.log("[SOLAPI] after fetch", res.status);
@@ -94,14 +93,12 @@ async function sendSms(phone: string, text: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      messageType: "SMS",
-      messages: [
-        {
-          to: phone.replace(/\D/g, ""),
-          from,
-          text,
-        },
-      ],
+      message: {
+        to: phone.replace(/\D/g, ""),
+        from: from,
+        text: text,
+        type: "SMS",
+      },
     }),
   });
   console.log("[SOLAPI SMS] after fetch", res.status);
