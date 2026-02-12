@@ -26,6 +26,14 @@ async function sendKakaoAlimtalk(phone: string, code: string) {
 
   const authHeader = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
 
+  console.log("[ALIMTALK PAYLOAD]", {
+    pfId,
+    templateId,
+    variables: {
+      code,
+    },
+  });
+
   console.log("[SOLAPI] before fetch");
   const res = await fetch("https://api.solapi.com/messages/v4/send", {
     method: "POST",
