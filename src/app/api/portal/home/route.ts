@@ -34,6 +34,13 @@ export async function GET() {
       .select("student_id,student_name,english_first_name,status,campus,parent_auth_user_id,grade,class_name")
       .eq("parent_auth_user_id", user.id);
 
+    // 2. Fetch Applicants (New Students not yet promoted)
+    const { data: applicants } = await supabaseService
+      .from("new_students")
+      .select("id,student_name,status,campus,created_by")
+      .eq("created_by", user.id)
+      .not("status", "eq", "promoted"); // Exclude those already promoted
+
     const enrolledIds = Array.isArray(enrolledStudents)
       ? enrolledStudents.map((s: any) => s.student_id).filter((v: any) => v)
       : [];
@@ -76,13 +83,6 @@ export async function GET() {
           : {};
     }
 
-    // 2. Fetch New Students (Applicants, excluding promoted)
-    const { data: newStudents } = await supabaseService
-      .from("new_students")
-      .select("*")
-      .eq("parent_auth_user_id", user.id)
-      .neq("status", "promoted");
-
     const enrolledItems = Array.isArray(enrolledStudents)
       ? enrolledStudents.map((s: any) => {
           const key = String(s.student_id || "");
@@ -108,34 +108,21 @@ export async function GET() {
         })
       : [];
 
-    const newItems = Array.isArray(newStudents)
-      ? newStudents.map((s: any) => {
-          // Check if use_bus exists in the object
-          const useBus = typeof s.use_bus === "boolean" ? s.use_bus : null;
-          const address = s.address || "";
-          
-          // For applicants, profile is completed if address and use_bus are set
-          const profileCompleted = useBus !== null && (useBus === false || (useBus === true && address.length > 0));
-          
-          return {
-            id: String(s.id || ""),
-            name: String(s.student_name || ""),
-            englishName: String(s.english_first_name || ""),
-            status: String(s.status || "waiting"),
-            className: "",
-            campus: String(s.campus || ""),
-            parentAccountId: user.id,
-            type: "applicant",
-            address: address || null,
-            use_bus: useBus,
-            profile_completed: profileCompleted,
-          };
-        })
+    const applicantItems = Array.isArray(applicants)
+      ? applicants.map((s: any) => ({
+          id: String(s.id),
+          name: String(s.student_name || ""),
+          englishName: "",
+          status: String(s.status || "applicant"),
+          className: "Admission Process",
+          campus: String(s.campus || ""),
+          parentAccountId: String(s.created_by || ""),
+          profile_completed: false, // Applicants always need onboarding/info check
+          type: "applicant",
+        }))
       : [];
 
-    const items = [...enrolledItems, ...newItems];
-
-    return NextResponse.json({ ok: true, students: items }, { status: 200 });
+    return NextResponse.json({ ok: true, students: [...enrolledItems, ...applicantItems] }, { status: 200 });
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 });
   }

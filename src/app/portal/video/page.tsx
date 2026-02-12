@@ -116,7 +116,7 @@ export default function VideoListPage() {
                         </span>
                     </div>
                     
-                    <h3 className="font-bold text-slate-900 text-xl group-hover:text-frage-blue transition-colors mb-2 line-clamp-2">
+                    <h3 className="font-bold text-slate-900 text-base group-hover:text-frage-blue transition-colors mb-2 line-clamp-2">
                         {hw.title}
                     </h3>
                     <p className="text-slate-500 font-medium text-sm">
