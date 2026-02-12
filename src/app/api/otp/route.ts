@@ -5,68 +5,6 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 import crypto from "crypto";
 
-async function sendKakaoAlimtalk(phone: string, code: string) {
-  console.log("[SOLAPI] sendKakaoAlimtalk CALLED", {
-    phone,
-    code,
-  });
-
-  const apiKey = process.env.SOLAPI_API_KEY!;
-  const apiSecret = process.env.SOLAPI_API_SECRET!;
-  const pfId = process.env.KAKAO_PF_ID!;
-  const templateId = process.env.SOLAPI_KAKAO_TEMPLATE_OTP!;
-  const from = process.env.SOLAPI_SENDER!;
-
-  const date = new Date().toISOString();
-  const salt = crypto.randomBytes(16).toString("hex");
-
-  const signature = crypto
-    .createHmac("sha256", apiSecret)
-    .update(date + salt)
-    .digest("hex");
-
-  const authHeader = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
-
-  console.log("[ALIMTALK PAYLOAD]", {
-    pfId,
-    templateId,
-    variables: {
-      code,
-    },
-  });
-
-  console.log("[SOLAPI] before fetch");
-  const res = await fetch("https://api.solapi.com/messages/v4/send", {
-    method: "POST",
-    headers: {
-      Authorization: authHeader,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      message: {
-        to: phone.replace(/\D/g, ""),
-        from: from,
-        type: "ATA",
-        kakaoOptions: {
-          pfId,
-          templateId,
-          variables: {
-            code: code,
-          },
-        },
-      },
-    }),
-  });
-  console.log("[SOLAPI] after fetch", res.status);
-
-  const text = await res.text();
-  console.log("[SOLAPI RESPONSE BODY]", text);
-
-  if (!res.ok) {
-    throw new Error("alimtalk_failed");
-  }
-}
-
 async function sendSms(phone: string, text: string) {
   console.log("[SOLAPI] sendSms CALLED", { phone });
 
@@ -162,8 +100,7 @@ export async function POST(request: Request) {
   console.log("[SOLAPI ENV CHECK]", {
     key: !!process.env.SOLAPI_API_KEY,
     secret: !!process.env.SOLAPI_API_SECRET,
-    pfId: process.env.KAKAO_PF_ID,
-    template: process.env.SOLAPI_KAKAO_TEMPLATE_OTP,
+    sender: !!process.env.SOLAPI_SENDER,
   });
 
   try {
@@ -252,20 +189,13 @@ export async function POST(request: Request) {
         });
 
       try {
-        await sendKakaoAlimtalk(rawDigits, code);
-      } catch (e) {
-        console.log("Alimtalk failed → SMS fallback", e);
-        try {
-          await sendSms(
-            rawDigits,
-            `FRAGE 인증번호는 ${code} 입니다. (3분 이내 입력)`
-          );
-        } catch (smsErr) {
-          console.error("SMS Fallback also failed:", smsErr);
-          // 여기서 에러를 리턴할지 말지는 정책에 따라 다르지만, 
-          // 최소한 알림은 가야 하므로 에러를 리턴하는 것이 좋습니다.
-          return json({ ok: false, error: "send_failed" }, 500);
-        }
+        await sendSms(
+          rawDigits,
+          `FRAGE 인증번호는 ${code} 입니다. (3분 이내 입력)`
+        );
+      } catch (smsErr) {
+        console.error("SMS send failed:", smsErr);
+        return json({ ok: false, error: "send_failed" }, 500);
       }
 
       return json({ ok: true });
