@@ -56,15 +56,54 @@ export async function PATCH(
       payload.profile_completed = body.profile_completed;
     }
 
-    // Update students table
-    const { error } = await supabaseService
+    // Check which table to update
+    const { data: enrolledStudent } = await supabaseService
       .from("students")
-      .update(payload)
-      .eq("id", studentId);
+      .select("id")
+      .eq("id", studentId)
+      .maybeSingle();
 
-    if (error) {
-      console.error("Onboarding update error:", error);
-      return NextResponse.json({ ok: false, error: "update_failed" }, { status: 500 });
+    if (enrolledStudent) {
+      // Update students table
+      const { error } = await supabaseService
+        .from("students")
+        .update(payload)
+        .eq("id", studentId);
+
+      if (error) {
+        console.error("Onboarding update error (students):", error);
+        return NextResponse.json({ ok: false, error: "update_failed" }, { status: 500 });
+      }
+    } else {
+      // Check new_students table
+      const { data: newStudent } = await supabaseService
+        .from("new_students")
+        .select("id, address, use_bus")
+        .eq("id", studentId)
+        .maybeSingle();
+
+      if (newStudent) {
+        // Map payload for new_students table
+        const newPayload: any = {
+          updated_at: payload.updated_at,
+        };
+        
+        if (payload.address !== undefined) newPayload.address = payload.address;
+        if (payload.use_bus !== undefined) newPayload.use_bus = payload.use_bus;
+        if (payload.parent_auth_user_id !== undefined) newPayload.parent_auth_user_id = payload.parent_auth_user_id;
+
+        const { error } = await supabaseService
+          .from("new_students")
+          .update(newPayload)
+          .eq("id", studentId);
+
+        if (error) {
+          console.error("Onboarding update error (new_students):", error);
+          return NextResponse.json({ ok: false, error: "update_failed" }, { status: 500 });
+        }
+      } else {
+        return NextResponse.json({ ok: false, error: "student_not_found" }, { status: 404 });
+      }
     }
 
     return NextResponse.json({ ok: true });

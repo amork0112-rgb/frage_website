@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 import { resolveUserRole } from "@/lib/auth/resolveUserRole";
 
 export async function GET() {
@@ -15,7 +16,7 @@ export async function GET() {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
-    const { data: parent } = await supabase
+    const { data: parent } = await supabaseService
       .from("parents")
       .select("id,name,phone,campus")
       .eq("auth_user_id", user.id)
@@ -28,13 +29,13 @@ export async function GET() {
     const parentId = String(parent.id);
 
     // 1. Fetch Enrolled Students (Promoted)
-    const { data: enrolledStudents } = await supabase
+    const { data: enrolledStudents } = await supabaseService
       .from("v_students_full")
-      .select("id,student_name,english_first_name,status,campus,parent_auth_user_id")
-      .eq("parent_id", parentId);
+      .select("student_id,student_name,english_first_name,status,campus,parent_auth_user_id,grade,class_name")
+      .eq("parent_auth_user_id", user.id);
 
     const enrolledIds = Array.isArray(enrolledStudents)
-      ? enrolledStudents.map((s: any) => s.id).filter((v: any) => v)
+      ? enrolledStudents.map((s: any) => s.student_id).filter((v: any) => v)
       : [];
 
     let onboardingMap: Record<
@@ -76,22 +77,22 @@ export async function GET() {
     }
 
     // 2. Fetch New Students (Applicants, excluding promoted)
-    const { data: newStudents } = await supabase
+    const { data: newStudents } = await supabaseService
       .from("new_students")
-      .select("id,student_name,english_first_name,status,campus,created_at")
-      .eq("parent_id", parentId)
+      .select("*")
+      .eq("parent_auth_user_id", user.id)
       .neq("status", "promoted");
 
     const enrolledItems = Array.isArray(enrolledStudents)
       ? enrolledStudents.map((s: any) => {
-          const key = String(s.id || "");
+          const key = String(s.student_id || "");
           const onboarding = key ? onboardingMap[key] : undefined;
           return {
             id: key,
             name: String(s.student_name || ""),
             englishName: String(s.english_first_name || ""),
             status: String(s.status || "promoted"),
-            className: String(s.grade || ""),
+            className: String(s.class_name || s.grade || ""),
             campus: String(s.campus || ""),
             parentAccountId: String(s.parent_auth_user_id || ""),
             profile_completed: onboarding
@@ -108,16 +109,28 @@ export async function GET() {
       : [];
 
     const newItems = Array.isArray(newStudents)
-      ? newStudents.map((s: any) => ({
-          id: String(s.id || ""),
-          name: String(s.student_name || ""),
-          englishName: String(s.english_first_name || ""),
-          status: String(s.status || "waiting"),
-          className: "",
-          campus: String(s.campus || ""),
-          parentAccountId: user.id,
-          type: "applicant"
-        }))
+      ? newStudents.map((s: any) => {
+          // Check if use_bus exists in the object
+          const useBus = typeof s.use_bus === "boolean" ? s.use_bus : null;
+          const address = s.address || "";
+          
+          // For applicants, profile is completed if address and use_bus are set
+          const profileCompleted = useBus !== null && (useBus === false || (useBus === true && address.length > 0));
+          
+          return {
+            id: String(s.id || ""),
+            name: String(s.student_name || ""),
+            englishName: String(s.english_first_name || ""),
+            status: String(s.status || "waiting"),
+            className: "",
+            campus: String(s.campus || ""),
+            parentAccountId: user.id,
+            type: "applicant",
+            address: address || null,
+            use_bus: useBus,
+            profile_completed: profileCompleted,
+          };
+        })
       : [];
 
     const items = [...enrolledItems, ...newItems];
