@@ -15,7 +15,7 @@ async function sendKakaoAlimtalk(phone: string, code: string) {
   const apiSecret = process.env.SOLAPI_API_SECRET!;
   const pfId = process.env.KAKAO_PF_ID!;
   const templateId = process.env.SOLAPI_KAKAO_TEMPLATE_OTP!;
-  const from = process.env.SOLAPI_FROM!;
+  const from = process.env.SOLAPI_SENDER!;
 
   const date = new Date().toISOString();
   const salt = crypto.randomBytes(16).toString("hex");
@@ -73,7 +73,7 @@ async function sendSms(phone: string, text: string) {
 
   const apiKey = process.env.SOLAPI_API_KEY!;
   const apiSecret = process.env.SOLAPI_API_SECRET!;
-  const from = process.env.SOLAPI_FROM!;
+  const from = process.env.SOLAPI_SENDER!;
 
   const date = new Date().toISOString();
   const salt = crypto.randomBytes(16).toString("hex");
