@@ -8,7 +8,7 @@ import crypto from "crypto";
 async function sendKakaoAlimtalk(phone: string, code: string) {
   const apiKey = process.env.SOLAPI_API_KEY;
   const apiSecret = process.env.SOLAPI_API_SECRET;
-  const pfId = process.env.SOLAPI_KAKAO_PF_ID;
+  const pfId = process.env.KAKAO_PF_ID;
   const templateId = process.env.SOLAPI_KAKAO_TEMPLATE_OTP;
 
   if (!apiKey || !apiSecret || !pfId || !templateId) {
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
   console.log("[SOLAPI ENV CHECK]", {
     key: !!process.env.SOLAPI_API_KEY,
     secret: !!process.env.SOLAPI_API_SECRET,
-    pfId: process.env.SOLAPI_KAKAO_PF_ID,
+    pfId: process.env.KAKAO_PF_ID,
     template: process.env.SOLAPI_KAKAO_TEMPLATE_OTP,
   });
 
