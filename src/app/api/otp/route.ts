@@ -6,15 +6,10 @@ import { supabaseService } from "@/lib/supabase/service";
 import crypto from "crypto";
 
 async function sendKakaoAlimtalk(phone: string, code: string) {
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
-  const pfId = process.env.KAKAO_PF_ID;
-  const templateId = process.env.SOLAPI_KAKAO_TEMPLATE_OTP;
-
-  if (!apiKey || !apiSecret || !pfId || !templateId) {
-    console.error("[ALIMTALK] Missing env vars", { apiKey: !!apiKey, apiSecret: !!apiSecret, pfId: !!pfId, templateId: !!templateId });
-    throw new Error("missing_alimtalk_config");
-  }
+  const apiKey = process.env.SOLAPI_API_KEY!;
+  const apiSecret = process.env.SOLAPI_API_SECRET!;
+  const pfId = process.env.KAKAO_PF_ID!;
+  const templateId = process.env.SOLAPI_KAKAO_TEMPLATE_OTP!;
 
   const date = new Date().toISOString();
   const salt = crypto.randomBytes(16).toString("hex");
@@ -33,35 +28,33 @@ async function sendKakaoAlimtalk(phone: string, code: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      message: {
-        to: phone.replace(/\D/g, ""),
-        kakaoOptions: {
-          pfId,
-          templateId,
-          variables: {
-            code, // ⚠️ 템플릿 변수명과 반드시 일치
+      messages: [
+        {
+          to: phone.replace(/\D/g, ""),
+          kakaoOptions: {
+            pfId,
+            templateId,
+            variables: {
+              code, // 템플릿 변수명과 정확히 일치
+            },
           },
         },
-      },
+      ],
     }),
   });
 
   const text = await res.text();
+  console.log("[SOLAPI RESPONSE]", res.status, text);
+
   if (!res.ok) {
-    console.error("ALIMTALK FAIL:", text);
     throw new Error("alimtalk_failed");
   }
 }
 
 async function sendSms(phone: string, text: string) {
-  const apiKey = process.env.SOLAPI_API_KEY;
-  const apiSecret = process.env.SOLAPI_API_SECRET;
-  const from = process.env.SOLAPI_FROM;
-
-  if (!apiKey || !apiSecret || !from) {
-    console.error("[SMS] Missing env vars", { apiKey: !!apiKey, apiSecret: !!apiSecret, from: !!from });
-    throw new Error("missing_sms_config");
-  }
+  const apiKey = process.env.SOLAPI_API_KEY!;
+  const apiSecret = process.env.SOLAPI_API_SECRET!;
+  const from = process.env.SOLAPI_FROM!;
 
   const date = new Date().toISOString();
   const salt = crypto.randomBytes(16).toString("hex");
@@ -80,17 +73,20 @@ async function sendSms(phone: string, text: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      message: {
-        to: phone.replace(/\D/g, ""),
-        from,
-        text,
-      },
+      messages: [
+        {
+          to: phone.replace(/\D/g, ""),
+          from,
+          text,
+        },
+      ],
     }),
   });
 
   const resText = await res.text();
+  console.log("[SOLAPI SMS RESPONSE]", res.status, resText);
+
   if (!res.ok) {
-    console.error("SMS FAIL:", resText);
     throw new Error("sms_failed");
   }
 }
