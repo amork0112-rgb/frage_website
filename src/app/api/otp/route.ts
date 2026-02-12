@@ -34,18 +34,16 @@ async function sendKakaoAlimtalk(phone: string, code: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      messages: [
-        {
-          to: phone.replace(/\D/g, ""),
-          kakaoOptions: {
-            pfId,
-            templateId,
-            variables: {
-              code, // 템플릿 변수명과 정확히 일치
-            },
+      message: {
+        to: phone.replace(/\D/g, ""),
+        kakaoOptions: {
+          pfId,
+          templateId,
+          variables: {
+            code, // 템플릿 변수명과 정확히 일치
           },
         },
-      ],
+      },
     }),
   });
   console.log("[SOLAPI] after fetch", res.status);
@@ -83,13 +81,11 @@ async function sendSms(phone: string, text: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      messages: [
-        {
-          to: phone.replace(/\D/g, ""),
-          from,
-          text,
-        },
-      ],
+      message: {
+        to: phone.replace(/\D/g, ""),
+        from,
+        text,
+      },
     }),
   });
   console.log("[SOLAPI SMS] after fetch", res.status);
