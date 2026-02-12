@@ -2,17 +2,13 @@
 import { ReactNode } from "react";
 import { Nunito, Noto_Sans_KR, Montserrat } from "next/font/google";
 import MainLayout from "@/components/MainLayout";
-import PWARegister from "@/components/PWARegister";
 import "./globals.css";
 import type { Metadata } from "next";
 import { LanguageProvider } from "@/context/LanguageContext";
-import { createSupabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#8f3fff",
 };
 
 const nunito = Nunito({ 
@@ -39,50 +35,14 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: "FRAGE EDU | English for Thinking Minds",
   description: "Building strong readers, clear thinkers, and confident communicators.",
-  manifest: "/manifest.json",
-  icons: {
-    icon: "/icon.png",
-  },
 };
 
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const supabase = createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let shouldRegisterPWA = false;
-
-  if (user) {
-    // Teachers/Admins are in the teachers table
-    // Use supabaseService to bypass RLS and ensure accurate role check
-    const { data: teacher } = await supabaseService
-      .from("teachers")
-      .select("id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-
-    // Only register PWA for parents (User exists AND NOT in teachers table)
-    if (!teacher) {
-      shouldRegisterPWA = true;
-    }
-  }
-
   return (
     <html lang="ko" className={`${nunito.variable} ${notoSansKr.variable} ${montserrat.variable}`}>
-      <head>
-        {/* PWA */}
-        <meta name="mobile-web-app-capable" content="yes" />
-        {/* iOS PWA */}
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="FRAGE EDU" />
-        <link rel="apple-touch-icon" href="/icon.png" />
-      </head>
       <body className="flex min-h-screen flex-col font-sans bg-white text-slate-800 antialiased selection:bg-frage-yellow selection:text-frage-blue">
-        <PWARegister shouldRegister={shouldRegisterPWA} />
         <LanguageProvider>
           <MainLayout>
             {children}
