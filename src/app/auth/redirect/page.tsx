@@ -51,7 +51,7 @@ export default async function AuthRedirectPage() {
 
   // ✅ 기존 학부모 확인 (auth_user_id 연결 존재 여부)
   // enrollment의 결과가 최종적으로 남는 곳이 students이므로 가장 신뢰도 높음
-  const { data: students } = await supabase
+  const { data: parent } = await supabase
     .from("parents")
     .select("id")
     .eq("auth_user_id", user.id)
