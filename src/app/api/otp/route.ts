@@ -3,6 +3,97 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+import crypto from "crypto";
+
+async function sendKakaoAlimtalk(phone: string, code: string) {
+  const apiKey = process.env.SOLAPI_API_KEY;
+  const apiSecret = process.env.SOLAPI_API_SECRET;
+  const pfId = process.env.SOLAPI_KAKAO_PF_ID;
+  const templateId = process.env.SOLAPI_KAKAO_TEMPLATE_OTP;
+
+  if (!apiKey || !apiSecret || !pfId || !templateId) {
+    console.error("[ALIMTALK] Missing env vars", { apiKey: !!apiKey, apiSecret: !!apiSecret, pfId: !!pfId, templateId: !!templateId });
+    throw new Error("missing_alimtalk_config");
+  }
+
+  const date = new Date().toISOString();
+  const salt = crypto.randomBytes(16).toString("hex");
+
+  const signature = crypto
+    .createHmac("sha256", apiSecret)
+    .update(date + salt)
+    .digest("hex");
+
+  const authHeader = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
+
+  const res = await fetch("https://api.solapi.com/messages/v4/send", {
+    method: "POST",
+    headers: {
+      Authorization: authHeader,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: {
+        to: phone.replace(/\D/g, ""),
+        kakaoOptions: {
+          pfId,
+          templateId,
+          variables: {
+            code, // ⚠️ 템플릿 변수명과 반드시 일치
+          },
+        },
+      },
+    }),
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    console.error("ALIMTALK FAIL:", text);
+    throw new Error("alimtalk_failed");
+  }
+}
+
+async function sendSms(phone: string, text: string) {
+  const apiKey = process.env.SOLAPI_API_KEY;
+  const apiSecret = process.env.SOLAPI_API_SECRET;
+  const from = process.env.SOLAPI_FROM;
+
+  if (!apiKey || !apiSecret || !from) {
+    console.error("[SMS] Missing env vars", { apiKey: !!apiKey, apiSecret: !!apiSecret, from: !!from });
+    throw new Error("missing_sms_config");
+  }
+
+  const date = new Date().toISOString();
+  const salt = crypto.randomBytes(16).toString("hex");
+
+  const signature = crypto
+    .createHmac("sha256", apiSecret)
+    .update(date + salt)
+    .digest("hex");
+
+  const authHeader = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
+
+  const res = await fetch("https://api.solapi.com/messages/v4/send", {
+    method: "POST",
+    headers: {
+      Authorization: authHeader,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: {
+        to: phone.replace(/\D/g, ""),
+        from,
+        text,
+      },
+    }),
+  });
+
+  const resText = await res.text();
+  if (!res.ok) {
+    console.error("SMS FAIL:", resText);
+    throw new Error("sms_failed");
+  }
+}
 
 type Mode = "request" | "verify" | "complete" | "onboarding";
 
@@ -53,6 +144,13 @@ function generateOtpCode() {
 }
 
 export async function POST(request: Request) {
+  console.log("[SOLAPI ENV CHECK]", {
+    key: !!process.env.SOLAPI_API_KEY,
+    secret: !!process.env.SOLAPI_API_SECRET,
+    pfId: process.env.SOLAPI_KAKAO_PF_ID,
+    template: process.env.SOLAPI_KAKAO_TEMPLATE_OTP,
+  });
+
   try {
     const body = (await request.json()) as Partial<RequestBody>;
     const mode = body.mode as Mode | undefined;
@@ -155,6 +253,23 @@ export async function POST(request: Request) {
           expires_at: expiresAt,
           used: false,
         });
+
+      try {
+        await sendKakaoAlimtalk(rawDigits, code);
+      } catch (e) {
+        console.log("Alimtalk failed → SMS fallback", e);
+        try {
+          await sendSms(
+            rawDigits,
+            `FRAGE 인증번호는 ${code} 입니다. (3분 이내 입력)`
+          );
+        } catch (smsErr) {
+          console.error("SMS Fallback also failed:", smsErr);
+          // 여기서 에러를 리턴할지 말지는 정책에 따라 다르지만, 
+          // 최소한 알림은 가야 하므로 에러를 리턴하는 것이 좋습니다.
+          return json({ ok: false, error: "send_failed" }, 500);
+        }
+      }
 
       return json({ ok: true });
     }
