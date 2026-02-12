@@ -6,6 +6,11 @@ import { supabaseService } from "@/lib/supabase/service";
 import crypto from "crypto";
 
 async function sendKakaoAlimtalk(phone: string, code: string) {
+  console.log("[SOLAPI] sendKakaoAlimtalk CALLED", {
+    phone,
+    code,
+  });
+
   const apiKey = process.env.SOLAPI_API_KEY!;
   const apiSecret = process.env.SOLAPI_API_SECRET!;
   const pfId = process.env.KAKAO_PF_ID!;
@@ -21,6 +26,7 @@ async function sendKakaoAlimtalk(phone: string, code: string) {
 
   const authHeader = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
 
+  console.log("[SOLAPI] before fetch");
   const res = await fetch("https://api.solapi.com/messages/v4/send", {
     method: "POST",
     headers: {
@@ -42,9 +48,10 @@ async function sendKakaoAlimtalk(phone: string, code: string) {
       ],
     }),
   });
+  console.log("[SOLAPI] after fetch", res.status);
 
   const text = await res.text();
-  console.log("[SOLAPI RESPONSE]", res.status, text);
+  console.log("[SOLAPI RESPONSE BODY]", text);
 
   if (!res.ok) {
     throw new Error("alimtalk_failed");
@@ -52,6 +59,8 @@ async function sendKakaoAlimtalk(phone: string, code: string) {
 }
 
 async function sendSms(phone: string, text: string) {
+  console.log("[SOLAPI] sendSms CALLED", { phone });
+
   const apiKey = process.env.SOLAPI_API_KEY!;
   const apiSecret = process.env.SOLAPI_API_SECRET!;
   const from = process.env.SOLAPI_FROM!;
@@ -66,6 +75,7 @@ async function sendSms(phone: string, text: string) {
 
   const authHeader = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
 
+  console.log("[SOLAPI SMS] before fetch");
   const res = await fetch("https://api.solapi.com/messages/v4/send", {
     method: "POST",
     headers: {
@@ -82,9 +92,10 @@ async function sendSms(phone: string, text: string) {
       ],
     }),
   });
+  console.log("[SOLAPI SMS] after fetch", res.status);
 
   const resText = await res.text();
-  console.log("[SOLAPI SMS RESPONSE]", res.status, resText);
+  console.log("[SOLAPI SMS RESPONSE BODY]", resText);
 
   if (!res.ok) {
     throw new Error("sms_failed");
