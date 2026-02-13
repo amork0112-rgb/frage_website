@@ -76,7 +76,7 @@ export default function ReportListPage() {
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
       <PortalHeader />
       
-      <main className="px-4 md:px-6 py-8 max-w-4xl mx-auto space-y-8">
+      <main className="px-4 md:px-6 py-8 max-w-6xl mx-auto space-y-8">
         <div className="flex items-center justify-between">
            <h1 className="text-2xl font-black text-slate-900 flex items-center gap-3">
              <div className="w-10 h-10 rounded-xl bg-frage-navy flex items-center justify-center text-white shadow-lg shadow-frage-navy/20">

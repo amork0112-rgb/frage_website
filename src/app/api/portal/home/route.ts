@@ -48,6 +48,7 @@ export async function GET() {
     let onboardingMap: Record<
       string,
       {
+        student_name: string | null;
         profile_completed: boolean | null;
         use_bus: boolean | null;
         address: string | null;
@@ -63,7 +64,7 @@ export async function GET() {
       // 1. Fetch Onboarding & Class Info
       const { data: studentInfo } = await supabaseService
         .from("students")
-        .select("id,profile_completed,use_bus,address,parent_auth_user_id,class_name")
+        .select("id,student_name,profile_completed,use_bus,address,parent_auth_user_id,class_name")
         .in("id", enrolledIds as any);
 
       onboardingMap =
@@ -72,6 +73,7 @@ export async function GET() {
               const key = String(row.id || "");
               if (!key) return acc;
               acc[key] = {
+                student_name: row.student_name,
                 profile_completed: row.profile_completed === true,
                 use_bus: row.use_bus,
                 address: row.address,
@@ -140,7 +142,7 @@ export async function GET() {
 
           return {
             id: key,
-            name: String(s.student_name || ""),
+            name: String(onboarding?.student_name || s.student_name || ""),
             englishName: String(s.english_first_name || ""),
             status: String(s.status || "promoted"),
             className: String(s.class_name || s.grade || ""),
