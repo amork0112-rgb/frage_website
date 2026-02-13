@@ -52,41 +52,92 @@ export async function GET() {
         use_bus: boolean | null;
         address: string | null;
         parent_auth_user_id: string | null;
+        class_name: string | null;
       }
     > = {};
 
+    let latestReportsMap: Record<string, any> = {};
+    let pendingVideoMap: Record<string, number> = {};
+
     if (enrolledIds.length > 0) {
-      const { data: onboardingRows } = await supabase
+      // 1. Fetch Onboarding & Class Info
+      const { data: studentInfo } = await supabaseService
         .from("students")
-        .select("id,profile_completed,use_bus,address,parent_auth_user_id")
+        .select("id,profile_completed,use_bus,address,parent_auth_user_id,class_name")
         .in("id", enrolledIds as any);
 
       onboardingMap =
-        Array.isArray(onboardingRows)
-          ? onboardingRows.reduce((acc: typeof onboardingMap, row: any) => {
+        Array.isArray(studentInfo)
+          ? studentInfo.reduce((acc: any, row: any) => {
               const key = String(row.id || "");
               if (!key) return acc;
               acc[key] = {
-                profile_completed:
-                  typeof row.profile_completed === "boolean"
-                    ? row.profile_completed
-                    : null,
-                use_bus:
-                  typeof row.use_bus === "boolean" ? row.use_bus : null,
-                address: row.address ? String(row.address) : null,
-                parent_auth_user_id: row.parent_auth_user_id
-                  ? String(row.parent_auth_user_id)
-                  : null,
+                profile_completed: row.profile_completed === true,
+                use_bus: row.use_bus,
+                address: row.address,
+                parent_auth_user_id: row.parent_auth_user_id,
+                class_name: row.class_name,
               };
               return acc;
-            }, {} as typeof onboardingMap)
+            }, {})
           : {};
+
+      // 2. Fetch Latest Daily Reports (Dajim)
+      // Get the single latest report for each student
+      const { data: reports } = await supabaseService
+        .from("daily_reports")
+        .select("id, student_id, message_text, completion_rate, date, send_status")
+        .in("student_id", enrolledIds as any)
+        .eq("send_status", "sent")
+        .order("date", { ascending: false });
+
+      if (reports) {
+        // Group by student and take the first (latest) one
+        reports.forEach((r: any) => {
+          if (!latestReportsMap[r.student_id]) {
+            latestReportsMap[r.student_id] = r;
+          }
+        });
+      }
+
+      // 3. Fetch Pending Video Homework Count
+      // We need to check for each student's class
+      for (const sId of enrolledIds) {
+        const info = onboardingMap[sId];
+        const cls = info?.class_name;
+        if (!cls) continue;
+
+        // Fetch lessons for this class
+        const { data: lessons } = await supabaseService
+          .from("v_lesson_video_status")
+          .select("lesson_plan_id")
+          .eq("class_name", cls)
+          .eq("has_auto_video", true)
+          .not("class_id", "is", null);
+
+        if (lessons && lessons.length > 0) {
+          const keys = lessons.map(l => `${l.lesson_plan_id}_${sId}`);
+          
+          const { count: submissionCount } = await supabaseService
+            .from("portal_video_submissions")
+            .select("*", { count: "exact", head: true })
+            .in("assignment_key", keys);
+
+          const pending = lessons.length - (submissionCount || 0);
+          if (pending > 0) {
+            pendingVideoMap[sId] = pending;
+          }
+        }
+      }
     }
 
     const enrolledItems = Array.isArray(enrolledStudents)
       ? enrolledStudents.map((s: any) => {
           const key = String(s.student_id || "");
           const onboarding = key ? onboardingMap[key] : undefined;
+          const latestReport = key ? latestReportsMap[key] : null;
+          const pendingVideo = key ? pendingVideoMap[key] : 0;
+
           return {
             id: key,
             name: String(s.student_name || ""),
@@ -104,6 +155,13 @@ export async function GET() {
             use_bus: onboarding ? onboarding.use_bus : null,
             address: onboarding ? onboarding.address : null,
             type: "enrolled",
+            latestReport: latestReport ? {
+              id: latestReport.id,
+              message: latestReport.message_text,
+              rate: latestReport.completion_rate,
+              date: latestReport.date,
+            } : null,
+            pendingVideoCount: pendingVideo,
           };
         })
       : [];

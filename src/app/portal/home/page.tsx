@@ -14,7 +14,9 @@ import {
   User,
   Bus,
   Car,
-  Calendar
+  Calendar,
+  Sparkles,
+  ArrowRight
 } from "lucide-react";
 import PortalHeader from "@/components/PortalHeader";
 import { supabase } from "@/lib/supabase";
@@ -25,7 +27,20 @@ export default function ParentPortalHome() {
   const [authorized, setAuthorized] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [studentStatus, setStudentStatus] = useState<string | null>(null);
-  const [studentProfile, setStudentProfile] = useState<any>(null);
+  const [studentProfile, setStudentProfile] = useState<{
+    id: string;
+    name: string;
+    englishName: string;
+    className: string;
+    campus: string;
+    latestReport?: {
+      id: string;
+      message: string;
+      rate: number;
+      date: string;
+    } | null;
+    pendingVideoCount?: number;
+  } | null>(null);
   const [needOnboarding, setNeedOnboarding] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3 | 4>(1);
@@ -46,6 +61,25 @@ export default function ParentPortalHome() {
   const handleContact = () => {
     // KakaoTalk Channel URL
     window.open("http://pf.kakao.com/_TxdXxnG/chat", "_blank");
+  };
+
+  const [readReportIds, setReadReportIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("read_reports");
+    if (saved) {
+      try {
+        setReadReportIds(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
+
+  const markReportAsRead = (id: string) => {
+    if (!readReportIds.includes(id)) {
+      const next = [...readReportIds, id];
+      setReadReportIds(next);
+      localStorage.setItem("read_reports", JSON.stringify(next));
+    }
   };
 
   const [studentId, setStudentId] = useState<string | null>(null);
@@ -231,15 +265,16 @@ export default function ParentPortalHome() {
 
       try {
         // 공지사항 (posts 테이블) 가져오기 - Every student should see this
-        const { data } = await supabase
+        const { data: noticeData, error: noticeError } = await supabase
           .from("posts")
           .select("*")
           .eq("category", "notice")
+          .eq("is_archived", false)
           .order("created_at", { ascending: false })
           .limit(2);
         
-        if (alive && data) {
-          setNotices(data);
+        if (!noticeError && noticeData) {
+          setNotices(noticeData);
         }
       } catch (err) {
         console.error("Notice fetch error:", err);
@@ -560,7 +595,74 @@ export default function ParentPortalHome() {
               </section>
             )}
 
-            {/* 1. Notices Grid */}
+            {/* Today's Dajim Report Card */}
+            {studentStatus === "enrolled" && studentProfile?.latestReport && (
+              <section 
+                onClick={() => markReportAsRead(studentProfile.latestReport!.id)}
+                className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 cursor-pointer active:scale-[0.98] transition-all"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-slate-900">✨ 오늘의 다짐 리포트</h2>
+                    {!readReportIds.includes(studentProfile.latestReport.id) && (
+                      <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold animate-pulse">
+                        NEW
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">
+                    {new Date(studentProfile.latestReport.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+                
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center gap-2 text-base font-bold text-slate-800">
+                    <span>금일 다짐활동</span>
+                    {studentProfile.latestReport.rate === 100 ? (
+                      <span className="text-green-600">All completed 💚</span>
+                    ) : (
+                      <span className="text-orange-500">{studentProfile.latestReport.rate}% 완료</span>
+                    )}
+                  </div>
+                  
+                  {/* Word Test Info - Mock or Extract from message */}
+                  <div className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg inline-block">
+                    Word Test 1/8 예정
+                  </div>
+                </div>
+
+                <Link 
+                  href={`/portal/daily/${studentProfile.latestReport.id}`}
+                  className="flex items-center justify-center w-full py-3 bg-slate-50 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  [전체 브리핑 보기]
+                </Link>
+              </section>
+            )}
+
+            {/* Video Homework Reminder */}
+            {studentStatus === "enrolled" && (studentProfile?.pendingVideoCount || 0) > 0 && (
+              <Link href="/portal/video">
+                <section className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-4 text-white shadow-lg shadow-blue-200 flex items-center justify-between group hover:scale-[1.01] transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                      <Video className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base">비디오 과제가 기다리고 있어요! 🎥</h3>
+                      <p className="text-blue-100 text-xs mt-0.5">
+                        {studentProfile?.name} 학생이 제출해야 할 과제가 {studentProfile?.pendingVideoCount}건 있습니다.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                    <ArrowRight className="w-5 h-5" />
+                  </div>
+                </section>
+              </Link>
+            )}
+
+            {/* 2. Notices Grid */}
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -665,11 +767,16 @@ export default function ParentPortalHome() {
                   </div>
                   <span className="text-xs font-bold">요청 전달</span>
                 </Link>
-                <Link href="/portal/video" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 hover:bg-frage-blue/5 hover:text-frage-blue transition-colors group">
+                <Link href="/portal/video" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 hover:bg-frage-blue/5 hover:text-frage-blue transition-colors group relative">
                   <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 mb-2 group-hover:text-frage-blue group-hover:scale-110 transition-all">
                     <Video className="w-5 h-5" />
                   </div>
                   <span className="text-xs font-bold">영상 과제</span>
+                  {studentProfile?.pendingVideoCount ? (
+                    <span className="absolute top-3 right-3 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white animate-bounce">
+                      {studentProfile.pendingVideoCount}
+                    </span>
+                  ) : null}
                 </Link>
                 <Link href="/portal/child" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 hover:bg-frage-blue/5 hover:text-frage-blue transition-colors group">
                   <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 mb-2 group-hover:text-frage-blue group-hover:scale-110 transition-all">
