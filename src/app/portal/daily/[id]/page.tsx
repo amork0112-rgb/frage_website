@@ -127,9 +127,10 @@ export default function DailyReportDetailPage() {
                 선생님 브리핑
               </h3>
               <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 min-h-[200px]">
-                <div className="whitespace-pre-wrap text-slate-700 leading-relaxed font-medium">
-                  {report.message_text}
-                </div>
+                <div 
+                  className="prose prose-slate max-w-none text-slate-700 leading-relaxed font-medium"
+                  dangerouslySetInnerHTML={{ __html: report.message_text }}
+                />
               </div>
             </div>
 

@@ -19,10 +19,11 @@ export async function requireAdmin(supabase: any) {
 
   const role = await resolveUserRole(user);
 
-  if (role !== "admin" && role !== "master_admin") {
+  // Allow admin, master_admin, and master_teacher for admin APIs
+  if (role !== "admin" && role !== "master_admin" && role !== "master_teacher") {
     return {
       error: new NextResponse(
-        JSON.stringify({ error: "forbidden" }),
+        JSON.stringify({ error: "forbidden", role }),
         { status: 403, headers: { "Content-Type": "application/json" } }
       ),
     };
