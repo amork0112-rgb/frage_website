@@ -12,8 +12,9 @@ export async function GET(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ items: [] }, { status: 401 });
 
+    // We allow all authenticated users to access portal video. 
+    // Data isolation is handled by user.id filtering in the queries.
     const role = await resolveUserRole(user);
-    if (role !== "parent") return NextResponse.json({ items: [] }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
     const studentId = String(searchParams.get("studentId") || "");

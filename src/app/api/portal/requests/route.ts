@@ -91,10 +91,8 @@ export async function POST(req: Request) {
       return json({ ok: false, error: "unauthorized" }, 401);
     }
 
+    // We allow all authenticated users to access portal requests.
     const role = await resolveUserRole(user);
-    if (role !== "parent") {
-      return json({ ok: false, error: "forbidden" }, 403);
-    }
 
     const body = await req.json();
     const studentId = String(body?.studentId || "");

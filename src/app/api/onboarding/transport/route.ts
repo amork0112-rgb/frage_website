@@ -12,10 +12,8 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
+    // We allow all authenticated users to access onboarding transport.
     const role = await resolveUserRole(user);
-    if (role !== "parent") {
-      return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
-    }
 
     const body = await req.json();
 

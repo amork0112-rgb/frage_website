@@ -8,8 +8,8 @@ export async function GET(req: Request) {
     const supabase = createSupabaseServer();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+    // We allow all authenticated users to access portal reports.
     const role = await resolveUserRole(user);
-    if (role !== "parent") return NextResponse.json({ ok: false }, { status: 403 });
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId") || "";
     if (!studentId) {

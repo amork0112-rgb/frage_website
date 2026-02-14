@@ -17,9 +17,8 @@ export async function POST(req: Request) {
     const user = userData?.user;
 
     if (!user) return json({ error: "unauthorized" }, 401);
+    // We allow all authenticated users to access admission reserve.
     const role = await resolveUserRole(user);
-    if (role !== "parent")
-      return json({ error: "forbidden" }, 403);
 
     const body = await req.json();
     const slotId = body?.slot_id;

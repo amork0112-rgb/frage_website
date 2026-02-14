@@ -11,10 +11,9 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
+    // We allow all authenticated users to access portal home. 
+    // Data isolation is handled by user.id filtering in the queries.
     const role = await resolveUserRole(user);
-    if (role !== "parent") {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    }
 
     const { data: parent } = await supabaseService
       .from("parents")

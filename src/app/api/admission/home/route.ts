@@ -22,13 +22,8 @@ export async function GET() {
       );
     }
 
+    // We allow all authenticated users to access admission home.
     const role = await resolveUserRole(user);
-    if (role !== "parent") {
-      return NextResponse.json(
-        { ok: false, error: "forbidden" },
-        { status: 403 }
-      );
-    }
 
     /* 2️⃣ 부모 정보 조회 */
     const { data: parent, error: parentErr } = await supabaseService
