@@ -5,15 +5,17 @@ import { supabaseService } from "@/lib/supabase/service";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const assignmentKey = searchParams.get("assignmentKey");
   const assignmentId = searchParams.get("assignmentId");
+  const studentId = searchParams.get("studentId");
 
-  // Support both assignmentKey and assignmentId (for manual assignments where key = id)
-  const targetKey = assignmentKey || assignmentId;
-
-  if (!targetKey) {
-    return NextResponse.json({ error: "Missing assignmentKey or assignmentId" }, { status: 400 });
+  if (!assignmentId || !studentId) {
+    return NextResponse.json(
+      { error: "Missing assignmentId or studentId" },
+      { status: 400 }
+    );
   }
+
+  const targetKey = `${assignmentId}_${studentId}`;
 
   try {
     const supabase = createSupabaseServer();
