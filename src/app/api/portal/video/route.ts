@@ -66,28 +66,47 @@ export async function GET(req: Request) {
        return NextResponse.json({ items: [] }, { status: 200 }); 
      } 
  
-     const cls = classRow.name; 
-     console.log("🏫 Class Name:", cls); 
- 
-     // 4️⃣ Lessons 조회 
-     const { data: lessons } = await supabaseService 
-       .from("v_lesson_video_status") 
-       .select("*") 
-       .eq("class_name", cls) 
-       .eq("has_auto_video", true) 
-       .not("class_id", "is", null) 
-       .order("lesson_date", { ascending: false }); 
- 
-     console.log("📚 Lessons:", lessons?.length); 
- 
-     if (!lessons || lessons.length === 0) { 
-       console.log("❌ No lessons found"); 
-       return NextResponse.json({ items: [] }, { status: 200 }); 
-     } 
- 
-     // 5️⃣ Assignment Key 생성 
-     const studentId = student.id; 
-     const keys = lessons.map(l => `${l.lesson_plan_id}_${studentId}`); 
+     const classTrack = classRow.track;
+     const className = classRow.name;
+     console.log("🏫 Class Name:", className);
+     console.log("🏷️ Class Track:", classTrack);
+
+     const studentId = student.id; // Declare studentId once here
+
+     let assignmentKeys: string[] = [];
+
+     if (classTrack === "kinder") {
+       // 4️⃣ Kinder Weekly Assignments 조회
+       const { data: weekly } = await supabaseService
+         .from("weekly_class_assignments")
+         .select("*")
+         .eq("class_name", className)
+         .eq("status", "publish");
+
+       console.log("👶 Kinder Weekly:", weekly?.length);
+
+       assignmentKeys = (weekly || []).map(w => `${w.week_key}_${studentId}`);
+     } else {
+       // 4️⃣ Primary Lessons 조회
+       const { data: lessons } = await supabaseService
+         .from("v_lesson_video_status")
+         .select("*")
+         .eq("class_id", student.main_class)
+         .eq("has_auto_video", true)
+         .order("lesson_date", { ascending: false });
+
+       console.log("🧑 Primary Lessons:", lessons?.length);
+
+       assignmentKeys = (lessons || []).map(l => `${l.lesson_plan_id}_${studentId}`);
+     }
+
+     if (assignmentKeys.length === 0) {
+       console.log("❌ No assignment keys found for this track");
+       return NextResponse.json({ items: [] }, { status: 200 });
+     }
+
+     // 5️⃣ 통합 Assignment Keys
+     const keys = assignmentKeys; // Use the generated assignmentKeys for subsequent steps 
  
      console.log("🔑 Assignment Keys Sample:", keys.slice(0, 3)); 
  
