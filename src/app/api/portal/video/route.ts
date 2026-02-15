@@ -128,9 +128,41 @@ export async function GET(req: Request) {
  
      console.log("📝 Feedbacks:", feedbacks?.length); 
  
-     console.log("📹 [VIDEO PORTAL END] ======================="); 
+    const items = assignmentKeys.map(key => { 
+      const submission = (submissions || []).find(s => s.assignment_key === key); 
+      const fb = (feedbacks || []).find(f => f.submission_id === submission?.id); 
  
-     return NextResponse.json({ items: [] }, { status: 200 }); 
+      let status: "Pending" | "Submitted" | "Reviewed" = "Pending"; 
+      if (submission) status = "Submitted"; 
+      if (fb) status = "Reviewed"; 
+ 
+      return { 
+        id: key, 
+        title: "Weekly Reading Video", 
+        module: key.split("_")[0], 
+        dueDate: key.split("_")[0], 
+        status, 
+        score: null, 
+        videoUrl: submission?.video_path || null, 
+        feedback: fb ? { 
+          overall_message: fb.overall_message, 
+          strengths: fb.strengths, 
+          focus_point: fb.focus_point, 
+          next_try_guide: fb.next_try_guide, 
+          details: { 
+            fluency_score: mapScore(fb.fluency_score, "fluency"), 
+            volume_score: mapScore(fb.volume_score, "volume"), 
+            speed_score: mapScore(fb.speed_score, "speed"), 
+            pronunciation_score: mapScore(fb.pronunciation_score, "pronunciation"), 
+            performance_score: mapScore(fb.performance_score, "performance"), 
+          } 
+        } : null 
+      }; 
+    }); 
+ 
+    console.log("📹 [VIDEO PORTAL END] ======================="); 
+ 
+    return NextResponse.json({ items }, { status: 200 }); 
  
    } catch (err) { 
      console.error("🔥 VIDEO API ERROR:", err); 
