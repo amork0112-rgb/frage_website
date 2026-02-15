@@ -89,7 +89,8 @@ export default function VideoListPage() {
               영상 과제 (Video Homework)
             </h1>
             <p className="text-slate-500 text-sm mt-1">
-              매일 읽기 연습을 영상으로 기록하고 피드백을 받아보세요.
+              매주 지정된 읽기 과제를 영상으로 제출하며
+              자기주도 학습 습관을 만들어갑니다.
             </p>
           </div>
         </header>
