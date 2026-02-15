@@ -1,3 +1,4 @@
+// Video/[id]
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -148,17 +149,17 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
     }
     setIsSubmitting(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData?.user?.id || studentIdState;
-      if (!uid) {
-        throw new Error("No student session");
+      const studentIdForSubmission = studentIdState;
+      if (!studentIdForSubmission) {
+        throw new Error("No student ID available for submission.");
       }
-      const assignmentKey = params.id;
+
+      const assignmentKey = `${params.id}_${studentIdForSubmission}`;
       const file =
         lastBlobRef.current instanceof File
           ? lastBlobRef.current
           : new File([lastBlobRef.current], `${assignmentKey}.webm`, { type: "video/webm" });
-      const storagePath = `${uid}/${assignmentKey}.webm`;
+      const storagePath = `${studentIdForSubmission}/${assignmentKey}.webm`;
       const { error: upErr } = await supabase.storage
         .from("student-videos")
         .upload(storagePath, file, { upsert: true });
@@ -178,7 +179,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       } else {
         await supabase
           .from("portal_video_submissions")
-          .insert({ student_id: uid, assignment_key: assignmentKey, video_path: storagePath, status: "submitted" });
+          .insert({ student_id: studentIdForSubmission, assignment_key: assignmentKey, video_path: storagePath, status: "submitted" });
       }
       setVideoPath(storagePath);
       const { data: signed } = await supabase.storage

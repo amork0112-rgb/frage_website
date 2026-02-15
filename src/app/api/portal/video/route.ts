@@ -23,14 +23,24 @@ export async function GET(req: Request) {
     // 1. Get Student Info
     const { data: studentRows } = await supabaseService
       .from("students")
-      .select("*")
+      .select("*, main_class")
       .eq("id", studentId)
       .limit(1);
-    
+
     const student = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
     if (!student) return NextResponse.json({ items: [] }, { status: 200 });
 
-    const cls = String(student.class_name ?? student.className ?? "");
+    // Fetch class name from classes table using main_class
+    let cls = "";
+    if (student.main_class) {
+      const { data: classRow } = await supabaseService
+        .from("classes")
+        .select("name")
+        .eq("id", student.main_class)
+        .single();
+      cls = classRow?.name || "";
+    }
+
     if (!cls) return NextResponse.json({ items: [] }, { status: 200 });
 
     // 2. Fetch Lessons from v_lesson_video_status
@@ -50,28 +60,31 @@ export async function GET(req: Request) {
     // 3. Prepare Assignment Keys
     const keys = lessons.map(l => `${l.lesson_plan_id}_${studentId}`);
 
-    // 4. Fetch Submissions & Feedback using assignment_key
+    // 4. Fetch Submissions using assignment_key
     const { data: submissions } = await supabaseService
       .from("portal_video_submissions")
-      .select("*")
+      .select("id, assignment_key, video_path") // Select id here
       .in("assignment_key", keys);
 
+    const submissionIds = (submissions || []).map(s => s.id); // Extract submission IDs
+
+    // 5. Fetch Feedback using submission_id
     const { data: feedbacks } = await supabaseService
       .from("portal_video_feedback")
       .select("*")
-      .in("assignment_key", keys);
+      .in("submission_id", submissionIds); // Use submission_id
 
     const subMap = new Map();
     (submissions || []).forEach(s => subMap.set(s.assignment_key, s));
 
     const fbMap = new Map();
-    (feedbacks || []).forEach(f => fbMap.set(f.assignment_key, f));
+    (feedbacks || []).forEach(f => fbMap.set(f.submission_id, f)); // Map by submission_id
 
-    // 5. Map to Response
+    // 6. Map to Response
     const items = await Promise.all(lessons.map(async (l) => {
         const key = `${l.lesson_plan_id}_${studentId}`;
         const sub = subMap.get(key);
-        const fb = fbMap.get(key);
+        const fb = sub ? fbMap.get(sub.id) : null; // Lookup feedback using sub.id
 
         let status: "Pending" | "Submitted" | "Reviewed" = "Pending";
         if (sub && !fb) status = "Submitted";
