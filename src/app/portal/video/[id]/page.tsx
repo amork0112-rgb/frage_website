@@ -158,6 +158,13 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       alert("No video to submit.");
       return;
     }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    if (homeworkData.due_date && homeworkData.due_date < today) {
+      alert("제출 기한이 지난 과제입니다.");
+      return;
+    }
   
     setIsSubmitting(true);
     try {

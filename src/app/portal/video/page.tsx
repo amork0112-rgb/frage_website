@@ -11,7 +11,7 @@ type VideoHomeworkItem = {
   title: string;
   module: string;
   dueDate: string;
-  status: "Pending" | "Submitted" | "Reviewed";
+  status: "Pending" | "Submitted" | "Reviewed" | "Overdue";
   isToday?: boolean;
   score: string | null;
   feedback: {
@@ -64,7 +64,7 @@ export default function VideoListPage() {
           title: String(item.title || ""),
           module: String(item.module || ""),
           dueDate: String(item.dueDate || ""),
-          status: item.status === "Submitted" ? "Submitted" : item.status === "Reviewed" ? "Reviewed" : "Pending",
+          status: item.status === "Submitted" ? "Submitted" : item.status === "Reviewed" ? "Reviewed" : item.status === "Overdue" ? "Overdue" : "Pending",
           isToday: String(item.dueDate || "") === todayStr,
           score: item.score ? String(item.score) : null,
           feedback: item.feedback || null
@@ -101,12 +101,17 @@ export default function VideoListPage() {
             할 일 (To Do)
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {homeworkList.filter(hw => hw.status === "Pending").map((hw) => (
+            {homeworkList.filter(hw => hw.status === "Pending" || hw.status === "Overdue").map((hw) => (
               <Link 
                 key={hw.id} 
                 href={`/portal/video/${hw.id}`}
                 className="flex flex-col h-full bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-frage-blue hover:shadow-md transition-all group relative overflow-hidden"
               >
+                {hw.status === "Overdue" && (
+                  <div className="absolute top-0 left-0 mt-4 ml-4 z-20">
+                    <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">미제출</span>
+                  </div>
+                )}
                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     <Video className="w-24 h-24 text-frage-blue transform rotate-12" />
                 </div>
@@ -161,7 +166,7 @@ export default function VideoListPage() {
              지난 과제 (History)
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             {homeworkList.filter(hw => hw.status !== "Pending").map((hw) => (
+             {homeworkList.filter(hw => hw.status === "Submitted" || hw.status === "Reviewed" || hw.status === "Overdue").map((hw) => (
                <div key={hw.id} className={`bg-white rounded-2xl shadow-sm border transition-all ${expandedId === hw.id ? "border-frage-blue ring-1 ring-frage-blue/10" : "border-slate-200"}`}>
                  {/* Header Row (Click to Toggle) */}
                  <button 

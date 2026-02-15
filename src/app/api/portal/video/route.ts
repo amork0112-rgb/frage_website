@@ -74,18 +74,33 @@ export async function GET(req: Request) {
      const studentId = student.id; // Declare studentId once here
 
      let assignmentKeys: string[] = [];
+    let weeklyItems: Array<any> = []; // Declare weeklyItems here
 
-     if (classTrack === "kinder") {
-       // 4️⃣ Kinder Weekly Assignments 조회
-       const { data: weekly } = await supabaseService
-         .from("weekly_class_assignments")
-         .select("*")
-         .eq("class_name", className)
-         .eq("status", "published");
+    if (classTrack === "kinder") {
+      // 4️⃣ Kinder Weekly Assignments 조회
+      const { data: weekly } = await supabaseService
+        .from("weekly_class_assignments")
+        .select("*")
+        .eq("class_name", className)
+        .eq("status", "published");
 
-       console.log("👶 Kinder Weekly:", weekly?.length);
+      console.log("👶 Kinder Weekly:", weekly?.length);
 
-       assignmentKeys = (weekly || []).map(w => `${w.week_key}_${studentId}`);
+      const today = new Date().toISOString().split("T")[0];
+
+      weeklyItems = (weekly || []).map(w => {
+        const key = `${w.week_key}_${studentId}`;
+        const due = w.confirmed_due_date;
+
+        return {
+          assignment_key: key,
+          week_key: w.week_key,
+          dueDate: due,
+          isOverdue: due && due < today
+        };
+      });
+
+      assignmentKeys = weeklyItems.map(item => item.assignment_key);
      } else {
        // 4️⃣ Primary Lessons 조회
        const { data: lessons } = await supabaseService
@@ -127,41 +142,79 @@ export async function GET(req: Request) {
        .in("submission_id", submissionIds); 
  
      console.log("📝 Feedbacks:", feedbacks?.length); 
- 
-    const items = assignmentKeys.map(key => { 
-      const submission = (submissions || []).find(s => s.assignment_key === key); 
-      const fb = (feedbacks || []).find(f => f.submission_id === submission?.id); 
- 
-      let status: "Pending" | "Submitted" | "Reviewed" = "Pending"; 
-      if (submission) status = "Submitted"; 
-      if (fb) status = "Reviewed"; 
- 
-      return { 
-        id: key, 
-        title: "Weekly Reading Video", 
-        module: key.split("_")[0], 
-        dueDate: key.split("_")[0], 
-        status, 
-        score: null, 
-        videoUrl: submission?.video_path || null, 
-        feedback: fb ? { 
-          overall_message: fb.overall_message, 
-          strengths: fb.strengths, 
-          focus_point: fb.focus_point, 
-          next_try_guide: fb.next_try_guide, 
-          details: { 
-            fluency_score: mapScore(fb.fluency_score, "fluency"), 
-            volume_score: mapScore(fb.volume_score, "volume"), 
-            speed_score: mapScore(fb.speed_score, "speed"), 
-            pronunciation_score: mapScore(fb.pronunciation_score, "pronunciation"), 
-            performance_score: mapScore(fb.performance_score, "performance"), 
-          } 
-        } : null 
-      }; 
-    }); 
- 
+
+    let items: Array<any> = [];
+
+    if (classTrack === "kinder") {
+      items = weeklyItems.map(w => {
+        const submission = (submissions || []).find(s => s.assignment_key === w.assignment_key);
+        const fb = (feedbacks || []).find(f => f.submission_id === submission?.id);
+
+        let status: "Pending" | "Submitted" | "Reviewed" | "Overdue" = "Pending";
+        if (w.isOverdue && !submission) status = "Overdue";
+        else if (submission) status = "Submitted";
+        if (fb) status = "Reviewed";
+
+        return {
+          id: w.assignment_key,
+          title: "Weekly Reading Video",
+          module: w.week_key,
+          dueDate: w.dueDate,
+          status,
+          score: null,
+          videoUrl: submission?.video_path || null,
+          feedback: fb ? {
+            overall_message: fb.overall_message,
+            strengths: fb.strengths,
+            focus_point: fb.focus_point,
+            next_try_guide: fb.next_try_guide,
+            details: {
+              fluency_score: mapScore(fb.fluency_score, "fluency"),
+              volume_score: mapScore(fb.volume_score, "volume"),
+              speed_score: mapScore(fb.speed_score, "speed"),
+              pronunciation_score: mapScore(fb.pronunciation_score, "pronunciation"),
+              performance_score: mapScore(fb.performance_score, "performance"),
+            }
+          } : null
+        };
+      });
+    } else {
+      // Primary track mapping (simplified as per current requirements)
+      items = assignmentKeys.map(key => {
+        const submission = (submissions || []).find(s => s.assignment_key === key);
+        const fb = (feedbacks || []).find(f => f.submission_id === submission?.id);
+
+        let status: "Pending" | "Submitted" | "Reviewed" = "Pending";
+        if (submission) status = "Submitted";
+        if (fb) status = "Reviewed";
+
+        return {
+          id: key,
+          title: "Primary Lesson Video", // Default title for Primary
+          module: key.split("_")[0], // Assuming module can be derived from key
+          dueDate: null, // No specific dueDate for Primary in current context
+          status,
+          score: null,
+          videoUrl: submission?.video_path || null,
+          feedback: fb ? {
+            overall_message: fb.overall_message,
+            strengths: fb.strengths,
+            focus_point: fb.focus_point,
+            next_try_guide: fb.next_try_guide,
+            details: {
+              fluency_score: mapScore(fb.fluency_score, "fluency"),
+              volume_score: mapScore(fb.volume_score, "volume"),
+              speed_score: mapScore(fb.speed_score, "speed"),
+              pronunciation_score: mapScore(fb.pronunciation_score, "pronunciation"),
+              performance_score: mapScore(fb.performance_score, "performance"),
+            }
+          } : null
+        };
+      });
+    }
+
     console.log("📹 [VIDEO PORTAL END] ======================="); 
- 
+
     return NextResponse.json({ items }, { status: 200 }); 
  
    } catch (err) { 
