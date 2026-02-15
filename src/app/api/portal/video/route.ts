@@ -1,4 +1,4 @@
-
+//app/api/portal/video/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -16,19 +16,25 @@ export async function GET(req: Request) {
     // Data isolation is handled by user.id filtering in the queries.
     const role = await resolveUserRole(user);
 
-    const { searchParams } = new URL(req.url);
-    const studentId = String(searchParams.get("studentId") || "");
-    if (!studentId) return NextResponse.json({ items: [] }, { status: 200 });
+    // 0. 부모 auth → 학생 찾기
+    const { data: parent } = await supabaseService
+      .from("parents")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .single();
 
-    // 1. Get Student Info
-    const { data: studentRows } = await supabaseService
+    if (!parent) return NextResponse.json({ items: [] }, { status: 200 });
+
+    const { data: students } = await supabaseService
       .from("students")
-      .select("*, main_class")
-      .eq("id", studentId)
+      .select("id, main_class")
+      .eq("parent_id", parent.id)
       .limit(1);
 
-    const student = Array.isArray(studentRows) && studentRows.length > 0 ? studentRows[0] : null;
+    const student = students?.[0];
     if (!student) return NextResponse.json({ items: [] }, { status: 200 });
+
+    const studentId = student.id;
 
     // Fetch class name from classes table using main_class
     let cls = "";

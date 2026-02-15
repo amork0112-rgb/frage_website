@@ -6,24 +6,32 @@ import PortalHeader from "@/components/PortalHeader";
 import Link from "next/link";
 import { PlayCircle, CheckCircle, Clock, ChevronRight, Video, ChevronDown, ChevronUp, Star, MessageSquare } from "lucide-react";
 
+type VideoHomeworkItem = {
+  id: string;
+  title: string;
+  module: string;
+  dueDate: string;
+  status: "Pending" | "Submitted" | "Reviewed";
+  isToday?: boolean;
+  score: string | null;
+  feedback: {
+    overall_message: string;
+    strengths: string[];
+    focus_point: string;
+    next_try_guide: string;
+    details: {
+      fluency_score: string;
+      volume_score: string;
+      speed_score: string;
+      pronunciation_score: string;
+      performance_score: string;
+    };
+  } | null;
+};
+
 export default function VideoListPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [homeworkList, setHomeworkList] = useState<Array<{
-    id: string;
-    title: string;
-    module: string;
-    dueDate: string;
-    status: "Pending" | "Submitted" | "Reviewed";
-    isToday?: boolean;
-    score?: string | null;
-    feedback?: {
-      overall_message: string;
-      strengths: string[];
-      focus_point: string;
-      next_try_guide: string;
-      details: Record<string, string>;
-    } | null;
-  }>>([]);
+  const [homeworkList, setHomeworkList] = useState<Array<VideoHomeworkItem>>([]);
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
@@ -48,10 +56,7 @@ export default function VideoListPage() {
   useEffect(() => {
     (async () => {
       try {
-        const { data: userData } = await (await import("@/lib/supabase")).supabase.auth.getUser();
-        const userId = userData?.user?.id || "";
-        const studentId = userId || "s8";
-        const res = await fetch(`/api/portal/video?studentId=${encodeURIComponent(studentId)}`);
+        const res = await fetch(`/api/portal/video`);
         const data = await res.json();
         const list = Array.isArray(data?.items) ? data.items : [];
         const mapped = list.map((item: any) => ({
@@ -65,7 +70,8 @@ export default function VideoListPage() {
           feedback: item.feedback || null
         }));
         setHomeworkList(mapped);
-      } catch {
+      } catch (e) {
+        console.error("Failed to fetch homework list:", e);
         setHomeworkList([]);
       }
     })();
