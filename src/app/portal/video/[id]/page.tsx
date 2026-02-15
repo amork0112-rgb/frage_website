@@ -1,4 +1,4 @@
-// Video/[id]
+// portal/ Video/[id]
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -6,6 +6,17 @@ import Link from "next/link";
 import { ArrowLeft, Video, Upload, CheckCircle, RefreshCw, Star, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+
+const vlog = (...args: any[]) => console.log("📹 [VIDEO/[id]]", ...args);
+const vwarn = (...args: any[]) => console.warn("⚠️ [VIDEO/[id]]", ...args);
+const verr = (...args: any[]) => console.error("❌ [VIDEO/[id]]", ...args);
+
+function parseAssignmentKey(key: string) {
+  // key format: "<sourceId>_<studentId>"
+  const idx = key.lastIndexOf("_");
+  if (idx <= 0) return { sourceId: key, studentId: null };
+  return { sourceId: key.slice(0, idx), studentId: key.slice(idx + 1) };
+}
 
 export default function VideoHomeworkPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
@@ -147,42 +158,84 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       alert("No video to submit.");
       return;
     }
+  
     setIsSubmitting(true);
     try {
-      const studentIdForSubmission = studentIdState;
-      if (!studentIdForSubmission) {
-        throw new Error("No student ID available for submission.");
-      }
-
-      const assignmentKey = `${params.id}_${studentIdForSubmission}`;
+      vlog("SUBMIT start");
+  
+      // ✅ params.id가 assignment_key라고 가정
+      const assignmentKey = params.id;
+      const parsed = parseAssignmentKey(assignmentKey);
+  
+      vlog("assignmentKey =", assignmentKey);
+      vlog("parsed =", parsed);
+      vlog("studentIdState =", studentIdState);
+  
+      // ✅ studentId는 params.id에서 뽑은 studentId를 우선 사용
+      const studentIdForSubmission = parsed.studentId || studentIdState;
+      if (!studentIdForSubmission) throw new Error("No studentIdForSubmission");
+  
+      // ✅ storagePath는 studentId 폴더/assignmentKey 파일
+      const storagePath = `${studentIdForSubmission}/${assignmentKey}.webm`;
+      vlog("storagePath =", storagePath);
+  
       const file =
         lastBlobRef.current instanceof File
           ? lastBlobRef.current
           : new File([lastBlobRef.current], `${assignmentKey}.webm`, { type: "video/webm" });
-      const storagePath = `${studentIdForSubmission}/${assignmentKey}.webm`;
+  
+      vlog("uploading file size =", file.size);
+  
       const { error: upErr } = await supabase.storage
         .from("student-videos")
         .upload(storagePath, file, { upsert: true });
-      if (upErr) throw upErr;
-      
-      const { data: exists } = await supabase
+  
+      if (upErr) {
+        verr("storage upload error:", upErr);
+        throw upErr;
+      }
+      vlog("storage upload OK");
+  
+      // ✅ DB upsert 체크
+      const { data: exists, error: exErr } = await supabase
         .from("portal_video_submissions")
-        .select("*")
+        .select("id, assignment_key")
         .eq("assignment_key", assignmentKey)
         .limit(1);
-
+  
+      if (exErr) vwarn("exists check error:", exErr);
+      vlog("exists rows =", Array.isArray(exists) ? exists.length : "null");
+  
       if (Array.isArray(exists) && exists.length > 0) {
-        await supabase
+        const { error: updErr } = await supabase
           .from("portal_video_submissions")
-          .update({ video_path: storagePath, status: "submitted" })
+          .update({ video_path: storagePath, status: "submitted", student_id: studentIdForSubmission })
           .eq("assignment_key", assignmentKey);
+  
+        if (updErr) {
+          verr("update error:", updErr);
+          throw updErr;
+        }
+        vlog("updated submission");
       } else {
-        await supabase
+        const { error: insErr } = await supabase
           .from("portal_video_submissions")
-          .insert({ student_id: studentIdForSubmission, assignment_key: assignmentKey, video_path: storagePath, status: "submitted" });
+          .insert({
+            student_id: studentIdForSubmission,
+            assignment_key: assignmentKey,
+            video_path: storagePath,
+            status: "submitted"
+          });
+  
+        if (insErr) {
+          verr("insert error:", insErr);
+          throw insErr;
+        }
+        vlog("inserted submission");
       }
-      setVideoPath(storagePath);
-      const { data: signed } = await supabase.storage
+  
+      // signed url
+      const { data: signed, error: signErr } = await supabase.storage
         .from("student-videos")
         .createSignedUrl(storagePath, 3600);
       const url = signed?.signedUrl || null;
@@ -198,17 +251,40 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   useEffect(() => {
     (async () => {
       try {
-        const { data: userData } = await supabase.auth.getUser();
+        vlog("params.id =", params.id);
+  
+        const { data: userData, error: userErr } = await supabase.auth.getUser();
+        if (userErr) vwarn("auth.getUser error:", userErr);
         const uid = userData?.user?.id || null;
-        if (!uid) return;
-        setStudentIdState(uid);
-
-        // Fetch details from the main portal API to get lesson info and status
-        const res = await fetch(`/api/portal/video?studentId=${uid}`);
-        if (!res.ok) return;
+        vlog("auth uid =", uid);
+  
+        // ✅ params.id가 assignment_key라면 여기서 studentId를 뽑을 수 있음
+        const parsed = parseAssignmentKey(params.id);
+        vlog("parsed assignmentKey:", parsed);
+  
+        // ⚠️ 지금 코드처럼 uid를 studentId로 쓰면 안 됨
+        // setStudentIdState(uid);  // ❌
+        // 대신:
+        if (parsed.studentId) {
+          setStudentIdState(parsed.studentId);
+          vlog("studentIdState set from params.id =", parsed.studentId);
+        } else {
+          vwarn("Could not parse studentId from params.id. Need student selector or query param.");
+        }
+  
+        // ✅ lesson/weekly item 정보 fetch
+        const studentId = parsed.studentId || uid || "";
+        vlog("fetching /api/portal/video with studentId =", studentId);
+  
+        const res = await fetch(`/api/portal/video?studentId=${encodeURIComponent(studentId)}`);
+        vlog("api status =", res.status);
+  
         const json = await res.json();
+        vlog("api items count =", Array.isArray(json?.items) ? json.items.length : "not-array");
+  
         const item = json.items?.find((i: any) => i.id === params.id);
-
+        vlog("found item? =", !!item, item ? { id: item.id, status: item.status } : null);
+  
         if (item) {
           setHomeworkData({
             id: params.id,
@@ -228,13 +304,15 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
               next_try_guide: item.feedback.next_try_guide
             } : null
           });
-
-          if (item.videoUrl) {
-            setVideoUrl(item.videoUrl);
-          }
+          if (item.videoUrl) vlog("videoUrl exists in API");
+        } else {
+          vwarn("No matching item for params.id. params.id mismatch OR api is returning different id shape.");
         }
-      } catch {}
+      } catch (e) {
+        verr("useEffect fatal:", e);
+      }
     })();
+  
     return () => {
       stopCamera();
       if (timerRef.current) clearInterval(timerRef.current);

@@ -81,7 +81,7 @@ export async function GET(req: Request) {
          .from("weekly_class_assignments")
          .select("*")
          .eq("class_name", className)
-         .eq("status", "publish");
+         .eq("status", "published");
 
        console.log("👶 Kinder Weekly:", weekly?.length);
 

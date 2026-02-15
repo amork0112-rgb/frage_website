@@ -42,6 +42,21 @@ const KINDER_CLASS_KEYWORDS = ["Kepler", "Platon", "Euclid", "Gauss", "Edison", 
 // NOTE: Kinder classes are intentionally filtered by naming convention. 
 // This avoids adding class_level or type columns to DB.
 
+// Helper to get the current week in YYYY-MM-W# format
+const getCurrentWeekKey = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const monthIndex = now.getMonth(); // 0-indexed
+  const monthStr = String(monthIndex + 1).padStart(2, '0');
+
+  // Calculate the week number within the month
+  // Assuming week 1 is days 1-7, week 2 is 8-14, etc.
+  const dayOfMonth = now.getDate();
+  const weekNumber = Math.ceil(dayOfMonth / 7);
+
+  return `${year}-${monthStr}-W${weekNumber}`;
+};
+
 export default function TeacherVideoManagementPage() {
   const router = useRouter();
   
@@ -186,9 +201,8 @@ export default function TeacherVideoManagementPage() {
   }[]>([]);
   const [loadingWeeklyStatus, setLoadingWeeklyStatus] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(() => {
-    const now = new Date();
-    const monthStr = String(now.getMonth() + 1).padStart(2, '0');
-    return `${now.getFullYear()}-${monthStr}-W1`;
+    // Initialize with the dynamically calculated current week
+    return getCurrentWeekKey();
   });
 
   const weekOptions = useMemo(() => {
