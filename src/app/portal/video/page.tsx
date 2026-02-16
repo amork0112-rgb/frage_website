@@ -103,49 +103,73 @@ export default function VideoListPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {homeworkList.filter(hw => hw.status === "Pending" || hw.status === "Overdue").map((hw) => (
-              <Link 
-                key={hw.id} 
-                href={`/portal/video/${hw.id}`}
-                className="flex flex-col h-full bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-frage-blue hover:shadow-md transition-all group relative overflow-hidden"
-              >
-                {hw.status === "Overdue" && (
-                  <div className="absolute top-0 left-0 mt-4 ml-4 z-20">
-                    <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">미제출</span>
-                  </div>
-                )}
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <Video className="w-24 h-24 text-frage-blue transform rotate-12" />
-                </div>
-                
-                <div className="relative z-10 flex-1">
-                    <div className="flex items-start justify-between mb-4">
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${
-                            hw.isToday 
-                            ? "bg-red-50 text-red-600 border-red-100" 
-                            : "bg-slate-100 text-slate-500 border-slate-200"
-                        }`}>
-                            {hw.isToday ? "오늘 마감" : `Due: ${hw.dueDate}`}
-                        </span>
+              hw.status === "Overdue" ? (
+                <div 
+                  key={hw.id} 
+                  className="flex flex-col h-full bg-slate-100 rounded-2xl p-6 shadow-sm border border-slate-300 relative overflow-hidden cursor-not-allowed"
+                >
+                  <div className="relative z-10 flex-1">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                        hw.isToday 
+                        ? "bg-red-50 text-red-600 border-red-100" 
+                        : "bg-slate-200 text-slate-500 border-slate-300"
+                      }`}>
+                        {hw.isToday ? "오늘 마감" : `Due: ${hw.dueDate}`}
+                      </span>
+                      <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">미제출</span>
                     </div>
-                    
+                    <h3 className="font-bold text-slate-500 text-base mb-2 line-clamp-2">
+                      {hw.title}
+                    </h3>
+                    <p className="text-slate-400 font-medium text-sm">
+                      {hw.module}
+                    </p>
+                  </div>
+                  <div className="relative z-10 mt-6 pt-6 border-t border-slate-200 flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-400 flex items-center gap-2">
+                      <PlayCircle className="w-5 h-5" />
+                      녹화하기
+                    </span>
+                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <Link 
+                  key={hw.id} 
+                  href={`/portal/video/${hw.id}`}
+                  className="flex flex-col h-full bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-frage-blue hover:shadow-md transition-all group relative overflow-hidden"
+                >
+                  <div className="relative z-10 flex-1">
+                    <div className="flex items-start justify-between mb-4">
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                        hw.isToday 
+                        ? "bg-red-50 text-red-600 border-red-100" 
+                        : "bg-slate-100 text-slate-500 border-slate-200"
+                      }`}>
+                        {hw.isToday ? "오늘 마감" : `Due: ${hw.dueDate}`}
+                      </span>
+                    </div>
                     <h3 className="font-bold text-slate-900 text-base group-hover:text-frage-blue transition-colors mb-2 line-clamp-2">
-                        {hw.title}
+                      {hw.title}
                     </h3>
                     <p className="text-slate-500 font-medium text-sm">
-                        {hw.module}
+                      {hw.module}
                     </p>
-                </div>
-
-                <div className="relative z-10 mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
-                   <span className="text-sm font-bold text-frage-blue flex items-center gap-2">
-                       <PlayCircle className="w-5 h-5" />
-                       녹화하기
-                   </span>
-                   <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-frage-blue group-hover:text-white transition-colors">
-                       <ChevronRight className="w-4 h-4" />
-                   </div>
-                </div>
-              </Link>
+                  </div>
+                  <div className="relative z-10 mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-sm font-bold text-frage-blue flex items-center gap-2">
+                      <PlayCircle className="w-5 h-5" />
+                      녹화하기
+                    </span>
+                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-frage-blue group-hover:text-white transition-colors">
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                </Link>
+              )
             ))}
             
             {homeworkList.filter(hw => hw.status === "Pending").length === 0 && (
