@@ -42,22 +42,22 @@ export async function GET() {
       .is("parent_auth_user_id", null);
 
     // 1. Fetch Enrolled Students (Promoted)
-    const { data: enrolledStudents } = await supabaseService
-      .from("students")
-      .select(`
-        id,
-        student_name,
-        english_first_name,
-        status,
-        campus,
-        parent_auth_user_id,
-        grade,
-        main_class,
-        classes (
-          name
-        )
-      `)
-      .eq("parent_auth_user_id", user.id);
+      const { data: enrolledStudents } = await supabaseService
+        .from("students")
+        .select(`
+          id,
+          student_name,
+          english_first_name,
+          status,
+          campus,
+          parent_auth_user_id,
+          grade,
+          main_class,
+          classes (
+            name
+          )
+        `)
+        .eq("parent_id", parent.id);
 
     // 2. Fetch Applicants (New Students not yet promoted)
     const { data: applicants } = await supabaseService
