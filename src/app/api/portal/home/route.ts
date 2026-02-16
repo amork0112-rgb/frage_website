@@ -58,9 +58,10 @@ export async function GET() {
           )
         `)
         .eq("parent_id", parent.id);
+      console.log("[API/portal/home] enrolledStudents query result:", enrolledStudents);
 
-    // 2. Fetch Applicants (New Students not yet promoted)
-    const { data: applicants } = await supabaseService
+      // 2. Fetch Applicants (New Students not yet promoted)
+      const { data: applicantStudents } = await supabaseService
       .from("new_students")
       .select("id,student_name,status,campus,created_by")
       .eq("created_by", user.id)
@@ -210,9 +211,10 @@ export async function GET() {
           };
         })
       : [];
+    console.log("[API/portal/home] enrolledItems after mapping:", enrolledItems);
 
-    const applicantItems = Array.isArray(applicants)
-      ? applicants.map((s: any) => ({
+    const applicantItems = Array.isArray(applicantStudents)
+      ? applicantStudents.map((s: any) => ({
           id: String(s.id),
           name: String(s.student_name || ""),
           englishName: "",
@@ -222,10 +224,12 @@ export async function GET() {
           parentAccountId: String(s.created_by || ""),
           profile_completed: false, // Applicants always need onboarding/info check
           type: "applicant",
-        }))
+      }))
       : [];
+    console.log("[API/portal/home] applicantItems after mapping:", applicantItems);
 
     const students = [...enrolledItems, ...applicantItems];
+    console.log("[API/portal/home] Final students array before response:", students);
 
     return NextResponse.json({ ok: true, students }, { status: 200 });
   } catch {
