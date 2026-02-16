@@ -18,6 +18,7 @@ export async function POST(req: Request) {
     const role = await resolveUserRole(user);
 
     const body = await req.json();
+    console.log("Incoming body:", body);
 
     const studentIdRaw = body?.studentId;
     const studentId = typeof studentIdRaw === "string" ? studentIdRaw : String(studentIdRaw || "");
