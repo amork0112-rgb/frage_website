@@ -10,22 +10,28 @@ export async function GET() {
     const { data: userData } = await supabase.auth.getUser();
     const user = userData?.user;
     if (!user) {
+      console.log("[API/portal/home] Unauthorized: User not found.");
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
+    console.log(`[API/portal/home] User authenticated, ID: ${user.id}`);
     // We allow all authenticated users to access portal home. 
     // Data isolation is handled by user.id filtering in the queries.
     const role = await resolveUserRole(user);
 
-    const { data: parent } = await supabaseService
+    // 1. Fetch parent ID
+    const { data: parent, error: parentError } = await supabaseService
       .from("parents")
       .select("id,name,phone,campus")
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
-    if (!parent) {
+    if (parentError || !parent) {
+      console.error("[API/portal/home] No parent found or error (maybeSingle):", parentError?.message);
+      console.log("[API/portal/home] parent data:", parent);
+      console.log("[API/portal/home] parent error:", parentError);
       return NextResponse.json({ ok: true, type: "no_parent" }, { status: 200 });
     }
-
+    console.log("[API/portal/home] Parent found, ID:", parent.id);
     const parentId = String(parent.id);
 
     // ✅ Legacy student auto-link (재원생 최초 로그인 1회)
