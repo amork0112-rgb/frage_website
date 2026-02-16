@@ -12,6 +12,7 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
+    console.log(`[API/portal/home] User authenticated, ID: ${user.id}`);
     const role = await resolveUserRole(user);
 
     // 1. Fetch parent ID
@@ -22,9 +23,13 @@ export async function GET() {
       .maybeSingle();
 
     if (parentError || !parent) {
+      console.error("[API/portal/home] No parent found or error (maybeSingle):", parentError?.message);
+      console.log("[API/portal/home] parent data:", parent);
+      console.log("[API/portal/home] parent error:", parentError);
       return NextResponse.json({ ok: true, type: "no_parent" }, { status: 200 });
     }
     const parentId = String(parent.id);
+    console.log("[API/portal/home] Parent found, ID:", parentId);
 
     // ✅ Legacy student auto-link (재원생 최초 로그인 1회)
     await supabaseService
@@ -50,9 +55,10 @@ export async function GET() {
           )
         `)
         .eq("parent_id", parent.id);
+    console.log("[API/portal/home] enrolledStudents query result (from students table):", enrolledStudents);
 
-      // 2. Fetch Applicants (New Students not yet promoted)
-      const { data: applicantStudents } = await supabaseService
+    // 2. Fetch Applicants (New Students not yet promoted)
+    const { data: applicantStudents } = await supabaseService
       .from("new_students")
       .select("id,student_name,status,campus,created_by")
       .eq("created_by", user.id)
@@ -61,6 +67,7 @@ export async function GET() {
     const enrolledIds = Array.isArray(enrolledStudents)
       ? enrolledStudents.map((s: any) => s.id).filter((v: any) => v)
       : [];
+    console.log("[API/portal/home] enrolledIds after mapping:", enrolledIds);
 
     let onboardingMap: Record<
       string,
@@ -78,6 +85,7 @@ export async function GET() {
     let pendingVideoMap: Record<string, number> = {};
 
     if (enrolledIds.length > 0) {
+      console.log("[API/portal/home] enrolledIds is not empty. Proceeding with fetching related data.");
       // 1. Fetch Onboarding & Class Info
       const { data: studentInfo } = await supabaseService
       .from("students")
@@ -198,10 +206,11 @@ export async function GET() {
               rate: latestReport.completion_rate,
               date: latestReport.date,
             } : null,
-           pendingVideoCount: pendingVideo,
+            pendingVideoCount: pendingVideo,
           };
         })
       : [];
+    console.log("[API/portal/home] enrolledItems after mapping:", enrolledItems);
 
     const applicantItems = Array.isArray(applicantStudents)
       ? applicantStudents.map((s: any) => ({
@@ -219,6 +228,7 @@ export async function GET() {
     console.log("[API/portal/home] applicantItems after mapping:", applicantItems);
 
     const students = [...enrolledItems, ...applicantItems];
+    console.log("[API/portal/home] Final students array before response:", students);
 
     return NextResponse.json({ ok: true, students }, { status: 200 });
   } catch {
