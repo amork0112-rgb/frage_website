@@ -27,6 +27,13 @@ export async function GET() {
 
     const parentId = String(parent.id);
 
+    // ✅ Legacy student auto-link (재원생 최초 로그인 1회)
+    await supabaseService
+      .from("students")
+      .update({ parent_auth_user_id: user.id })
+      .eq("parent_id", parent.id)
+      .is("parent_auth_user_id", null);
+
     // 1. Fetch Enrolled Students (Promoted)
     const { data: enrolledStudents } = await supabaseService
       .from("v_students_full")

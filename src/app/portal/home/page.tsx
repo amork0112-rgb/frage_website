@@ -90,6 +90,10 @@ export default function ParentPortalHome() {
   const [studentId, setStudentId] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log("[PORTAL HOME] mounted", new Date().toISOString());
+  }, []);
+
+  useEffect(() => {
     // Load Daum Postcode script
     const script = document.createElement("script");
     script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
