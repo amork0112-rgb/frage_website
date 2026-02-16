@@ -141,8 +141,16 @@ export async function GET() {
 
           return {
             id: key,
-            name: String(onboarding?.student_name || s.student_name || ""),
-            englishName: String(s.english_first_name || ""),
+            name: String(
+              s.student_name ??
+              onboarding?.student_name ??
+              "학생"
+            ),
+            englishName: String(
+              s.english_first_name ??
+              onboarding?.student_name ??
+              ""
+            ),
             status: String(s.status || "promoted"),
             className: String(s.class_name || s.grade || ""),
             campus: String(s.campus || ""),
