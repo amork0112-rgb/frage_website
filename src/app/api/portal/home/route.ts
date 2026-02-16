@@ -68,7 +68,7 @@ export async function GET() {
       .not("status", "eq", "promoted"); // Exclude those already promoted
 
     const enrolledIds = Array.isArray(enrolledStudents)
-      ? enrolledStudents.map((s: any) => s.student_id).filter((v: any) => v)
+      ? enrolledStudents.map((s: any) => s.id).filter((v: any) => v)
       : [];
 
     let onboardingMap: Record<
