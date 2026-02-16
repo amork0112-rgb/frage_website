@@ -43,8 +43,20 @@ export async function GET() {
 
     // 1. Fetch Enrolled Students (Promoted)
     const { data: enrolledStudents } = await supabaseService
-      .from("v_students_full")
-      .select("student_id,student_name,english_first_name,status,campus,parent_auth_user_id,grade,class_name")
+      .from("students")
+      .select(`
+        id,
+        student_name,
+        english_first_name,
+        status,
+        campus,
+        parent_auth_user_id,
+        grade,
+        main_class,
+        classes (
+          name
+        )
+      `)
       .eq("parent_auth_user_id", user.id);
 
     // 2. Fetch Applicants (New Students not yet promoted)
@@ -159,7 +171,7 @@ export async function GET() {
 
     const enrolledItems = Array.isArray(enrolledStudents)
       ? enrolledStudents.map((s: any) => {
-          const key = String(s.student_id || "");
+          const key = String(s.id || "");
           const onboarding = key ? onboardingMap[key] : undefined;
           const latestReport = key ? latestReportsMap[key] : null;
           const pendingVideo = key ? pendingVideoMap[key] : 0;
@@ -178,7 +190,7 @@ export async function GET() {
               ""
             ),
             status: String(s.status || "promoted"),
-            className: String(s.class_name || s.grade || ""),
+            className: String(s.classes?.name || s.grade || ""),
             campus: String(s.campus || ""),
             parentAccountId: String(s.parent_auth_user_id || ""),
             profile_completed: onboarding?.profile_completed ?? false,
