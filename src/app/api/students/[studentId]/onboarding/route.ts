@@ -9,6 +9,7 @@ export async function PATCH(
   try {
     const { studentId } = params;
     const body = await req.json();
+    console.log("Incoming PATCH body for students onboarding:", body);
     const supabase = createSupabaseServer();
 
     // Verify user
@@ -32,9 +33,9 @@ export async function PATCH(
       payload.dropoff_type = body.use_bus ? "bus" : "self";
     }
 
-    if (body.commute_type !== undefined) {
-      payload.commute_type = body.commute_type;
-    }
+    // if (body.commute_type !== undefined) {
+    //   payload.commute_type = body.commute_type;
+    // }
 
     if (body.address !== undefined) {
       payload.address = body.address;
@@ -65,6 +66,7 @@ export async function PATCH(
 
     if (enrolledStudent) {
       // Update students table
+      console.log("Final PATCH payload for students table (enrolledStudent):", payload);
       const { error } = await supabaseService
         .from("students")
         .update(payload)
