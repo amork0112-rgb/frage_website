@@ -330,7 +330,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   if (homeworkData.status === "Reviewed" && homeworkData.feedback) {
     const { feedback } = homeworkData;
     return (
-      <div className="min-h-screen bg-slate-50 font-sans pb-20">
+      <div className="bg-slate-50 font-sans pb-6">
         <header className="px-4 py-4 flex items-center gap-4 bg-white border-b border-slate-200">
           <Link href="/portal/home" className="p-2 -ml-2 text-slate-400 hover:text-slate-600">
             <ArrowLeft className="w-6 h-6" />
@@ -472,7 +472,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
 
   // --- Render: Recording View (Pending) ---
   return (
-    <div className="min-h-screen bg-black font-sans text-white flex flex-col">
+    <div className="bg-black font-sans text-white flex flex-col">
       {/* Header */}
       <header className="px-4 py-4 flex items-center justify-between z-10">
         <Link href="/portal/home" className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
@@ -483,7 +483,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       </header>
 
       {/* Main Content */}
-      <main className="flex-grow flex flex-col items-center justify-center px-4 relative pb-10">
+      <main className="flex flex-col items-center px-4 relative pb-10">
         
         {/* [1] Video Task Summary (Fixed Card) */}
         {!isRecording && !videoUrl && (
@@ -502,7 +502,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
         )}
 
         {/* [2] Record / Upload Area */}
-        <div className="w-full aspect-[3/4] bg-slate-900 rounded-3xl border border-white/10 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl transition-all">
+        <div className="w-full h-full max-h-[70vh] bg-slate-900 rounded-3xl border border-white/10 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl transition-all">
           
           {videoUrl ? (
             // Preview
