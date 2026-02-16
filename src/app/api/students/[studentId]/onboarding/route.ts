@@ -23,7 +23,7 @@ export async function PATCH(
 
     // Prepare update payload
     const payload: any = {
-      updated_at: new Date().toISOString(),
+      // updated_at: new Date().toISOString(), // This column does not exist in students table
     };
 
     if (body.use_bus !== undefined) {
