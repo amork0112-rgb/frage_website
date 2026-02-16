@@ -70,14 +70,19 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   const startCamera = async () => {
     vlog("startCamera called.");
     try {
+      vlog("Attempting to get user media...");
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: "user" }, 
         audio: true 
       });
+      vlog("getUserMedia successful, stream obtained.");
       if (videoRef.current) {
+        vlog("videoRef.current exists, assigning stream.");
         videoRef.current.srcObject = stream;
         setCameraActive(true);
         vlog("Camera started, stream assigned.");
+      } else {
+        vwarn("videoRef.current is null, cannot assign stream.");
       }
     } catch (err) {
       verr("Error accessing camera:", err);

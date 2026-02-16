@@ -142,9 +142,10 @@ export async function GET() {
           return {
             id: key,
             name: String(
-              s.student_name ??
-              onboarding?.student_name ??
-              "학생"
+              onboarding?.student_name ||
+              s.student_name ||
+              s.english_first_name ||
+              ""
             ),
             englishName: String(
               s.english_first_name ??
@@ -155,14 +156,12 @@ export async function GET() {
             className: String(s.class_name || s.grade || ""),
             campus: String(s.campus || ""),
             parentAccountId: String(s.parent_auth_user_id || ""),
-            profile_completed: onboarding
-              ? onboarding.profile_completed === true
-              : null,
+            profile_completed: onboarding?.profile_completed ?? false,
             parent_auth_user_id: onboarding
               ? onboarding.parent_auth_user_id
               : null,
-            use_bus: onboarding ? onboarding.use_bus : null,
-            address: onboarding ? onboarding.address : null,
+            use_bus: onboarding?.use_bus ?? null,
+            address: onboarding?.address ?? null,
             type: "enrolled",
             latestReport: latestReport ? {
               id: latestReport.id,

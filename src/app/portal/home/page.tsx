@@ -27,12 +27,15 @@ export default function ParentPortalHome() {
   const [authorized, setAuthorized] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [studentStatus, setStudentStatus] = useState<string | null>(null);
-  const [studentProfile, setStudentProfile] = useState<{
+  type StudentProfile = {
     id: string;
     name: string;
     englishName: string;
     className: string;
     campus: string;
+    profile_completed?: boolean;
+    use_bus?: boolean | null;
+    address?: string | null;
     latestReport?: {
       id: string;
       message: string;
@@ -40,7 +43,9 @@ export default function ParentPortalHome() {
       date: string;
     } | null;
     pendingVideoCount?: number;
-  } | null>(null);
+  };
+
+  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [needOnboarding, setNeedOnboarding] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3 | 4>(1);
@@ -138,8 +143,11 @@ export default function ParentPortalHome() {
         
         const first = students[0] || null;
         if (first) {
+          setStudentProfile({
+            ...first,
+            name: first.name || "학생"
+          });
           setStudentStatus(first.type || "enrolled");
-          setStudentProfile(first);
         } else {
           setStudentStatus(null);
           setStudentProfile(null);
@@ -151,45 +159,8 @@ export default function ParentPortalHome() {
           setStudentId(null);
         }
 
-        if (first) {
-          const profileCompleted = first.profile_completed === true;
-          const useBus = typeof first.use_bus === "boolean" ? first.use_bus : null;
-          const address = typeof first.address === "string" && first.address.trim().length > 0
-              ? first.address
-              : "";
-          
-          // Onboarding is needed if:
-          // 1. Profile is not marked completed
-          // 2. OR useBus is not set (null)
-          // 3. OR useBus is true but address is missing
-          const need =
-            profileCompleted !== true ||
-            useBus === null ||
-            (useBus === true && !address);
-            
-          setNeedOnboarding(need);
-          
-          if (useBus !== null) {
-            setOnboardingUseBus(useBus);
-          } else {
-            setOnboardingUseBus(null);
-          }
-          
-          if (useBus === true) {
-            setOnboardingCommuteType("bus");
-          } else {
-            setOnboardingCommuteType("");
-          }
-          
-          setOnboardingAddress(address);
-          setOnboardingDetailAddress("");
-          setOnboardingPickupPlace("");
-          setOnboardingDropoffPlace("");
-          setOnboardingStep(1);
-          setOnboardingError(null);
-        } else {
-          setNeedOnboarding(false);
-        }
+        // The following onboarding logic is moved to a separate useEffect
+        // to ensure it runs only when studentProfile is fully set.
       } catch (e) {
         console.error(e);
       } finally {
@@ -197,6 +168,26 @@ export default function ParentPortalHome() {
       }
     })();
   }, [authChecked, authorized, router]);
+
+  useEffect(() => {
+    if (!studentProfile) return;
+
+    const profileCompleted = studentProfile.profile_completed === true;
+    const useBus = typeof studentProfile.use_bus === "boolean"
+      ? studentProfile.use_bus
+      : null;
+    const address = typeof studentProfile.address === "string"
+      && studentProfile.address.trim().length > 0
+        ? studentProfile.address
+        : "";
+
+    const need =
+      profileCompleted !== true ||
+      useBus === null ||
+      (useBus === true && !address);
+
+    setNeedOnboarding(need);
+  }, [studentProfile]);
 
   const handleAddressSearch = () => {
     if (typeof window !== "undefined" && (window as any).daum) {
@@ -290,8 +281,12 @@ export default function ParentPortalHome() {
 
   if (!authChecked) return null;
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50">Loading...</div>;
+  if (loading || !studentProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        Loading...
+      </div>
+    );
   }
 
   const renderOnboardingModal = () => {
