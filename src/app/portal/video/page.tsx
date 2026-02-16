@@ -217,6 +217,8 @@ export default function VideoListPage() {
                       <div className="text-right hidden sm:block">
                           {hw.status === "Reviewed" ? (
                             <span className="text-base font-black text-frage-navy">{hw.score}</span>
+                          ) : hw.status === "Overdue" ? (
+                            <span className="text-xs font-bold bg-red-100 text-red-600 px-2 py-1 rounded">미제출</span>
                           ) : (
                             <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">제출됨</span>
                           )}
