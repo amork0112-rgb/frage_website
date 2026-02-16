@@ -338,7 +338,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
           <h1 className="font-bold text-lg text-slate-800">Review & Feedback</h1>
         </header>
         
-        <main className="px-4 py-6 max-w-md mx-auto space-y-6">
+        <main className="px-4 py-6 mx-auto space-y-6">
           {/* [1] Overall Message */}
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-blue-100">
             <div className="flex items-center gap-3 mb-3">
@@ -487,7 +487,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
         
         {/* [1] Video Task Summary (Fixed Card) */}
         {!isRecording && !videoUrl && (
-          <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-8 animate-fade-in text-center">
+          <div className="w-full bg-slate-900/80 backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-8 animate-fade-in text-center">
             <h2 className="text-xs font-bold text-frage-blue uppercase tracking-wider mb-2">Today&apos;s Reading Video</h2>
             <h1 className="text-2xl font-bold text-white mb-1">{homeworkData.subject}</h1>
             <div className="flex items-center justify-center gap-3 text-sm font-medium text-white/60 mb-4">
@@ -502,7 +502,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
         )}
 
         {/* [2] Record / Upload Area */}
-        <div className="w-full max-w-md aspect-[3/4] bg-slate-900 rounded-3xl border border-white/10 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl transition-all">
+        <div className="w-full aspect-[3/4] bg-slate-900 rounded-3xl border border-white/10 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl transition-all">
           
           {videoUrl ? (
             // Preview
@@ -540,7 +540,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
 
                   {/* Helper Text (Anxiety Reduction) */}
                   <div className="space-y-1.5 text-xs text-white/40 font-medium">
-                    <p>• Short videos are enough</p>
+                    <p>• 영상 파일은 30MB까지 제출 가능합니다.</p>
                     <p>• A quiet place is recommended</p>
                   </div>
                 </div>
