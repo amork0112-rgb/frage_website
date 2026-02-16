@@ -28,9 +28,9 @@ export async function PATCH(
 
     if (body.use_bus !== undefined) {
       payload.use_bus = body.use_bus;
-      // Also update pickup/dropoff types based on use_bus
-      payload.pickup_type = body.use_bus ? "bus" : "self";
-      payload.dropoff_type = body.use_bus ? "bus" : "self";
+      // Also update pickup/dropoff types based on use_bus (These columns do not exist in students table)
+      // payload.pickup_type = body.use_bus ? "bus" : "self";
+      // payload.dropoff_type = body.use_bus ? "bus" : "self";
     }
 
     // if (body.commute_type !== undefined) {

@@ -120,13 +120,13 @@ export async function POST(req: Request) {
     const updatePayload: Record<string, any> = {
       pickup_method: pickupMethodRaw,
       dropoff_method: dropoffMethodRaw,
-      pickup_lat: pickupLat,
-      pickup_lng: pickupLng,
+      // pickup_lat: pickupLat, // Not in students table
+      // pickup_lng: pickupLng, // Not in students table
       pickup_address: pickupAddress,
-      dropoff_lat: dropoffLat,
-      dropoff_lng: dropoffLng,
+      // dropoff_lat: dropoffLat, // Not in students table
+      // dropoff_lng: dropoffLng, // Not in students table
       dropoff_address: dropoffAddress,
-      default_dropoff_time: normalizedDropoffTime,
+      // default_dropoff_time: normalizedDropoffTime, // Not in students table
       onboarding_step: "complete", // This will be deleted
       use_bus: useBus,
       address: primaryAddress,
@@ -151,7 +151,7 @@ export async function POST(req: Request) {
       hasDropoffLng: typeof updatePayload.dropoff_lng === "number",
       hasPickupAddress: !!updatePayload.pickup_address,
       hasDropoffAddress: !!updatePayload.dropoff_address,
-      default_dropoff_time: updatePayload.default_dropoff_time,
+      hasDefaultDropoffTime: !!updatePayload.default_dropoff_time,
       use_bus: updatePayload.use_bus,
     });
 
