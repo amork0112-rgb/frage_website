@@ -1,3 +1,5 @@
+// 🔄 Onboarding Transport API
+// POST /api/onboarding/transport
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -124,11 +126,13 @@ export async function POST(req: Request) {
       dropoff_lng: dropoffLng,
       dropoff_address: dropoffAddress,
       default_dropoff_time: normalizedDropoffTime,
-      onboarding_step: "complete",
+      onboarding_step: "complete", // This will be deleted
       use_bus: useBus,
       address: primaryAddress,
       profile_completed: true,
     };
+
+    delete updatePayload.onboarding_step; // Remove onboarding_step as it doesn't exist in students table
 
     console.log("onboarding_transport_update_payload", {
       studentId,
@@ -145,14 +149,18 @@ export async function POST(req: Request) {
       use_bus: updatePayload.use_bus,
     });
 
-    const { error: updateErr } = await supabaseService
+    const { data, error } = await supabaseService // Change updateErr to error, add data
       .from("students")
       .update(updatePayload)
       .eq("id", studentId)
-      .eq("parent_id", parentId);
+      .eq("parent_id", parentId)
+      .select(); // Add .select()
 
-    if (updateErr) {
-      console.error("onboarding_transport_update_error", updateErr);
+    console.log("STUDENT UPDATE ERROR:", error); // Add new log
+
+    if (error) { // Change updateErr to error
+      console.error("onboarding_transport_update_error", error); // Change updateErr to error
+
       return NextResponse.json({ ok: false, error: "update_failed" }, { status: 500 });
     }
 
