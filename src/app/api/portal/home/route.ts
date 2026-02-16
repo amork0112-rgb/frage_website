@@ -39,7 +39,7 @@ export async function GET() {
       .is("parent_auth_user_id", null);
 
     // 1. Fetch Enrolled Students (Promoted)
-      const { data: enrolledStudents } = await supabaseService
+      const { data: enrolledStudents, error: enrolledErr } = await supabaseService
         .from("students")
         .select(`
           id,
@@ -50,12 +50,16 @@ export async function GET() {
           parent_auth_user_id,
           grade,
           main_class,
+          use_bus,
+          address,
+          profile_completed,
           classes (
             name
           )
         `)
         .eq("parent_auth_user_id", user.id);
-    console.log("[API/portal/home] enrolledStudents query result (from students table):", enrolledStudents);
+    console.log("[API/portal/home] enrolledStudents data:", enrolledStudents);
+    console.log("[API/portal/home] enrolledStudents error:", enrolledErr);
 
     // 2. Fetch Applicants (New Students not yet promoted)
     const { data: applicantStudents } = await supabaseService
