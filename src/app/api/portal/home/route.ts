@@ -54,7 +54,7 @@ export async function GET() {
             name
           )
         `)
-        .eq("parent_id", parent.id);
+        .eq("parent_auth_user_id", user.id);
     console.log("[API/portal/home] enrolledStudents query result (from students table):", enrolledStudents);
 
     // 2. Fetch Applicants (New Students not yet promoted)
