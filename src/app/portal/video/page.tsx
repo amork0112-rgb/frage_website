@@ -32,6 +32,7 @@ type VideoHomeworkItem = {
 export default function VideoListPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [homeworkList, setHomeworkList] = useState<Array<VideoHomeworkItem>>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
@@ -55,6 +56,7 @@ export default function VideoListPage() {
 
   useEffect(() => {
     (async () => {
+      setIsLoading(true);
       try {
         const res = await fetch(`/api/portal/video`);
         const data = await res.json();
@@ -73,6 +75,8 @@ export default function VideoListPage() {
       } catch (e) {
         console.error("Failed to fetch homework list:", e);
         setHomeworkList([]);
+      } finally {
+        setIsLoading(false);
       }
     })();
   }, [todayStr]);
@@ -172,7 +176,7 @@ export default function VideoListPage() {
               )
             ))}
             
-            {homeworkList.filter(hw => hw.status === "Pending").length === 0 && (
+            {!isLoading && homeworkList.filter(hw => hw.status === "Pending").length === 0 && (
               <div className="col-span-full bg-white rounded-2xl p-12 text-center border border-slate-200 border-dashed">
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CheckCircle className="w-8 h-8 text-slate-300" />
