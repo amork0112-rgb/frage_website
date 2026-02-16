@@ -132,11 +132,14 @@ export default function ParentPortalHome() {
 
   useEffect(() => {
     (async () => {
+      console.log("useEffect for data fetching: authChecked=", authChecked, ", authorized=", authorized);
       try {
         if (!authChecked || !authorized) {
+          console.log("Not authorized or auth not checked, setting loading to false.");
           setLoading(false);
           return;
         }
+        console.log("Fetching /api/portal/home...");
         const res = await fetch("/api/portal/home", { cache: "no-store" });
         const payload = await res.json();
         const students = Array.isArray(payload?.students) ? payload.students : [];
