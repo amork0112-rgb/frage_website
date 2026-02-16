@@ -48,7 +48,6 @@ export async function GET() {
           status,
           campus,
           parent_auth_user_id,
-          grade,
           main_class,
           use_bus,
           address,
