@@ -68,6 +68,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
 
   // --- Camera & Recording Logic ---
   const startCamera = async () => {
+    vlog("startCamera called.");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: "user" }, 
@@ -76,24 +77,31 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setCameraActive(true);
+        vlog("Camera started, stream assigned.");
       }
     } catch (err) {
-      console.error("Error accessing camera:", err);
+      verr("Error accessing camera:", err);
       alert("Camera access is required to record video.");
     }
   };
 
   const stopCamera = () => {
+    vlog("stopCamera called.");
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null;
       setCameraActive(false);
+      vlog("Camera stopped.");
     }
   };
 
   const startRecording = () => {
-    if (!videoRef.current?.srcObject) return;
+    vlog("startRecording called.");
+    if (!videoRef.current?.srcObject) {
+      vwarn("videoRef.current.srcObject is null, cannot start recording.");
+      return;
+    }
     const stream = videoRef.current.srcObject as MediaStream;
     const mediaRecorder = new MediaRecorder(stream);
     mediaRecorderRef.current = mediaRecorder;
@@ -112,6 +120,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
     };
 
     mediaRecorder.start();
+    vlog("MediaRecorder started.");
     setIsRecording(true);
     setRecordingTime(0);
     timerRef.current = setInterval(() => {
@@ -126,10 +135,12 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   };
 
   const stopRecording = () => {
+    vlog("stopRecording called.");
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       if (timerRef.current) clearInterval(timerRef.current);
+      vlog("Recording stopped.");
     }
   };
 
