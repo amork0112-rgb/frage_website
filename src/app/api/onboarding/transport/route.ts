@@ -132,7 +132,10 @@ export async function POST(req: Request) {
       profile_completed: true,
     };
 
-    delete updatePayload.onboarding_step; // Remove onboarding_step as it doesn't exist in students table
+    // Remove onboarding_step as it doesn't exist in students table
+    delete updatePayload.onboarding_step;
+    // Remove commute_type as it doesn't exist in students table, use use_bus instead
+    delete updatePayload.commute_type;
 
     console.log("onboarding_transport_update_payload", {
       studentId,
