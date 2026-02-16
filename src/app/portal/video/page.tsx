@@ -102,7 +102,7 @@ export default function VideoListPage() {
             할 일 (To Do)
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {homeworkList.filter(hw => hw.status === "Pending" || hw.status === "Overdue").map((hw) => (
+            {homeworkList.filter(hw => hw.status === "Pending").map((hw) => (
               hw.status === "Overdue" ? (
                 <div 
                   key={hw.id} 
@@ -191,7 +191,7 @@ export default function VideoListPage() {
              지난 과제 (History)
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             {homeworkList.filter(hw => hw.status === "Submitted" || hw.status === "Reviewed").map((hw) => (
+             {homeworkList.filter(hw => hw.status === "Submitted" || hw.status === "Reviewed" || hw.status === "Overdue").map((hw) => (
                <div key={hw.id} className={`bg-white rounded-2xl shadow-sm border transition-all ${expandedId === hw.id ? "border-frage-blue ring-1 ring-frage-blue/10" : "border-slate-200"}`}>
                  {/* Header Row (Click to Toggle) */}
                  <button 
