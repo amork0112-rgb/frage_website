@@ -137,6 +137,8 @@ export async function POST(req: Request) {
     // Remove commute_type as it doesn't exist in students table, use use_bus instead
     delete updatePayload.commute_type;
 
+    console.log("FINAL onboarding_transport_update_payload before update:", updatePayload);
+
     console.log("onboarding_transport_update_payload", {
       studentId,
       parentId,
