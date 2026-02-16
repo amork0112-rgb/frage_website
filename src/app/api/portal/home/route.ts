@@ -188,7 +188,12 @@ export async function GET() {
         }))
       : [];
 
-    return NextResponse.json({ ok: true, students: [...enrolledItems, ...applicantItems] }, { status: 200 });
+    const students = [...enrolledItems, ...applicantItems];
+    console.log("API /portal/home returning students count:", students.length);
+    if (students.length === 0) {
+      console.log("API /portal/home returning empty student list for user:", user.id);
+    }
+    return NextResponse.json({ ok: true, students }, { status: 200 });
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 });
   }
