@@ -21,7 +21,7 @@ export async function GET() {
     // 1. Fetch parent ID
     const { data: parent, error: parentError } = await supabaseService
       .from("parents")
-      .select("id,parent_name,phone,campus")
+      .select("id,parent_name,phone")
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
