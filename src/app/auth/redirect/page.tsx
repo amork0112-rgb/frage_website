@@ -66,6 +66,30 @@ export default async function AuthRedirectPage() {
 
   if (parent) {
     console.log("👨‍👩‍👧 [AuthRedirect] Existing parent (has students), redirecting to /portal/home");
+    // 2️⃣ Find legacy students without auth link
+    const { data: legacyStudents, error: legacyStudentsError } = await supabase
+      .from("students")
+      .select("id")
+      .eq("parent_id", parent.id)
+      .is("parent_auth_user_id", null);
+
+    if (legacyStudentsError) {
+      console.error("🔥 [AuthRedirect] Error checking legacy students:", legacyStudentsError);
+    } else if (legacyStudents?.length > 0) {
+      console.log(`🔄 [AuthRedirect] Found ${legacyStudents.length} legacy students for parent ${parent.id}, migrating...`);
+      // 3️⃣ Auto-migrate them 🔥
+      const { error: updateError } = await supabase
+        .from("students")
+        .update({ parent_auth_user_id: user.id })
+        .eq("parent_id", parent.id)
+        .is("parent_auth_user_id", null);
+
+      if (updateError) {
+        console.error("🔥 [AuthRedirect] Error migrating legacy students:", updateError);
+      } else {
+        console.log("✅ [AuthRedirect] Successfully migrated legacy students.");
+      }
+    }
     redirect("/portal/home");
   }
 

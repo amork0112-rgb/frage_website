@@ -1,3 +1,4 @@
+//api/portal/home/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -69,9 +70,20 @@ export async function GET() {
     if (enrolledIds.length > 0) {
       // 1. Fetch Onboarding & Class Info
       const { data: studentInfo } = await supabaseService
-        .from("students")
-        .select("id,student_name,profile_completed,use_bus,address,parent_auth_user_id,class_name")
-        .in("id", enrolledIds as any);
+      .from("students")
+      .select(`
+        id,
+        student_name,
+        profile_completed,
+        use_bus,
+        address,
+        parent_auth_user_id,
+        main_class,
+        classes (
+          name
+        )
+      `)
+      .in("id", enrolledIds as any);
 
       onboardingMap =
         Array.isArray(studentInfo)
@@ -84,7 +96,7 @@ export async function GET() {
                 use_bus: row.use_bus,
                 address: row.address,
                 parent_auth_user_id: row.parent_auth_user_id,
-                class_name: row.class_name,
+                class_name: row.classes?.name || null,
               };
               return acc;
             }, {})
@@ -196,10 +208,7 @@ export async function GET() {
       : [];
 
     const students = [...enrolledItems, ...applicantItems];
-    console.log("API /portal/home returning students count:", students.length);
-    if (students.length === 0) {
-      console.log("API /portal/home returning empty student list for user:", user.id);
-    }
+
     return NextResponse.json({ ok: true, students }, { status: 200 });
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 });

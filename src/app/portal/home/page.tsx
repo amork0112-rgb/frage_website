@@ -1,3 +1,4 @@
+//app/portal/home/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -47,6 +48,7 @@ export default function ParentPortalHome() {
 
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [needOnboarding, setNeedOnboarding] = useState(false);
+  const [isNoParent, setIsNoParent] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3 | 4>(1);
   const [onboardingUseBus, setOnboardingUseBus] = useState<boolean | null>(null);
@@ -89,11 +91,7 @@ export default function ParentPortalHome() {
 
   const [studentId, setStudentId] = useState<string | null>(null);
 
-  useEffect(() => {
-    console.log("[PORTAL HOME] mounted", new Date().toISOString());
-  }, []);
-
-  useEffect(() => {
+    useEffect(() => {
     // Load Daum Postcode script
     const script = document.createElement("script");
     script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
@@ -136,16 +134,21 @@ export default function ParentPortalHome() {
 
   useEffect(() => {
     (async () => {
-      console.log("useEffect for data fetching: authChecked=", authChecked, ", authorized=", authorized);
       try {
-        if (!authChecked || !authorized) {
-          console.log("Not authorized or auth not checked, setting loading to false.");
+          if (!authChecked || !authorized) {
+            setLoading(false);
+            return;
+          }
+          const res = await fetch("/api/portal/home", { cache: "no-store" });
+        const payload = await res.json();
+
+        if (payload.type === "no_parent") {
+          setIsNoParent(true);
           setLoading(false);
           return;
         }
-        console.log("Fetching /api/portal/home...");
-        const res = await fetch("/api/portal/home", { cache: "no-store" });
-        const payload = await res.json();
+
+        setIsNoParent(false);
         const students = Array.isArray(payload?.students) ? payload.students : [];
         
         const first = students[0] || null;
@@ -288,10 +291,36 @@ export default function ParentPortalHome() {
 
   if (!authChecked) return null;
 
-  if (loading || !studentProfile) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         Loading...
+      </div>
+    );
+  }
+
+  if (isNoParent) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 text-slate-700 p-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 text-orange-500 mb-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.174 3.355 1.945 3.355h13.71c1.771 0 2.816-1.855 1.945-3.355L13.105 7.144c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        </svg>
+        <h2 className="text-xl font-bold mb-2">학부모 정보가 없습니다.</h2>
+        <p className="text-center mb-4">
+          계정에 연결된 학부모 정보가 없습니다. <br />
+          프라게 포털을 이용하시려면 학부모 등록을 진행해 주세요.
+        </p>
+        <Link href="/portal/onboarding/parent" className="px-6 py-3 bg-frage-blue text-white rounded-lg font-bold hover:bg-blue-700 transition-colors">
+          학부모 등록하기
+        </Link>
+      </div>
+    );
+  }
+
+  if (!studentProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p>학생 정보를 불러오는 중입니다. 잠시만 기다려주세요.</p>
       </div>
     );
   }
