@@ -556,7 +556,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
                       <Upload className="w-5 h-5" />
                       Upload Video
                     </button>
-                    <input ref={fileInputRef} type="file" accept="video/*, .mp4" className="hidden" onChange={handleFileUpload} />
+                    <input ref={fileInputRef} type="file" accept="video/*, .mp4, .m4a" className="hidden" onChange={handleFileUpload} />
                   </div>
 
                   {/* Helper Text (Anxiety Reduction) */}
