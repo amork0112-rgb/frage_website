@@ -10,14 +10,46 @@ import { supabase } from "@/lib/supabase";
 export default function NoticesPage() {
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [allNotices, setAllNotices] = useState<Notice[]>([]);
+  const [studentClassId, setStudentClassId] = useState<string | null>(null);
+  const [studentId, setStudentId] = useState<string | null>(null);
+
+  // Fetch current student's class_id
+  useEffect(() => {
+    const fetchStudentInfo = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: studentData } = await supabase
+          .from("students")
+          .select("id, main_class")
+          .eq("parent_auth_user_id", user.id)
+          .maybeSingle();
+
+        if (studentData) {
+          setStudentId(String(studentData.id));
+          setStudentClassId(studentData.main_class ? String(studentData.main_class) : null);
+        }
+      }
+    };
+    fetchStudentInfo();
+  }, []);
 
   useEffect(() => {
+    if (studentId === null) return; // Wait until studentId is fetched
+
     (async () => {
-      const { data } = await supabase
+      let query = supabase
         .from("posts")
-        .select("*")
+        .select("*, class_id") // Select class_id to use it for filtering
         .eq("category", "notice")
         .order("created_at", { ascending: false });
+
+      if (studentClassId) {
+        query = query.or(`scope.eq.global,and(scope.eq.class,class_id.eq.${studentClassId})`);
+      } else {
+        query = query.eq("scope", "global");
+      }
+
+      const { data } = await query;
 
       const rows = Array.isArray(data) ? data : [];
       const ids = rows
@@ -55,6 +87,8 @@ export default function NoticesPage() {
           date: p.created_at,
           category: "Academic",
           campus: "All",
+          scope: p.scope || 'global',
+          class_id: p.class_id || null,
           summary: p.content || "",
           content: [],
           isPinned: !!p.is_pinned,

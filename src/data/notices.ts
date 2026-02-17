@@ -7,6 +7,8 @@ export interface Notice {
   date: string; // YYYY-MM-DD
   category: NoticeCategory;
   campus: CampusType; // Added campus field
+  scope?: 'global' | 'class'; // Added scope field
+  class_id?: string | null; // Added class_id field
   summary: string;
   content: string[]; // Paragraphs
   isPinned?: boolean;

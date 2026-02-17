@@ -418,10 +418,10 @@ export default function ParentPortalHome() {
           .limit(2);
 
         if (studentProfile?.className) {
-            query = query.or(`scope.eq.all,and(scope.eq.class,class_id.eq.${studentProfile.className})`);
+            query = query.or(`scope.eq.global,and(scope.eq.class,class_id.eq.${studentProfile.className})`);
         } else {
-            // If no class name, only show 'all' scoped posts
-            query = query.eq("scope", "all");
+            // If no class name, only show 'global' scoped posts
+            query = query.eq("scope", "global");
         }
 
         const { data: noticeData, error: noticeError } = await query;
