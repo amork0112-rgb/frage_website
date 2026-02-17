@@ -157,7 +157,8 @@ export default function PickupMapPage() {
       localStorage.setItem("temp_pickup_lng", selectedLng);
       localStorage.setItem("temp_pickup_address", selectedAddress);
       localStorage.setItem("temp_onboarding_step", "3");
-      router.back();
+      router.refresh();
+    router.back();
     } else {
       alert("지도에서 위치를 선택해주세요.");
     }

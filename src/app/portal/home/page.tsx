@@ -79,6 +79,71 @@ export default function ParentPortalHome() {
   const [readReportIds, setReadReportIds] = useState<string[]>([]);
 
   useEffect(() => {
+    const pickupLat = localStorage.getItem("temp_pickup_lat");
+    const pickupLng = localStorage.getItem("temp_pickup_lng");
+    const pickupAddress = localStorage.getItem("temp_pickup_address");
+
+    if (pickupLat && pickupLng && pickupAddress) {
+      setOnboardingPickupSelectedLat(pickupLat);
+      setOnboardingPickupSelectedLng(pickupLng);
+      setOnboardingPickupSelectedAddress(pickupAddress);
+      localStorage.removeItem("temp_pickup_lat");
+      localStorage.removeItem("temp_pickup_lng");
+      localStorage.removeItem("temp_pickup_address");
+    }
+
+    const dropoffLat = localStorage.getItem("temp_dropoff_lat");
+    const dropoffLng = localStorage.getItem("temp_dropoff_lng");
+    const dropoffAddress = localStorage.getItem("temp_dropoff_address");
+
+    if (dropoffLat && dropoffLng && dropoffAddress) {
+      setOnboardingDropoffSelectedLat(dropoffLat);
+      setOnboardingDropoffSelectedLng(dropoffLng);
+      setOnboardingDropoffSelectedAddress(dropoffAddress);
+      localStorage.removeItem("temp_dropoff_lat");
+      localStorage.removeItem("temp_dropoff_lng");
+      localStorage.removeItem("temp_dropoff_address");
+    }
+
+    const storedOnboardingStep = localStorage.getItem("temp_onboarding_step");
+    if (storedOnboardingStep) {
+      setOnboardingStep(parseInt(storedOnboardingStep) as 1 | 2 | 3 | 4 | 5);
+      localStorage.removeItem("temp_onboarding_step");
+    }
+
+    // Restore other onboarding states
+    const savedOnboardingAddress = localStorage.getItem("saved_onboarding_address");
+    const savedOnboardingDetailAddress = localStorage.getItem("saved_onboarding_detail_address");
+    const savedOnboardingPickupMethod = localStorage.getItem("saved_onboarding_pickup_method");
+    const savedOnboardingDropoffMethod = localStorage.getItem("saved_onboarding_dropoff_method");
+    const savedOnboardingStep = localStorage.getItem("saved_onboarding_step");
+
+    if (savedOnboardingAddress) {
+      setOnboardingAddress(savedOnboardingAddress);
+      localStorage.removeItem("saved_onboarding_address");
+    }
+    if (savedOnboardingDetailAddress) {
+      setOnboardingDetailAddress(savedOnboardingDetailAddress);
+      localStorage.removeItem("saved_onboarding_detail_address");
+    }
+    if (savedOnboardingPickupMethod) {
+      if (savedOnboardingPickupMethod === "bus" || savedOnboardingPickupMethod === "self") {
+        setOnboardingPickupMethod(savedOnboardingPickupMethod);
+      }
+      localStorage.removeItem("saved_onboarding_pickup_method");
+    }
+    if (savedOnboardingDropoffMethod) {
+      if (savedOnboardingDropoffMethod === "bus" || savedOnboardingDropoffMethod === "self") {
+        setOnboardingDropoffMethod(savedOnboardingDropoffMethod);
+      }
+      localStorage.removeItem("saved_onboarding_dropoff_method");
+    }
+    if (savedOnboardingStep) {
+      setOnboardingStep(parseInt(savedOnboardingStep) as 1 | 2 | 3 | 4 | 5);
+      localStorage.removeItem("saved_onboarding_step");
+    }
+  }, []);
+  useEffect(() => {
     const saved = localStorage.getItem("read_reports");
     if (saved) {
       try {
