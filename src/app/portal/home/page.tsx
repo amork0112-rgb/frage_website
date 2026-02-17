@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 //app/portal/home/page.tsx
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -56,23 +56,12 @@ export default function ParentPortalHome() {
   const [onboardingDetailAddress, setOnboardingDetailAddress] = useState("");
 
   const [onboardingSaving, setOnboardingSaving] = useState(false);
-  const [kakaoReady, setKakaoReady] = useState(false);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
 
-  // Kakao Map related states for Pickup
-  const [pickupMap, setPickupMap] = useState<kakao.maps.Map | null>(null);
-  const [pickupMarker, setPickupMarker] = useState<kakao.maps.Marker | null>(null);
-  const [pickupMapCenter, setPickupMapCenter] = useState<kakao.maps.LatLng | null>(null);
-  const [onboardingPickupAddressSearch, setOnboardingPickupAddressSearch] = useState("");
+  // Onboarding related states for map selection
   const [onboardingPickupSelectedAddress, setOnboardingPickupSelectedAddress] = useState("");
   const [onboardingPickupSelectedLat, setOnboardingPickupSelectedLat] = useState<string | null>(null);
   const [onboardingPickupSelectedLng, setOnboardingPickupSelectedLng] = useState<string | null>(null);
-
-  // Kakao Map related states for Dropoff
-  const [dropoffMap, setDropoffMap] = useState<kakao.maps.Map | null>(null);
-  const [dropoffMarker, setDropoffMarker] = useState<kakao.maps.Marker | null>(null);
-  const [dropoffMapCenter, setDropoffMapCenter] = useState<kakao.maps.LatLng | null>(null);
-  const [onboardingDropoffAddressSearch, setOnboardingDropoffAddressSearch] = useState("");
   const [onboardingDropoffSelectedAddress, setOnboardingDropoffSelectedAddress] = useState("");
   const [onboardingDropoffSelectedLat, setOnboardingDropoffSelectedLat] = useState<string | null>(null);
   const [onboardingDropoffSelectedLng, setOnboardingDropoffSelectedLng] = useState<string | null>(null);
@@ -115,33 +104,8 @@ export default function ParentPortalHome() {
     postcodeScript.async = true;
     document.head.appendChild(postcodeScript);
 
-    // Load Kakao Map script
-    const KAKAO_MAP_APP_KEY = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
-    if (KAKAO_MAP_APP_KEY) {
-      const kakaoMapScript = document.createElement("script");
-      kakaoMapScript.src = `//dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=${KAKAO_MAP_APP_KEY}&libraries=services`;
-      kakaoMapScript.async = true;
-
-      kakaoMapScript.onload = () => {
-        window.kakao.maps.load(() => {
-          console.log("✅ Kakao Map SDK Loaded");
-          setKakaoReady(true);
-        });
-      };
-
-      document.head.appendChild(kakaoMapScript);
-    } else {
-      console.error("NEXT_PUBLIC_KAKAO_MAP_KEY is not defined.");
-    }
-
     return () => {
       document.head.removeChild(postcodeScript);
-      if (KAKAO_MAP_APP_KEY) {
-        const kakaoMapScript = document.querySelector(`script[src*="appkey=${KAKAO_MAP_APP_KEY}"]`);
-        if (kakaoMapScript) {
-          document.head.removeChild(kakaoMapScript);
-        }
-      }
     };
   }, []);
 
@@ -243,223 +207,34 @@ export default function ParentPortalHome() {
     setNeedOnboarding(need);
   }, [studentProfile]);
 
-  // Kakao Map initialization for Pickup
   useEffect(() => {
-    if (
-      onboardingStep !== 3 ||
-      onboardingPickupMethod !== "bus" ||
-      !kakaoReady
-    ) return;
+    const pickupLat = localStorage.getItem("temp_pickup_lat");
+    const pickupLng = localStorage.getItem("temp_pickup_lng");
+    const pickupAddress = localStorage.getItem("temp_pickup_address");
 
-    const timer = setTimeout(() => {
-
-      if (!window.kakao?.maps) return;
-
-      const container = document.getElementById("pickupMap");
-      if (!container) return;
-
-      window.kakao.maps.load(() => {
-
-        const center = new window.kakao.maps.LatLng(35.8578, 128.6265);
-
-        const map = new window.kakao.maps.Map(container, {
-          center,
-          level: 3
-        });
-
-        const marker = new window.kakao.maps.Marker({
-          map,
-          position: center,
-          draggable: true
-        });
-
-        const geocoder = new window.kakao.maps.services.Geocoder();
-
-        window.kakao.maps.event.addListener(marker, "dragend", () => {
-          const pos = marker.getPosition();
-
-          setOnboardingPickupSelectedLat(pos.getLat().toString());
-          setOnboardingPickupSelectedLng(pos.getLng().toString());
-
-          geocoder.coord2Address(
-            pos.getLng(),
-            pos.getLat(),
-            (result, status) => {
-              if (status === kakao.maps.services.Status.OK) {
-                setOnboardingPickupSelectedAddress(
-                  result[0].address.address_name
-                );
-              }
-            }
-          );
-        });
-
-        setPickupMap(map);
-        setPickupMarker(marker);
-
-        setTimeout(() => {
-          map.relayout();
-          map.setCenter(center);
-        }, 200);
-
-      });
-
-    }, 300); // ⭐️ Modal 열린 후 생성
-
-    return () => clearTimeout(timer);
-
-  }, [onboardingStep, onboardingPickupMethod, kakaoReady]);
-
-  // Kakao Map initialization for Dropoff
-  useEffect(() => {
-    if (
-      onboardingStep !== 4 ||
-      onboardingDropoffMethod !== "bus" ||
-      !kakaoReady
-    ) return;
-
-    const timer = setTimeout(() => {
-
-      if (!window.kakao?.maps) return;
-
-      const container = document.getElementById("dropoffMap");
-      if (!container) return;
-
-      window.kakao.maps.load(() => {
-
-        const center = new window.kakao.maps.LatLng(35.8578, 128.6265);
-
-        const map = new window.kakao.maps.Map(container, {
-          center,
-          level: 3
-        });
-
-        const marker = new window.kakao.maps.Marker({
-          map,
-          position: center,
-          draggable: true
-        });
-
-        const geocoder = new window.kakao.maps.services.Geocoder();
-
-        window.kakao.maps.event.addListener(marker, "dragend", () => {
-          const pos = marker.getPosition();
-
-          setOnboardingDropoffSelectedLat(pos.getLat().toString());
-          setOnboardingDropoffSelectedLng(pos.getLng().toString());
-
-          geocoder.coord2Address(
-            pos.getLng(),
-            pos.getLat(),
-            (result, status) => {
-              if (status === kakao.maps.services.Status.OK) {
-                setOnboardingDropoffSelectedAddress(
-                  result[0].address.address_name
-                );
-              }
-            }
-          );
-        });
-
-        setDropoffMap(map);
-        setDropoffMarker(marker);
-
-        setTimeout(() => {
-          map.relayout();
-          map.setCenter(center);
-        }, 200);
-
-      });
-
-    }, 300); // ⭐️ Modal 열린 후 생성
-
-    return () => clearTimeout(timer);
-
-  }, [onboardingStep, onboardingDropoffMethod, kakaoReady]);
-
-  const handleAddressSearch = () => {
-    if (typeof window !== "undefined" && (window as any).daum) {
-      new (window as any).daum.Postcode({
-        oncomplete: function (data: any) {
-          let fullAddr = data.address;
-          let extraAddr = "";
-
-          if (data.addressType === "R") {
-            if (data.bname !== "") {
-              extraAddr += data.bname;
-            }
-            if (data.buildingName !== "") {
-              extraAddr += extraAddr !== "" ? ", " + data.buildingName : data.buildingName;
-            }
-            fullAddr += extraAddr !== "" ? " (" + extraAddr + ")" : "";
-          }
-
-          setOnboardingAddress(fullAddr);
-        },
-      }).open();
-    }
-    else {
-      alert("주소 서비스를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
-    }
-  };
-
-  // Function to perform address search for pickup
-  const handlePickupSearch = () => {
-    if (!window.kakao || !pickupMap || !onboardingPickupAddressSearch) return;
-    if(!window.kakao?.maps?.services){
-      alert("지도를 불러오는 중입니다");
-      return;
+    if (pickupLat && pickupLng && pickupAddress) {
+      setOnboardingPickupSelectedLat(pickupLat);
+      setOnboardingPickupSelectedLng(pickupLng);
+      setOnboardingPickupSelectedAddress(pickupAddress);
+      localStorage.removeItem("temp_pickup_lat");
+      localStorage.removeItem("temp_pickup_lng");
+      localStorage.removeItem("temp_pickup_address");
     }
 
-    const ps = new window.kakao.maps.services.Places();
-    ps.keywordSearch(onboardingPickupAddressSearch, (data: kakao.maps.services.PlaceResult[], status: kakao.maps.services.Status) => {
-      if (status === window.kakao.maps.services.Status.OK) {
-        const firstPlace = data[0];
-        const newLat = parseFloat(firstPlace.y);
-        const newLng = parseFloat(firstPlace.x);
-        const newPos = new window.kakao.maps.LatLng(newLat, newLng);
+    const dropoffLat = localStorage.getItem("temp_dropoff_lat");
+    const dropoffLng = localStorage.getItem("temp_dropoff_lng");
+    const dropoffAddress = localStorage.getItem("temp_dropoff_address");
 
-        pickupMap.setCenter(newPos);
-        pickupMarker?.setPosition(newPos);
-        setOnboardingPickupSelectedAddress(firstPlace.address_name);
-        setOnboardingPickupSelectedLat(newLat.toString());
-        setOnboardingPickupSelectedLng(newLng.toString());
-      } else if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
-        alert("검색 결과가 없습니다.");
-      } else if (status === window.kakao.maps.services.Status.ERROR) {
-        alert("주소 검색 중 오류가 발생했습니다.");
-      }
-    });
-  };
-
-  // Function to perform address search for dropoff
-  const handleDropoffSearch = () => {
-    if (!window.kakao || !dropoffMap || !onboardingDropoffAddressSearch) return;
-    if(!window.kakao?.maps?.services){
-      alert("지도를 불러오는 중입니다");
-      return;
+    if (dropoffLat && dropoffLng && dropoffAddress) {
+      setOnboardingDropoffSelectedLat(dropoffLat);
+      setOnboardingDropoffSelectedLng(dropoffLng);
+      setOnboardingDropoffSelectedAddress(dropoffAddress);
+      localStorage.removeItem("temp_dropoff_lat");
+      localStorage.removeItem("temp_dropoff_lng");
+      localStorage.removeItem("temp_dropoff_address");
     }
+  }, [router]); // Depend on router to re-run when navigating back
 
-    const ps = new window.kakao.maps.services.Places();
-    ps.keywordSearch(onboardingDropoffAddressSearch, (data: kakao.maps.services.PlaceResult[], status: kakao.maps.services.Status) => {
-      if (status === window.kakao.maps.services.Status.OK) {
-        const firstPlace = data[0];
-        const newLat = parseFloat(firstPlace.y);
-        const newLng = parseFloat(firstPlace.x);
-        const newPos = new window.kakao.maps.LatLng(newLat, newLng);
-
-        dropoffMap.setCenter(newPos);
-        dropoffMarker?.setPosition(newPos);
-        setOnboardingDropoffSelectedAddress(firstPlace.address_name);
-        setOnboardingDropoffSelectedLat(newLat.toString());
-        setOnboardingDropoffSelectedLng(newLng.toString());
-      } else if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
-        alert("검색 결과가 없습니다.");
-      } else if (status === window.kakao.maps.services.Status.ERROR) {
-        alert("주소 검색 중 오류가 발생했습니다.");
-      }
-    });
-  };
 
   // Fetch data for Students
   useEffect(() => {
@@ -524,6 +299,36 @@ export default function ParentPortalHome() {
     };
   }, [studentId, studentStatus]);
 
+  const handleAddressSearch = () => {
+    if (typeof window !== "undefined" && (window as any).daum) {
+      new (window as any).daum.Postcode({
+        oncomplete: function (data: any) {
+          let fullAddr = data.address;
+          let extraAddr = "";
+
+          if (data.addressType === "R") {
+            if (data.bname !== "") {
+              extraAddr += data.bname;
+            }
+            if (data.buildingName !== "") {
+              extraAddr += extraAddr !== "" ? ", " + data.buildingName : data.buildingName;
+            }
+            fullAddr += extraAddr !== "" ? " (" + extraAddr + ")" : "";
+          }
+
+          setOnboardingAddress(fullAddr);
+        },
+      }).open();
+    }
+    else {
+      alert("주소 서비스를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+    }
+  };
+
+
+
+
+
   const handleOnboardingSubmit = async () => {
     console.log("Submitting onboarding data...");
     setOnboardingSaving(true);
@@ -553,7 +358,7 @@ export default function ParentPortalHome() {
     if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLat) payload.pickup_latitude = onboardingPickupSelectedLat;
     if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLng) payload.pickup_longitude = onboardingPickupSelectedLng;
     if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLat) payload.dropoff_latitude = onboardingDropoffSelectedLat;
-    if (onboardingPickupMethod === "bus" && onboardingDropoffSelectedLng) payload.dropoff_longitude = onboardingDropoffSelectedLng;
+    if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLng) payload.dropoff_longitude = onboardingDropoffSelectedLng;
     if (onboardingPickupMethod === "bus" && onboardingPickupSelectedAddress) payload.pickup_address = onboardingPickupSelectedAddress;
     if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedAddress) payload.dropoff_address = onboardingDropoffSelectedAddress;
 
@@ -805,37 +610,23 @@ export default function ParentPortalHome() {
                   </div>
 
                   {onboardingPickupMethod === "bus" && (
-                    <div className="space-y-2 pt-2">
-                      <p className="text-sm font-bold text-slate-700 mb-2">
-                        📍 지도에서 승차 위치를 선택해주세요
-                      </p>
-                      <div className="flex space-x-2">
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
-                          placeholder="주소 검색"
-                          value={onboardingPickupAddressSearch}
-                          onChange={(e) => setOnboardingPickupAddressSearch(e.target.value)}
-                        />
-                        <button
-                          type="button"
-                          onClick={handlePickupSearch}
-                          className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
-                        >
-                          검색
-                        </button>
-                      </div>
-                      <div className="flex flex-col h-[300px] mt-3">
-                        <div
-                          id="pickupMap"
-                          className="flex-1 rounded-lg border"
-                        />
-                      </div>
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        onClick={() => router.push("/portal/onboarding/pickup-map")}
+                        className="w-full px-4 py-3 rounded-lg bg-frage-blue text-lg font-bold text-white hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                      >
+                        <Bus className="w-5 h-5" />
+                        <span>지도에서 승차 위치 선택</span>
+                      </button>
                       {onboardingPickupSelectedAddress && (
-                        <p className="text-sm text-slate-600">
-                          선택된 주소: {onboardingPickupSelectedAddress} (Lat: {onboardingPickupSelectedLat}, Lng: {onboardingPickupSelectedLng})
+                        <p className="mt-2 text-sm text-slate-600">
+                          선택된 주소: <span className="font-semibold">{onboardingPickupSelectedAddress}</span>
                         </p>
                       )}
+                      <p className="mt-1 text-xs text-slate-500">
+                        지도를 통해 정확한 승차 위치를 선택해주세요.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -880,37 +671,23 @@ export default function ParentPortalHome() {
                   </div>
 
                   {onboardingDropoffMethod === "bus" && (
-                    <div className="space-y-2 pt-2">
-                      <p className="text-sm font-bold text-slate-700 mb-2">
-                        📍 지도에서 하원 위치를 선택해주세요
-                      </p>
-                      <div className="flex space-x-2">
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
-                          placeholder="주소 검색"
-                          value={onboardingDropoffAddressSearch}
-                          onChange={(e) => setOnboardingDropoffAddressSearch(e.target.value)}
-                        />
-                        <button
-                          type="button"
-                          onClick={handleDropoffSearch}
-                          className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
-                        >
-                          검색
-                        </button>
-                      </div>
-                      <div className="flex flex-col h-[300px] mt-3">
-                        <div
-                          id="dropoffMap"
-                          className="flex-1 rounded-lg border"
-                        />
-                      </div>
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        onClick={() => router.push("/portal/onboarding/dropoff-map")}
+                        className="w-full px-4 py-3 rounded-lg bg-frage-blue text-lg font-bold text-white hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                      >
+                        <Bus className="w-5 h-5" />
+                        <span>지도에서 하원 위치 선택</span>
+                      </button>
                       {onboardingDropoffSelectedAddress && (
-                        <p className="text-sm text-slate-600">
-                          선택된 주소: {onboardingDropoffSelectedAddress} (Lat: {onboardingDropoffSelectedLat}, Lng: {onboardingDropoffSelectedLng})
+                        <p className="mt-2 text-sm text-slate-600">
+                          선택된 주소: <span className="font-semibold">{onboardingDropoffSelectedAddress}</span>
                         </p>
                       )}
+                      <p className="mt-1 text-xs text-slate-500">
+                        지도를 통해 정확한 하원 위치를 선택해주세요.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1216,3 +993,4 @@ export default function ParentPortalHome() {
     </div>
   );
 }
+
