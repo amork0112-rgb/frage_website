@@ -81,6 +81,7 @@ export async function GET() {
         address: string | null;
         parent_auth_user_id: string | null;
         class_name: string | null;
+        class_id: string | null; // Added class_id to type definition
       }
     > = {};
 
@@ -118,6 +119,7 @@ export async function GET() {
                 address: row.address,
                 parent_auth_user_id: row.parent_auth_user_id,
                 class_name: row.classes?.name || null,
+                class_id: row.main_class || null,
               };
               return acc;
             }, {})
@@ -145,29 +147,35 @@ export async function GET() {
       // We need to check for each student's class
       for (const sId of enrolledIds) {
         const info = onboardingMap[sId];
-        const cls = info?.class_name;
-        if (!cls) continue;
+        const studentClassId = info?.class_id; // Use class_id
+        if (!studentClassId) continue;
 
         // Fetch lessons for this class
+        // Step 1️⃣ 반에 할당된 Video Lesson 목록 가져오기
         const { data: lessons } = await supabaseService
           .from("v_lesson_video_status")
           .select("lesson_plan_id")
-          .eq("class_name", cls)
-          .eq("has_auto_video", true)
-          .not("class_id", "is", null);
+          .eq("class_id", studentClassId)
+          .eq("has_auto_video", true);
 
-        if (lessons && lessons.length > 0) {
-          const keys = lessons.map(l => `${l.lesson_plan_id}_${sId}`);
-          
-          const { count: submissionCount } = await supabaseService
-            .from("portal_video_submissions")
-            .select("*", { count: "exact", head: true })
-            .in("assignment_key", keys);
+        // Step 2️⃣ 학생이 제출한 lesson_plan_id 가져오기
+        const { data: submitted } = await supabaseService
+          .from("portal_video_submissions")
+          .select("lesson_plan_id")
+          .eq("student_id", sId);
 
-          const pending = lessons.length - (submissionCount || 0);
-          if (pending > 0) {
-            pendingVideoMap[sId] = pending;
-          }
+        // Step 3️⃣ 제출 안한 과제 계산
+        const submittedSet = new Set(
+          submitted?.map((s: any) => s.lesson_plan_id)
+        );
+
+        const pending =
+          lessons?.filter(
+            (l: any) => !submittedSet.has(l.lesson_plan_id)
+          ).length ?? 0;
+
+        if (pending > 0) {
+          pendingVideoMap[sId] = pending;
         }
       }
     }
