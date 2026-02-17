@@ -50,8 +50,10 @@ export default function ParentPortalHome() {
   const [needOnboarding, setNeedOnboarding] = useState(false);
   const [isNoParent, setIsNoParent] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
-  const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3 | 4>(1);
+  const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [onboardingUseBus, setOnboardingUseBus] = useState<boolean | null>(null);
+  const [onboardingPickupMethod, setOnboardingPickupMethod] = useState<"bus" | "self" | "">("");
+  const [onboardingDropoffMethod, setOnboardingDropoffMethod] = useState<"bus" | "self" | "">("");
   const [onboardingCommuteType, setOnboardingCommuteType] = useState<"bus" | "pickup" | "walk" | "">("");
   const [onboardingAddress, setOnboardingAddress] = useState("");
   const [onboardingDetailAddress, setOnboardingDetailAddress] = useState("");
@@ -328,6 +330,50 @@ export default function ParentPortalHome() {
   const renderOnboardingModal = () => {
     if (!needOnboarding || !studentId) return null;
 
+    const handleOnboardingSubmit = async () => {
+      console.log("Submitting onboarding data...");
+      setOnboardingSaving(true);
+      setOnboardingError(null);
+
+      try {
+        const payload: {
+          profile_completed: boolean;
+          address?: string;
+          detail_address?: string;
+          pickup_method?: "bus" | "self";
+          dropoff_method?: "bus" | "self";
+        } = {
+          profile_completed: true,
+        };
+
+        if (onboardingAddress) payload.address = onboardingAddress;
+        if (onboardingDetailAddress) payload.detail_address = onboardingDetailAddress;
+        if (onboardingPickupMethod) payload.pickup_method = onboardingPickupMethod;
+        if (onboardingDropoffMethod) payload.dropoff_method = onboardingDropoffMethod;
+
+        const res = await fetch(`/api/students/${studentId}/onboarding`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || "온보딩 정보 저장에 실패했습니다.");
+        }
+
+        router.refresh();
+        setNeedOnboarding(false);
+      } catch (error: any) {
+        console.error("Onboarding submission error:", error);
+        setOnboardingError(error.message || "알 수 없는 오류가 발생했습니다.");
+      } finally {
+        setOnboardingSaving(false);
+      }
+    };
+
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
         <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-6 mx-4 relative">
@@ -356,18 +402,27 @@ export default function ParentPortalHome() {
                   {onboardingStep === 1
                     ? "Step 1. 보호자 계정 연결"
                     : onboardingStep === 2
-                    ? "Step 2. 등·하원 방식"
+                    ? "Step 2. 주소 입력"
                     : onboardingStep === 3
-                    ? "Step 3. 주소 입력"
-                    : "Step 4. 완료"}
+                    ? "Step 3. 등원 방식"
+                    : onboardingStep === 4
+                    ? "Step 4. 하원 방식"
+                    : "Step 5. 완료"}
                 </span>
               </div>
               <span className="font-bold">
-                {onboardingStep}/4
+                {onboardingStep}/5
               </span>
             </div>
           </div>
 
+          {onboardingError && (
+            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+              {onboardingError}
+            </div>
+          )}
+
+          {/* Step 1: Account Connection */}
           {onboardingStep === 1 && (
             <div className="space-y-4">
               <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 flex items-center gap-3">
@@ -395,42 +450,40 @@ export default function ParentPortalHome() {
             </div>
           )}
 
+          {/* Step 2: Address Input */}
           {onboardingStep === 2 && (
             <div className="space-y-4">
-              <div className="space-y-3">
-                <p className="text-sm font-bold text-slate-700">등·하원 방식을 선택해 주세요.</p>
-                <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="address" className="block text-sm font-bold text-slate-700 mb-2">
+                  자녀의 주소를 입력해 주세요.
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    id="address"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
+                    value={onboardingAddress}
+                    readOnly
+                    placeholder="주소 검색"
+                  />
                   <button
                     type="button"
-                    onClick={() => {
-                      setOnboardingUseBus(true);
-                      setOnboardingCommuteType("bus");
-                    }}
-                    className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                      onboardingUseBus === true
-                        ? "border-frage-blue bg-blue-50 text-frage-blue"
-                        : "border-slate-100 bg-white text-slate-400"
-                    }`}
+                    onClick={handleAddressSearch}
+                    className="px-4 py-2 rounded-lg bg-slate-100 text-sm font-bold text-slate-600 hover:bg-slate-200 whitespace-nowrap"
                   >
-                    <Bus className="w-6 h-6" />
-                    <span className="text-sm font-bold">셔틀 버스</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOnboardingUseBus(false);
-                      setOnboardingCommuteType("pickup");
-                    }}
-                    className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                      onboardingUseBus === false
-                        ? "border-frage-blue bg-blue-50 text-frage-blue"
-                        : "border-slate-100 bg-white text-slate-400"
-                    }`}
-                  >
-                    <Car className="w-6 h-6" />
-                    <span className="text-sm font-bold">직접 등원</span>
+                    주소 검색
                   </button>
                 </div>
+                {onboardingAddress && (
+                  <input
+                    type="text"
+                    id="detailAddress"
+                    className="mt-2 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
+                    value={onboardingDetailAddress}
+                    onChange={(e) => setOnboardingDetailAddress(e.target.value)}
+                    placeholder="상세 주소 입력 (예: 101동 101호)"
+                  />
+                )}
               </div>
               <div className="flex justify-between gap-2 pt-2">
                 <button
@@ -442,7 +495,7 @@ export default function ParentPortalHome() {
                 </button>
                 <button
                   type="button"
-                  disabled={onboardingUseBus === null}
+                  disabled={!onboardingAddress || !onboardingDetailAddress}
                   onClick={() => setOnboardingStep(3)}
                   className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
                 >
@@ -452,63 +505,38 @@ export default function ParentPortalHome() {
             </div>
           )}
 
+          {/* Step 3: Pickup Method */}
           {onboardingStep === 3 && (
             <div className="space-y-4">
-              <div className="space-y-3">
-                <p className="text-sm font-bold text-slate-700">주소를 입력해 주세요.</p>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      placeholder="주소 찾기 버튼을 눌러주세요"
-                      value={onboardingAddress}
-                      className="flex-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        new (window as any).daum.Postcode({
-                          oncomplete: function(data: any) {
-                            setOnboardingAddress(data.address);
-                            if (data.buildingName) {
-                              setOnboardingDetailAddress(data.buildingName);
-                            }
-                          }
-                        }).open();
-                      }}
-                      className="px-3 py-2 rounded-lg bg-slate-900 text-xs font-bold text-white whitespace-nowrap"
-                    >
-                      주소 찾기
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="상세 주소를 입력해 주세요 (동, 호수 등)"
-                    value={onboardingDetailAddress}
-                    onChange={(e) => setOnboardingDetailAddress(e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg bg-white border border-slate-200 text-sm focus:ring-2 focus:ring-frage-blue focus:border-transparent outline-none"
-                  />
-                </div>
-
-                {onboardingUseBus && (
-                   <div className="space-y-2 pt-2 border-t border-slate-100 mt-2">
-                      <p className="text-xs font-bold text-slate-500">셔틀 승하차 장소 (선택)</p>
-                      <input
-                        type="text"
-                        placeholder="예: 단지 내 정문, XX동 앞 등"
-                        value={onboardingPickupPlace}
-                        onChange={(e) => setOnboardingPickupPlace(e.target.value)}
-                        className="w-full px-4 py-2 rounded-lg bg-white border border-slate-200 text-sm focus:ring-2 focus:ring-frage-blue focus:border-transparent outline-none"
-                      />
-                   </div>
-                )}
+              <p className="text-sm font-bold text-slate-700 mb-2">
+                자녀의 등원 방식을 선택해 주세요.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setOnboardingPickupMethod("bus")}
+                  className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                    onboardingPickupMethod === "bus"
+                      ? "border-frage-blue bg-blue-50 text-frage-blue"
+                      : "border-slate-100 bg-white text-slate-400"
+                  }`}
+                >
+                  <Bus className="w-6 h-6" />
+                  <span className="text-sm font-bold">학원 차량</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOnboardingPickupMethod("self")}
+                  className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                    onboardingPickupMethod === "self"
+                      ? "border-frage-blue bg-blue-50 text-frage-blue"
+                      : "border-slate-100 bg-white text-slate-400"
+                  }`}
+                >
+                  <Car className="w-6 h-6" />
+                  <span className="text-sm font-bold">직접 등원</span>
+                </button>
               </div>
-              
-              {onboardingError && (
-                <p className="text-xs text-red-500 font-bold">{onboardingError}</p>
-              )}
-
               <div className="flex justify-between gap-2 pt-2">
                 <button
                   type="button"
@@ -519,55 +547,96 @@ export default function ParentPortalHome() {
                 </button>
                 <button
                   type="button"
-                  disabled={!onboardingAddress || onboardingSaving}
-                  onClick={async () => {
-                    try {
-                      setOnboardingSaving(true);
-                      setOnboardingError("");
-                      const finalAddress = onboardingAddress + (onboardingDetailAddress ? ` ${onboardingDetailAddress}` : "");
-                      
-                      const payload = {
-                        use_bus: onboardingUseBus,
-                        commute_type: onboardingUseBus 
-                            ? "bus" 
-                            : onboardingCommuteType === "pickup" 
-                            ? "self" 
-                            : "bus",
-                        address: finalAddress.length > 0 ? finalAddress : null,
-                        pickup_place: onboardingPickupPlace.trim() || null,
-                        dropoff_place: onboardingDropoffPlace.trim() || null,
-                        parent_auth_user_id: authUserId,
-                        profile_completed: true,
-                      };
-                      const res = await fetch(
-                        `/api/students/${studentId}/onboarding`,
-                        {
-                          method: "PATCH",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                          body: JSON.stringify(payload),
-                        }
-                      );
-                      if (!res.ok) {
-                        setOnboardingError("저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-                        setOnboardingSaving(false);
-                        return;
-                      }
-                      setNeedOnboarding(false);
-                    } catch {
-                      setOnboardingError("저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-                      setOnboardingSaving(false);
-                    }
-                  }}
-                  className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={!onboardingPickupMethod}
+                  onClick={() => setOnboardingStep(4)}
+                  className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
                 >
-                  {onboardingSaving ? "저장 중..." : "저장하고 시작하기"}
+                  다음
                 </button>
               </div>
             </div>
           )}
 
+          {/* Step 4: Dropoff Method */}
+          {onboardingStep === 4 && (
+            <div className="space-y-4">
+              <p className="text-sm font-bold text-slate-700 mb-2">
+                자녀의 하원 방식을 선택해 주세요.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setOnboardingDropoffMethod("bus")}
+                  className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                    onboardingDropoffMethod === "bus"
+                      ? "border-frage-blue bg-blue-50 text-frage-blue"
+                      : "border-slate-100 bg-white text-slate-400"
+                  }`}
+                >
+                  <Bus className="w-6 h-6" />
+                  <span className="text-sm font-bold">학원 차량</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOnboardingDropoffMethod("self")}
+                  className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                    onboardingDropoffMethod === "self"
+                      ? "border-frage-blue bg-blue-50 text-frage-blue"
+                      : "border-slate-100 bg-white text-slate-400"
+                  }`}
+                >
+                  <Car className="w-6 h-6" />
+                  <span className="text-sm font-bold">직접 하원</span>
+                </button>
+              </div>
+              <div className="flex justify-between gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setOnboardingStep(3)}
+                  className="px-4 py-2 rounded-lg bg-slate-100 text-sm font-bold text-slate-600 hover:bg-slate-200"
+                >
+                  이전
+                </button>
+                <button
+                  type="button"
+                  disabled={!onboardingDropoffMethod}
+                  onClick={() => setOnboardingStep(5)}
+                  className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
+                >
+                  다음
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Completion */}
+          {onboardingStep === 5 && (
+            <div className="space-y-4 text-center">
+              <Sparkles className="w-12 h-12 text-green-500 mx-auto" />
+              <p className="text-lg font-bold text-slate-900">정보 확인 완료!</p>
+              <p className="text-sm text-slate-600">모든 정보를 성공적으로 입력했습니다.</p>
+              <p className="text-sm text-slate-600">프라게와 함께 즐거운 학습을 시작하세요!</p>
+              <div className="flex justify-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setOnboardingStep(4)}
+                  className="px-4 py-2 rounded-lg bg-slate-100 text-sm font-bold text-slate-600 hover:bg-slate-200"
+                >
+                  이전
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOnboardingSubmit}
+                  disabled={onboardingSaving}
+                  className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
+                >
+                  {onboardingSaving ? "저장 중..." : "프라게 시작하기"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* FAQ Section, only shown when onboarding is needed */}
           {needOnboarding && (
             <details className="mt-4 text-sm text-gray-500 border-t border-slate-100 pt-4">
               <summary className="cursor-pointer font-medium select-none flex items-center gap-2 text-slate-600">
@@ -585,6 +654,14 @@ export default function ParentPortalHome() {
       </div>
     );
   };
+
+
+
+
+
+
+
+
 
   // --- ENROLLED STUDENT VIEW ---
   return (
