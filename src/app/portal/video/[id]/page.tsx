@@ -547,13 +547,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
                   
                   {/* Action Buttons */}
                   <div className="space-y-3 w-full max-w-[240px]">
-                    <button 
-                      onClick={startCamera}
-                      className="w-full py-3.5 bg-frage-blue hover:bg-frage-navy text-white rounded-xl font-bold transition-all transform active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-frage-blue/20"
-                    >
-                      <Video className="w-5 h-5" />
-                      Record Video
-                    </button>
+
                     
                     <button 
                       onClick={() => fileInputRef.current?.click()}
@@ -576,12 +570,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
           )}
 
           {/* Recording Timer */}
-          {isRecording && (
-             <div className="absolute top-6 left-1/2 transform -translate-x-1/2 bg-red-600/90 px-4 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-md animate-pulse z-20 shadow-lg">
-                <div className="w-2 h-2 bg-white rounded-full"></div>
-                <span className="font-mono font-bold text-sm tracking-widest">{formatTime(recordingTime)}</span>
-             </div>
-          )}
+
         </div>
 
         {/* Controls (Bottom) */}
