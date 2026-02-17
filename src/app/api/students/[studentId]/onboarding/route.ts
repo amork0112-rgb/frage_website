@@ -60,6 +60,22 @@ export async function PATCH(
       payload.profile_completed = body.profile_completed;
     }
 
+    if (body.pickup_latitude !== undefined) {
+      payload.pickup_latitude = body.pickup_latitude;
+    }
+
+    if (body.pickup_longitude !== undefined) {
+      payload.pickup_longitude = body.pickup_longitude;
+    }
+
+    if (body.dropoff_latitude !== undefined) {
+      payload.dropoff_latitude = body.dropoff_latitude;
+    }
+
+    if (body.dropoff_longitude !== undefined) {
+      payload.dropoff_longitude = body.dropoff_longitude;
+    }
+
     // Check which table to update
     const { data: enrolledStudent } = await supabaseService
       .from("students")
@@ -96,6 +112,10 @@ export async function PATCH(
         if (payload.address !== undefined) newPayload.address = payload.address;
         if (payload.use_bus !== undefined) newPayload.use_bus = payload.use_bus;
         if (payload.parent_auth_user_id !== undefined) newPayload.parent_auth_user_id = payload.parent_auth_user_id;
+        if (payload.pickup_latitude !== undefined) newPayload.pickup_latitude = payload.pickup_latitude;
+        if (payload.pickup_longitude !== undefined) newPayload.pickup_longitude = payload.pickup_longitude;
+        if (payload.dropoff_latitude !== undefined) newPayload.dropoff_latitude = payload.dropoff_latitude;
+        if (payload.dropoff_longitude !== undefined) newPayload.dropoff_longitude = payload.dropoff_longitude;
 
         const { error } = await supabaseService
           .from("new_students")

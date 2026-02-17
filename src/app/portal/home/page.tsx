@@ -17,7 +17,9 @@ import {
   Car,
   Calendar,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Phone,
+  MapPin
 } from "lucide-react";
 import PortalHeader from "@/components/PortalHeader";
 import { supabase } from "@/lib/supabase";
@@ -55,6 +57,10 @@ export default function ParentPortalHome() {
   const [onboardingDropoffMethod, setOnboardingDropoffMethod] = useState<"bus" | "self" | "">("");
   const [onboardingAddress, setOnboardingAddress] = useState("");
   const [onboardingDetailAddress, setOnboardingDetailAddress] = useState("");
+  const [onboardingPickupLat, setOnboardingPickupLat] = useState<string | null>(null);
+  const [onboardingPickupLon, setOnboardingPickupLon] = useState<string | null>(null);
+  const [onboardingDropoffLat, setOnboardingDropoffLat] = useState<string | null>(null);
+  const [onboardingDropoffLon, setOnboardingDropoffLon] = useState<string | null>(null);
   const [onboardingSaving, setOnboardingSaving] = useState(false);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
   
@@ -297,18 +303,26 @@ export default function ParentPortalHome() {
     try {
       const payload: {
         profile_completed: boolean;
-        address?: string;
-        detail_address?: string;
-        pickup_method?: "bus" | "self";
-        dropoff_method?: "bus" | "self";
-      } = {
-        profile_completed: true,
-      };
+      address?: string;
+      detail_address?: string;
+      pickup_method?: "bus" | "self";
+      dropoff_method?: "bus" | "self";
+      pickup_latitude?: string;
+      pickup_longitude?: string;
+      dropoff_latitude?: string;
+      dropoff_longitude?: string;
+    } = {
+      profile_completed: true,
+    };
 
-      if (onboardingAddress) payload.address = onboardingAddress;
-      if (onboardingDetailAddress) payload.detail_address = onboardingDetailAddress;
-      if (onboardingPickupMethod) payload.pickup_method = onboardingPickupMethod;
-      if (onboardingDropoffMethod) payload.dropoff_method = onboardingDropoffMethod;
+    if (onboardingAddress) payload.address = onboardingAddress;
+    if (onboardingDetailAddress) payload.detail_address = onboardingDetailAddress;
+    if (onboardingPickupMethod) payload.pickup_method = onboardingPickupMethod;
+    if (onboardingDropoffMethod) payload.dropoff_method = onboardingDropoffMethod;
+    if (onboardingPickupMethod === "bus" && onboardingPickupLat) payload.pickup_latitude = onboardingPickupLat;
+    if (onboardingPickupMethod === "bus" && onboardingPickupLon) payload.pickup_longitude = onboardingPickupLon;
+    if (onboardingDropoffMethod === "bus" && onboardingDropoffLat) payload.dropoff_latitude = onboardingDropoffLat;
+    if (onboardingDropoffMethod === "bus" && onboardingDropoffLon) payload.dropoff_longitude = onboardingDropoffLon;
 
       const res = await fetch(`/api/students/${studentId}/onboarding`, {
         method: "PATCH",
@@ -534,6 +548,38 @@ export default function ParentPortalHome() {
                   <span className="text-sm font-bold">직접 등원</span>
                 </button>
               </div>
+
+              {onboardingPickupMethod === "bus" && (
+                <div className="space-y-2 pt-2">
+                  <div>
+                    <label htmlFor="pickupLat" className="block text-sm font-medium text-slate-700 mb-1">
+                      등원 위도 (Latitude)
+                    </label>
+                    <input
+                      type="text"
+                      id="pickupLat"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
+                      value={onboardingPickupLat || ""}
+                      onChange={(e) => setOnboardingPickupLat(e.target.value)}
+                      placeholder="예: 37.5665"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="pickupLon" className="block text-sm font-medium text-slate-700 mb-1">
+                      등원 경도 (Longitude)
+                    </label>
+                    <input
+                      type="text"
+                      id="pickupLon"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
+                      value={onboardingPickupLon || ""}
+                      onChange={(e) => setOnboardingPickupLon(e.target.value)}
+                      placeholder="예: 126.9780"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-between gap-2 pt-2">
                 <button
                   type="button"
@@ -544,7 +590,10 @@ export default function ParentPortalHome() {
                 </button>
                 <button
                   type="button"
-                  disabled={!onboardingPickupMethod}
+                  disabled={
+                    !onboardingPickupMethod ||
+                    (onboardingPickupMethod === "bus" && (!onboardingPickupLat || !onboardingPickupLon))
+                  }
                   onClick={() => setOnboardingStep(4)}
                   className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
                 >
@@ -586,6 +635,38 @@ export default function ParentPortalHome() {
                   <span className="text-sm font-bold">직접 하원</span>
                 </button>
               </div>
+
+              {onboardingDropoffMethod === "bus" && (
+                <div className="space-y-2 pt-2">
+                  <div>
+                    <label htmlFor="dropoffLat" className="block text-sm font-medium text-slate-700 mb-1">
+                      하원 위도 (Latitude)
+                    </label>
+                    <input
+                      type="text"
+                      id="dropoffLat"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
+                      value={onboardingDropoffLat || ""}
+                      onChange={(e) => setOnboardingDropoffLat(e.target.value)}
+                      placeholder="예: 37.5665"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="dropoffLon" className="block text-sm font-medium text-slate-700 mb-1">
+                      하원 경도 (Longitude)
+                    </label>
+                    <input
+                      type="text"
+                      id="dropoffLon"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
+                      value={onboardingDropoffLon || ""}
+                      onChange={(e) => setOnboardingDropoffLon(e.target.value)}
+                      placeholder="예: 126.9780"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-between gap-2 pt-2">
                 <button
                   type="button"
@@ -596,7 +677,10 @@ export default function ParentPortalHome() {
                 </button>
                 <button
                   type="button"
-                  disabled={!onboardingDropoffMethod}
+                  disabled={
+                    !onboardingDropoffMethod ||
+                    (onboardingDropoffMethod === "bus" && (!onboardingDropoffLat || !onboardingDropoffLon))
+                  }
                   onClick={() => setOnboardingStep(5)}
                   className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
                 >
