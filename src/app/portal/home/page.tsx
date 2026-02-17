@@ -356,9 +356,9 @@ export default function ParentPortalHome() {
                   {onboardingStep === 1
                     ? "Step 1. 보호자 계정 연결"
                     : onboardingStep === 2
-                    ? "Step 2. 주소 입력"
+                    ? "Step 2. 등·하원 방식"
                     : onboardingStep === 3
-                    ? "Step 3. 등·하원 방식"
+                    ? "Step 3. 주소 입력"
                     : "Step 4. 완료"}
                 </span>
               </div>

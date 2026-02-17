@@ -13,8 +13,6 @@ export async function PATCH(
     // Clean up body from fields not intended for direct update on students table
     delete body.onboarding_step;
     delete body.commute_type; // Ensure this is also removed if it somehow makes its way here
-    delete body.pickup_type;
-    delete body.dropoff_type;
 
     const supabase = createSupabaseServer();
 
@@ -28,20 +26,19 @@ export async function PATCH(
     }
 
     // Prepare update payload
-    const payload: any = {
-      // updated_at: new Date().toISOString(), // This column does not exist in students table
-    };
+    const payload: any = {};
 
     if (body.use_bus !== undefined) {
       payload.use_bus = body.use_bus;
-      // Also update pickup/dropoff types based on use_bus (These columns do not exist in students table)
-      // payload.pickup_type = body.use_bus ? "bus" : "self";
-      // payload.dropoff_type = body.use_bus ? "bus" : "self";
     }
 
-    // if (body.commute_type !== undefined) {
-    //   payload.commute_type = body.commute_type;
-    // }
+    if (body.pickup_type !== undefined) {
+      payload.pickup_method = body.pickup_type;
+    }
+
+    if (body.dropoff_type !== undefined) {
+      payload.dropoff_method = body.dropoff_type;
+    }
 
     if (body.address !== undefined) {
       payload.address = body.address;
