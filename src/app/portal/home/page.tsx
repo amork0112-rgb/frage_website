@@ -908,138 +908,146 @@ export default function ParentPortalHome() {
               </div>
             )}
 
-            {/* Monthly Reports Section */}
-            <section className="mb-8">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-slate-900">월간 보고서</h2>
-                <Link href="/portal/reports" className="text-sm text-frage-blue hover:underline">
-                  모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
-                </Link>
-              </div>
-              {
-                monthlyReports.length > 0 ? (
-                  <ul className="bg-white rounded-xl shadow overflow-hidden divide-y divide-slate-200">
-                    {monthlyReports.map((report) => (
-                      <li key={report.id} className="block hover:bg-slate-50">
-                        <Link
-                          href={`/portal/reports/${report.id}`}
-                          className="flex items-center px-4 py-4 sm:px-6"
-                          onClick={() => markReportAsRead(report.id)}
-                        >
-                          <div className="min-w-0 flex-1 flex items-center">
-                            <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-2 md:gap-4">
-                              <div>
-                                <p className="text-sm font-medium text-frage-blue truncate">{report.title}</p>
-                                <p className="mt-2 flex items-center text-sm text-slate-500">
-                                  <FileText className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
-                                  <span className="truncate">{new Date(report.published_at).toLocaleDateString('ko-KR')}</span>
-                                </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Left Column */}
+              <div className="md:col-span-2">
+                {/* Monthly Reports Section */}
+                <section className="mb-8">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-slate-900">월간 보고서</h2>
+                    <Link href="/portal/reports" className="text-sm text-frage-blue hover:underline">
+                      모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
+                    </Link>
+                  </div>
+                  {
+                    monthlyReports.length > 0 ? (
+                      <ul className="bg-white rounded-xl shadow overflow-hidden divide-y divide-slate-200">
+                        {monthlyReports.map((report) => (
+                          <li key={report.id} className="block hover:bg-slate-50">
+                            <Link
+                              href={`/portal/reports/${report.id}`}
+                              className="flex items-center px-4 py-4 sm:px-6"
+                              onClick={() => markReportAsRead(report.id)}
+                            >
+                              <div className="min-w-0 flex-1 flex items-center">
+                                <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-2 md:gap-4">
+                                  <div>
+                                    <p className="text-sm font-medium text-frage-blue truncate">{report.title}</p>
+                                    <p className="mt-2 flex items-center text-sm text-slate-500">
+                                      <FileText className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
+                                      <span className="truncate">{new Date(report.published_at).toLocaleDateString('ko-KR')}</span>
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                          <div>
-                            <ChevronDown className="h-5 w-5 text-slate-400" aria-hidden="true" />
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-center py-8 text-slate-500 bg-white rounded-xl shadow">
-                    <p>아직 작성된 월간 보고서가 없습니다.</p>
-                  </div>
-                )
-              }
-            </section>
-
-            {/* Video Homework Section */}
-            <section>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-slate-900">영상 숙제</h2>
-                <Link href="/portal/video" className="text-sm text-frage-blue hover:underline">
-                  모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
-                </Link>
-              </div>
-              <div className="bg-white rounded-xl shadow p-6 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <Video className="w-8 h-8 text-frage-blue" />
-                  <div>
-                    <p className="text-lg font-bold text-slate-900">미제출 영상 숙제</p>
-                    <p className="text-sm text-slate-500">기한 내에 제출해주세요</p>
-                  </div>
-                </div>
-                <span className="text-2xl font-bold text-red-600">{studentProfile.pendingVideoCount || 0}개</span>
-              </div>
-            </section>
-
-            {/* Notices Section */}
-            <section>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-slate-900">공지사항</h2>
-                <Link href="/portal/notices" className="text-sm text-frage-blue hover:underline">
-                  모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
-                </Link>
-              </div>
-              {
-                notices.length > 0 ? (
-                  <ul className="bg-white rounded-xl shadow overflow-hidden divide-y divide-slate-200">
-                    {notices.map((notice) => (
-                      <li key={notice.id} className="block hover:bg-slate-50">
-                        <Link href={`/portal/notices/${notice.id}`} className="flex items-center px-4 py-4 sm:px-6">
-                          <div className="min-w-0 flex-1 flex items-center">
-                            <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-2 md:gap-4">
                               <div>
-                                <p className="text-sm font-medium text-frage-blue truncate">{notice.title}</p>
-                                <p className="mt-2 flex items-center text-sm text-slate-500">
-                                  <FileText className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
-                                  <span className="truncate">{new Date(notice.created_at).toLocaleDateString('ko-KR')}</span>
-                                </p>
+                                <ChevronDown className="h-5 w-5 text-slate-400" aria-hidden="true" />
                               </div>
-                            </div>
-                          </div>
-                          <div>
-                            <ChevronDown className="h-5 w-5 text-slate-400" aria-hidden="true" />
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-center py-8 text-slate-500 bg-white rounded-xl shadow">
-                    <p>등록된 공지사항이 없습니다.</p>
-                  </div>
-                )
-              }
-            </section>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-center py-8 text-slate-500 bg-white rounded-xl shadow">
+                        <p>아직 작성된 월간 보고서가 없습니다.</p>
+                      </div>
+                    )
+                  }
+                </section>
 
-            {/* Quick Links / Help Section */}
-            <section>
-              <h2 className="text-xl font-bold text-slate-900 mb-4">빠른 링크</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
-                  onClick={handleContact}
-                  className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
-                >
-                  <HelpCircle className="w-5 h-5 mr-2" /> 카카오톡 상담
-                </button>
-                <a
-                  href="https://intoreading.cloubot.com/login"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
-                >
-                  <img src="/images/into_reading_logo.png" alt="Into Reading" className="w-5 h-5 mr-2" /> Into Reading
-                </a>
-                <a
-                  href="https://www.trophy9.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
-                >
-                  <img src="/images/trophy9_logo.png" alt="Trophy9" className="w-5 h-5 mr-2" /> 트로피나인
-                </a>
+                {/* Video Homework Section */}
+                <section className="mb-8">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-slate-900">영상 숙제</h2>
+                    <Link href="/portal/video" className="text-sm text-frage-blue hover:underline">
+                      모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
+                    </Link>
+                  </div>
+                  <div className="bg-white rounded-xl shadow p-6 flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <Video className="w-8 h-8 text-frage-blue" />
+                      <div>
+                        <p className="text-lg font-bold text-slate-900">미제출 영상 숙제</p>
+                        <p className="text-sm text-slate-500">기한 내에 제출해주세요</p>
+                      </div>
+                    </div>
+                    <span className="text-2xl font-bold text-red-600">{studentProfile.pendingVideoCount || 0}개</span>
+                  </div>
+                </section>
+
+                {/* Notices Section */}
+                <section className="mb-8">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-slate-900">공지사항</h2>
+                    <Link href="/portal/notices" className="text-sm text-frage-blue hover:underline">
+                      모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
+                    </Link>
+                  </div>
+                  {
+                    notices.length > 0 ? (
+                      <ul className="bg-white rounded-xl shadow overflow-hidden divide-y divide-slate-200">
+                        {notices.map((notice) => (
+                          <li key={notice.id} className="block hover:bg-slate-50">
+                            <Link href={`/portal/notices/${notice.id}`} className="flex items-center px-4 py-4 sm:px-6">
+                              <div className="min-w-0 flex-1 flex items-center">
+                                <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-2 md:gap-4">
+                                  <div>
+                                    <p className="text-sm font-medium text-frage-blue truncate">{notice.title}</p>
+                                    <p className="mt-2 flex items-center text-sm text-slate-500">
+                                      <FileText className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
+                                      <span className="truncate">{new Date(notice.created_at).toLocaleDateString('ko-KR')}</span>
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              <div>
+                                <ChevronDown className="h-5 w-5 text-slate-400" aria-hidden="true" />
+                              </div>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-center py-8 text-slate-500 bg-white rounded-xl shadow">
+                        <p>등록된 공지사항이 없습니다.</p>
+                      </div>
+                    )
+                  }
+                </section>
               </div>
-            </section>
+
+              {/* Right Column */}
+              <div className="md:col-span-1">
+                {/* Quick Links / Help Section */}
+                <section>
+                  <h2 className="text-xl font-bold text-slate-900 mb-4">빠른 링크</h2>
+                  <div className="grid grid-cols-1 gap-4">
+                    <button
+                      onClick={handleContact}
+                      className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
+                    >
+                      <HelpCircle className="w-5 h-5 mr-2" /> 카카오톡 상담
+                    </button>
+                    <a
+                      href="https://intoreading.cloubot.com/login"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
+                    >
+                      <img src="/images/into_reading_logo.png" alt="Into Reading" className="w-5 h-5 mr-2" /> Into Reading
+                    </a>
+                    <a
+                      href="https://www.trophy9.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
+                    >
+                      <img src="/images/trophy9_logo.png" alt="Trophy9" className="w-5 h-5 mr-2" /> 트로피나인
+                    </a>
+                  </div>
+                </section>
+              </div>
+            </div>
           </>
         )}
       </main>
