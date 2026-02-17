@@ -88,9 +88,6 @@ export default function ParentPortalHome() {
       setOnboardingPickupSelectedLat(pickupLat);
       setOnboardingPickupSelectedLng(pickupLng);
       setOnboardingPickupSelectedAddress(pickupAddress);
-      localStorage.removeItem("temp_pickup_lat");
-      localStorage.removeItem("temp_pickup_lng");
-      localStorage.removeItem("temp_pickup_address");
     }
 
     const dropoffLat = localStorage.getItem("temp_dropoff_lat");
@@ -101,15 +98,12 @@ export default function ParentPortalHome() {
       setOnboardingDropoffSelectedLat(dropoffLat);
       setOnboardingDropoffSelectedLng(dropoffLng);
       setOnboardingDropoffSelectedAddress(dropoffAddress);
-      localStorage.removeItem("temp_dropoff_lat");
-      localStorage.removeItem("temp_dropoff_lng");
-      localStorage.removeItem("temp_dropoff_address");
     }
 
     const storedOnboardingStep = localStorage.getItem("temp_onboarding_step");
     if (storedOnboardingStep) {
       setOnboardingStep(parseInt(storedOnboardingStep) as 1 | 2 | 3 | 4 | 5);
-      localStorage.removeItem("temp_onboarding_step");
+      router.replace("/portal/home");
     }
 
     // Restore other onboarding states
@@ -121,37 +115,25 @@ export default function ParentPortalHome() {
 
     if (savedOnboardingAddress) {
       setOnboardingAddress(savedOnboardingAddress);
-      localStorage.removeItem("saved_onboarding_address");
     }
     if (savedOnboardingDetailAddress) {
       setOnboardingDetailAddress(savedOnboardingDetailAddress);
-      localStorage.removeItem("saved_onboarding_detail_address");
     }
     if (savedOnboardingPickupMethod) {
       if (savedOnboardingPickupMethod === "bus" || savedOnboardingPickupMethod === "self") {
         setOnboardingPickupMethod(savedOnboardingPickupMethod);
       }
-      localStorage.removeItem("saved_onboarding_pickup_method");
     }
     if (savedOnboardingDropoffMethod) {
       if (savedOnboardingDropoffMethod === "bus" || savedOnboardingDropoffMethod === "self") {
         setOnboardingDropoffMethod(savedOnboardingDropoffMethod);
       }
-      localStorage.removeItem("saved_onboarding_dropoff_method");
     }
     if (savedOnboardingStep) {
       setOnboardingStep(parseInt(savedOnboardingStep) as 1 | 2 | 3 | 4 | 5);
-      localStorage.removeItem("saved_onboarding_step");
     }
-  }, [searchParams]);
-  useEffect(() => {
-    const saved = localStorage.getItem("read_reports");
-    if (saved) {
-      try {
-        setReadReportIds(JSON.parse(saved));
-      } catch {}
-    }
-  }, [searchParams.get('onboarding')]);
+  }, []);
+
 
   const markReportAsRead = (id: string) => {
     if (!readReportIds.includes(id)) {
@@ -207,12 +189,7 @@ export default function ParentPortalHome() {
 
   useEffect(() => {
     (async () => {
-      // 🚨 지도 복귀 중이면 DB fetch 금지
-      if (searchParams.get("map") === "updated") {
-        console.log("🚧 map 복귀중 → DB fetch skip");
-        setLoading(false);
-        return;
-      }
+
 
       try {
           if (!authChecked || !authorized) {
@@ -263,6 +240,11 @@ export default function ParentPortalHome() {
   useEffect(() => {
     if (!studentProfile) return;
 
+    if (searchParams.get("map") === "updated") {
+      console.log("🟡 map 복귀 → onboarding 판단 skip");
+      return;
+    }
+
     const profileCompleted = studentProfile.profile_completed === true;
     const useBus = typeof studentProfile.use_bus === "boolean"
       ? studentProfile.use_bus
@@ -278,7 +260,7 @@ export default function ParentPortalHome() {
       (useBus === true && !address);
 
     setNeedOnboarding(need);
-  }, [studentProfile]);
+  }, [studentProfile, searchParams]);
 
   useEffect(() => {
     const pickupLat = localStorage.getItem("temp_pickup_lat");
@@ -353,9 +335,6 @@ export default function ParentPortalHome() {
       setOnboardingPickupSelectedLat(savedPickupLat);
       setOnboardingPickupSelectedLng(savedPickupLng);
       setOnboardingPickupSelectedAddress(savedPickupAddress);
-      localStorage.removeItem("saved_pickup_lat");
-      localStorage.removeItem("saved_pickup_lng");
-      localStorage.removeItem("saved_pickup_address");
     }
 
     const savedDropoffLat = localStorage.getItem("saved_dropoff_lat");
@@ -366,9 +345,6 @@ export default function ParentPortalHome() {
       setOnboardingDropoffSelectedLat(savedDropoffLat);
       setOnboardingDropoffSelectedLng(savedDropoffLng);
       setOnboardingDropoffSelectedAddress(savedDropoffAddress);
-      localStorage.removeItem("saved_dropoff_lat");
-      localStorage.removeItem("saved_dropoff_lng");
-      localStorage.removeItem("saved_dropoff_address");
     }
   }, [searchParams]);
 
@@ -511,6 +487,27 @@ export default function ParentPortalHome() {
         const errorData = await res.json();
         throw new Error(errorData.message || "온보딩 정보 저장에 실패했습니다.");
       }
+
+      // 온보딩 성공 시 localStorage에서 임시 및 저장된 데이터 삭제
+      localStorage.removeItem("temp_pickup_lat");
+      localStorage.removeItem("temp_pickup_lng");
+      localStorage.removeItem("temp_pickup_address");
+      localStorage.removeItem("temp_dropoff_lat");
+      localStorage.removeItem("temp_dropoff_lng");
+      localStorage.removeItem("temp_dropoff_address");
+      localStorage.removeItem("temp_onboarding_step");
+
+      localStorage.removeItem("saved_onboarding_address");
+      localStorage.removeItem("saved_onboarding_detail_address");
+      localStorage.removeItem("saved_onboarding_pickup_method");
+      localStorage.removeItem("saved_onboarding_dropoff_method");
+      localStorage.removeItem("saved_onboarding_step");
+      localStorage.removeItem("saved_pickup_lat");
+      localStorage.removeItem("saved_pickup_lng");
+      localStorage.removeItem("saved_pickup_address");
+      localStorage.removeItem("saved_dropoff_lat");
+      localStorage.removeItem("saved_dropoff_lng");
+      localStorage.removeItem("saved_dropoff_address");
 
       router.refresh();
       setNeedOnboarding(false);
