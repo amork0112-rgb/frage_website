@@ -20,6 +20,16 @@ import {
 } from "lucide-react";
 import PortalHeader from "@/components/PortalHeader";
 import { supabase } from "@/lib/supabase";
+import { motion } from "framer-motion";
+import Image from "next/image";
+
+interface AcademicCalendarEvent {
+  id: string;
+  title: string;
+  type: '수업일' | '시험' | '행사' | 'reading' | 'writing' | 'video_hw' | 'commitment';
+  start_date: string; // ISO date string
+  campus?: string;
+}
 
 export default function ParentPortalHome() {
   const router = useRouter();
@@ -71,7 +81,15 @@ export default function ParentPortalHome() {
   const [monthlyReports, setMonthlyReports] = useState<{ id: string; title: string; date: string; status: string; target_month: string; published_at: string }[]>([]);
   const [notifications, setNotifications] = useState<{ id?: string; message: string; date?: string; title?: string; isRead?: boolean; category?: string; createdAt?: string }[]>([]);
   const [notices, setNotices] = useState<any[]>([]);
-  
+
+  // Academic Calendar States
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth()); // 0-indexed
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [monthlyEvents, setMonthlyEvents] = useState<AcademicCalendarEvent[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<AcademicCalendarEvent[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [errorEvents, setErrorEvents] = useState<string | null>(null);
+
   const handleContact = () => {
     // KakaoTalk Channel URL
     window.open("http://pf.kakao.com/_TxdXxnG/chat", "_blank");
@@ -412,6 +430,68 @@ export default function ParentPortalHome() {
     };
   }, [studentId, studentStatus]);
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set to start of today for comparison
+
+  const getStartOfMonth = (year: number, month: number) => {
+    const date = new Date(year, month, 1);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  };
+
+  const getEndOfMonth = (year: number, month: number) => {
+    const date = new Date(year, month + 1, 0); // Day 0 of next month is last day of current month
+    date.setHours(23, 59, 59, 999);
+    return date;
+  };
+
+  useEffect(() => {
+    if (!studentProfile || !authUserId) {
+      setLoadingEvents(false);
+      return;
+    }
+
+    const fetchEvents = async () => {
+      setLoadingEvents(true);
+      setErrorEvents(null);
+
+      try {
+        const startOfMonth = getStartOfMonth(currentYear, currentMonth);
+        const endOfMonth = getEndOfMonth(currentYear, currentMonth);
+
+        // 1. Calendar Dot용 Query (Month 기준)
+        const { data: monthlyData, error: monthlyError } = await supabase
+          .from('academic_calendar')
+          .select('id, title, type, start_date, campus')
+          .gte('start_date', startOfMonth.toISOString())
+          .lte('start_date', endOfMonth.toISOString())
+          .or(`campus.eq.${studentProfile.campus},campus.eq.All`);
+
+        if (monthlyError) throw monthlyError;
+        setMonthlyEvents(monthlyData as AcademicCalendarEvent[]);
+
+        // 2. Upcoming Event List용 Query (오늘 이후 5개)
+        const { data: upcomingData, error: upcomingError } = await supabase
+          .from('academic_calendar')
+          .select('id, title, type, start_date, campus')
+          .gte('start_date', today.toISOString())
+          .order('start_date', { ascending: true })
+          .limit(5);
+
+        if (upcomingError) throw upcomingError;
+        setUpcomingEvents(upcomingData as AcademicCalendarEvent[]);
+
+      } catch (error: any) {
+        console.error("Error fetching academic calendar events:", error);
+        setErrorEvents(error.message || "Failed to fetch calendar events.");
+      } finally {
+        setLoadingEvents(false);
+      }
+    };
+
+    fetchEvents();
+  }, [currentMonth, currentYear, studentProfile, authUserId]);
+
   const handleAddressSearch = () => {
     if (typeof window !== "undefined" && (window as any).daum) {
       new (window as any).daum.Postcode({
@@ -442,6 +522,26 @@ export default function ParentPortalHome() {
 
 
 
+  const eventColorMap = {
+    '수업일': 'bg-blue-500',
+    '시험': 'bg-orange-500',
+    '행사': 'bg-purple-500',
+    'reading': 'bg-green-500',
+    'writing': 'bg-teal-500',
+    'video_hw': 'bg-red-500',
+    'commitment': 'bg-yellow-500',
+  };
+
+  const eventIconMap = {
+    '수업일': '🏫',
+    '시험': '📝',
+    '행사': '🎉',
+    'reading': '📕',
+    'writing': '✏️',
+    'video_hw': '🎥',
+    'commitment': '🎯',
+  };
+
   const handleOnboardingSubmit = async () => {
     console.log("Submitting onboarding data...");
     setOnboardingSaving(true);
@@ -469,9 +569,9 @@ export default function ParentPortalHome() {
     if (onboardingPickupMethod) payload.pickup_method = onboardingPickupMethod;
     if (onboardingDropoffMethod) payload.dropoff_method = onboardingDropoffMethod;
     if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLat) payload.pickup_lat = onboardingPickupSelectedLat;
-    if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLng) payload.pickup_lng = onboardingPickupSelectedLng;
+    if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLng) payload.pickup_lng = onboardingPickupSelectedLng!;
     if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLat) payload.dropoff_lat = onboardingDropoffSelectedLat;
-    if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLng) payload.dropoff_lng = onboardingDropoffSelectedLng;
+    if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLng) payload.dropoff_lng = onboardingDropoffSelectedLng!;
     if (onboardingPickupMethod === "bus" && onboardingPickupSelectedAddress) payload.pickup_address = onboardingPickupSelectedAddress;
     if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedAddress) payload.dropoff_address = onboardingDropoffSelectedAddress;
 
@@ -517,6 +617,154 @@ export default function ParentPortalHome() {
     } finally {
       setOnboardingSaving(false);
     }
+  };
+
+  const renderAcademicCalendar = () => {
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay(); // 0 for Sunday, 1 for Monday, etc.
+
+    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+    const prevMonth = () => {
+      if (currentMonth === 0) {
+        setCurrentMonth(11);
+        setCurrentYear(currentYear - 1);
+      } else {
+        setCurrentMonth(currentMonth - 1);
+      }
+    };
+
+    const nextMonth = () => {
+      if (currentMonth === 11) {
+        setCurrentMonth(0);
+        setCurrentYear(currentYear + 1);
+      } else {
+        setCurrentMonth(currentMonth + 1);
+      }
+    };
+
+    const getEventsForDay = (day: number) => {
+      const targetDate = new Date(currentYear, currentMonth, day);
+      return monthlyEvents.filter(event => {
+        const eventDate = new Date(event.start_date);
+        return eventDate.getFullYear() === targetDate.getFullYear() &&
+               eventDate.getMonth() === targetDate.getMonth() &&
+               eventDate.getDate() === targetDate.getDate();
+      });
+    };
+
+    return (
+      <div className="bg-white p-4 rounded-lg shadow mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <button onClick={prevMonth} className="p-2 rounded-full hover:bg-slate-100">
+            &lt;
+          </button>
+          <h3 className="text-lg font-semibold text-slate-800">
+            {currentYear}년 {currentMonth + 1}월
+          </h3>
+          <button onClick={nextMonth} className="p-2 rounded-full hover:bg-slate-100">
+            &gt;
+          </button>
+        </div>
+        <div className="grid grid-cols-7 text-center text-sm font-medium text-slate-500 mb-2">
+          {['일', '월', '화', '수', '목', '금', '토'].map((day, i) => (
+            <div key={day} className={i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : ''}>{day}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-2">
+          {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+            <div key={`empty-${i}`} className="h-12"></div>
+          ))}
+          {days.map(day => {
+            const dayEvents = getEventsForDay(day);
+            const isToday = new Date().toDateString() === new Date(currentYear, currentMonth, day).toDateString();
+            return (
+              <div
+                key={day}
+                className={`h-12 flex flex-col items-center justify-center rounded-lg ${isToday ? 'bg-blue-100' : 'bg-slate-50'}`}
+              >
+                <span className={`text-sm font-medium ${isToday ? 'text-blue-700' : 'text-slate-800'}`}>{day}</span>
+                <div className="flex mt-1 space-x-0.5">
+                  {dayEvents.slice(0, 3).map((event, i) => (
+                    <motion.div
+                      key={event.id + i}
+                      className={`w-2 h-2 rounded-full ${eventColorMap[event.type]}`}
+                      initial={{ y: -4, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ duration: 0.2, delay: i * 0.05 }}
+                    />
+                  ))}
+                  {dayEvents.length > 3 && <div className="w-2 h-2 rounded-full bg-slate-400"></div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderUpcomingEvents = () => {
+    if (loadingEvents) {
+      return (
+        <div className="bg-white p-4 rounded-lg shadow mb-6">
+          <h3 className="text-xl font-bold text-slate-900 mb-4">Upcoming</h3>
+          <p className="text-slate-600">이벤트 불러오는 중...</p>
+        </div>
+      );
+    }
+
+    if (errorEvents) {
+      return (
+        <div className="bg-white p-4 rounded-lg shadow mb-6">
+          <h3 className="text-xl font-bold text-slate-900 mb-4">Upcoming</h3>
+          <p className="text-red-500">Error: {errorEvents}</p>
+        </div>
+      );
+    }
+
+    if (upcomingEvents.length === 0) {
+      return (
+        <div className="bg-white p-4 rounded-lg shadow mb-6">
+          <h3 className="text-xl font-bold text-slate-900 mb-4">Upcoming</h3>
+          <p className="text-slate-600">예정된 이벤트가 없습니다.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-white p-4 rounded-lg shadow mb-6">
+        <h3 className="text-xl font-bold text-slate-900 mb-4">Upcoming</h3>
+        <motion.ul
+          initial="hidden"
+          animate="show"
+          variants={{
+            show: {
+              transition: {
+                staggerChildren: 0.1
+              }
+            }
+          }}
+          className="space-y-3"
+        >
+          {upcomingEvents.map(event => (
+            <motion.li
+              key={event.id}
+              variants={{
+                hidden: { opacity: 0, x: 10 },
+                show: { opacity: 1, x: 0 }
+              }}
+              className="flex items-center text-slate-700"
+            >
+              <span className="mr-2 text-xl">{eventIconMap[event.type]}</span>
+              <span>
+                {new Date(event.start_date).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })} {event.title}
+              </span>
+            </motion.li>
+          ))}
+        </motion.ul>
+      </div>
+    );
   };
 
   if (!authChecked) return null;
@@ -911,6 +1159,8 @@ export default function ParentPortalHome() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Left Column */}
               <div className="md:col-span-2">
+                {renderAcademicCalendar()}
+                {renderUpcomingEvents()}
                 {/* Monthly Reports Section */}
                 <section className="mb-8">
                   <div className="flex justify-between items-center mb-4">
