@@ -1159,8 +1159,6 @@ export default function ParentPortalHome() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Left Column */}
               <div className="md:col-span-2">
-                {renderAcademicCalendar()}
-                {renderUpcomingEvents()}
                 {/* Monthly Reports Section */}
                 <section className="mb-8">
                   <div className="flex justify-between items-center mb-4">
@@ -1264,6 +1262,8 @@ export default function ParentPortalHome() {
                     )
                   }
                 </section>
+                {renderAcademicCalendar()}
+                {renderUpcomingEvents()}
               </div>
 
               {/* Right Column */}
@@ -1271,10 +1271,10 @@ export default function ParentPortalHome() {
                 {/* Quick Links / Help Section */}
                 <section>
                   <h2 className="text-xl font-bold text-slate-900 mb-4">빠른 링크</h2>
-                  <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={handleContact}
-                      className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
+                      className="flex items-center justify-center px-2 py-1 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
                     >
                       <HelpCircle className="w-5 h-5 mr-2" /> 카카오톡 상담
                     </button>
@@ -1282,7 +1282,7 @@ export default function ParentPortalHome() {
                       href="https://intoreading.cloubot.com/login"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
+                      className="flex items-center justify-center px-2 py-1 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
                     >
                       <img src="/images/into_reading_logo.png" alt="Into Reading" className="w-5 h-5 mr-2" /> Into Reading
                     </a>
@@ -1290,7 +1290,7 @@ export default function ParentPortalHome() {
                       href="https://www.trophy9.com/"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
+                      className="flex items-center justify-center px-2 py-1 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
                     >
                       <img src="/images/trophy9_logo.png" alt="Trophy9" className="w-5 h-5 mr-2" /> 트로피나인
                     </a>
