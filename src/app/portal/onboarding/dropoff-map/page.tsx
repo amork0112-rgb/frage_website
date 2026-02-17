@@ -50,61 +50,67 @@ export default function DropoffMapPage() {
   }, [KAKAO_MAP_APP_KEY]);
 
   useEffect(() => {
-    if (!kakaoReady || !KAKAO_MAP_APP_KEY) return;
+    if (!kakaoReady) return;
 
-    const container = document.getElementById("map");
-    if (!container) return;
+    const timer = setTimeout(() => {
+      const container = document.getElementById("map");
+      if (!container || !window.kakao?.maps) return;
 
-    const options = {
-      center: new window.kakao.maps.LatLng(33.450701, 126.570667), // Default to Jeju Island
-      level: 3,
-    };
-    const newMap = new window.kakao.maps.Map(container, options);
-    setMap(newMap);
+      const options = {
+        center: new window.kakao.maps.LatLng(35.8578, 128.6265), // 대구
+        level: 3,
+      };
 
-    const newMarker = new window.kakao.maps.Marker({
-      position: options.center,
-      draggable: true,
-    });
-    newMarker.setMap(newMap);
-    setMarker(newMarker);
+      const newMap = new window.kakao.maps.Map(container, options);
+      setMap(newMap);
 
-    window.kakao.maps.event.addListener(newMarker, "dragend", () => {
-      const pos = newMarker.getPosition();
-      updateAddressFromCoords(pos.getLat(), pos.getLng());
-    });
+      const newMarker = new window.kakao.maps.Marker({
+        position: options.center,
+        draggable: true,
+      });
 
-    // Try to load initial coordinates from localStorage
-    const storedLat = localStorage.getItem("temp_dropoff_lat");
-    const storedLng = localStorage.getItem("temp_dropoff_lng");
-    const storedAddr = localStorage.getItem("temp_dropoff_address");
+      newMarker.setMap(newMap);
+      setMarker(newMarker);
 
-    if (storedLat && storedLng) {
-      const initialPos = new window.kakao.maps.LatLng(
-        parseFloat(storedLat),
-        parseFloat(storedLng)
-      );
-      newMap.setCenter(initialPos);
-      newMarker.setPosition(initialPos);
-      setSelectedLat(storedLat);
-      setSelectedLng(storedLng);
-      setSelectedAddress(storedAddr || "주소 정보 없음");
-    } else {
-      // If no stored coords, get current location
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          const currentPos = new window.kakao.maps.LatLng(lat, lng);
-          newMap.setCenter(currentPos);
-          newMarker.setPosition(currentPos);
-          updateAddressFromCoords(lat, lng);
-        });
+      window.kakao.maps.event.addListener(newMarker, "dragend", () => {
+        const pos = newMarker.getPosition();
+        updateAddressFromCoords(pos.getLat(), pos.getLng());
+      });
+
+      // Try to load initial coordinates from localStorage
+      const storedLat = localStorage.getItem("temp_dropoff_lat");
+      const storedLng = localStorage.getItem("temp_dropoff_lng");
+      const storedAddr = localStorage.getItem("temp_dropoff_address");
+
+      if (storedLat && storedLng) {
+        const initialPos = new window.kakao.maps.LatLng(
+          parseFloat(storedLat),
+          parseFloat(storedLng)
+        );
+        newMap.setCenter(initialPos);
+        newMarker.setPosition(initialPos);
+        setSelectedLat(storedLat);
+        setSelectedLng(storedLng);
+        setSelectedAddress(storedAddr || "주소 정보 없음");
+      } else {
+        // If no stored coords, get current location
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition((position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const currentPos = new window.kakao.maps.LatLng(lat, lng);
+            newMap.setCenter(currentPos);
+            newMarker.setPosition(currentPos);
+            updateAddressFromCoords(lat, lng);
+          });
+        }
       }
-    }
 
-    setLoading(false);
-  }, [kakaoReady, KAKAO_MAP_APP_KEY]);
+      setLoading(false);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [kakaoReady]);
 
   const updateAddressFromCoords = (lat: number, lng: number) => {
     const geocoder = new window.kakao.maps.services.Geocoder();
@@ -168,47 +174,47 @@ export default function DropoffMapPage() {
           <div className="w-6 h-6" /> {/* Placeholder for alignment */}
         </div>
 
-        {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-slate-600">지도 로딩 중...</p>
-          </div>
-        ) : (
-          <>
-            <div className="mb-4 flex space-x-2">
-              <input
-                type="text"
-                placeholder="주소를 검색하세요"
-                className="flex-1 p-2 border border-gray-300 rounded-md"
-                value={addressSearchKeyword}
-                onChange={(e) => setAddressSearchKeyword(e.target.value)}
-              />
-              <button
-                onClick={handleAddressSearch}
-                className="p-2 bg-frage-blue text-white rounded-md flex items-center justify-center"
-              >
-                <Search className="w-5 h-5" />
-              </button>
+        <div className="mb-4 flex space-x-2">
+          <input
+            type="text"
+            placeholder="주소를 검색하세요"
+            className="flex-1 p-2 border border-gray-300 rounded-md"
+            value={addressSearchKeyword}
+            onChange={(e) => setAddressSearchKeyword(e.target.value)}
+          />
+          <button
+            onClick={handleAddressSearch}
+            className="p-2 bg-frage-blue text-white rounded-md flex items-center justify-center"
+          >
+            <Search className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="relative flex-1 w-full h-[400px] mb-4">
+          <div id="map" className="absolute inset-0 rounded-lg shadow-md" />
+
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
+              <p className="text-slate-600">지도 로딩 중...</p>
             </div>
-            <div id="map" className="flex-1 w-full h-[400px] rounded-lg shadow-md mb-4" />
-            <div className="p-3 bg-white rounded-md shadow-sm mb-4">
-              <p className="text-sm font-medium text-slate-700">선택된 위치:</p>
-              <p className="text-lg font-bold text-frage-blue">{selectedAddress}</p>
-              {selectedLat && selectedLng && (
-                <p className="text-xs text-slate-500">
-                  위도: {parseFloat(selectedLat).toFixed(6)}, 경도: {parseFloat(selectedLng).toFixed(6)}
-                </p>
-              )}
-            </div>
-            <button
-              onClick={handleSelectLocation}
-              className="w-full p-3 bg-frage-blue text-white font-bold rounded-md flex items-center justify-center space-x-2 disabled:opacity-50"
-              disabled={!selectedLat || !selectedLng}
-            >
-              <CheckCircle className="w-5 h-5" />
-              <span>이 위치 선택</span>
-            </button>
-          </>
-        )}
+          )}
+        </div>
+        <div className="p-3 bg-white rounded-md shadow-sm mb-4">
+          <p className="text-sm font-medium text-slate-700">선택된 위치:</p>
+          <p className="text-lg font-bold text-frage-blue">{selectedAddress}</p>
+          {selectedLat && selectedLng && (
+            <p className="text-xs text-slate-500">
+              위도: {parseFloat(selectedLat).toFixed(6)}, 경도: {parseFloat(selectedLng).toFixed(6)}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={handleSelectLocation}
+          className="w-full p-3 bg-frage-blue text-white font-bold rounded-md flex items-center justify-center space-x-2 disabled:opacity-50"
+          disabled={!selectedLat || !selectedLng}
+        >
+          <CheckCircle className="w-5 h-5" />
+          <span>이 위치 선택</span>
+        </button>
       </main>
     </div>
   );
