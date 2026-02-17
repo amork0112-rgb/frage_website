@@ -156,6 +156,7 @@ export default function PickupMapPage() {
       localStorage.setItem("temp_pickup_lat", selectedLat);
       localStorage.setItem("temp_pickup_lng", selectedLng);
       localStorage.setItem("temp_pickup_address", selectedAddress);
+      localStorage.setItem("temp_onboarding_step", "3");
       router.back();
     } else {
       alert("지도에서 위치를 선택해주세요.");
@@ -171,6 +172,7 @@ export default function PickupMapPage() {
             <ArrowLeft className="w-6 h-6" />
           </button>
           <h1 className="text-xl font-bold text-slate-900">승차 위치 선택</h1>
+          <p className="text-sm text-slate-500 mt-1">화살표를 클릭해서 움직여주세요</p>
           <div className="w-6 h-6" /> {/* Placeholder for alignment */}
         </div>
 

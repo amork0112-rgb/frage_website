@@ -233,6 +233,12 @@ export default function ParentPortalHome() {
       localStorage.removeItem("temp_dropoff_lng");
       localStorage.removeItem("temp_dropoff_address");
     }
+
+    const storedOnboardingStep = localStorage.getItem("temp_onboarding_step");
+    if (storedOnboardingStep) {
+      setOnboardingStep(parseInt(storedOnboardingStep) as 1 | 2 | 3 | 4 | 5);
+      localStorage.removeItem("temp_onboarding_step");
+    }
   }, [router]); // Depend on router to re-run when navigating back
 
 
