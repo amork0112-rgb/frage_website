@@ -1,3 +1,5 @@
+"use client";
+//app/portal/home/page.tsx
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -116,7 +118,7 @@ export default function ParentPortalHome() {
     const KAKAO_MAP_APP_KEY = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
     if (KAKAO_MAP_APP_KEY) {
       const kakaoMapScript = document.createElement("script");
-      kakaoMapScript.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_APP_KEY}&libraries=services`;
+      kakaoMapScript.src = `//dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=${KAKAO_MAP_APP_KEY}&libraries=services`;
       kakaoMapScript.async = true;
       document.head.appendChild(kakaoMapScript);
     } else {
@@ -234,75 +236,111 @@ export default function ParentPortalHome() {
 
   // Kakao Map initialization for Pickup
   useEffect(() => {
-    if (onboardingStep === 3 && onboardingPickupMethod === "bus" && window.kakao && !pickupMap) {
-      const mapContainer = document.getElementById("pickupMap");
-      if (mapContainer) {
-        const initialLat = 37.5665; // Default Seoul latitude
-        const initialLng = 126.9780; // Default Seoul longitude
-        const mapOption = {
-          center: new window.kakao.maps.LatLng(initialLat, initialLng),
-          level: 3,
-        };
-        const map = new window.kakao.maps.Map(mapContainer, mapOption);
-        setPickupMap(map);
+    if (
+      onboardingStep !== 3 ||
+      onboardingPickupMethod !== "bus"
+    ) return;
 
-        const marker = new window.kakao.maps.Marker({
-          map: map,
-          position: mapOption.center,
-          draggable: true,
+    if (!window.kakao?.maps || !window.kakao.maps.services) return;
+
+    window.kakao.maps.load(() => {
+      const container = document.getElementById("pickupMap");
+      if (!container) return;
+
+      const center = new window.kakao.maps.LatLng(35.8578, 128.6265); // 대구
+
+      const map = new window.kakao.maps.Map(container, {
+        center,
+        level: 3
+      });
+
+      const marker = new window.kakao.maps.Marker({
+        map,
+        position: center,
+        draggable: true
+      });
+
+      const geocoder = new window.kakao.maps.services.Geocoder(); // Initialize Geocoder
+
+      window.kakao.maps.event.addListener(marker, "dragend", () => {
+        const pos = marker.getPosition();
+        const lat = pos.getLat().toString();
+        const lng = pos.getLng().toString();
+        setOnboardingPickupSelectedLat(lat);
+        setOnboardingPickupSelectedLng(lng);
+
+        geocoder.coord2Address(pos.getLng(), pos.getLat(), (result, status) => {
+          if (status === (window.kakao.maps.services as any).Status.OK) { // Use type assertion
+            if (result[0]?.address?.address_name) {
+              setOnboardingPickupSelectedAddress(result[0].address.address_name);
+            } else {
+              setOnboardingPickupSelectedAddress(""); // Clear if no address found
+            }
+          } else {
+            console.error("Pickup Reverse geocoding failed:", status);
+            setOnboardingPickupSelectedAddress("");
+          }
         });
-        setPickupMarker(marker);
+      });
 
-        // Set initial selected coordinates
-        setOnboardingPickupSelectedLat(initialLat.toString());
-        setOnboardingPickupSelectedLng(initialLng.toString());
-
-        // Event listener for marker dragend
-        window.kakao.maps.event.addListener(marker, "dragend", () => {
-          const position = marker.getPosition();
-          setOnboardingPickupSelectedLat(position.getLat().toString());
-          setOnboardingPickupSelectedLng(position.getLng().toString());
-          // Reverse geocoding to get address from coordinates (will implement later if needed)
-        });
-      }
-    }
-  }, [onboardingStep, onboardingPickupMethod, pickupMap]);
+      setPickupMap(map);
+      setPickupMarker(marker);
+    });
+  }, [onboardingStep, onboardingPickupMethod]);
 
   // Kakao Map initialization for Dropoff
   useEffect(() => {
-    if (onboardingStep === 4 && onboardingDropoffMethod === "bus" && window.kakao && !dropoffMap) {
-      const mapContainer = document.getElementById("dropoffMap");
-      if (mapContainer) {
-        const initialLat = 37.5665; // Default Seoul latitude
-        const initialLng = 126.9780; // Default Seoul longitude
-        const mapOption = {
-          center: new window.kakao.maps.LatLng(initialLat, initialLng),
-          level: 3,
-        };
-        const map = new window.kakao.maps.Map(mapContainer, mapOption);
-        setDropoffMap(map);
+    if (
+      onboardingStep !== 4 ||
+      onboardingDropoffMethod !== "bus"
+    ) return;
 
-        const marker = new window.kakao.maps.Marker({
-          map: map,
-          position: mapOption.center,
-          draggable: true,
+    if (!window.kakao?.maps || !window.kakao.maps.services) return;
+
+    window.kakao.maps.load(() => {
+      const container = document.getElementById("dropoffMap");
+      if (!container) return;
+
+      const center = new window.kakao.maps.LatLng(35.8578, 128.6265); // 대구
+
+      const map = new window.kakao.maps.Map(container, {
+        center,
+        level: 3
+      });
+
+      const marker = new window.kakao.maps.Marker({
+        map,
+        position: center,
+        draggable: true
+      });
+
+      const geocoder = new window.kakao.maps.services.Geocoder(); // Initialize Geocoder
+
+      window.kakao.maps.event.addListener(marker, "dragend", () => {
+        const pos = marker.getPosition();
+        const lat = pos.getLat().toString();
+        const lng = pos.getLng().toString();
+        setOnboardingDropoffSelectedLat(lat);
+        setOnboardingDropoffSelectedLng(lng);
+
+        geocoder.coord2Address(pos.getLng(), pos.getLat(), (result, status) => {
+          if (status === (window.kakao.maps.services as any).Status.OK) { // Use type assertion
+            if (result[0]?.address?.address_name) {
+              setOnboardingDropoffSelectedAddress(result[0].address.address_name);
+            } else {
+              setOnboardingDropoffSelectedAddress(""); // Clear if no address found
+            }
+          } else {
+            console.error("Dropoff Reverse geocoding failed:", status);
+            setOnboardingDropoffSelectedAddress("");
+          }
         });
-        setDropoffMarker(marker);
+      });
 
-        // Set initial selected coordinates
-        setOnboardingDropoffSelectedLat(initialLat.toString());
-        setOnboardingDropoffSelectedLng(initialLng.toString());
-
-        // Event listener for marker dragend
-        window.kakao.maps.event.addListener(marker, "dragend", () => {
-          const position = marker.getPosition();
-          setOnboardingDropoffSelectedLat(position.getLat().toString());
-          setOnboardingDropoffSelectedLng(position.getLng().toString());
-          // Reverse geocoding to get address from coordinates (will implement later if needed)
-        });
-      }
-    }
-  }, [onboardingStep, onboardingDropoffMethod, dropoffMap]);
+      setDropoffMap(map);
+      setDropoffMarker(marker);
+    });
+  }, [onboardingStep, onboardingDropoffMethod]);
 
   const handleAddressSearch = () => {
     if (typeof window !== "undefined" && (window as any).daum) {
@@ -333,6 +371,10 @@ export default function ParentPortalHome() {
   // Function to perform address search for pickup
   const handlePickupSearch = () => {
     if (!window.kakao || !pickupMap || !onboardingPickupAddressSearch) return;
+    if(!window.kakao?.maps?.services){
+      alert("지도를 불러오는 중입니다");
+      return;
+    }
 
     const ps = new window.kakao.maps.services.Places();
     ps.keywordSearch(onboardingPickupAddressSearch, (data: kakao.maps.services.PlaceResult[], status: kakao.maps.services.Status) => {
@@ -358,6 +400,10 @@ export default function ParentPortalHome() {
   // Function to perform address search for dropoff
   const handleDropoffSearch = () => {
     if (!window.kakao || !dropoffMap || !onboardingDropoffAddressSearch) return;
+    if(!window.kakao?.maps?.services){
+      alert("지도를 불러오는 중입니다");
+      return;
+    }
 
     const ps = new window.kakao.maps.services.Places();
     ps.keywordSearch(onboardingDropoffAddressSearch, (data: kakao.maps.services.PlaceResult[], status: kakao.maps.services.Status) => {
@@ -453,17 +499,19 @@ export default function ParentPortalHome() {
     try {
       const payload: {
         profile_completed: boolean;
-      address?: string;
-      detail_address?: string;
-      pickup_method?: "bus" | "self";
-      dropoff_method?: "bus" | "self";
-      pickup_latitude?: string;
-      pickup_longitude?: string;
-      dropoff_latitude?: string;
-      dropoff_longitude?: string;
-    } = {
-      profile_completed: true,
-    };
+        address?: string;
+        detail_address?: string;
+        pickup_method?: "bus" | "self";
+        dropoff_method?: "bus" | "self";
+        pickup_latitude?: string;
+        pickup_longitude?: string;
+        pickup_address?: string;
+        dropoff_latitude?: string;
+        dropoff_longitude?: string;
+        dropoff_address?: string;
+      } = {
+        profile_completed: true,
+      };
 
     if (onboardingAddress) payload.address = onboardingAddress;
     if (onboardingDetailAddress) payload.detail_address = onboardingDetailAddress;
@@ -472,7 +520,9 @@ export default function ParentPortalHome() {
     if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLat) payload.pickup_latitude = onboardingPickupSelectedLat;
     if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLng) payload.pickup_longitude = onboardingPickupSelectedLng;
     if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLat) payload.dropoff_latitude = onboardingDropoffSelectedLat;
-    if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLng) payload.dropoff_longitude = onboardingDropoffSelectedLng;
+    if (onboardingPickupMethod === "bus" && onboardingDropoffSelectedLng) payload.dropoff_longitude = onboardingDropoffSelectedLng;
+    if (onboardingPickupMethod === "bus" && onboardingPickupSelectedAddress) payload.pickup_address = onboardingPickupSelectedAddress;
+    if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedAddress) payload.dropoff_address = onboardingDropoffSelectedAddress;
 
       const res = await fetch(`/api/students/${studentId}/onboarding`, {
         method: "PATCH",
@@ -967,7 +1017,7 @@ export default function ParentPortalHome() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <PortalHeader studentName={studentProfile.name} />
+      <PortalHeader />
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <h1 className="text-2xl font-bold text-slate-900 mb-6">학부모 포털</h1>
 

@@ -44,12 +44,12 @@ export async function PATCH(
       payload.address = body.address;
     }
 
-    if (body.pickup_place !== undefined) {
-      payload.pickup_address = body.pickup_place;
+    if (body.pickup_address !== undefined) {
+      payload.pickup_address = body.pickup_address;
     }
 
-    if (body.dropoff_place !== undefined) {
-      payload.dropoff_address = body.dropoff_place;
+    if (body.dropoff_address !== undefined) {
+      payload.dropoff_address = body.dropoff_address;
     }
 
     if (body.parent_auth_user_id !== undefined) {
@@ -116,6 +116,8 @@ export async function PATCH(
         if (payload.pickup_longitude !== undefined) newPayload.pickup_longitude = payload.pickup_longitude;
         if (payload.dropoff_latitude !== undefined) newPayload.dropoff_latitude = payload.dropoff_latitude;
         if (payload.dropoff_longitude !== undefined) newPayload.dropoff_longitude = payload.dropoff_longitude;
+        if (payload.pickup_address !== undefined) newPayload.pickup_address = payload.pickup_address;
+        if (payload.dropoff_address !== undefined) newPayload.dropoff_address = payload.dropoff_address;
 
         const { error } = await supabaseService
           .from("new_students")

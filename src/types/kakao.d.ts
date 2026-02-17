@@ -51,6 +51,8 @@ declare namespace kakao {
       function addListener(target: any, eventType: string, handler: Function): void;
     }
 
+    function load(callback: () => void): void;
+
     namespace services {
       class Places {
         keywordSearch(
@@ -79,7 +81,39 @@ declare namespace kakao {
         y: string; // latitude
       }
 
-      const enum Status {
+      class Geocoder {
+        coord2Address(
+          lng: number,
+          lat: number,
+          callback: (result: Coords2AddressResult[], status: Status) => void
+        ): void;
+      }
+
+      interface Coords2AddressResult {
+        address: {
+          address_name: string;
+          region_1depth_name: string;
+          region_2depth_name: string;
+          region_3depth_name: string;
+          mountain_yn: string;
+          main_address_no: string;
+          sub_address_no: string;
+          zip_code: string;
+        };
+        road_address: {
+          address_name: string;
+          region_1depth_name: string;
+          region_2depth_name: string;
+          region_3depth_name: string;
+          road_name: string;
+          underground_yn: string;
+          main_building_no: string;
+          sub_building_no: string;
+          zone_no: string;
+        };
+      }
+
+      enum Status {
         OK = "OK",
         ZERO_RESULT = "ZERO_RESULT",
         ERROR = "ERROR",
