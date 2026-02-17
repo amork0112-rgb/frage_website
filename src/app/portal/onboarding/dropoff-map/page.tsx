@@ -157,8 +157,7 @@ export default function DropoffMapPage() {
       localStorage.setItem("temp_dropoff_lng", selectedLng);
       localStorage.setItem("temp_dropoff_address", selectedAddress);
       localStorage.setItem("temp_onboarding_step", "4");
-      router.refresh();
-    router.back();
+      router.replace("/portal/home?onboarding=updated");
     } else {
       alert("지도에서 위치를 선택해주세요.");
     }
