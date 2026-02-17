@@ -1203,23 +1203,22 @@ export default function ParentPortalHome() {
                   }
                 </section>
 
-                {/* Video Homework Section */}
+                {/* TO-DO Section */}
                 <section className="mb-8">
                   <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-900">영상 숙제</h2>
+                    <h2 className="text-xl font-bold text-slate-900">Video TO-DO</h2>
                     <Link href="/portal/video" className="text-sm text-frage-blue hover:underline">
                       모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
                     </Link>
                   </div>
                   <div className="bg-white rounded-xl shadow p-6 flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <Video className="w-8 h-8 text-frage-blue" />
+                      <Sparkles className="w-8 h-8 text-frage-blue" />
                       <div>
-                        <p className="text-lg font-bold text-slate-900">미제출 영상 숙제</p>
-                        <p className="text-sm text-slate-500">기한 내에 제출해주세요</p>
+                        <p className="text-lg font-bold text-slate-900">영상 과제</p>
+                        <p className="text-sm text-slate-500">기한 내에 완료해주세요</p>
                       </div>
                     </div>
-                    <span className="text-2xl font-bold text-red-600">{studentProfile.pendingVideoCount || 0}개</span>
                   </div>
                 </section>
 
@@ -1262,22 +1261,17 @@ export default function ParentPortalHome() {
                     )
                   }
                 </section>
-                {renderAcademicCalendar()}
-                {renderUpcomingEvents()}
-              </div>
+                   </div>
 
               {/* Right Column */}
               <div className="md:col-span-1">
+                {renderAcademicCalendar()}
+                {renderUpcomingEvents()}
                 {/* Quick Links / Help Section */}
                 <section>
                   <h2 className="text-xl font-bold text-slate-900 mb-4">빠른 링크</h2>
                   <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={handleContact}
-                      className="flex items-center justify-center px-2 py-1 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
-                    >
-                      <HelpCircle className="w-5 h-5 mr-2" /> 카카오톡 상담
-                    </button>
+
                     <a
                       href="https://intoreading.cloubot.com/login"
                       target="_blank"
