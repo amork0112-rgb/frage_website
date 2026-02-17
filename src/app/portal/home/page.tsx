@@ -271,7 +271,7 @@ export default function ParentPortalHome() {
       setOnboardingStep(parseInt(savedOnboardingStep) as 1 | 2 | 3 | 4 | 5);
       localStorage.removeItem("saved_onboarding_step");
     }
-  }, [router]); // Depend on router to re-run when navigating back
+  }, []);
 
 
   // Fetch data for Students
