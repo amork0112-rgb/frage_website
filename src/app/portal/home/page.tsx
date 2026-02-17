@@ -700,11 +700,11 @@ export default function ParentPortalHome() {
                   >
                     주소
                   </label>
-                  <div className="flex space-x-2">
+                  <div className="flex items-center space-x-2">
                     <input
                       type="text"
                       id="onboardingAddress"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
                       value={onboardingAddress}
                       readOnly
                       placeholder="주소 검색 버튼을 눌러주세요."
@@ -712,7 +712,7 @@ export default function ParentPortalHome() {
                     <button
                       type="button"
                       onClick={handleAddressSearch}
-                      className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
+                      className="flex-shrink-0 whitespace-nowrap px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
                     >
                       주소 검색
                     </button>
