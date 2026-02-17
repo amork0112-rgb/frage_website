@@ -560,7 +560,7 @@ export default function ParentPortalHome() {
   return (
     <div className="min-h-screen bg-slate-50">
       <PortalHeader />
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
+      <main className="container mx-auto px-4 py-8 max-w-5xl">
         {needOnboarding ? (
           <div className="bg-white rounded-2xl shadow-lg w-full max-w-md h-[85vh] flex flex-col mx-auto relative p-4">
             {/* Header */}
