@@ -1,7 +1,7 @@
  "use client";
 //app/portal/home/page.tsx
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Bell,
@@ -23,6 +23,7 @@ import { supabase } from "@/lib/supabase";
 
 export default function ParentPortalHome() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
@@ -142,7 +143,7 @@ export default function ParentPortalHome() {
       setOnboardingStep(parseInt(savedOnboardingStep) as 1 | 2 | 3 | 4 | 5);
       localStorage.removeItem("saved_onboarding_step");
     }
-  }, []);
+  }, [searchParams.get('onboarding')]);
   useEffect(() => {
     const saved = localStorage.getItem("read_reports");
     if (saved) {
@@ -150,7 +151,7 @@ export default function ParentPortalHome() {
         setReadReportIds(JSON.parse(saved));
       } catch {}
     }
-  }, []);
+  }, [searchParams.get('onboarding')]);
 
   const markReportAsRead = (id: string) => {
     if (!readReportIds.includes(id)) {
