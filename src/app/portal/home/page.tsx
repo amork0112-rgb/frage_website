@@ -587,7 +587,7 @@ export default function ParentPortalHome() {
     if (!needOnboarding || !studentId) return null;
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-6 mx-4 relative">
+        <div className="bg-white rounded-2xl shadow-lg w-full max-w-md max-h-[90vh] flex flex-col mx-4 relative">
           <div className="mb-4">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
@@ -815,14 +815,13 @@ export default function ParentPortalHome() {
                     </div>
                     <div
                       id="pickupMap"
-                      className="w-full h-[320px] rounded-lg border mt-3"
-                    />
+                      className="w-full h-[260px] rounded-lg border mt-3"
+                     />
                     {onboardingPickupSelectedAddress && (
                       <p className="text-sm text-slate-600">
                         선택된 주소: {onboardingPickupSelectedAddress} (Lat: {onboardingPickupSelectedLat}, Lng: {onboardingPickupSelectedLng})
                       </p>
                     )}
-                    <div id="pickupMap" className="w-full h-64 rounded-lg"></div>
                     <button
                       type="button"
                       onClick={() => {
@@ -921,12 +920,15 @@ export default function ParentPortalHome() {
                         검색
                       </button>
                     </div>
+                    <div
+                      id="dropoffMap"
+                      className="w-full h-[260px] rounded-lg border mt-3"
+                    />
                     {onboardingDropoffSelectedAddress && (
                       <p className="text-sm text-slate-600">
                         선택된 주소: {onboardingDropoffSelectedAddress} (Lat: {onboardingDropoffSelectedLat}, Lng: {onboardingDropoffSelectedLng})
                       </p>
                     )}
-                    <div id="dropoffMap" className="w-full h-64 rounded-lg"></div>
                     <button
                       type="button"
                       onClick={() => {
