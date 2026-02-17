@@ -724,11 +724,24 @@ export default function ParentPortalHome() {
                       <button
                     type="button"
                     onClick={() => {
-                      localStorage.setItem("saved_onboarding_step", String(onboardingStep));
+                      // ⭐ 현재 Step 저장
+                      localStorage.setItem("saved_onboarding_step", "3");
+
+                      // ⭐ 주소 저장
                       localStorage.setItem("saved_onboarding_address", onboardingAddress);
                       localStorage.setItem("saved_onboarding_detail_address", onboardingDetailAddress);
+
+                      // ⭐ 등하원 방식 저장
                       localStorage.setItem("saved_onboarding_pickup_method", onboardingPickupMethod);
                       localStorage.setItem("saved_onboarding_dropoff_method", onboardingDropoffMethod);
+
+                      // ⭐ 이미 선택된 승차 위치가 있으면 그것도 저장
+                      if (onboardingPickupSelectedLat) {
+                        localStorage.setItem("saved_pickup_lat", onboardingPickupSelectedLat);
+                        localStorage.setItem("saved_pickup_lng", onboardingPickupSelectedLng!);
+                        localStorage.setItem("saved_pickup_address", onboardingPickupSelectedAddress);
+                      }
+
                       router.push("/portal/onboarding/pickup-map");
                     }}
                     className="w-full px-4 py-3 rounded-lg bg-frage-blue text-lg font-bold text-white hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
