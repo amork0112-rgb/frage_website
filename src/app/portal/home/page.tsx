@@ -143,7 +143,7 @@ export default function ParentPortalHome() {
       setOnboardingStep(parseInt(savedOnboardingStep) as 1 | 2 | 3 | 4 | 5);
       localStorage.removeItem("saved_onboarding_step");
     }
-  }, [searchParams.get('onboarding')]);
+  }, [searchParams]);
   useEffect(() => {
     const saved = localStorage.getItem("read_reports");
     if (saved) {
@@ -207,6 +207,12 @@ export default function ParentPortalHome() {
 
   useEffect(() => {
     (async () => {
+      // 🚨 지도 복귀 중이면 DB fetch 금지
+      if (searchParams.get("map") === "updated") {
+        console.log("⛔ onboarding 중 - DB fetch skip");
+        return;
+      }
+
       try {
           if (!authChecked || !authorized) {
             setLoading(false);
