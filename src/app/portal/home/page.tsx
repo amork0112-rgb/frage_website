@@ -209,7 +209,8 @@ export default function ParentPortalHome() {
     (async () => {
       // 🚨 지도 복귀 중이면 DB fetch 금지
       if (searchParams.get("map") === "updated") {
-        console.log("⛔ onboarding 중 - DB fetch skip");
+        setLoading(false);
+        router.replace("/portal/home");
         return;
       }
 
@@ -343,7 +344,33 @@ export default function ParentPortalHome() {
       setOnboardingStep(parseInt(savedOnboardingStep) as 1 | 2 | 3 | 4 | 5);
       localStorage.removeItem("saved_onboarding_step");
     }
-  }, []);
+
+    const savedPickupLat = localStorage.getItem("saved_pickup_lat");
+    const savedPickupLng = localStorage.getItem("saved_pickup_lng");
+    const savedPickupAddress = localStorage.getItem("saved_pickup_address");
+
+    if (savedPickupLat && savedPickupLng && savedPickupAddress) {
+      setOnboardingPickupSelectedLat(savedPickupLat);
+      setOnboardingPickupSelectedLng(savedPickupLng);
+      setOnboardingPickupSelectedAddress(savedPickupAddress);
+      localStorage.removeItem("saved_pickup_lat");
+      localStorage.removeItem("saved_pickup_lng");
+      localStorage.removeItem("saved_pickup_address");
+    }
+
+    const savedDropoffLat = localStorage.getItem("saved_dropoff_lat");
+    const savedDropoffLng = localStorage.getItem("saved_dropoff_lng");
+    const savedDropoffAddress = localStorage.getItem("saved_dropoff_address");
+
+    if (savedDropoffLat && savedDropoffLng && savedDropoffAddress) {
+      setOnboardingDropoffSelectedLat(savedDropoffLat);
+      setOnboardingDropoffSelectedLng(savedDropoffLng);
+      setOnboardingDropoffSelectedAddress(savedDropoffAddress);
+      localStorage.removeItem("saved_dropoff_lat");
+      localStorage.removeItem("saved_dropoff_lng");
+      localStorage.removeItem("saved_dropoff_address");
+    }
+  }, [searchParams]);
 
 
   // Fetch data for Students
@@ -724,26 +751,26 @@ export default function ParentPortalHome() {
                       <button
                     type="button"
                     onClick={() => {
-                      // ⭐ 현재 Step 저장
-                      localStorage.setItem("saved_onboarding_step", "3");
+                        // ⭐ 현재 Step 저장
+                        localStorage.setItem("saved_onboarding_step", "3");
 
-                      // ⭐ 주소 저장
-                      localStorage.setItem("saved_onboarding_address", onboardingAddress);
-                      localStorage.setItem("saved_onboarding_detail_address", onboardingDetailAddress);
+                        // ⭐ 주소 저장
+                        localStorage.setItem("saved_onboarding_address", onboardingAddress);
+                        localStorage.setItem("saved_onboarding_detail_address", onboardingDetailAddress);
 
-                      // ⭐ 등하원 방식 저장
-                      localStorage.setItem("saved_onboarding_pickup_method", onboardingPickupMethod);
-                      localStorage.setItem("saved_onboarding_dropoff_method", onboardingDropoffMethod);
+                        // ⭐ 등하원 방식 저장
+                        localStorage.setItem("saved_onboarding_pickup_method", onboardingPickupMethod);
+                        localStorage.setItem("saved_onboarding_dropoff_method", onboardingDropoffMethod);
 
-                      // ⭐ 이미 선택된 승차 위치가 있으면 그것도 저장
-                      if (onboardingPickupSelectedLat) {
-                        localStorage.setItem("saved_pickup_lat", onboardingPickupSelectedLat);
-                        localStorage.setItem("saved_pickup_lng", onboardingPickupSelectedLng!);
-                        localStorage.setItem("saved_pickup_address", onboardingPickupSelectedAddress);
-                      }
+                        // ⭐ 이미 선택된 승차 위치가 있으면 그것도 저장
+                        if (onboardingPickupSelectedLat) {
+                          localStorage.setItem("saved_pickup_lat", onboardingPickupSelectedLat);
+                          localStorage.setItem("saved_pickup_lng", onboardingPickupSelectedLng!);
+                          localStorage.setItem("saved_pickup_address", onboardingPickupSelectedAddress);
+                        }
 
-                      router.push("/portal/onboarding/pickup-map");
-                    }}
+                        router.push("/portal/onboarding/pickup-map");
+                      }}
                     className="w-full px-4 py-3 rounded-lg bg-frage-blue text-lg font-bold text-white hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
                   >
                         <Bus className="w-5 h-5" />
@@ -805,11 +832,20 @@ export default function ParentPortalHome() {
                       <button
                     type="button"
                     onClick={() => {
-                      localStorage.setItem("saved_onboarding_step", String(onboardingStep));
+                      // ⭐ 현재 Step 저장
+                      localStorage.setItem("saved_onboarding_step", "4"); // Step 4
+                      // ⭐ 주소 저장
                       localStorage.setItem("saved_onboarding_address", onboardingAddress);
                       localStorage.setItem("saved_onboarding_detail_address", onboardingDetailAddress);
+                      // ⭐ 등하원 방식 저장
                       localStorage.setItem("saved_onboarding_pickup_method", onboardingPickupMethod);
                       localStorage.setItem("saved_onboarding_dropoff_method", onboardingDropoffMethod);
+                      // ⭐ 이미 선택된 하차 위치가 있으면 그것도 저장
+                      if (onboardingDropoffSelectedLat) {
+                        localStorage.setItem("saved_dropoff_lat", onboardingDropoffSelectedLat);
+                        localStorage.setItem("saved_dropoff_lng", onboardingDropoffSelectedLng!);
+                        localStorage.setItem("saved_dropoff_address", onboardingDropoffSelectedAddress);
+                      }
                       router.push("/portal/onboarding/dropoff-map");
                     }}
                     className="w-full px-4 py-3 rounded-lg bg-frage-blue text-lg font-bold text-white hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
