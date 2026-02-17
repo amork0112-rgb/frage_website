@@ -308,7 +308,7 @@ export default function ParentPortalHome() {
 
     return () => clearTimeout(timer);
 
-  }, [onboardingStep, onboardingPickupMethod]);
+  }, [onboardingStep, onboardingPickupMethod, kakaoReady]);
 
   // Kakao Map initialization for Dropoff
   useEffect(() => {
@@ -375,7 +375,7 @@ export default function ParentPortalHome() {
 
     return () => clearTimeout(timer);
 
-  }, [onboardingStep, onboardingDropoffMethod]);
+  }, [onboardingStep, onboardingDropoffMethod, kakaoReady]);
 
   const handleAddressSearch = () => {
     if (typeof window !== "undefined" && (window as any).daum) {
