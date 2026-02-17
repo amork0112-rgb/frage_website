@@ -408,14 +408,23 @@ export default function ParentPortalHome() {
       }
 
       try {
-        // 공지사항 (posts 테이블) 가져오기 - Every student should see this
-        const { data: noticeData, error: noticeError } = await supabase
+        // 공지사항 (posts 테이블) 가져오기 - Every student should see this, or only their class if scoped
+        let query = supabase
           .from("posts")
           .select("*")
           .eq("category", "notice")
           .eq("is_archived", false)
           .order("created_at", { ascending: false })
           .limit(2);
+
+        if (studentProfile?.className) {
+            query = query.or(`scope.eq.all,and(scope.eq.class,class_id.eq.${studentProfile.className})`);
+        } else {
+            // If no class name, only show 'all' scoped posts
+            query = query.eq("scope", "all");
+        }
+
+        const { data: noticeData, error: noticeError } = await query;
         
         if (!noticeError && noticeData) {
           setNotices(noticeData);
@@ -1206,19 +1215,20 @@ export default function ParentPortalHome() {
                 {/* TO-DO Section */}
                 <section className="mb-8">
                   <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-900">Video TO-DO</h2>
+                    <h2 className="text-xl font-bold text-slate-900">영상 과제</h2>
                     <Link href="/portal/video" className="text-sm text-frage-blue hover:underline">
                       모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
                     </Link>
                   </div>
                   <div className="bg-white rounded-xl shadow p-6 flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <Sparkles className="w-8 h-8 text-frage-blue" />
+                      <Video className="w-8 h-8 text-frage-blue" />
                       <div>
-                        <p className="text-lg font-bold text-slate-900">영상 과제</p>
-                        <p className="text-sm text-slate-500">기한 내에 완료해주세요</p>
+                        <p className="text-lg font-bold text-slate-900">미제출 영상 숙제</p>
+                        <p className="text-sm text-slate-500">기한 내에 제출해주세요</p>
                       </div>
                     </div>
+                    <span className="text-2xl font-bold text-red-600">{studentProfile.pendingVideoCount || 0}개</span>
                   </div>
                 </section>
 
@@ -1270,7 +1280,7 @@ export default function ParentPortalHome() {
                 {/* Quick Links / Help Section */}
                 <section>
                   <h2 className="text-xl font-bold text-slate-900 mb-4">빠른 링크</h2>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2">
 
                     <a
                       href="https://intoreading.cloubot.com/login"
