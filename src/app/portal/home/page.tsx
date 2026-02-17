@@ -636,7 +636,6 @@ export default function ParentPortalHome() {
               {onboardingStep} / 5
             </p>
           <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-          </div>
 
           {onboardingSaving && (
             <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-2xl z-10">
@@ -1008,6 +1007,39 @@ export default function ParentPortalHome() {
                 <p>
                   <span className="font-bold">학생 이름:</span> {studentProfile.name}
                 </p>
+                </div>
+            </>
+          )}
+          </div>                  onClick={() => setOnboardingStep(3)}
+                  className="px-6 py-3 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-colors"
+                >
+                  이전
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOnboardingStep(5)}
+                  disabled={
+                    !onboardingDropoffMethod ||
+                    (onboardingDropoffMethod === "bus" && (!onboardingDropoffSelectedLat || !onboardingDropoffSelectedLng))
+                  }
+                  className="px-6 py-3 rounded-lg bg-frage-blue text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-40"
+                >
+                  다음
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Step 5: Final Review and Submit */}
+          {onboardingStep === 5 && (
+            <>
+              <h3 className="text-xl font-bold text-slate-900 mb-4">
+                5단계: 최종 확인 및 제출
+              </h3>
+              <div className="space-y-3 mb-6 text-sm text-slate-700">
+                <p>
+                  <span className="font-bold">학생 이름:</span> {studentProfile.name}
+                </p>
                 <p>
                   <span className="font-bold">주소:</span> {onboardingAddress} {onboardingDetailAddress}
                 </p>
@@ -1045,7 +1077,6 @@ export default function ParentPortalHome() {
               </div>
             </>
           )}
-           </div>
         </div>
       </div>
     );
