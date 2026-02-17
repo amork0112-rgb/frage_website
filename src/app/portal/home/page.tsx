@@ -454,11 +454,11 @@ export default function ParentPortalHome() {
         detail_address?: string;
         pickup_method?: "bus" | "self";
         dropoff_method?: "bus" | "self";
-        pickup_latitude?: string;
-        pickup_longitude?: string;
+        pickup_lat?: string;
+        pickup_lng?: string;
         pickup_address?: string;
-        dropoff_latitude?: string;
-        dropoff_longitude?: string;
+        dropoff_lat?: string;
+        dropoff_lng?: string;
         dropoff_address?: string;
       } = {
         profile_completed: true,
@@ -468,10 +468,10 @@ export default function ParentPortalHome() {
     if (onboardingDetailAddress) payload.detail_address = onboardingDetailAddress;
     if (onboardingPickupMethod) payload.pickup_method = onboardingPickupMethod;
     if (onboardingDropoffMethod) payload.dropoff_method = onboardingDropoffMethod;
-    if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLat) payload.pickup_latitude = onboardingPickupSelectedLat;
-    if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLng) payload.pickup_longitude = onboardingPickupSelectedLng;
-    if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLat) payload.dropoff_latitude = onboardingDropoffSelectedLat;
-    if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLng) payload.dropoff_longitude = onboardingDropoffSelectedLng;
+    if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLat) payload.pickup_lat = onboardingPickupSelectedLat;
+    if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLng) payload.pickup_lng = onboardingPickupSelectedLng;
+    if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLat) payload.dropoff_lat = onboardingDropoffSelectedLat;
+    if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLng) payload.dropoff_lng = onboardingDropoffSelectedLng;
     if (onboardingPickupMethod === "bus" && onboardingPickupSelectedAddress) payload.pickup_address = onboardingPickupSelectedAddress;
     if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedAddress) payload.dropoff_address = onboardingDropoffSelectedAddress;
 
