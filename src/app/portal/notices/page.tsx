@@ -27,14 +27,23 @@ export default function NoticesPage() {
         if (studentData) {
           setStudentId(String(studentData.id));
           setStudentClassId(studentData.main_class ? String(studentData.main_class) : null);
+          console.log("Fetched studentId:", String(studentData.id));
+          console.log("Fetched studentClassId:", studentData.main_class ? String(studentData.main_class) : null);
+        } else {
+          console.log("No student data found for user.");
         }
+      } else {
+        console.log("No authenticated user found.");
       }
     };
     fetchStudentInfo();
   }, []);
 
   useEffect(() => {
-    if (studentId === null) return; // Wait until studentId is fetched
+    if (studentId === null) {
+      console.log("Waiting for studentId to be fetched...");
+      return; // Wait until studentId is fetched
+    }
 
     (async () => {
       let query = supabase
@@ -49,7 +58,14 @@ export default function NoticesPage() {
         query = query.eq("scope", "global");
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Supabase query error for notices:", error);
+        return;
+      }
+
+      console.log("Supabase query data for notices:", data);
 
       const rows = Array.isArray(data) ? data : [];
       const ids = rows

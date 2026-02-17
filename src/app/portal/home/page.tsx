@@ -1168,10 +1168,50 @@ export default function ParentPortalHome() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Left Column */}
               <div className="md:col-span-2">
+                {/* Notices Section */}
+                <section className="mb-8">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-slate-900">공지사항</h2>
+                    <Link href="/portal/notices" className="text-sm text-frage-blue hover:underline">
+                      모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
+                    </Link>
+                  </div>
+                  {
+                    notices.length > 0 ? (
+                      <ul className="bg-white rounded-xl shadow overflow-hidden divide-y divide-slate-200">
+                        {notices.map((notice) => (
+                          <li key={notice.id} className="block hover:bg-slate-50">
+                            <Link href={`/portal/notices/${notice.id}`} className="flex items-center px-4 py-4 sm:px-6">
+                              <div className="min-w-0 flex-1 flex items-center">
+                                <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-2 md:gap-4">
+                                  <div>
+                                    <p className="text-sm font-medium text-frage-blue truncate">{notice.title}</p>
+                                    <p className="mt-2 flex items-center text-sm text-slate-500">
+                                      <FileText className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
+                                      <span className="truncate">{new Date(notice.created_at).toLocaleDateString('ko-KR')}</span>
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              <div>
+                                <ChevronDown className="h-5 w-5 text-slate-400" aria-hidden="true" />
+                              </div>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-center py-8 text-slate-500 bg-white rounded-xl shadow">
+                        <p>등록된 공지사항이 없습니다.</p>
+                      </div>
+                    )
+                  }
+                </section>
+
                 {/* Monthly Reports Section */}
                 <section className="mb-8">
                   <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-900">월간 보고서</h2>
+                    <h2 className="text-xl font-bold text-slate-900">Monthly Report</h2>
                     <Link href="/portal/reports" className="text-sm text-frage-blue hover:underline">
                       모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
                     </Link>
@@ -1228,49 +1268,11 @@ export default function ParentPortalHome() {
                         <p className="text-sm text-slate-500">기한 내에 제출해주세요</p>
                       </div>
                     </div>
-                    <span className="text-2xl font-bold text-red-600">{studentProfile.pendingVideoCount || 0}개</span>
+
                   </div>
                 </section>
 
-                {/* Notices Section */}
-                <section className="mb-8">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-900">공지사항</h2>
-                    <Link href="/portal/notices" className="text-sm text-frage-blue hover:underline">
-                      모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
-                    </Link>
-                  </div>
-                  {
-                    notices.length > 0 ? (
-                      <ul className="bg-white rounded-xl shadow overflow-hidden divide-y divide-slate-200">
-                        {notices.map((notice) => (
-                          <li key={notice.id} className="block hover:bg-slate-50">
-                            <Link href={`/portal/notices/${notice.id}`} className="flex items-center px-4 py-4 sm:px-6">
-                              <div className="min-w-0 flex-1 flex items-center">
-                                <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-2 md:gap-4">
-                                  <div>
-                                    <p className="text-sm font-medium text-frage-blue truncate">{notice.title}</p>
-                                    <p className="mt-2 flex items-center text-sm text-slate-500">
-                                      <FileText className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
-                                      <span className="truncate">{new Date(notice.created_at).toLocaleDateString('ko-KR')}</span>
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                              <div>
-                                <ChevronDown className="h-5 w-5 text-slate-400" aria-hidden="true" />
-                              </div>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="text-center py-8 text-slate-500 bg-white rounded-xl shadow">
-                        <p>등록된 공지사항이 없습니다.</p>
-                      </div>
-                    )
-                  }
-                </section>
+
                    </div>
 
               {/* Right Column */}

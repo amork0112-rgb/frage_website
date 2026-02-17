@@ -70,20 +70,31 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   const startCamera = async () => {
     vlog("startCamera called.");
     try {
+      // Wait for videoRef.current to be available
+      await new Promise<void>(resolve => {
+        const checkRef = () => {
+          if (videoRef.current) {
+            resolve();
+          } else {
+            requestAnimationFrame(checkRef);
+          }
+        };
+        checkRef();
+      });
+
       vlog("Attempting to get user media...");
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: "user" }, 
         audio: true 
       });
       vlog("getUserMedia successful, stream obtained.");
-      if (videoRef.current) {
-        vlog("videoRef.current exists, assigning stream.");
-        videoRef.current.srcObject = stream;
-        setCameraActive(true);
-        vlog("Camera started, stream assigned.");
-      } else {
-        vwarn("videoRef.current is null, cannot assign stream.");
-      }
+      
+      // videoRef.current is guaranteed to exist here due to the Promise above
+      vlog("videoRef.current exists, assigning stream.");
+      videoRef.current!.srcObject = stream; // Use non-null assertion as it's guaranteed
+      setCameraActive(true);
+      vlog("Camera started, stream assigned.");
+      
     } catch (err) {
       verr("Error accessing camera:", err);
       alert("Camera access is required to record video.");
