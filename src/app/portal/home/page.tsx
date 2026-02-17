@@ -787,7 +787,7 @@ export default function ParentPortalHome() {
                           : "bg-white text-slate-700 border-slate-300 hover:border-frage-blue hover:text-frage-blue"
                       }`}
                     >
-                      <Car className="inline-block w-5 h-5 mr-2" /> 직접 픽업
+                      <Car className="inline-block w-5 h-5 mr-2" /> 자가 등원
                     </button>
                   </div>
                 </div>
@@ -813,6 +813,10 @@ export default function ParentPortalHome() {
                         검색
                       </button>
                     </div>
+                    <div
+                      id="pickupMap"
+                      className="w-full h-[320px] rounded-lg border mt-3"
+                    />
                     {onboardingPickupSelectedAddress && (
                       <p className="text-sm text-slate-600">
                         선택된 주소: {onboardingPickupSelectedAddress} (Lat: {onboardingPickupSelectedLat}, Lng: {onboardingPickupSelectedLng})
