@@ -239,6 +239,38 @@ export default function ParentPortalHome() {
       setOnboardingStep(parseInt(storedOnboardingStep) as 1 | 2 | 3 | 4 | 5);
       localStorage.removeItem("temp_onboarding_step");
     }
+
+    // Restore other onboarding states
+    const savedOnboardingAddress = localStorage.getItem("saved_onboarding_address");
+    const savedOnboardingDetailAddress = localStorage.getItem("saved_onboarding_detail_address");
+    const savedOnboardingPickupMethod = localStorage.getItem("saved_onboarding_pickup_method");
+    const savedOnboardingDropoffMethod = localStorage.getItem("saved_onboarding_dropoff_method");
+    const savedOnboardingStep = localStorage.getItem("saved_onboarding_step");
+
+    if (savedOnboardingAddress) {
+      setOnboardingAddress(savedOnboardingAddress);
+      localStorage.removeItem("saved_onboarding_address");
+    }
+    if (savedOnboardingDetailAddress) {
+      setOnboardingDetailAddress(savedOnboardingDetailAddress);
+      localStorage.removeItem("saved_onboarding_detail_address");
+    }
+    if (savedOnboardingPickupMethod) {
+      if (savedOnboardingPickupMethod === "bus" || savedOnboardingPickupMethod === "self") {
+        setOnboardingPickupMethod(savedOnboardingPickupMethod);
+      }
+      localStorage.removeItem("saved_onboarding_pickup_method");
+    }
+    if (savedOnboardingDropoffMethod) {
+      if (savedOnboardingDropoffMethod === "bus" || savedOnboardingDropoffMethod === "self") {
+        setOnboardingDropoffMethod(savedOnboardingDropoffMethod);
+      }
+      localStorage.removeItem("saved_onboarding_dropoff_method");
+    }
+    if (savedOnboardingStep) {
+      setOnboardingStep(parseInt(savedOnboardingStep) as 1 | 2 | 3 | 4 | 5);
+      localStorage.removeItem("saved_onboarding_step");
+    }
   }, [router]); // Depend on router to re-run when navigating back
 
 
@@ -618,10 +650,17 @@ export default function ParentPortalHome() {
                   {onboardingPickupMethod === "bus" && (
                     <div className="mt-4">
                       <button
-                        type="button"
-                        onClick={() => router.push("/portal/onboarding/pickup-map")}
-                        className="w-full px-4 py-3 rounded-lg bg-frage-blue text-lg font-bold text-white hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
-                      >
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem("saved_onboarding_step", String(onboardingStep));
+                      localStorage.setItem("saved_onboarding_address", onboardingAddress);
+                      localStorage.setItem("saved_onboarding_detail_address", onboardingDetailAddress);
+                      localStorage.setItem("saved_onboarding_pickup_method", onboardingPickupMethod);
+                      localStorage.setItem("saved_onboarding_dropoff_method", onboardingDropoffMethod);
+                      router.push("/portal/onboarding/pickup-map");
+                    }}
+                    className="w-full px-4 py-3 rounded-lg bg-frage-blue text-lg font-bold text-white hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                  >
                         <Bus className="w-5 h-5" />
                         <span>지도에서 승차 위치 선택</span>
                       </button>
@@ -679,10 +718,17 @@ export default function ParentPortalHome() {
                   {onboardingDropoffMethod === "bus" && (
                     <div className="mt-4">
                       <button
-                        type="button"
-                        onClick={() => router.push("/portal/onboarding/dropoff-map")}
-                        className="w-full px-4 py-3 rounded-lg bg-frage-blue text-lg font-bold text-white hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
-                      >
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem("saved_onboarding_step", String(onboardingStep));
+                      localStorage.setItem("saved_onboarding_address", onboardingAddress);
+                      localStorage.setItem("saved_onboarding_detail_address", onboardingDetailAddress);
+                      localStorage.setItem("saved_onboarding_pickup_method", onboardingPickupMethod);
+                      localStorage.setItem("saved_onboarding_dropoff_method", onboardingDropoffMethod);
+                      router.push("/portal/onboarding/dropoff-map");
+                    }}
+                    className="w-full px-4 py-3 rounded-lg bg-frage-blue text-lg font-bold text-white hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                  >
                         <Bus className="w-5 h-5" />
                         <span>지도에서 하원 위치 선택</span>
                       </button>
