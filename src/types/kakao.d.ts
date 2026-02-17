@@ -79,10 +79,11 @@ declare namespace kakao {
         y: string; // latitude
       }
 
-      type Status =
-        | "OK"
-        | "ZERO_RESULT"
-        | "ERROR";
+      const enum Status {
+        OK = "OK",
+        ZERO_RESULT = "ZERO_RESULT",
+        ERROR = "ERROR",
+      }
 
       interface Pagination {
         nextPage(): void;

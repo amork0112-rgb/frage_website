@@ -1,6 +1,3 @@
-//app/portal/home/page.tsx
-"use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -339,7 +336,7 @@ export default function ParentPortalHome() {
 
     const ps = new window.kakao.maps.services.Places();
     ps.keywordSearch(onboardingPickupAddressSearch, (data: kakao.maps.services.PlaceResult[], status: kakao.maps.services.Status) => {
-      if (status === (window.kakao.maps.services as any).Status.OK) {
+      if (status === window.kakao.maps.services.Status.OK) {
         const firstPlace = data[0];
         const newLat = parseFloat(firstPlace.y);
         const newLng = parseFloat(firstPlace.x);
@@ -364,7 +361,7 @@ export default function ParentPortalHome() {
 
     const ps = new window.kakao.maps.services.Places();
     ps.keywordSearch(onboardingDropoffAddressSearch, (data: kakao.maps.services.PlaceResult[], status: kakao.maps.services.Status) => {
-      if (status === (window.kakao.maps.services as any).Status.OK) {
+      if (status === window.kakao.maps.services.Status.OK) {
         const firstPlace = data[0];
         const newLat = parseFloat(firstPlace.y);
         const newLng = parseFloat(firstPlace.x);
@@ -547,328 +544,408 @@ export default function ParentPortalHome() {
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  원활한 학습 안내를 위해{" "}
-                  <br className="hidden sm:block" />
-                  처음 한 번만 정보를 확인해 주세요.
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  입력하신 정보는 언제든지 수정할 수 있습니다.
+                <p className="text-sm font-bold text-slate-800">
+                  학생 정보가 부족합니다.
+                </p>
+                <p className="text-xs text-slate-600">
+                  계속하려면 추가 정보를 입력해주세요.
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-[11px] font-bold">
-                  {onboardingStep}
-                </span>
-                <span className="font-bold">
-                  {onboardingStep === 1
-                    ? "Step 1. 보호자 계정 연결"
-                    : onboardingStep === 2
-                    ? "Step 2. 주소 입력"
-                    : onboardingStep === 3
-                    ? "Step 3. 등원 방식"
-                    : onboardingStep === 4
-                    ? "Step 4. 하원 방식"
-                    : "Step 5. 완료"}
-                </span>
-              </div>
-              <span className="font-bold">
-                {onboardingStep}/5
-              </span>
+            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+              <div
+                className="bg-frage-blue h-2.5 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${(onboardingStep / 5) * 100}%` }}
+              ></div>
             </div>
+            <p className="text-right text-sm font-medium text-slate-600 mt-1">
+              {onboardingStep} / 5
+            </p>
           </div>
 
+          {onboardingSaving && (
+            <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-2xl z-10">
+              <div className="flex items-center text-frage-blue font-bold text-lg">
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-frage-blue"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                저장 중...
+              </div>
+            </div>
+          )}
+
           {onboardingError && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+            <div
+              className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50"
+              role="alert"
+            >
               {onboardingError}
             </div>
           )}
 
-          {/* Step 1: Account Connection */}
+          {/* Step 1: Basic Info Confirmation (Read-only) */}
           {onboardingStep === 1 && (
-            <div className="space-y-4">
-              <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">
-                  1
+            <>
+              <h3 className="text-xl font-bold text-slate-900 mb-4">
+                1단계: 기본 정보 확인
+              </h3>
+              <div className="space-y-3 mb-6">
+                <div>
+                  <p className="text-sm text-slate-500">학생 이름</p>
+                  <p className="text-lg font-bold text-slate-900">
+                    {studentProfile.name} ({studentProfile.englishName})
+                  </p>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-900">
-                    현재 로그인한 계정을 자녀 정보와 연결합니다.
+                  <p className="text-sm text-slate-500">반 이름</p>
+                  <p className="text-lg font-bold text-slate-900">
+                    {studentProfile.className}
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    계정 연결 중입니다. 다음 버튼을 눌러 계속 진행해 주세요.
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">캠퍼스</p>
+                  <p className="text-lg font-bold text-slate-900">
+                    {studentProfile.campus}
                   </p>
                 </div>
               </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setOnboardingStep(2)}
-                  className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
-                >
-                  다음
-                </button>
-              </div>
-            </div>
+              <button
+                type="button"
+                onClick={() => setOnboardingStep(2)}
+                className="w-full px-6 py-3 rounded-lg bg-frage-blue text-white font-bold hover:bg-blue-700 transition-colors"
+              >
+                다음
+              </button>
+            </>
           )}
 
           {/* Step 2: Address Input */}
           {onboardingStep === 2 && (
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="address" className="block text-sm font-bold text-slate-700 mb-2">
-                  자녀의 주소를 입력해 주세요.
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    id="address"
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
-                    value={onboardingAddress}
-                    readOnly
-                    placeholder="주소 검색"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddressSearch}
-                    className="px-4 py-2 rounded-lg bg-slate-100 text-sm font-bold text-slate-600 hover:bg-slate-200 whitespace-nowrap"
+            <>
+              <h3 className="text-xl font-bold text-slate-900 mb-4">
+                2단계: 주소 입력
+              </h3>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label
+                    htmlFor="onboardingAddress"
+                    className="block text-sm font-medium text-slate-700 mb-2"
                   >
-                    주소 검색
-                  </button>
+                    주소
+                  </label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      id="onboardingAddress"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
+                      value={onboardingAddress}
+                      readOnly
+                      placeholder="주소 검색 버튼을 눌러주세요."
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddressSearch}
+                      className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
+                    >
+                      주소 검색
+                    </button>
+                  </div>
                 </div>
-                {onboardingAddress && (
+                <div>
+                  <label
+                    htmlFor="onboardingDetailAddress"
+                    className="block text-sm font-medium text-slate-700 mb-2"
+                  >
+                    상세 주소
+                  </label>
                   <input
                     type="text"
-                    id="detailAddress"
-                    className="mt-2 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
+                    id="onboardingDetailAddress"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
                     value={onboardingDetailAddress}
                     onChange={(e) => setOnboardingDetailAddress(e.target.value)}
-                    placeholder="상세 주소 입력 (예: 101동 101호)"
+                    placeholder="상세 주소를 입력해주세요."
                   />
-                )}
+                </div>
               </div>
-              <div className="flex justify-between gap-2 pt-2">
+              <div className="flex justify-between">
                 <button
                   type="button"
                   onClick={() => setOnboardingStep(1)}
-                  className="px-4 py-2 rounded-lg bg-slate-100 text-sm font-bold text-slate-600 hover:bg-slate-200"
+                  className="px-6 py-3 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-colors"
                 >
                   이전
                 </button>
                 <button
                   type="button"
-                  disabled={!onboardingAddress || !onboardingDetailAddress}
                   onClick={() => setOnboardingStep(3)}
-                  className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
+                  disabled={!onboardingAddress || !onboardingDetailAddress}
+                  className="px-6 py-3 rounded-lg bg-frage-blue text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-40"
                 >
                   다음
                 </button>
               </div>
-            </div>
+            </>
           )}
 
           {/* Step 3: Pickup Method */}
           {onboardingStep === 3 && (
-            <div className="space-y-4">
-              <p className="text-sm font-bold text-slate-700 mb-2">
-                자녀의 등원 방식을 선택해 주세요.
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setOnboardingPickupMethod("bus")}
-                  className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                    onboardingPickupMethod === "bus"
-                      ? "border-frage-blue bg-blue-50 text-frage-blue"
-                      : "border-slate-100 bg-white text-slate-400"
-                  }`}
-                >
-                  <Bus className="w-6 h-6" />
-                  <span className="text-sm font-bold">학원 차량</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOnboardingPickupMethod("self")}
-                  className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                    onboardingPickupMethod === "self"
-                      ? "border-frage-blue bg-blue-50 text-frage-blue"
-                      : "border-slate-100 bg-white text-slate-400"
-                  }`}
-                >
-                  <Car className="w-6 h-6" />
-                  <span className="text-sm font-bold">직접 등원</span>
-                </button>
-              </div>
-
-              {onboardingPickupMethod === "bus" && (
-                <div className="space-y-2 pt-2">
-                  <p className="text-sm font-bold text-slate-700 mb-2">
-                    📍 지도에서 승차 위치를 선택해주세요
-                  </p>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
-                      placeholder="주소 검색"
-                      value={onboardingPickupAddressSearch}
-                      onChange={(e) => setOnboardingPickupAddressSearch(e.target.value)}
-                    />
+            <>
+              <h3 className="text-xl font-bold text-slate-900 mb-4">
+                3단계: 등원 방식 선택
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    등원 방식을 선택해주세요
+                  </label>
+                  <div className="flex space-x-4">
                     <button
                       type="button"
-                      onClick={() => { /* Implement search functionality here */ }}
-                      className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
+                      onClick={() => setOnboardingPickupMethod("bus")}
+                      className={`flex-1 px-4 py-3 rounded-lg border text-sm font-bold transition-colors ${
+                        onboardingPickupMethod === "bus"
+                          ? "bg-frage-blue text-white border-frage-blue"
+                          : "bg-white text-slate-700 border-slate-300 hover:border-frage-blue hover:text-frage-blue"
+                      }`}
                     >
-                      검색
+                      <Bus className="inline-block w-5 h-5 mr-2" /> 학원차량
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOnboardingPickupMethod("self")}
+                      className={`flex-1 px-4 py-3 rounded-lg border text-sm font-bold transition-colors ${
+                        onboardingPickupMethod === "self"
+                          ? "bg-frage-blue text-white border-frage-blue"
+                          : "bg-white text-slate-700 border-slate-300 hover:border-frage-blue hover:text-frage-blue"
+                      }`}
+                    >
+                      <Car className="inline-block w-5 h-5 mr-2" /> 직접 픽업
                     </button>
                   </div>
-                  {onboardingPickupSelectedAddress && (
-                    <p className="text-sm text-slate-600">
-                      선택된 주소: {onboardingPickupSelectedAddress} (Lat: {onboardingPickupSelectedLat}, Lng: {onboardingPickupSelectedLng})
-                    </p>
-                  )}
-                  <div id="pickupMap" className="w-full h-64 rounded-lg"></div>
-                  <button
-                    type="button"
-                    onClick={() => { /* Implement "여기에서 승차하기" logic here */ }}
-                    disabled={!onboardingPickupSelectedLat || !onboardingPickupSelectedLng}
-                    className="w-full px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
-                  >
-                    여기에서 승차하기
-                  </button>
                 </div>
-              )}
 
-              <div className="flex justify-between gap-2 pt-2">
+                {onboardingPickupMethod === "bus" && (
+                  <div className="space-y-2 pt-2">
+                    <p className="text-sm font-bold text-slate-700 mb-2">
+                      📍 지도에서 승차 위치를 선택해주세요
+                    </p>
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
+                        placeholder="주소 검색"
+                        value={onboardingPickupAddressSearch}
+                        onChange={(e) => setOnboardingPickupAddressSearch(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={handlePickupSearch}
+                        className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
+                      >
+                        검색
+                      </button>
+                    </div>
+                    {onboardingPickupSelectedAddress && (
+                      <p className="text-sm text-slate-600">
+                        선택된 주소: {onboardingPickupSelectedAddress} (Lat: {onboardingPickupSelectedLat}, Lng: {onboardingPickupSelectedLng})
+                      </p>
+                    )}
+                    <div id="pickupMap" className="w-full h-64 rounded-lg"></div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (pickupMarker) {
+                          const position = pickupMarker.getPosition();
+                          setOnboardingPickupSelectedLat(position.getLat().toString());
+                          setOnboardingPickupSelectedLng(position.getLng().toString());
+                        }
+                      }}
+                      disabled={!onboardingPickupSelectedLat || !onboardingPickupSelectedLng}
+                      className="w-full px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
+                    >
+                      여기에서 승차하기
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-between mt-6">
                 <button
                   type="button"
                   onClick={() => setOnboardingStep(2)}
-                  className="px-4 py-2 rounded-lg bg-slate-100 text-sm font-bold text-slate-600 hover:bg-slate-200"
+                  className="px-6 py-3 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-colors"
                 >
                   이전
                 </button>
                 <button
                   type="button"
+                  onClick={() => setOnboardingStep(4)}
                   disabled={
                     !onboardingPickupMethod ||
                     (onboardingPickupMethod === "bus" && (!onboardingPickupSelectedLat || !onboardingPickupSelectedLng))
                   }
-                  onClick={() => setOnboardingStep(4)}
-                  className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
+                  className="px-6 py-3 rounded-lg bg-frage-blue text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-40"
                 >
                   다음
                 </button>
               </div>
-            </div>
+            </>
           )}
 
           {/* Step 4: Dropoff Method */}
           {onboardingStep === 4 && (
-            <div className="space-y-4">
-              <p className="text-sm font-bold text-slate-700 mb-2">
-                자녀의 하원 방식을 선택해 주세요.
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setOnboardingDropoffMethod("bus")}
-                  className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                    onboardingDropoffMethod === "bus"
-                      ? "border-frage-blue bg-blue-50 text-frage-blue"
-                      : "border-slate-100 bg-white text-slate-400"
-                  }`}
-                >
-                  <Bus className="w-6 h-6" />
-                  <span className="text-sm font-bold">학원 차량</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOnboardingDropoffMethod("self")}
-                  className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                    onboardingDropoffMethod === "self"
-                      ? "border-frage-blue bg-blue-50 text-frage-blue"
-                      : "border-slate-100 bg-white text-slate-400"
-                  }`}
-                >
-                  <Car className="w-6 h-6" />
-                  <span className="text-sm font-bold">직접 하원</span>
-                </button>
-              </div>
-
-              {onboardingDropoffMethod === "bus" && (
-                <div className="space-y-2 pt-2">
-                  <p className="text-sm font-bold text-slate-700 mb-2">
-                    📍 지도에서 하차 위치를 선택해주세요
-                  </p>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
-                      placeholder="주소 검색"
-                      value={onboardingDropoffAddressSearch}
-                      onChange={(e) => setOnboardingDropoffAddressSearch(e.target.value)}
-                    />
+            <>
+              <h3 className="text-xl font-bold text-slate-900 mb-4">
+                4단계: 하원 방식 선택
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    하원 방식을 선택해주세요
+                  </label>
+                  <div className="flex space-x-4">
                     <button
                       type="button"
-                      onClick={() => { /* Implement search functionality here */ }}
-                      className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
+                      onClick={() => setOnboardingDropoffMethod("bus")}
+                      className={`flex-1 px-4 py-3 rounded-lg border text-sm font-bold transition-colors ${
+                        onboardingDropoffMethod === "bus"
+                          ? "bg-frage-blue text-white border-frage-blue"
+                          : "bg-white text-slate-700 border-slate-300 hover:border-frage-blue hover:text-frage-blue"
+                      }`}
                     >
-                      검색
+                      <Bus className="inline-block w-5 h-5 mr-2" /> 학원차량
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOnboardingDropoffMethod("self")}
+                      className={`flex-1 px-4 py-3 rounded-lg border text-sm font-bold transition-colors ${
+                        onboardingDropoffMethod === "self"
+                          ? "bg-frage-blue text-white border-frage-blue"
+                          : "bg-white text-slate-700 border-slate-300 hover:border-frage-blue hover:text-frage-blue"
+                      }`}
+                    >
+                      <Car className="inline-block w-5 h-5 mr-2" /> 직접 픽업
                     </button>
                   </div>
-                  {onboardingDropoffSelectedAddress && (
-                    <p className="text-sm text-slate-600">
-                      선택된 주소: {onboardingDropoffSelectedAddress} (Lat: {onboardingDropoffSelectedLat}, Lng: {onboardingDropoffSelectedLng})
-                    </p>
-                  )}
-                  <div id="dropoffMap" className="w-full h-64 rounded-lg"></div>
-                  <button
-                    type="button"
-                    onClick={() => { /* Implement "여기에서 하차하기" logic here */ }}
-                    disabled={!onboardingDropoffSelectedLat || !onboardingDropoffSelectedLng}
-                    className="w-full px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
-                  >
-                    여기에서 하차하기
-                  </button>
                 </div>
-              )}
 
-              <div className="flex justify-between gap-2 pt-2">
+                {onboardingDropoffMethod === "bus" && (
+                  <div className="space-y-2 pt-2">
+                    <p className="text-sm font-bold text-slate-700 mb-2">
+                      📍 지도에서 하원 위치를 선택해주세요
+                    </p>
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
+                        placeholder="주소 검색"
+                        value={onboardingDropoffAddressSearch}
+                        onChange={(e) => setOnboardingDropoffAddressSearch(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleDropoffSearch}
+                        className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
+                      >
+                        검색
+                      </button>
+                    </div>
+                    {onboardingDropoffSelectedAddress && (
+                      <p className="text-sm text-slate-600">
+                        선택된 주소: {onboardingDropoffSelectedAddress} (Lat: {onboardingDropoffSelectedLat}, Lng: {onboardingDropoffSelectedLng})
+                      </p>
+                    )}
+                    <div id="dropoffMap" className="w-full h-64 rounded-lg"></div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (dropoffMarker) {
+                          const position = dropoffMarker.getPosition();
+                          setOnboardingDropoffSelectedLat(position.getLat().toString());
+                          setOnboardingDropoffSelectedLng(position.getLng().toString());
+                        }
+                      }}
+                      disabled={!onboardingDropoffSelectedLat || !onboardingDropoffSelectedLng}
+                      className="w-full px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
+                    >
+                      여기에서 하원하기
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-between mt-6">
                 <button
                   type="button"
                   onClick={() => setOnboardingStep(3)}
-                  className="px-4 py-2 rounded-lg bg-slate-100 text-sm font-bold text-slate-600 hover:bg-slate-200"
+                  className="px-6 py-3 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-colors"
                 >
                   이전
                 </button>
                 <button
                   type="button"
+                  onClick={() => setOnboardingStep(5)}
                   disabled={
                     !onboardingDropoffMethod ||
                     (onboardingDropoffMethod === "bus" && (!onboardingDropoffSelectedLat || !onboardingDropoffSelectedLng))
                   }
-                  onClick={() => setOnboardingStep(5)}
-                  className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
+                  className="px-6 py-3 rounded-lg bg-frage-blue text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-40"
                 >
                   다음
                 </button>
               </div>
-            </div>
+            </>
           )}
 
-          {/* Step 5: Completion */}
+          {/* Step 5: Final Review and Submit */}
           {onboardingStep === 5 && (
-            <div className="space-y-4 text-center">
-              <Sparkles className="w-12 h-12 text-green-500 mx-auto" />
-              <p className="text-lg font-bold text-slate-900">정보 확인 완료!</p>
-              <p className="text-sm text-slate-600">모든 정보를 성공적으로 입력했습니다.</p>
-              <p className="text-sm text-slate-600">프라게와 함께 즐거운 학습을 시작하세요!</p>
-              <div className="flex justify-center gap-2 pt-2">
+            <>
+              <h3 className="text-xl font-bold text-slate-900 mb-4">
+                5단계: 최종 확인 및 제출
+              </h3>
+              <div className="space-y-3 mb-6 text-sm text-slate-700">
+                <p>
+                  <span className="font-bold">학생 이름:</span> {studentProfile.name}
+                </p>
+                <p>
+                  <span className="font-bold">주소:</span> {onboardingAddress} {onboardingDetailAddress}
+                </p>
+                <p>
+                  <span className="font-bold">등원 방식:</span> {
+                    onboardingPickupMethod === "bus"
+                      ? `학원차량 (Lat: ${onboardingPickupSelectedLat}, Lng: ${onboardingPickupSelectedLng})`
+                      : "직접 픽업"
+                  }
+                </p>
+                <p>
+                  <span className="font-bold">하원 방식:</span> {
+                    onboardingDropoffMethod === "bus"
+                      ? `학원차량 (Lat: ${onboardingDropoffSelectedLat}, Lng: ${onboardingDropoffSelectedLng})`
+                      : "직접 픽업"
+                  }
+                </p>
+              </div>
+              <div className="flex justify-between">
                 <button
                   type="button"
                   onClick={() => setOnboardingStep(4)}
-                  className="px-4 py-2 rounded-lg bg-slate-100 text-sm font-bold text-slate-600 hover:bg-slate-200"
+                  className="px-6 py-3 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-colors"
                 >
                   이전
                 </button>
@@ -876,27 +953,12 @@ export default function ParentPortalHome() {
                   type="button"
                   onClick={handleOnboardingSubmit}
                   disabled={onboardingSaving}
-                  className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
+                  className="px-6 py-3 rounded-lg bg-green-500 text-white font-bold hover:bg-green-600 transition-colors disabled:opacity-40"
                 >
-                  {onboardingSaving ? "저장 중..." : "프라게 시작하기"}
+                  제출하기
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* FAQ Section, only shown when onboarding is needed */}
-          {needOnboarding && (
-            <details className="mt-4 text-sm text-gray-500 border-t border-slate-100 pt-4">
-              <summary className="cursor-pointer font-medium select-none flex items-center gap-2 text-slate-600">
-                <HelpCircle className="w-4 h-4" />
-                자주 묻는 질문
-              </summary>
-              <ul className="mt-2 space-y-1 text-xs text-slate-500 pl-6 list-disc">
-                <li>아이디/비밀번호를 등록해주세요</li>
-                <li>재원생의 경우 회원가입 없이 휴대폰 인증만 합니다.</li>
-                <li>차량·학습 안내를 위한 정보로 처음 한 번만 입력합니다.</li>
-              </ul>
-            </details>
+            </>
           )}
         </div>
       </div>
@@ -904,256 +966,225 @@ export default function ParentPortalHome() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
-      <PortalHeader />
+    <div className="min-h-screen bg-slate-50">
+      <PortalHeader studentName={studentProfile.name} />
+      <main className="container mx-auto px-4 py-8 max-w-2xl">
+        <h1 className="text-2xl font-bold text-slate-900 mb-6">학부모 포털</h1>
 
-      {renderOnboardingModal()}
+        {studentStatus === "pending_onboarding" && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-lg">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-yellow-400" aria-hidden="true" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-800">
+                  <span className="font-bold">환영합니다!</span> 학생 정보 등록을 완료해주세요.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
-      <main className="px-4 md:px-6 py-6 max-w-6xl mx-auto space-y-8">
-        
-        {/* Top Section: Welcome & Quick Status */}
-        <section className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-           <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-1">
-                 <span className="text-frage-blue">{studentProfile?.name || "학생"}</span> 학부모님! 👋
-              </h1>
-              <p className="text-sm text-slate-500 font-medium">오늘도 즐거운 하루 보내세요.</p>
-           </div>
-        </section>
+        {studentStatus === "pending_approval" && (
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 rounded-lg">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Sparkles className="h-5 w-5 text-blue-400" aria-hidden="true" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-blue-800">
+                  <span className="font-bold">거의 다 됐어요!</span> 관리자 승인을 기다리고 있습니다.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column (Main Content) */}
-          <div className="lg:col-span-2 space-y-8">
-            
-            {studentStatus === "applicant" && (
-              <section className="bg-orange-50 rounded-3xl p-6 border border-orange-100">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-orange-600 shadow-sm">
-                    <Calendar className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">입학 절차 진행 중</h2>
-                    <p className="text-sm text-slate-600 mt-0.5">현재 입학 상담 및 테스트 단계입니다.</p>
-                  </div>
-                </div>
-                <div className="bg-white/60 rounded-2xl p-4 text-sm text-slate-600">
-                  <p>학원 방문 및 상담이 완료되면 정규반 배정 후 전체 메뉴를 이용하실 수 있습니다.</p>
-                </div>
-              </section>
-            )}
-
-            {/* Today's Dajim Report Card */}
-            {studentStatus === "enrolled" && studentProfile?.latestReport && (
-              <section 
-                onClick={() => markReportAsRead(studentProfile.latestReport!.id)}
-                className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 cursor-pointer active:scale-[0.98] transition-all"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-slate-900">✨ 오늘의 다짐 리포트</h2>
-                    {!readReportIds.includes(studentProfile.latestReport.id) && (
-                      <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold animate-pulse">
-                        NEW
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs text-slate-400 font-medium">
-                    {new Date(studentProfile.latestReport.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                  </span>
-                </div>
-                
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-2 text-base font-bold text-slate-800">
-                    <span>금일 다짐활동</span>
-                    {studentProfile.latestReport.rate === 100 ? (
-                      <span className="text-green-600">All completed 💚</span>
-                    ) : (
-                      <span className="text-orange-500">{studentProfile.latestReport.rate}% 완료</span>
-                    )}
-                  </div>
-                  
-                  {/* Word Test Info - Mock or Extract from message */}
-                  <div className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg inline-block">
-                    Word Test 1/8 예정
-                  </div>
-                </div>
-
-                <Link 
-                  href={`/portal/daily/${studentProfile.latestReport.id}`}
-                  className="flex items-center justify-center w-full py-3 bg-slate-50 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  [전체 브리핑 보기]
-                </Link>
-              </section>
-            )}
-
-            {/* Video Homework Reminder */}
-            {studentStatus === "enrolled" && (studentProfile?.pendingVideoCount || 0) > 0 && (
-              <Link href="/portal/video">
-                <section className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-4 text-white shadow-lg shadow-blue-200 flex items-center justify-between group hover:scale-[1.01] transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
-                      <Video className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-base">비디오 과제가 기다리고 있어요! 🎥</h3>
-                      <p className="text-blue-100 text-xs mt-0.5">
-                        {studentProfile?.name} 학생이 제출해야 할 과제가 {studentProfile?.pendingVideoCount}건 있습니다.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                    <ArrowRight className="w-5 h-5" />
-                  </div>
-                </section>
-              </Link>
-            )}
-
-            {/* 2. Notices Grid */}
+        {studentStatus === "enrolled" && (
+          <div className="space-y-8">
+            {/* Notifications Section */}
             <section>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-frage-orange" />
-                  공지사항
-                </h2>
-                <Link href="/portal/notices" className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors">
-                  더보기
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-slate-900">새로운 알림</h2>
+                <Link href="/portal/notifications" className="text-sm text-frage-blue hover:underline">
+                  모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
                 </Link>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {notices.map((notice) => (
-                  <Link key={notice.id} href={`/portal/notices/${notice.id}`}>
-                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all h-full flex flex-col justify-between group">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600`}>
-                            공지
-                          </span>
-                        </div>
-                        <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-frage-blue transition-colors">
-                          {notice.title}
-                        </h3>
-                      </div>
-                      <p className="text-xs text-slate-400 mt-3 pt-3 border-t border-slate-50 flex justify-between items-center">
-                        <span>{new Date(notice.created_at).toLocaleDateString()}</span>
-                        <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300" />
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-                {notices.length === 0 && (
-                  <div className="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200">
-                    <p className="text-sm text-slate-400">등록된 공지사항이 없습니다.</p>
+              {
+                notifications.length > 0 ? (
+                  <ul className="bg-white rounded-xl shadow overflow-hidden divide-y divide-slate-200">
+                    {notifications.slice(0, 3).map((notification) => (
+                      <li key={notification.id} className="block hover:bg-slate-50">
+                        <Link href={`/portal/notifications/${notification.id}`} className="flex items-center px-4 py-4 sm:px-6">
+                          <div className="min-w-0 flex-1 flex items-center">
+                            <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-2 md:gap-4">
+                              <div>
+                                <p className="text-sm font-medium text-frage-blue truncate">{notification.title}</p>
+                                <p className="mt-2 flex items-center text-sm text-slate-500">
+                                  <MessageSquare className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
+                                  <span className="truncate">{notification.message}</span>
+                                </p>
+                              </div>
+                              <div className="hidden md:block">
+                                <div>
+                                  <p className="text-sm text-slate-900">
+                                    {notification.createdAt ? new Date(notification.createdAt).toLocaleDateString('ko-KR') : '날짜 없음'}
+                                  </p>
+                                  {/* <p className="mt-2 flex items-center text-sm text-slate-500">
+                                    <CheckCircleIcon className="flex-shrink-0 mr-1.5 h-5 w-5 text-green-400" />
+                                    {notification.isRead ? '읽음' : '안 읽음'}
+                                  </p> */}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <ChevronDown className="h-5 w-5 text-slate-400" aria-hidden="true" />
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-center py-8 text-slate-500 bg-white rounded-xl shadow">
+                    <p>새로운 알림이 없습니다.</p>
                   </div>
-                )}
+                )
+              }
+            </section>
+
+            {/* Monthly Reports Section */}
+            <section>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-slate-900">월간 보고서</h2>
+                <Link href="/portal/reports" className="text-sm text-frage-blue hover:underline">
+                  모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
+                </Link>
+              </div>
+              {
+                monthlyReports.length > 0 ? (
+                  <ul className="bg-white rounded-xl shadow overflow-hidden divide-y divide-slate-200">
+                    {monthlyReports.slice(0, 3).map((report) => (
+                      <li key={report.id} className="block hover:bg-slate-50">
+                        <Link href={`/portal/reports/${report.id}`} className="flex items-center px-4 py-4 sm:px-6">
+                          <div className="min-w-0 flex-1 flex items-center">
+                            <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-2 md:gap-4">
+                              <div>
+                                <p className="text-sm font-medium text-frage-blue truncate">{report.title}</p>
+                                <p className="mt-2 flex items-center text-sm text-slate-500">
+                                  <FileText className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
+                                  <span className="truncate">{report.date}</span>
+                                </p>
+                              </div>
+                              <div className="hidden md:block">
+                                <div>
+                                  <p className="text-sm text-slate-900">{report.status === 'published' ? '게시됨' : '초안'}</p>
+                                  <p className="mt-2 flex items-center text-sm text-slate-500">
+                                    <Calendar className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
+                                    {report.target_month}월
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <ChevronDown className="h-5 w-5 text-slate-400" aria-hidden="true" />
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-center py-8 text-slate-500 bg-white rounded-xl shadow">
+                    <p>아직 작성된 월간 보고서가 없습니다.</p>
+                  </div>
+                )
+              }
+            </section>
+
+            {/* Video Homework Section */}
+            <section>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-slate-900">영상 숙제</h2>
+                <Link href="/portal/video" className="text-sm text-frage-blue hover:underline">
+                  모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
+                </Link>
+              </div>
+              <div className="bg-white rounded-xl shadow p-6 flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <Video className="w-8 h-8 text-frage-blue" />
+                  <div>
+                    <p className="text-lg font-bold text-slate-900">미제출 영상 숙제</p>
+                    <p className="text-sm text-slate-500">기한 내에 제출해주세요</p>
+                  </div>
+                </div>
+                <span className="text-2xl font-bold text-red-600">{studentProfile.pendingVideoCount || 0}개</span>
               </div>
             </section>
 
-            {/* 2. Monthly Report Card */}
-            {studentStatus === "enrolled" && (
-              <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-all">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-50 to-white rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
-                
-                <div className="relative">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-frage-navy" />
-                        월간 리포트
-                      </h2>
-                      <p className="text-sm text-slate-500 mt-1">이번 달 학습 성취도를 확인하세요.</p>
-                    </div>
-                    <Link href="/portal/report" className="text-xs font-bold text-frage-blue bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors">
-                      전체보기
-                    </Link>
-                  </div>
-
-                  <div className="space-y-3">
-                    {monthlyReports.length > 0 ? (
-                      monthlyReports.slice(0, 2).map((report) => (
-                        <Link key={report.id} href="/portal/report" className="block">
-                          <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between hover:bg-slate-100 transition-colors border border-slate-100">
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-frage-navy shadow-sm border border-slate-100">
-                                <span className="text-lg font-black">{new Date(report.target_month).getMonth() + 1}</span>
-                                <span className="text-[10px] font-bold text-slate-400 ml-0.5">월</span>
-                              </div>
+            {/* Notices Section */}
+            <section>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-slate-900">공지사항</h2>
+                <Link href="/portal/notices" className="text-sm text-frage-blue hover:underline">
+                  모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
+                </Link>
+              </div>
+              {
+                notices.length > 0 ? (
+                  <ul className="bg-white rounded-xl shadow overflow-hidden divide-y divide-slate-200">
+                    {notices.map((notice) => (
+                      <li key={notice.id} className="block hover:bg-slate-50">
+                        <Link href={`/portal/notices/${notice.id}`} className="flex items-center px-4 py-4 sm:px-6">
+                          <div className="min-w-0 flex-1 flex items-center">
+                            <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-2 md:gap-4">
                               <div>
-                                <h3 className="font-bold text-slate-900">{report.title}</h3>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                  {new Date(report.published_at).toLocaleDateString("ko-KR")}
+                                <p className="text-sm font-medium text-frage-blue truncate">{notice.title}</p>
+                                <p className="mt-2 flex items-center text-sm text-slate-500">
+                                  <FileText className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
+                                  <span className="truncate">{new Date(notice.created_at).toLocaleDateString('ko-KR')}</span>
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`text-xs font-bold px-2 py-1 rounded-full ${
-                                  report.status === "published"
-                                    ? "bg-frage-blue/10 text-frage-blue"
-                                    : "bg-slate-100 text-slate-500"
-                                }`}
-                              >
-                                {report.status === "published" ? "발행됨" : "예정"}
-                              </span>
-                              <ChevronDown className="w-4 h-4 text-slate-400 -rotate-90" />
-                            </div>
+                          </div>
+                          <div>
+                            <ChevronDown className="h-5 w-5 text-slate-400" aria-hidden="true" />
                           </div>
                         </Link>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                        <p className="text-sm text-slate-400">등록된 월간 리포트가 없습니다.</p>
-                      </div>
-                    )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-center py-8 text-slate-500 bg-white rounded-xl shadow">
+                    <p>등록된 공지사항이 없습니다.</p>
                   </div>
-                </div>
-              </section>
-            )}
-
-          </div>
-
-          {/* Right Column (Quick Links) */}
-          <div className="lg:col-span-1 space-y-6">
-            
-            {/* Quick Links */}
-            <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-              <h2 className="text-lg font-bold text-slate-900 mb-4">바로가기</h2>
-              <div className="grid grid-cols-2 gap-3">
-                <Link href="/portal/video" className="flex flex-col items-center p-4 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
-                  <Video className="w-6 h-6 mb-2" />
-                  <span className="text-sm font-bold">비디오 숙제</span>
-                </Link>
-                <Link href="/portal/reports" className="flex flex-col items-center p-4 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors">
-                  <FileText className="w-6 h-6 mb-2" />
-                  <span className="text-sm font-bold">월간 리포트</span>
-                </Link>
-                <Link href="/portal/profile" className="flex flex-col items-center p-4 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
-                  <User className="w-6 h-6 mb-2" />
-                  <span className="text-sm font-bold">내 정보</span>
-                </Link>
-                <button onClick={handleContact} className="flex flex-col items-center p-4 rounded-xl bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors">
-                  <MessageSquare className="w-6 h-6 mb-2" />
-                  <span className="text-sm font-bold">문의하기</span>
-                </button>
-              </div>
+                )
+              }
             </section>
 
-            {/* Campus Info */}
-            {studentStatus === "enrolled" && (
-              <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-                <h2 className="text-lg font-bold text-slate-900 mb-4">캠퍼스 정보</h2>
-                <div className="space-y-3 text-sm text-slate-700">
-                  <p className="flex items-center gap-2"><User className="w-4 h-4" /> <span>{studentProfile?.campus || "본원"}</span></p>
-                  <p className="flex items-center gap-2"><Phone className="w-4 h-4" /> <span>02-1234-5678</span></p>
-                  <p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> <span>서울시 강남구 테헤란로 123</span></p>
-                </div>
-              </section>
-            )}
-
+            {/* Quick Links / Help Section */}
+            <section>
+              <h2 className="text-xl font-bold text-slate-900 mb-4">빠른 링크</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  onClick={handleContact}
+                  className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
+                >
+                  <HelpCircle className="w-5 h-5 mr-2" /> 카카오톡 상담
+                </button>
+                {/* <Link
+                  href="/portal/faq"
+                  className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
+                >
+                  <HelpCircleIcon className="w-5 h-5 mr-2" /> 자주 묻는 질문
+                </Link> */}
+              </div>
+            </section>
           </div>
-        </div>
+        )}
       </main>
+      {renderOnboardingModal()}
     </div>
   );
 }
