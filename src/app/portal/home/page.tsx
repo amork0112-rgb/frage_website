@@ -555,81 +555,74 @@ export default function ParentPortalHome() {
     );
   }
 
-  const renderOnboardingModal = () => {
-    if (!needOnboarding || !studentId) return null;
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="bg-white rounded-2xl shadow-lg w-full max-w-md h-[85vh] flex flex-col mx-4 relative">
-          {/* Header */}
-          <div className="p-4 pb-0">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-800">
-                  학생 정보가 부족합니다.
-                </p>
-                <p className="text-xs text-slate-600">
-                  계속하려면 추가 정보를 입력해주세요.
-                </p>
-              </div>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-              <div
-                className="bg-frage-blue h-2.5 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${(onboardingStep / 5) * 100}%` }}
-              ></div>
-            </div>
-            <p className="text-right text-sm font-medium text-slate-600 mt-1">
-              {onboardingStep} / 5
-            </p>
-          </div>
 
-          {/* Scrollable Content Area */}
-          <div className="flex-1 overflow-y-auto space-y-4 px-4 py-2">
-            {onboardingSaving && (
-              <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-2xl z-10">
-                <div className="flex items-center text-frage-blue font-bold text-lg">
-                  <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-frage-blue"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  저장 중...
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <PortalHeader />
+      <main className="container mx-auto px-4 py-8 max-w-2xl">
+        {needOnboarding ? (
+          <div className="bg-white rounded-2xl shadow-lg w-full max-w-md h-[85vh] flex flex-col mx-auto relative p-4">
+            {/* Header */}
+            <div className="pb-0">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800">
+                    학생 정보가 부족합니다.
+                  </p>
+                  <p className="text-xs text-slate-600">
+                    계속하려면 추가 정보를 입력해주세요.
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
 
-            {onboardingError && (
-              <div
-                className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50"
-                role="alert"
-              >
-                {onboardingError}
-              </div>
-            )}
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto space-y-4 px-4 py-2">
+              {onboardingSaving && (
+                <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-2xl z-10">
+                  <div className="flex items-center text-frage-blue font-bold text-lg">
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-frage-blue"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    저장 중...
+                  </div>
+                </div>
+              )}
 
-            {/* Step 1: Basic Info Confirmation (Read-only) */}
-            {onboardingStep === 1 && (
+              {onboardingError && (
+                <div
+                  className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50"
+                  role="alert"
+                >
+                  {onboardingError}
+                </div>
+              )}
+
+              {/* Basic Info Confirmation (Read-only) */}
               <>
                 <h3 className="text-xl font-bold text-slate-900 mb-4">
-                  1단계: 기본 정보 확인
+                  기본 정보 확인
                 </h3>
                 <div className="space-y-3 mb-6">
                   <div>
@@ -652,13 +645,11 @@ export default function ParentPortalHome() {
                   </div>
                 </div>
               </>
-            )}
 
-            {/* Step 2: Address Input */}
-            {onboardingStep === 2 && (
+              {/* Address Input */}
               <>
                 <h3 className="text-xl font-bold text-slate-900 mb-4">
-                  2단계: 주소 입력
+                  주소 입력
                 </h3>
                 <div className="space-y-4 mb-6">
                   <div>
@@ -704,13 +695,11 @@ export default function ParentPortalHome() {
                   </div>
                 </div>
               </>
-            )}
 
-            {/* Step 3: Pickup Method */}
-            {onboardingStep === 3 && (
+              {/* Pickup Method */}
               <>
                 <h3 className="text-xl font-bold text-slate-900 mb-4">
-                  3단계: 등원 방식 선택
+                  등원 방식 선택
                 </h3>
                 <div className="space-y-4">
                   <div>
@@ -748,7 +737,7 @@ export default function ParentPortalHome() {
                       <button
                     type="button"
                     onClick={() => {
-                        // ⭐ 현재 Step 저장
+                        // ⭐ 현재 Step 저장 (이제는 필요 없지만, 지도 복귀 시 로직을 위해 유지)
                         localStorage.setItem("saved_onboarding_step", "3");
 
                         // ⭐ 주소 저장
@@ -785,13 +774,11 @@ export default function ParentPortalHome() {
                   )}
                 </div>
               </>
-            )}
 
-            {/* Step 4: Dropoff Method */}
-            {onboardingStep === 4 && (
+              {/* Dropoff Method */}
               <>
                 <h3 className="text-xl font-bold text-slate-900 mb-4">
-                  4단계: 하원 방식 선택
+                  하원 방식 선택
                 </h3>
                 <div className="space-y-4">
                   <div>
@@ -808,17 +795,6 @@ export default function ParentPortalHome() {
                             : "bg-white text-slate-700 border-slate-300 hover:border-frage-blue hover:text-frage-blue"
                         }`}
                       >
-                        <Bus className="inline-block w-5 h-5 mr-2" /> 학원차량
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setOnboardingDropoffMethod("self")}
-                        className={`flex-1 px-4 py-3 rounded-lg border text-sm font-bold transition-colors ${
-                          onboardingDropoffMethod === "self"
-                            ? "bg-frage-blue text-white border-frage-blue"
-                            : "bg-white text-slate-700 border-slate-300 hover:border-frage-blue hover:text-frage-blue"
-                        }`}
-                      >
                         <Car className="inline-block w-5 h-5 mr-2" /> 직접 픽업
                       </button>
                     </div>
@@ -829,7 +805,7 @@ export default function ParentPortalHome() {
                       <button
                     type="button"
                     onClick={() => {
-                      // ⭐ 현재 Step 저장
+                      // ⭐ 현재 Step 저장 (이제는 필요 없지만, 지도 복귀 시 로직을 위해 유지)
                       localStorage.setItem("saved_onboarding_step", "4"); // Step 4
                       // ⭐ 주소 저장
                       localStorage.setItem("saved_onboarding_address", onboardingAddress);
@@ -870,13 +846,11 @@ export default function ParentPortalHome() {
                   )}
                 </div>
               </>
-            )}
 
-            {/* Step 5: Final Review and Submit */}
-            {onboardingStep === 5 && (
+              {/* Final Review and Submit */}
               <>
                 <h3 className="text-xl font-bold text-slate-900 mb-4">
-                  5단계: 최종 확인 및 제출
+                  최종 확인 및 제출
                 </h3>
                 <div className="space-y-3 mb-6 text-sm text-slate-700">
                   <p>
@@ -888,169 +862,54 @@ export default function ParentPortalHome() {
                   <p>
                     <span className="font-bold">등원 방식:</span> {
                       onboardingPickupMethod === "bus"
-                        ? `학원차량 (Lat: ${onboardingPickupSelectedLat}, Lng: ${onboardingPickupSelectedLng})`
+                        ? `학원차량 (${onboardingPickupSelectedAddress})`
                         : "직접 픽업"
                     }
                   </p>
                   <p>
                     <span className="font-bold">하원 방식:</span> {
                       onboardingDropoffMethod === "bus"
-                        ? `학원차량 (Lat: ${onboardingDropoffSelectedLat}, Lng: ${onboardingDropoffSelectedLng})`
+                        ? `학원차량 (${onboardingDropoffSelectedAddress})`
                         : "직접 픽업"
                     }
                   </p>
                 </div>
               </>
-            )}
-          </div>
+            </div>
 
-          {/* Unified Footer for Navigation */}
-          <div className="p-4 border-t border-gray-200 flex justify-between items-center">
-            {onboardingStep === 5 ? (
-              <div className="flex justify-between w-full space-x-2"> {/* Added flex container */}
-                <button
-                  type="button"
-                  onClick={() => setOnboardingStep((prev) => Math.max(1, prev - 1) as 1 | 2 | 3 | 4 | 5)}
-                  className="flex-1 px-6 py-3 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-colors"
-                >
-                  이전
-                </button>
-                <button
-                  type="button"
-                  onClick={handleOnboardingSubmit}
-                  disabled={onboardingSaving}
-                  className="flex-1 px-6 py-3 rounded-lg bg-frage-blue text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-40"
-                >
-                  저장
-                </button>
-              </div>
-            ) : (
-              <>
-                {onboardingStep > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setOnboardingStep((prev) => Math.max(1, prev - 1) as 1 | 2 | 3 | 4 | 5)}
-                    className="px-6 py-3 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-colors"
-                  >
-                    이전
-                  </button>
-                )}
-                {onboardingStep < 5 && (
-                  <button
-                    type="button"
-                    onClick={() => setOnboardingStep((prev) => Math.min(5, prev + 1) as 1 | 2 | 3 | 4 | 5)}
-                    className="px-6 py-3 rounded-lg bg-frage-blue text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-40"
-                    disabled={
-                      (onboardingStep === 2 && (!onboardingAddress || !onboardingDetailAddress)) ||
-                      (onboardingStep === 3 && !onboardingPickupMethod) ||
-                      (onboardingStep === 4 && !onboardingDropoffMethod) ||
-                      (onboardingStep === 3 && onboardingPickupMethod === "bus" && (!onboardingPickupSelectedLat || !onboardingPickupSelectedLng)) ||
-                      (onboardingStep === 4 && onboardingDropoffMethod === "bus" && (!onboardingDropoffSelectedLat || !onboardingDropoffSelectedLng))
-                    }
-                  >
-                    다음
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-    );
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <PortalHeader />
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6">학부모 포털</h1>
-
-        {studentStatus === "pending_onboarding" && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-lg">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <AlertTriangle className="h-5 w-5 text-yellow-400" aria-hidden="true" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-800">
-                  <span className="font-bold">환영합니다!</span> 학생 정보 등록을 완료해주세요.
-                </p>
-              </div>
+            {/* Submit Button */}
+            <div className="p-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={handleOnboardingSubmit}
+                disabled={onboardingSaving || !onboardingAddress || !onboardingDetailAddress || !onboardingPickupMethod || !onboardingDropoffMethod || (onboardingPickupMethod === "bus" && (!onboardingPickupSelectedLat || !onboardingPickupSelectedLng)) || (onboardingDropoffMethod === "bus" && (!onboardingDropoffSelectedLat || !onboardingDropoffSelectedLng))}
+                className="w-full px-6 py-3 rounded-lg bg-frage-blue text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-40"
+              >
+                온보딩 정보 저장
+              </button>
             </div>
           </div>
-        )}
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold text-slate-900 mb-6">학부모 포털</h1>
 
-        {studentStatus === "pending_approval" && (
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 rounded-lg">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Sparkles className="h-5 w-5 text-blue-400" aria-hidden="true" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-blue-800">
-                  <span className="font-bold">거의 다 됐어요!</span> 관리자 승인을 기다리고 있습니다.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {studentStatus === "enrolled" && (
-          <div className="space-y-8">
-            {/* Notifications Section */}
-            <section>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-slate-900">새로운 알림</h2>
-                <Link href="/portal/notifications" className="text-sm text-frage-blue hover:underline">
-                  모두 보기 <ArrowRight className="inline-block w-4 h-4 ml-1" />
-                </Link>
-              </div>
-              {
-                notifications.length > 0 ? (
-                  <ul className="bg-white rounded-xl shadow overflow-hidden divide-y divide-slate-200">
-                    {notifications.slice(0, 3).map((notification) => (
-                      <li key={notification.id} className="block hover:bg-slate-50">
-                        <Link href={`/portal/notifications/${notification.id}`} className="flex items-center px-4 py-4 sm:px-6">
-                          <div className="min-w-0 flex-1 flex items-center">
-                            <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-2 md:gap-4">
-                              <div>
-                                <p className="text-sm font-medium text-frage-blue truncate">{notification.title}</p>
-                                <p className="mt-2 flex items-center text-sm text-slate-500">
-                                  <MessageSquare className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
-                                  <span className="truncate">{notification.message}</span>
-                                </p>
-                              </div>
-                              <div className="hidden md:block">
-                                <div>
-                                  <p className="text-sm text-slate-900">
-                                    {notification.createdAt ? new Date(notification.createdAt).toLocaleDateString('ko-KR') : '날짜 없음'}
-                                  </p>
-                                  {/* <p className="mt-2 flex items-center text-sm text-slate-500">
-                                    <CheckCircleIcon className="flex-shrink-0 mr-1.5 h-5 w-5 text-green-400" />
-                                    {notification.isRead ? '읽음' : '안 읽음'}
-                                  </p> */}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div>
-                            <ChevronDown className="h-5 w-5 text-slate-400" aria-hidden="true" />
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-center py-8 text-slate-500 bg-white rounded-xl shadow">
-                    <p>새로운 알림이 없습니다.</p>
+            {studentStatus === "pending_onboarding" && (
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-lg">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <AlertTriangle className="h-5 w-5 text-yellow-400" aria-hidden="true" />
                   </div>
-                )
-              }
-            </section>
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-800">
+                      <span className="font-bold">환영합니다!</span> 학생 정보 등록을 완료해주세요.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Monthly Reports Section */}
-            <section>
+            <section className="mb-8">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-slate-900">월간 보고서</h2>
                 <Link href="/portal/reports" className="text-sm text-frage-blue hover:underline">
@@ -1060,26 +919,21 @@ export default function ParentPortalHome() {
               {
                 monthlyReports.length > 0 ? (
                   <ul className="bg-white rounded-xl shadow overflow-hidden divide-y divide-slate-200">
-                    {monthlyReports.slice(0, 3).map((report) => (
+                    {monthlyReports.map((report) => (
                       <li key={report.id} className="block hover:bg-slate-50">
-                        <Link href={`/portal/reports/${report.id}`} className="flex items-center px-4 py-4 sm:px-6">
+                        <Link
+                          href={`/portal/reports/${report.id}`}
+                          className="flex items-center px-4 py-4 sm:px-6"
+                          onClick={() => markReportAsRead(report.id)}
+                        >
                           <div className="min-w-0 flex-1 flex items-center">
                             <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-2 md:gap-4">
                               <div>
                                 <p className="text-sm font-medium text-frage-blue truncate">{report.title}</p>
                                 <p className="mt-2 flex items-center text-sm text-slate-500">
                                   <FileText className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
-                                  <span className="truncate">{report.date}</span>
+                                  <span className="truncate">{new Date(report.published_at).toLocaleDateString('ko-KR')}</span>
                                 </p>
-                              </div>
-                              <div className="hidden md:block">
-                                <div>
-                                  <p className="text-sm text-slate-900">{report.status === 'published' ? '게시됨' : '초안'}</p>
-                                  <p className="mt-2 flex items-center text-sm text-slate-500">
-                                    <Calendar className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
-                                    {report.target_month}월
-                                  </p>
-                                </div>
                               </div>
                             </div>
                           </div>
@@ -1168,18 +1022,27 @@ export default function ParentPortalHome() {
                 >
                   <HelpCircle className="w-5 h-5 mr-2" /> 카카오톡 상담
                 </button>
-                {/* <Link
-                  href="/portal/faq"
+                <a
+                  href="https://intoreading.cloubot.com/login"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
                 >
-                  <HelpCircleIcon className="w-5 h-5 mr-2" /> 자주 묻는 질문
-                </Link> */}
+                  <img src="/images/into_reading_logo.png" alt="Into Reading" className="w-5 h-5 mr-2" /> Into Reading
+                </a>
+                <a
+                  href="https://www.trophy9.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center px-4 py-3 bg-white rounded-lg shadow text-frage-blue font-bold hover:bg-slate-50 transition-colors"
+                >
+                  <img src="/images/trophy9_logo.png" alt="Trophy9" className="w-5 h-5 mr-2" /> 트로피나인
+                </a>
               </div>
             </section>
-          </div>
+          </>
         )}
       </main>
-      {renderOnboardingModal()}
     </div>
   );
 }
