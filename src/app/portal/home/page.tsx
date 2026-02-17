@@ -51,14 +51,10 @@ export default function ParentPortalHome() {
   const [isNoParent, setIsNoParent] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [onboardingUseBus, setOnboardingUseBus] = useState<boolean | null>(null);
   const [onboardingPickupMethod, setOnboardingPickupMethod] = useState<"bus" | "self" | "">("");
   const [onboardingDropoffMethod, setOnboardingDropoffMethod] = useState<"bus" | "self" | "">("");
-  const [onboardingCommuteType, setOnboardingCommuteType] = useState<"bus" | "pickup" | "walk" | "">("");
   const [onboardingAddress, setOnboardingAddress] = useState("");
   const [onboardingDetailAddress, setOnboardingDetailAddress] = useState("");
-  const [onboardingPickupPlace, setOnboardingPickupPlace] = useState("");
-  const [onboardingDropoffPlace, setOnboardingDropoffPlace] = useState("");
   const [onboardingSaving, setOnboardingSaving] = useState(false);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
   
@@ -167,7 +163,8 @@ export default function ParentPortalHome() {
 
         if (first && first.id) {
           setStudentId(String(first.id));
-        } else {
+        }
+        else {
           setStudentId(null);
         }
 
@@ -221,7 +218,8 @@ export default function ParentPortalHome() {
           setOnboardingAddress(fullAddr);
         },
       }).open();
-    } else {
+    }
+    else {
       alert("주소 서비스를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
     }
   };
@@ -291,6 +289,50 @@ export default function ParentPortalHome() {
     };
   }, [studentId, studentStatus]);
 
+  const handleOnboardingSubmit = async () => {
+    console.log("Submitting onboarding data...");
+    setOnboardingSaving(true);
+    setOnboardingError(null);
+
+    try {
+      const payload: {
+        profile_completed: boolean;
+        address?: string;
+        detail_address?: string;
+        pickup_method?: "bus" | "self";
+        dropoff_method?: "bus" | "self";
+      } = {
+        profile_completed: true,
+      };
+
+      if (onboardingAddress) payload.address = onboardingAddress;
+      if (onboardingDetailAddress) payload.detail_address = onboardingDetailAddress;
+      if (onboardingPickupMethod) payload.pickup_method = onboardingPickupMethod;
+      if (onboardingDropoffMethod) payload.dropoff_method = onboardingDropoffMethod;
+
+      const res = await fetch(`/api/students/${studentId}/onboarding`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "온보딩 정보 저장에 실패했습니다.");
+      }
+
+      router.refresh();
+      setNeedOnboarding(false);
+    } catch (error: any) {
+      console.error("Onboarding submission error:", error);
+      setOnboardingError(error.message || "알 수 없는 오류가 발생했습니다.");
+    } finally {
+      setOnboardingSaving(false);
+    }
+  };
+
   if (!authChecked) return null;
 
   if (loading) {
@@ -305,7 +347,7 @@ export default function ParentPortalHome() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 text-slate-700 p-4">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 text-orange-500 mb-4">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.174 3.355 1.945 3.355h13.71c1.771 0 2.816-1.855 1.945-3.355L13.105 7.144c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.174 3.355 1.945 3.355h13.71c1.771 0 2.816-1.855 1.945-3.355L13.105 7.144c-.866-1.5-3.032-1-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
         </svg>
         <h2 className="text-xl font-bold mb-2">학부모 정보가 없습니다.</h2>
         <p className="text-center mb-4">
@@ -329,51 +371,6 @@ export default function ParentPortalHome() {
 
   const renderOnboardingModal = () => {
     if (!needOnboarding || !studentId) return null;
-
-    const handleOnboardingSubmit = async () => {
-      console.log("Submitting onboarding data...");
-      setOnboardingSaving(true);
-      setOnboardingError(null);
-
-      try {
-        const payload: {
-          profile_completed: boolean;
-          address?: string;
-          detail_address?: string;
-          pickup_method?: "bus" | "self";
-          dropoff_method?: "bus" | "self";
-        } = {
-          profile_completed: true,
-        };
-
-        if (onboardingAddress) payload.address = onboardingAddress;
-        if (onboardingDetailAddress) payload.detail_address = onboardingDetailAddress;
-        if (onboardingPickupMethod) payload.pickup_method = onboardingPickupMethod;
-        if (onboardingDropoffMethod) payload.dropoff_method = onboardingDropoffMethod;
-
-        const res = await fetch(`/api/students/${studentId}/onboarding`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || "온보딩 정보 저장에 실패했습니다.");
-        }
-
-        router.refresh();
-        setNeedOnboarding(false);
-      } catch (error: any) {
-        console.error("Onboarding submission error:", error);
-        setOnboardingError(error.message || "알 수 없는 오류가 발생했습니다.");
-      } finally {
-        setOnboardingSaving(false);
-      }
-    };
-
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
         <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-6 mx-4 relative">
@@ -655,15 +652,6 @@ export default function ParentPortalHome() {
     );
   };
 
-
-
-
-
-
-
-
-
-  // --- ENROLLED STUDENT VIEW ---
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-24 lg:pb-10">
       <PortalHeader />
@@ -842,64 +830,75 @@ export default function ParentPortalHome() {
                               </div>
                               <div>
                                 <h3 className="font-bold text-slate-900">{report.title}</h3>
-                                <p className="text-xs text-slate-500 mt-0.5">{new Date(report.published_at).toLocaleDateString()} 발행</p>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  {new Date(report.published_at).toLocaleDateString("ko-KR")}
+                                </p>
                               </div>
                             </div>
-                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400">
-                              <ChevronDown className="w-5 h-5 -rotate-90" />
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`text-xs font-bold px-2 py-1 rounded-full ${
+                                  report.status === "published"
+                                    ? "bg-frage-blue/10 text-frage-blue"
+                                    : "bg-slate-100 text-slate-500"
+                                }`}
+                              >
+                                {report.status === "published" ? "발행됨" : "예정"}
+                              </span>
+                              <ChevronDown className="w-4 h-4 text-slate-400 -rotate-90" />
                             </div>
                           </div>
                         </Link>
                       ))
                     ) : (
                       <div className="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                        <p className="text-sm text-slate-500 font-medium">아직 발행된 리포트가 없습니다.</p>
+                        <p className="text-sm text-slate-400">등록된 월간 리포트가 없습니다.</p>
                       </div>
                     )}
                   </div>
                 </div>
               </section>
             )}
+
           </div>
 
-          {/* Right Column (Side Widgets) */}
-          <div className="space-y-6">
+          {/* Right Column (Quick Links) */}
+          <div className="lg:col-span-1 space-y-6">
             
-            {/* Quick Actions Grid */}
+            {/* Quick Links */}
             <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900 mb-4">빠른 메뉴</h3>
+              <h2 className="text-lg font-bold text-slate-900 mb-4">바로가기</h2>
               <div className="grid grid-cols-2 gap-3">
-                <Link href="/portal/requests" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 hover:bg-frage-blue/5 hover:text-frage-blue transition-colors group">
-                  <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 mb-2 group-hover:text-frage-blue group-hover:scale-110 transition-all">
-                    <MessageSquare className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs font-bold">요청 전달</span>
+                <Link href="/portal/video" className="flex flex-col items-center p-4 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+                  <Video className="w-6 h-6 mb-2" />
+                  <span className="text-sm font-bold">비디오 숙제</span>
                 </Link>
-                <Link href="/portal/video" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 hover:bg-frage-blue/5 hover:text-frage-blue transition-colors group relative">
-                  <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 mb-2 group-hover:text-frage-blue group-hover:scale-110 transition-all">
-                    <Video className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs font-bold">영상 과제</span>
-                  {studentProfile?.pendingVideoCount ? (
-                    <span className="absolute top-3 right-3 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white animate-bounce">
-                      {studentProfile.pendingVideoCount}
-                    </span>
-                  ) : null}
+                <Link href="/portal/reports" className="flex flex-col items-center p-4 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors">
+                  <FileText className="w-6 h-6 mb-2" />
+                  <span className="text-sm font-bold">월간 리포트</span>
                 </Link>
-                <Link href="/portal/child" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 hover:bg-frage-blue/5 hover:text-frage-blue transition-colors group">
-                  <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 mb-2 group-hover:text-frage-blue group-hover:scale-110 transition-all">
-                    <User className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs font-bold">자녀 정보</span>
+                <Link href="/portal/profile" className="flex flex-col items-center p-4 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
+                  <User className="w-6 h-6 mb-2" />
+                  <span className="text-sm font-bold">내 정보</span>
                 </Link>
-                <button onClick={handleContact} className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 hover:bg-frage-blue/5 hover:text-frage-blue transition-colors group">
-                  <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 mb-2 group-hover:text-frage-blue group-hover:scale-110 transition-all">
-                    <HelpCircle className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs font-bold">문의하기</span>
+                <button onClick={handleContact} className="flex flex-col items-center p-4 rounded-xl bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors">
+                  <MessageSquare className="w-6 h-6 mb-2" />
+                  <span className="text-sm font-bold">문의하기</span>
                 </button>
               </div>
             </section>
+
+            {/* Campus Info */}
+            {studentStatus === "enrolled" && (
+              <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+                <h2 className="text-lg font-bold text-slate-900 mb-4">캠퍼스 정보</h2>
+                <div className="space-y-3 text-sm text-slate-700">
+                  <p className="flex items-center gap-2"><User className="w-4 h-4" /> <span>{studentProfile?.campus || "본원"}</span></p>
+                  <p className="flex items-center gap-2"><Phone className="w-4 h-4" /> <span>02-1234-5678</span></p>
+                  <p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> <span>서울시 강남구 테헤란로 123</span></p>
+                </div>
+              </section>
+            )}
 
           </div>
         </div>
