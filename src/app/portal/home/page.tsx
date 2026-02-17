@@ -780,40 +780,52 @@ export default function ParentPortalHome() {
 
           {/* Unified Footer for Navigation */}
           <div className="p-4 border-t border-gray-200 flex justify-between items-center">
-            {onboardingStep > 1 && (
-              <button
-                type="button"
-                onClick={() => setOnboardingStep((prev) => Math.max(1, prev - 1) as 1 | 2 | 3 | 4 | 5)}
-                className="px-6 py-3 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-colors"
-              >
-                이전
-              </button>
-            )}
-            {onboardingStep < 5 && (
-              <button
-                type="button"
-                onClick={() => setOnboardingStep((prev) => Math.min(5, prev + 1) as 1 | 2 | 3 | 4 | 5)}
-                className="px-6 py-3 rounded-lg bg-frage-blue text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-40"
-                disabled={
-                  (onboardingStep === 2 && (!onboardingAddress || !onboardingDetailAddress)) ||
-                  (onboardingStep === 3 && !onboardingPickupMethod) ||
-                  (onboardingStep === 4 && !onboardingDropoffMethod) ||
-                  (onboardingStep === 3 && onboardingPickupMethod === "bus" && (!onboardingPickupSelectedLat || !onboardingPickupSelectedLng)) ||
-                  (onboardingStep === 4 && onboardingDropoffMethod === "bus" && (!onboardingDropoffSelectedLat || !onboardingDropoffSelectedLng))
-                }
-              >
-                다음
-              </button>
-            )}
-            {onboardingStep === 5 && (
-              <button
-                type="button"
-                onClick={handleOnboardingSubmit}
-                disabled={onboardingSaving}
-                className="w-full px-6 py-3 rounded-lg bg-frage-blue text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-40"
-              >
-                저장
-              </button>
+            {onboardingStep === 5 ? (
+              <div className="flex justify-between w-full space-x-2"> {/* Added flex container */}
+                <button
+                  type="button"
+                  onClick={() => setOnboardingStep((prev) => Math.max(1, prev - 1) as 1 | 2 | 3 | 4 | 5)}
+                  className="flex-1 px-6 py-3 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-colors"
+                >
+                  이전
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOnboardingSubmit}
+                  disabled={onboardingSaving}
+                  className="flex-1 px-6 py-3 rounded-lg bg-frage-blue text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-40"
+                >
+                  저장
+                </button>
+              </div>
+            ) : (
+              <>
+                {onboardingStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setOnboardingStep((prev) => Math.max(1, prev - 1) as 1 | 2 | 3 | 4 | 5)}
+                    className="px-6 py-3 rounded-lg border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition-colors"
+                  >
+                    이전
+                  </button>
+                )}
+                {onboardingStep < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setOnboardingStep((prev) => Math.min(5, prev + 1) as 1 | 2 | 3 | 4 | 5)}
+                    className="px-6 py-3 rounded-lg bg-frage-blue text-white font-bold hover:bg-blue-700 transition-colors disabled:opacity-40"
+                    disabled={
+                      (onboardingStep === 2 && (!onboardingAddress || !onboardingDetailAddress)) ||
+                      (onboardingStep === 3 && !onboardingPickupMethod) ||
+                      (onboardingStep === 4 && !onboardingDropoffMethod) ||
+                      (onboardingStep === 3 && onboardingPickupMethod === "bus" && (!onboardingPickupSelectedLat || !onboardingPickupSelectedLng)) ||
+                      (onboardingStep === 4 && onboardingDropoffMethod === "bus" && (!onboardingDropoffSelectedLat || !onboardingDropoffSelectedLng))
+                    }
+                  >
+                    다음
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
