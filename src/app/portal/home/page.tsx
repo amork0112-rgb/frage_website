@@ -56,6 +56,7 @@ export default function ParentPortalHome() {
   const [onboardingDetailAddress, setOnboardingDetailAddress] = useState("");
 
   const [onboardingSaving, setOnboardingSaving] = useState(false);
+  const [kakaoReady, setKakaoReady] = useState(false);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
 
   // Kakao Map related states for Pickup
@@ -120,6 +121,14 @@ export default function ParentPortalHome() {
       const kakaoMapScript = document.createElement("script");
       kakaoMapScript.src = `//dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=${KAKAO_MAP_APP_KEY}&libraries=services`;
       kakaoMapScript.async = true;
+
+      kakaoMapScript.onload = () => {
+        window.kakao.maps.load(() => {
+          console.log("✅ Kakao Map SDK Loaded");
+          setKakaoReady(true);
+        });
+      };
+
       document.head.appendChild(kakaoMapScript);
     } else {
       console.error("NEXT_PUBLIC_KAKAO_MAP_KEY is not defined.");
@@ -238,7 +247,8 @@ export default function ParentPortalHome() {
   useEffect(() => {
     if (
       onboardingStep !== 3 ||
-      onboardingPickupMethod !== "bus"
+      onboardingPickupMethod !== "bus" ||
+      !kakaoReady
     ) return;
 
     const timer = setTimeout(() => {
@@ -304,7 +314,8 @@ export default function ParentPortalHome() {
   useEffect(() => {
     if (
       onboardingStep !== 4 ||
-      onboardingDropoffMethod !== "bus"
+      onboardingDropoffMethod !== "bus" ||
+      !kakaoReady
     ) return;
 
     const timer = setTimeout(() => {
