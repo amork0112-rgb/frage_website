@@ -1,3 +1,4 @@
+//app/api/students/[studentsID]/onboarding
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -9,7 +10,12 @@ export async function PATCH(
   try {
     const { studentId } = params;
     const body = await req.json();
-    console.log("Incoming PATCH body for students onboarding:", body);
+    // Clean up body from fields not intended for direct update on students table
+    delete body.onboarding_step;
+    delete body.commute_type; // Ensure this is also removed if it somehow makes its way here
+    delete body.pickup_type;
+    delete body.dropoff_type;
+
     const supabase = createSupabaseServer();
 
     // Verify user
@@ -66,7 +72,7 @@ export async function PATCH(
 
     if (enrolledStudent) {
       // Update students table
-      console.log("Final PATCH payload for students table (enrolledStudent):", payload);
+
       const { error } = await supabaseService
         .from("students")
         .update(payload)
