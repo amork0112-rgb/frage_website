@@ -209,8 +209,8 @@ export default function ParentPortalHome() {
     (async () => {
       // 🚨 지도 복귀 중이면 DB fetch 금지
       if (searchParams.get("map") === "updated") {
+        console.log("🚧 map 복귀중 → DB fetch skip");
         setLoading(false);
-        router.replace("/portal/home");
         return;
       }
 
@@ -840,6 +840,14 @@ export default function ParentPortalHome() {
                       // ⭐ 등하원 방식 저장
                       localStorage.setItem("saved_onboarding_pickup_method", onboardingPickupMethod);
                       localStorage.setItem("saved_onboarding_dropoff_method", onboardingDropoffMethod);
+
+                      // ⭐ Pickup 먼저 저장 (🔥 핵심)
+                      if (onboardingPickupSelectedLat) {
+                        localStorage.setItem("saved_pickup_lat", onboardingPickupSelectedLat);
+                        localStorage.setItem("saved_pickup_lng", onboardingPickupSelectedLng!);
+                        localStorage.setItem("saved_pickup_address", onboardingPickupSelectedAddress);
+                      }
+
                       // ⭐ 이미 선택된 하차 위치가 있으면 그것도 저장
                       if (onboardingDropoffSelectedLat) {
                         localStorage.setItem("saved_dropoff_lat", onboardingDropoffSelectedLat);
