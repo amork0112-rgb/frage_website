@@ -519,10 +519,8 @@ export default function ParentPortalHome() {
       }
     };
     load();
-    const timer = setInterval(load, 5000);
     return () => {
       alive = false;
-      clearInterval(timer);
     };
   }, [studentId, studentStatus]);
 
