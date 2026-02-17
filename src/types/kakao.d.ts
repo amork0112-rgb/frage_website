@@ -22,6 +22,7 @@ declare namespace kakao {
       getLevel(): number;
       setDraggable(draggable: boolean): void;
       getBounds(): LatLngBounds;
+      relayout(): void;
     }
 
     interface MapOptions {
