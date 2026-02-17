@@ -4,11 +4,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { 
-  Bell, 
-  FileText, 
-  HelpCircle, 
-  AlertTriangle, 
+import {
+  Bell,
+  FileText,
+  HelpCircle,
+  AlertTriangle,
   ChevronDown,
   MessageSquare,
   Video,
@@ -17,9 +17,7 @@ import {
   Car,
   Calendar,
   Sparkles,
-  ArrowRight,
-  Phone,
-  MapPin
+  ArrowRight
 } from "lucide-react";
 import PortalHeader from "@/components/PortalHeader";
 import { supabase } from "@/lib/supabase";
@@ -57,12 +55,27 @@ export default function ParentPortalHome() {
   const [onboardingDropoffMethod, setOnboardingDropoffMethod] = useState<"bus" | "self" | "">("");
   const [onboardingAddress, setOnboardingAddress] = useState("");
   const [onboardingDetailAddress, setOnboardingDetailAddress] = useState("");
-  const [onboardingPickupLat, setOnboardingPickupLat] = useState<string | null>(null);
-  const [onboardingPickupLon, setOnboardingPickupLon] = useState<string | null>(null);
-  const [onboardingDropoffLat, setOnboardingDropoffLat] = useState<string | null>(null);
-  const [onboardingDropoffLon, setOnboardingDropoffLon] = useState<string | null>(null);
+
   const [onboardingSaving, setOnboardingSaving] = useState(false);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
+
+  // Kakao Map related states for Pickup
+  const [pickupMap, setPickupMap] = useState<kakao.maps.Map | null>(null);
+  const [pickupMarker, setPickupMarker] = useState<kakao.maps.Marker | null>(null);
+  const [pickupMapCenter, setPickupMapCenter] = useState<kakao.maps.LatLng | null>(null);
+  const [onboardingPickupAddressSearch, setOnboardingPickupAddressSearch] = useState("");
+  const [onboardingPickupSelectedAddress, setOnboardingPickupSelectedAddress] = useState("");
+  const [onboardingPickupSelectedLat, setOnboardingPickupSelectedLat] = useState<string | null>(null);
+  const [onboardingPickupSelectedLng, setOnboardingPickupSelectedLng] = useState<string | null>(null);
+
+  // Kakao Map related states for Dropoff
+  const [dropoffMap, setDropoffMap] = useState<kakao.maps.Map | null>(null);
+  const [dropoffMarker, setDropoffMarker] = useState<kakao.maps.Marker | null>(null);
+  const [dropoffMapCenter, setDropoffMapCenter] = useState<kakao.maps.LatLng | null>(null);
+  const [onboardingDropoffAddressSearch, setOnboardingDropoffAddressSearch] = useState("");
+  const [onboardingDropoffSelectedAddress, setOnboardingDropoffSelectedAddress] = useState("");
+  const [onboardingDropoffSelectedLat, setOnboardingDropoffSelectedLat] = useState<string | null>(null);
+  const [onboardingDropoffSelectedLng, setOnboardingDropoffSelectedLng] = useState<string | null>(null);
   
   // For Enrolled Students
   const [monthlyReports, setMonthlyReports] = useState<{ id: string; title: string; date: string; status: string; target_month: string; published_at: string }[]>([]);
@@ -97,12 +110,30 @@ export default function ParentPortalHome() {
 
     useEffect(() => {
     // Load Daum Postcode script
-    const script = document.createElement("script");
-    script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
-    script.async = true;
-    document.head.appendChild(script);
+    const postcodeScript = document.createElement("script");
+    postcodeScript.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+    postcodeScript.async = true;
+    document.head.appendChild(postcodeScript);
+
+    // Load Kakao Map script
+    const KAKAO_MAP_APP_KEY = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
+    if (KAKAO_MAP_APP_KEY) {
+      const kakaoMapScript = document.createElement("script");
+      kakaoMapScript.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_APP_KEY}&libraries=services`;
+      kakaoMapScript.async = true;
+      document.head.appendChild(kakaoMapScript);
+    } else {
+      console.error("NEXT_PUBLIC_KAKAO_MAP_KEY is not defined.");
+    }
+
     return () => {
-      document.head.removeChild(script);
+      document.head.removeChild(postcodeScript);
+      if (KAKAO_MAP_APP_KEY) {
+        const kakaoMapScript = document.querySelector(`script[src*="appkey=${KAKAO_MAP_APP_KEY}"]`);
+        if (kakaoMapScript) {
+          document.head.removeChild(kakaoMapScript);
+        }
+      }
     };
   }, []);
 
@@ -204,6 +235,78 @@ export default function ParentPortalHome() {
     setNeedOnboarding(need);
   }, [studentProfile]);
 
+  // Kakao Map initialization for Pickup
+  useEffect(() => {
+    if (onboardingStep === 3 && onboardingPickupMethod === "bus" && window.kakao && !pickupMap) {
+      const mapContainer = document.getElementById("pickupMap");
+      if (mapContainer) {
+        const initialLat = 37.5665; // Default Seoul latitude
+        const initialLng = 126.9780; // Default Seoul longitude
+        const mapOption = {
+          center: new window.kakao.maps.LatLng(initialLat, initialLng),
+          level: 3,
+        };
+        const map = new window.kakao.maps.Map(mapContainer, mapOption);
+        setPickupMap(map);
+
+        const marker = new window.kakao.maps.Marker({
+          map: map,
+          position: mapOption.center,
+          draggable: true,
+        });
+        setPickupMarker(marker);
+
+        // Set initial selected coordinates
+        setOnboardingPickupSelectedLat(initialLat.toString());
+        setOnboardingPickupSelectedLng(initialLng.toString());
+
+        // Event listener for marker dragend
+        window.kakao.maps.event.addListener(marker, "dragend", () => {
+          const position = marker.getPosition();
+          setOnboardingPickupSelectedLat(position.getLat().toString());
+          setOnboardingPickupSelectedLng(position.getLng().toString());
+          // Reverse geocoding to get address from coordinates (will implement later if needed)
+        });
+      }
+    }
+  }, [onboardingStep, onboardingPickupMethod, pickupMap]);
+
+  // Kakao Map initialization for Dropoff
+  useEffect(() => {
+    if (onboardingStep === 4 && onboardingDropoffMethod === "bus" && window.kakao && !dropoffMap) {
+      const mapContainer = document.getElementById("dropoffMap");
+      if (mapContainer) {
+        const initialLat = 37.5665; // Default Seoul latitude
+        const initialLng = 126.9780; // Default Seoul longitude
+        const mapOption = {
+          center: new window.kakao.maps.LatLng(initialLat, initialLng),
+          level: 3,
+        };
+        const map = new window.kakao.maps.Map(mapContainer, mapOption);
+        setDropoffMap(map);
+
+        const marker = new window.kakao.maps.Marker({
+          map: map,
+          position: mapOption.center,
+          draggable: true,
+        });
+        setDropoffMarker(marker);
+
+        // Set initial selected coordinates
+        setOnboardingDropoffSelectedLat(initialLat.toString());
+        setOnboardingDropoffSelectedLng(initialLng.toString());
+
+        // Event listener for marker dragend
+        window.kakao.maps.event.addListener(marker, "dragend", () => {
+          const position = marker.getPosition();
+          setOnboardingDropoffSelectedLat(position.getLat().toString());
+          setOnboardingDropoffSelectedLng(position.getLng().toString());
+          // Reverse geocoding to get address from coordinates (will implement later if needed)
+        });
+      }
+    }
+  }, [onboardingStep, onboardingDropoffMethod, dropoffMap]);
+
   const handleAddressSearch = () => {
     if (typeof window !== "undefined" && (window as any).daum) {
       new (window as any).daum.Postcode({
@@ -228,6 +331,56 @@ export default function ParentPortalHome() {
     else {
       alert("주소 서비스를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
     }
+  };
+
+  // Function to perform address search for pickup
+  const handlePickupSearch = () => {
+    if (!window.kakao || !pickupMap || !onboardingPickupAddressSearch) return;
+
+    const ps = new window.kakao.maps.services.Places();
+    ps.keywordSearch(onboardingPickupAddressSearch, (data: kakao.maps.services.PlaceResult[], status: kakao.maps.services.Status) => {
+      if (status === (window.kakao.maps.services as any).Status.OK) {
+        const firstPlace = data[0];
+        const newLat = parseFloat(firstPlace.y);
+        const newLng = parseFloat(firstPlace.x);
+        const newPos = new window.kakao.maps.LatLng(newLat, newLng);
+
+        pickupMap.setCenter(newPos);
+        pickupMarker?.setPosition(newPos);
+        setOnboardingPickupSelectedAddress(firstPlace.address_name);
+        setOnboardingPickupSelectedLat(newLat.toString());
+        setOnboardingPickupSelectedLng(newLng.toString());
+      } else if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
+        alert("검색 결과가 없습니다.");
+      } else if (status === window.kakao.maps.services.Status.ERROR) {
+        alert("주소 검색 중 오류가 발생했습니다.");
+      }
+    });
+  };
+
+  // Function to perform address search for dropoff
+  const handleDropoffSearch = () => {
+    if (!window.kakao || !dropoffMap || !onboardingDropoffAddressSearch) return;
+
+    const ps = new window.kakao.maps.services.Places();
+    ps.keywordSearch(onboardingDropoffAddressSearch, (data: kakao.maps.services.PlaceResult[], status: kakao.maps.services.Status) => {
+      if (status === (window.kakao.maps.services as any).Status.OK) {
+        const firstPlace = data[0];
+        const newLat = parseFloat(firstPlace.y);
+        const newLng = parseFloat(firstPlace.x);
+        const newPos = new window.kakao.maps.LatLng(newLat, newLng);
+
+        dropoffMap.setCenter(newPos);
+        dropoffMarker?.setPosition(newPos);
+        setOnboardingDropoffSelectedAddress(firstPlace.address_name);
+        setOnboardingDropoffSelectedLat(newLat.toString());
+        setOnboardingDropoffSelectedLng(newLng.toString());
+      } else if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
+        alert("검색 결과가 없습니다.");
+      } else if (status === window.kakao.maps.services.Status.ERROR) {
+        alert("주소 검색 중 오류가 발생했습니다.");
+      }
+    });
   };
 
   // Fetch data for Students
@@ -319,10 +472,10 @@ export default function ParentPortalHome() {
     if (onboardingDetailAddress) payload.detail_address = onboardingDetailAddress;
     if (onboardingPickupMethod) payload.pickup_method = onboardingPickupMethod;
     if (onboardingDropoffMethod) payload.dropoff_method = onboardingDropoffMethod;
-    if (onboardingPickupMethod === "bus" && onboardingPickupLat) payload.pickup_latitude = onboardingPickupLat;
-    if (onboardingPickupMethod === "bus" && onboardingPickupLon) payload.pickup_longitude = onboardingPickupLon;
-    if (onboardingDropoffMethod === "bus" && onboardingDropoffLat) payload.dropoff_latitude = onboardingDropoffLat;
-    if (onboardingDropoffMethod === "bus" && onboardingDropoffLon) payload.dropoff_longitude = onboardingDropoffLon;
+    if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLat) payload.pickup_latitude = onboardingPickupSelectedLat;
+    if (onboardingPickupMethod === "bus" && onboardingPickupSelectedLng) payload.pickup_longitude = onboardingPickupSelectedLng;
+    if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLat) payload.dropoff_latitude = onboardingDropoffSelectedLat;
+    if (onboardingDropoffMethod === "bus" && onboardingDropoffSelectedLng) payload.dropoff_longitude = onboardingDropoffSelectedLng;
 
       const res = await fetch(`/api/students/${studentId}/onboarding`, {
         method: "PATCH",
@@ -551,32 +704,39 @@ export default function ParentPortalHome() {
 
               {onboardingPickupMethod === "bus" && (
                 <div className="space-y-2 pt-2">
-                  <div>
-                    <label htmlFor="pickupLat" className="block text-sm font-medium text-slate-700 mb-1">
-                      등원 위도 (Latitude)
-                    </label>
+                  <p className="text-sm font-bold text-slate-700 mb-2">
+                    📍 지도에서 승차 위치를 선택해주세요
+                  </p>
+                  <div className="flex space-x-2">
                     <input
                       type="text"
-                      id="pickupLat"
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
-                      value={onboardingPickupLat || ""}
-                      onChange={(e) => setOnboardingPickupLat(e.target.value)}
-                      placeholder="예: 37.5665"
+                      placeholder="주소 검색"
+                      value={onboardingPickupAddressSearch}
+                      onChange={(e) => setOnboardingPickupAddressSearch(e.target.value)}
                     />
+                    <button
+                      type="button"
+                      onClick={() => { /* Implement search functionality here */ }}
+                      className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
+                    >
+                      검색
+                    </button>
                   </div>
-                  <div>
-                    <label htmlFor="pickupLon" className="block text-sm font-medium text-slate-700 mb-1">
-                      등원 경도 (Longitude)
-                    </label>
-                    <input
-                      type="text"
-                      id="pickupLon"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
-                      value={onboardingPickupLon || ""}
-                      onChange={(e) => setOnboardingPickupLon(e.target.value)}
-                      placeholder="예: 126.9780"
-                    />
-                  </div>
+                  {onboardingPickupSelectedAddress && (
+                    <p className="text-sm text-slate-600">
+                      선택된 주소: {onboardingPickupSelectedAddress} (Lat: {onboardingPickupSelectedLat}, Lng: {onboardingPickupSelectedLng})
+                    </p>
+                  )}
+                  <div id="pickupMap" className="w-full h-64 rounded-lg"></div>
+                  <button
+                    type="button"
+                    onClick={() => { /* Implement "여기에서 승차하기" logic here */ }}
+                    disabled={!onboardingPickupSelectedLat || !onboardingPickupSelectedLng}
+                    className="w-full px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
+                  >
+                    여기에서 승차하기
+                  </button>
                 </div>
               )}
 
@@ -592,7 +752,7 @@ export default function ParentPortalHome() {
                   type="button"
                   disabled={
                     !onboardingPickupMethod ||
-                    (onboardingPickupMethod === "bus" && (!onboardingPickupLat || !onboardingPickupLon))
+                    (onboardingPickupMethod === "bus" && (!onboardingPickupSelectedLat || !onboardingPickupSelectedLng))
                   }
                   onClick={() => setOnboardingStep(4)}
                   className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
@@ -638,32 +798,39 @@ export default function ParentPortalHome() {
 
               {onboardingDropoffMethod === "bus" && (
                 <div className="space-y-2 pt-2">
-                  <div>
-                    <label htmlFor="dropoffLat" className="block text-sm font-medium text-slate-700 mb-1">
-                      하원 위도 (Latitude)
-                    </label>
+                  <p className="text-sm font-bold text-slate-700 mb-2">
+                    📍 지도에서 하차 위치를 선택해주세요
+                  </p>
+                  <div className="flex space-x-2">
                     <input
                       type="text"
-                      id="dropoffLat"
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
-                      value={onboardingDropoffLat || ""}
-                      onChange={(e) => setOnboardingDropoffLat(e.target.value)}
-                      placeholder="예: 37.5665"
+                      placeholder="주소 검색"
+                      value={onboardingDropoffAddressSearch}
+                      onChange={(e) => setOnboardingDropoffAddressSearch(e.target.value)}
                     />
+                    <button
+                      type="button"
+                      onClick={() => { /* Implement search functionality here */ }}
+                      className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700"
+                    >
+                      검색
+                    </button>
                   </div>
-                  <div>
-                    <label htmlFor="dropoffLon" className="block text-sm font-medium text-slate-700 mb-1">
-                      하원 경도 (Longitude)
-                    </label>
-                    <input
-                      type="text"
-                      id="dropoffLon"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
-                      value={onboardingDropoffLon || ""}
-                      onChange={(e) => setOnboardingDropoffLon(e.target.value)}
-                      placeholder="예: 126.9780"
-                    />
-                  </div>
+                  {onboardingDropoffSelectedAddress && (
+                    <p className="text-sm text-slate-600">
+                      선택된 주소: {onboardingDropoffSelectedAddress} (Lat: {onboardingDropoffSelectedLat}, Lng: {onboardingDropoffSelectedLng})
+                    </p>
+                  )}
+                  <div id="dropoffMap" className="w-full h-64 rounded-lg"></div>
+                  <button
+                    type="button"
+                    onClick={() => { /* Implement "여기에서 하차하기" logic here */ }}
+                    disabled={!onboardingDropoffSelectedLat || !onboardingDropoffSelectedLng}
+                    className="w-full px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
+                  >
+                    여기에서 하차하기
+                  </button>
                 </div>
               )}
 
@@ -679,7 +846,7 @@ export default function ParentPortalHome() {
                   type="button"
                   disabled={
                     !onboardingDropoffMethod ||
-                    (onboardingDropoffMethod === "bus" && (!onboardingDropoffLat || !onboardingDropoffLon))
+                    (onboardingDropoffMethod === "bus" && (!onboardingDropoffSelectedLat || !onboardingDropoffSelectedLng))
                   }
                   onClick={() => setOnboardingStep(5)}
                   className="px-4 py-2 rounded-lg bg-frage-blue text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"
