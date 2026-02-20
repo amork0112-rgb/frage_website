@@ -193,6 +193,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       return;
     }
 
+
     setIsSubmitting(true);
     try {
       vlog("SUBMIT start");
@@ -251,7 +252,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       if (Array.isArray(exists) && exists.length > 0) {
         const { error: updErr } = await supabase
           .from("portal_video_submissions")
-          .update({ video_path: storagePath, status: "submitted", student_id: studentIdForSubmission })
+          .update({ video_path: storagePath, status: "submitted", student_id: studentIdForSubmission, assignment_id: parsed.sourceId })
           .eq("assignment_key", assignmentKey);
   
         if (updErr) {
@@ -264,6 +265,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
           .from("portal_video_submissions")
           .insert({
             student_id: studentIdForSubmission,
+            assignment_id: parsed.sourceId,   // 🔥 추가
             assignment_key: assignmentKey,
             video_path: storagePath,
             status: "submitted"
