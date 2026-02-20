@@ -322,7 +322,7 @@ export default function TeacherCoachingPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4 w-full sm:w-auto">
-            <h1 className="text-xl font-bold text-slate-900 hidden sm:block">Today's Coaching</h1>
+            <h1 className="text-xl font-bold text-slate-900 hidden sm:block">Today&apos;s Coaching</h1>
             
             {/* Campus Selector */}
             <div className="relative">
@@ -374,7 +374,7 @@ export default function TeacherCoachingPage() {
         
         {/* Today's Classes Quick Select */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 border-t border-slate-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <span className="text-xs font-bold text-slate-500 whitespace-nowrap mr-2">Today's Classes:</span>
+          <span className="text-xs font-bold text-slate-500 whitespace-nowrap mr-2">Today&apos;s Classes:</span>
           {todayClasses.map((c) => (
             <button
               key={c.id}
@@ -505,7 +505,7 @@ export default function TeacherCoachingPage() {
 
         {/* Footer Hint */}
         <div className="mt-6 text-center text-sm text-slate-500">
-          <p>Click each cell to mark the student's coaching status.</p>
+          <p>Click each cell to mark the student&apos;s coaching status.</p>
           <p>Results will be sent to parents at the end of the day.</p>
         </div>
       </main>
