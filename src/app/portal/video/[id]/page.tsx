@@ -209,14 +209,6 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       // ✅ studentId는 params.id에서 뽑은 studentId를 우선 사용
       const studentIdForSubmission = parsed.studentId || studentIdState;
       if (!studentIdForSubmission) throw new Error("No studentIdForSubmission");
-
-      // 임시 디버그 코드 시작
-      const { data: debug } = await supabase.rpc(
-        "debug_portal_video_insert",
-        { p_student_id: studentIdForSubmission }
-      );
-      console.log("🔎 RLS DEBUG:", debug);
-      // 임시 디버그 코드 끝
   
       // ✅ storagePath는 studentId 폴더/assignmentKey 파일
       const storagePath = `${studentIdForSubmission}/${assignmentKey}.webm`;
