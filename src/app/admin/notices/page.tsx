@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Plus, Edit2, Trash2, Pin, MapPin, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { supabase, supabaseReady } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export default function AdminNoticesPage() {
   const [serverNotices, setServerNotices] = useState<any[]>([]);
