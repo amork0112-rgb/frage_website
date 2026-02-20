@@ -192,6 +192,14 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       alert("제출 기한이 지난 과제입니다.");
       return;
     }
+
+    // 임시 디버그 코드 시작
+    const { data: debug } = await supabase.rpc(
+      "debug_portal_video_insert",
+      { p_student_id: studentIdForSubmission }
+    );
+    console.log("🔎 RLS DEBUG:", debug);
+    // 임시 디버그 코드 끝
   
     setIsSubmitting(true);
     try {
@@ -561,7 +569,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
 
                   {/* Helper Text (Anxiety Reduction) */}
                   <div className="space-y-1.5 text-xs text-white/40 font-medium">
-                    <p>• 영상 파일은 30MB까지 제출 가능합니다.</p>
+                    <p>• 영상 파일은 50MB까지 제출 가능합니다.</p>
                     <p>• A quiet place is recommended</p>
                   </div>
                 </div>
