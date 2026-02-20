@@ -240,7 +240,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       if (Array.isArray(exists) && exists.length > 0) {
         const { error: updErr } = await supabase
           .from("portal_video_submissions")
-          .update({ video_path: storagePath, status: "submitted", student_id: studentIdForSubmission, assignment_id: assignmentId })
+          .update({ video_path: storagePath, status: "submitted", student_id: studentIdForSubmission, assignment_uuid: homeworkData.id })
           .eq("assignment_key", assignmentKey);
   
         if (updErr) {
@@ -253,7 +253,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
           .from("portal_video_submissions")
           .insert({
             student_id: studentIdForSubmission,
-            assignment_id: assignmentId,   // 🔥 추가
+            assignment_uuid: homeworkData.id, // 🔥 추가
             assignment_key: assignmentKey,
             video_path: storagePath,
             status: "submitted"

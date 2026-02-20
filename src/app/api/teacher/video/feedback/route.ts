@@ -54,16 +54,14 @@ export async function GET(req: Request) {
     const assignmentKey = searchParams.get("assignmentKey") || "";
     const studentIdFromParam = searchParams.get("studentId") || "";
 
-    const parsed = assignmentKey.split("_");
-    const assignmentId = parsed[0];
-    const studentId = parsed[1] || studentIdFromParam;
+    const studentId = studentIdFromParam; // studentId can be taken directly from param
 
-    if (!assignmentId || !studentId) {
+    if (!assignmentKey || !studentId) {
       return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
 
     let query = supabaseService.from("portal_video_feedback").select("*");
-    query = query.eq("assignment_id", assignmentId).eq("student_id", studentId);
+    query = query.eq("assignment_uuid", assignmentKey).eq("student_id", studentId);
 
     const { data } = await query
       .order("updated_at", { ascending: false })
@@ -108,13 +106,10 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { studentId, assignmentKey, teacherId, feedback, attachments } = body || {};
-    const parsed = assignmentKey.split("_");
-    const assignmentId = parsed[0];
 
     if (
-      !assignmentId ||
-      !studentId ||
       !assignmentKey ||
+      !studentId ||
       !feedback ||
       typeof feedback?.overall_message !== "string" ||
       !Array.isArray(feedback?.strengths)
@@ -122,7 +117,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
     }
     const row = {
-      assignment_id: assignmentId,
+      assignment_uuid: assignmentKey,
       assignment_key: assignmentKey,
       student_id: studentId,
       teacher_id: teacherId ?? null,

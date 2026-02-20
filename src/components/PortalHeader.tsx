@@ -79,31 +79,29 @@ export default function PortalHeader() {
     <>
       {/* PC Header */}
       <header className="hidden lg:flex bg-white sticky top-0 z-20 px-6 py-4 border-b border-slate-200 items-center justify-between shadow-sm">
-        <div className="flex items-center gap-8">
-          <Link href="/portal/home" className="text-xl font-bold text-frage-navy">
-            FRAGE EDU
-          </Link>
-          <nav className="flex items-center gap-1">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href || (item.href !== "/portal/home" && pathname.startsWith(item.href));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${
-                    isActive 
-                      ? "bg-frage-blue/10 text-frage-blue" 
-                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
+        <Link href="/portal/home" className="text-xl font-bold text-frage-navy flex-shrink-0">
+          FRAGE EDU
+        </Link>
+        <nav className="flex items-center gap-1 flex-grow justify-center">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href || (item.href !== "/portal/home" && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                  isActive 
+                    ? "bg-frage-blue/10 text-frage-blue" 
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
         
         <div className="flex items-center gap-4">
           <div className="text-right">
