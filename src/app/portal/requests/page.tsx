@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import PortalHeader from "@/components/PortalHeader";
 import { Calendar, Clock, Bus, Pill, Send, History } from "lucide-react";
-import { supabase, supabaseReady } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 type RequestType = "absence" | "early_pickup" | "bus_change" | "medication";
 
@@ -21,7 +21,7 @@ export default function RequestsPage() {
 
   useEffect(() => {
     (async () => {
-      if (!supabaseReady) return;
+
       try {
         const { data: userData } = await supabase.auth.getUser();
         const user = userData?.user;

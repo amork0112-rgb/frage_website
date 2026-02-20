@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell, AlertTriangle, ShieldAlert } from "lucide-react";
-import { supabase, supabaseReady } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 type Status = "재원" | "휴원 검토중" | "휴원" | "퇴원 검토중" | "퇴원";
 type SignalType = "video_miss" | "portal_low" | "report_unread";
@@ -34,7 +34,6 @@ export default function TeacherAlertsPage() {
 
   useEffect(() => {
     (async () => {
-      if (!supabaseReady) return;
       const { data } = await supabase.auth.getUser();
       const uid = data?.user?.id || null;
       setTeacherId(uid);
@@ -43,7 +42,6 @@ export default function TeacherAlertsPage() {
 
   useEffect(() => {
     const load = async () => {
-      if (!supabaseReady) return;
       const { data: reqs } = await
         supabase
           .from("portal_requests")
@@ -136,7 +134,7 @@ export default function TeacherAlertsPage() {
   const openDetail = (item: AlertItem) => {
     setSelected(item);
     setAction("");
-    if (supabaseReady && item.source === "portal_requests") {
+    if (item.source === "portal_requests") {
       supabase.from("portal_requests").update({ teacher_read: true }).eq("id", item.id);
       setItems(prev => prev.map(p => (p.id === item.id ? { ...p, unread: false } : p)));
     }

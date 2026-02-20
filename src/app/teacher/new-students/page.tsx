@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Check, X, ChevronDown, ChevronUp, Search, Calendar, Phone, Plus, UserPlus, StickyNote } from "lucide-react";
-import { supabase, supabaseReady } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { toStatus, STATUS_LABEL, STATUS_BADGE_CLASS, STATUS_PROGRESS } from "@/lib/admissions/status";
 
 type StudentProfile = {
@@ -135,10 +135,8 @@ export default function TeacherNewStudentsPage() {
     // Load students
     try {
       (async () => {
-        if (supabaseReady) {
-          const { data } = await supabase.auth.getUser();
+        const { data } = await supabase.auth.getUser();
           setTeacherId(data?.user?.id || null);
-        }
         const res = await fetch("/api/teacher/new-students", { cache: "no-store", credentials: "include" });
         const all = await res.json();
         const items = Array.isArray(all?.items) ? all.items : [];
