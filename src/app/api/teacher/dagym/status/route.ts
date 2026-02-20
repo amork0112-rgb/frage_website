@@ -58,10 +58,6 @@ export async function GET(req: Request) {
     const alreadyGenerated = (existing && existing.length > 0) || false;
 
     // 2. Check for lessons
-    console.log("LESSON QUERY", { 
-      classId, 
-      normalizedDate 
-    });
     const { count: lessonCount } = await supabaseService
       .from("lesson_plans")
       .select("id", { count: "exact", head: true })

@@ -7,19 +7,32 @@ import type { Notice } from "@/data/notices";
 import { Pin, Calendar, ChevronRight, ChevronDown, Archive, Megaphone, CheckCircle2, Heart, Smile } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-export default function NoticesPage() {
+interface DebugInfo {
+  user: any;
+  studentRows: any;
+  classIds: string[];
+  scopeFilter: string;
+  supabaseData: any;
+  supabaseError: any;
+  mappedNotices: any;
+}
+
+export default function Page() {
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [allNotices, setAllNotices] = useState<Notice[]>([]);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+
 
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log("No authenticated user found.");
-        setAllNotices([]); // Clear notices if no user
-        return;
-      }
+          console.log("No authenticated user found.");
+          setAllNotices([]); // Clear notices if no user
+          return;
+        }
+        console.log("Authenticated user:", user);
 
       // Step 1: Fetch all class IDs for the parent
       const { data: studentRows, error: studentError } = await supabase
@@ -28,27 +41,32 @@ export default function NoticesPage() {
         .eq("parent_auth_user_id", user.id);
 
       if (studentError) {
-        console.error("Error fetching student classes:", studentError);
-        setAllNotices([]);
-        return;
-      }
+              console.error("Error fetching student classes:", studentError);
+              setAllNotices([]);
+              return;
+            }
+            console.log("Fetched student rows:", studentRows);
 
-      const classIds =
-        studentRows
-          ?.map(s => s.main_class)
-          .filter(Boolean)
-          .map(String) ?? [];
+            const classIds = (
+              studentRows as { main_class: string | null }[]
+            )
+              ?.map((s) => s.main_class)
+              .filter(Boolean)
+              .map(String) ?? [];
+            console.log("Processed class IDs:", classIds);
 
       // Step 2: Build the conditional query string
       let scopeFilter = "scope.eq.global";
+            console.log("Initial scope filter:", scopeFilter);
 
       if (classIds.length > 0) {
         const classPart = classIds
-          .map(id => `and(scope.eq.class,class_id.eq.${id})`)
-          .join(",");
+                .map((id: string) => `and(scope.eq.class,class_id.eq.${id})`)
+                .join(",");
 
         scopeFilter = `scope.eq.global,${classPart}`;
-      }
+            }
+            console.log("Final scope filter:", scopeFilter);
 
       // Step 3: Apply the query
       const { data, error } = await supabase
@@ -59,11 +77,11 @@ export default function NoticesPage() {
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Supabase query error for notices:", error);
-        return;
-      }
+              console.error("Supabase query error for notices:", error);
+              return;
+            }
 
-      console.log("Supabase query data for notices:", data);
+            console.log("Supabase query data for notices:", data);
 
       const rows = Array.isArray(data) ? data : [];
       const ids = rows
@@ -114,6 +132,7 @@ export default function NoticesPage() {
         };
       });
 
+      console.log("Mapped server notices:", server);
       setAllNotices(server);
     })();
   }, []);

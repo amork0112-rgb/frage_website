@@ -10,4 +10,4 @@ export const supabase = createBrowserClient(url, key, {
     detectSessionInUrl: true,
   },
 });
-export const supabaseReady = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+

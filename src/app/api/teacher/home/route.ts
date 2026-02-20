@@ -151,11 +151,4 @@ export async function GET(request: Request) {
   }
 }
 
-/*
-// Test in Browser Console:
-fetch("/api/teacher/home", {
-  credentials: "include",
-})
-  .then(r => r.json())
-  .then(console.log)
-*/
+

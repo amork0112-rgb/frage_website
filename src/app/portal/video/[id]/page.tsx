@@ -200,14 +200,11 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       // ✅ params.id가 assignment_key라고 가정
       const assignmentKey = params.id;
       const parsed = parseAssignmentKey(assignmentKey);
-  
-      console.log("📹 [VIDEO/[id]]", "assignmentKey =", assignmentKey);
-      console.log("📹 [VIDEO/[id]]", "parsed =", parsed);
-      console.log("📹 [VIDEO/[id]]", "studentIdState =", studentIdState);
-  
-      // ✅ studentId는 params.id에서 뽑은 studentId를 우선 사용
-      const studentIdForSubmission = parsed.studentId || studentIdState;
-      if (!studentIdForSubmission) throw new Error("No studentIdForSubmission");
+
+      const assignmentId = parsed.sourceId;
+      const studentIdForSubmission = parsed.studentId;
+
+      if (!assignmentId) throw new Error("No assignmentId");
   
       // ✅ storagePath는 studentId 폴더/assignmentKey 파일
       const storagePath = `${studentIdForSubmission}/${assignmentKey}.webm`;
@@ -243,7 +240,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
       if (Array.isArray(exists) && exists.length > 0) {
         const { error: updErr } = await supabase
           .from("portal_video_submissions")
-          .update({ video_path: storagePath, status: "submitted", student_id: studentIdForSubmission, assignment_id: parsed.sourceId })
+          .update({ video_path: storagePath, status: "submitted", student_id: studentIdForSubmission, assignment_id: assignmentId })
           .eq("assignment_key", assignmentKey);
   
         if (updErr) {
@@ -256,7 +253,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
           .from("portal_video_submissions")
           .insert({
             student_id: studentIdForSubmission,
-            assignment_id: parsed.sourceId,   // 🔥 추가
+            assignment_id: assignmentId,   // 🔥 추가
             assignment_key: assignmentKey,
             video_path: storagePath,
             status: "submitted"

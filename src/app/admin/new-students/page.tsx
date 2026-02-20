@@ -299,7 +299,6 @@ export default function AdminNewStudentsPage() {
         }),
       });
       if (stepKey === "step3_completed" && nextChecked) {
-        console.log("[CHECKLIST] STEP 3 completed", { studentId, stepKey, checked: nextChecked });
         const res = await fetch("/api/admin/new-students", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

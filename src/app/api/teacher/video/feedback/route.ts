@@ -52,20 +52,18 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const assignmentKey = searchParams.get("assignmentKey") || "";
-    
-    // Use supabaseService to bypass RLS
-    let query = supabaseService.from("portal_video_feedback").select("*");
+    const studentIdFromParam = searchParams.get("studentId") || "";
 
-    if (assignmentKey) {
-      query = query.eq("assignment_key", assignmentKey);
-    } else {
-      const studentId = searchParams.get("studentId") || "";
-      const assignmentId = searchParams.get("assignmentId") || "";
-      if (!studentId || !assignmentId) {
-        return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
-      }
-      query = query.eq("student_id", studentId).eq("assignment_id", assignmentId);
+    const parsed = assignmentKey.split("_");
+    const assignmentId = parsed[0];
+    const studentId = parsed[1] || studentIdFromParam;
+
+    if (!assignmentId || !studentId) {
+      return NextResponse.json({ ok: false, error: "missing_params" }, { status: 400 });
     }
+
+    let query = supabaseService.from("portal_video_feedback").select("*");
+    query = query.eq("assignment_id", assignmentId).eq("student_id", studentId);
 
     const { data } = await query
       .order("updated_at", { ascending: false })
@@ -110,7 +108,11 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { studentId, assignmentKey, teacherId, feedback, attachments } = body || {};
+    const parsed = assignmentKey.split("_");
+    const assignmentId = parsed[0];
+
     if (
+      !assignmentId ||
       !studentId ||
       !assignmentKey ||
       !feedback ||
@@ -120,6 +122,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
     }
     const row = {
+      assignment_id: assignmentId,
       assignment_key: assignmentKey,
       student_id: studentId,
       teacher_id: teacherId ?? null,
