@@ -1264,7 +1264,7 @@ export default function ParentPortalHome() {
                     <div className="flex items-center space-x-4">
                       <Video className="w-8 h-8 text-frage-blue" />
                       <div>
-                        <p className="text-lg font-bold text-slate-900">미제출 영상 숙제</p>
+                        <p className="text-lg font-bold text-slate-900">영상 낭독 과제</p>
                         <p className="text-sm text-slate-500">기한 내에 제출해주세요</p>
                       </div>
                     </div>
