@@ -7,9 +7,8 @@ import { ArrowLeft, Video, Upload, CheckCircle, RefreshCw, Star, MessageSquare, 
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-const vlog = (...args: any[]) => console.log("📹 [VIDEO/[id]]", ...args);
-const vwarn = (...args: any[]) => console.warn("⚠️ [VIDEO/[id]]", ...args);
-const verr = (...args: any[]) => console.error("❌ [VIDEO/[id]]", ...args);
+
+
 
 function parseAssignmentKey(key: string) {
   // key format: "<sourceId>_<studentId>"
@@ -68,7 +67,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
 
   // --- Camera & Recording Logic ---
   const startCamera = async () => {
-    vlog("startCamera called.");
+    console.log("📹 [VIDEO/[id]]", "startCamera called.");
     try {
       // Wait for videoRef.current to be available
       await new Promise<void>(resolve => {
@@ -82,40 +81,40 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
         checkRef();
       });
 
-      vlog("Attempting to get user media...");
+      console.log("📹 [VIDEO/[id]]", "Attempting to get user media...");
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: "user" }, 
         audio: true 
       });
-      vlog("getUserMedia successful, stream obtained.");
+      console.log("📹 [VIDEO/[id]]", "getUserMedia successful, stream obtained.");
       
       // videoRef.current is guaranteed to exist here due to the Promise above
-      vlog("videoRef.current exists, assigning stream.");
+      console.log("📹 [VIDEO/[id]]", "videoRef.current exists, assigning stream.");
       videoRef.current!.srcObject = stream; // Use non-null assertion as it's guaranteed
       setCameraActive(true);
-      vlog("Camera started, stream assigned.");
+      console.log("📹 [VIDEO/[id]]", "Camera started, stream assigned.");
       
     } catch (err) {
-      verr("Error accessing camera:", err);
+      console.error("❌ [VIDEO/[id]]", "Error accessing camera:", err);
       alert("Camera access is required to record video.");
     }
   };
 
   const stopCamera = () => {
-    vlog("stopCamera called.");
+    console.log("📹 [VIDEO/[id]]", "stopCamera called.");
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null;
       setCameraActive(false);
-      vlog("Camera stopped.");
+      console.log("📹 [VIDEO/[id]]", "Camera stopped.");
     }
   };
 
   const startRecording = () => {
-    vlog("startRecording called.");
+    console.log("📹 [VIDEO/[id]]", "startRecording called.");
     if (!videoRef.current?.srcObject) {
-      vwarn("videoRef.current.srcObject is null, cannot start recording.");
+      console.warn("⚠️ [VIDEO/[id]]", "videoRef.current.srcObject is null, cannot start recording.");
       return;
     }
     const stream = videoRef.current.srcObject as MediaStream;
@@ -136,7 +135,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
     };
 
     mediaRecorder.start();
-    vlog("MediaRecorder started.");
+    console.log("📹 [VIDEO/[id]]", "MediaRecorder started.");
     setIsRecording(true);
     setRecordingTime(0);
     timerRef.current = setInterval(() => {
@@ -151,12 +150,12 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   };
 
   const stopRecording = () => {
-    vlog("stopRecording called.");
+    console.log("📹 [VIDEO/[id]]", "stopRecording called.");
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       if (timerRef.current) clearInterval(timerRef.current);
-      vlog("Recording stopped.");
+      console.log("📹 [VIDEO/[id]]", "Recording stopped.");
     }
   };
 
@@ -196,15 +195,15 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
 
     setIsSubmitting(true);
     try {
-      vlog("SUBMIT start");
+      console.log("📹 [VIDEO/[id]]", "SUBMIT start");
   
       // ✅ params.id가 assignment_key라고 가정
       const assignmentKey = params.id;
       const parsed = parseAssignmentKey(assignmentKey);
   
-      vlog("assignmentKey =", assignmentKey);
-      vlog("parsed =", parsed);
-      vlog("studentIdState =", studentIdState);
+      console.log("📹 [VIDEO/[id]]", "assignmentKey =", assignmentKey);
+      console.log("📹 [VIDEO/[id]]", "parsed =", parsed);
+      console.log("📹 [VIDEO/[id]]", "studentIdState =", studentIdState);
   
       // ✅ studentId는 params.id에서 뽑은 studentId를 우선 사용
       const studentIdForSubmission = parsed.studentId || studentIdState;
@@ -212,24 +211,24 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   
       // ✅ storagePath는 studentId 폴더/assignmentKey 파일
       const storagePath = `${studentIdForSubmission}/${assignmentKey}.webm`;
-      vlog("storagePath =", storagePath);
+      console.log("📹 [VIDEO/[id]]", "storagePath =", storagePath);
   
       const file =
         lastBlobRef.current instanceof File
           ? lastBlobRef.current
           : new File([lastBlobRef.current], `${assignmentKey}.webm`, { type: "video/webm" });
   
-      vlog("uploading file size =", file.size);
+      console.log("📹 [VIDEO/[id]]", "uploading file size =", file.size);
   
       const { error: upErr } = await supabase.storage
         .from("student-videos")
         .upload(storagePath, file, { upsert: true });
   
       if (upErr) {
-        verr("storage upload error:", upErr);
+        console.error("❌ [VIDEO/[id]]", "storage upload error:", upErr);
         throw upErr;
       }
-      vlog("storage upload OK");
+      console.log("📹 [VIDEO/[id]]", "storage upload OK");
   
       // ✅ DB upsert 체크
       const { data: exists, error: exErr } = await supabase
@@ -238,8 +237,8 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
         .eq("assignment_key", assignmentKey)
         .limit(1);
   
-      if (exErr) vwarn("exists check error:", exErr);
-      vlog("exists rows =", Array.isArray(exists) ? exists.length : "null");
+      if (exErr) console.warn("⚠️ [VIDEO/[id]]", "exists check error:", exErr);
+      console.log("📹 [VIDEO/[id]]", "exists rows =", Array.isArray(exists) ? exists.length : "null");
   
       if (Array.isArray(exists) && exists.length > 0) {
         const { error: updErr } = await supabase
@@ -248,10 +247,10 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
           .eq("assignment_key", assignmentKey);
   
         if (updErr) {
-          verr("update error:", updErr);
+          console.error("❌ [VIDEO/[id]]", "update error:", updErr);
           throw updErr;
         }
-        vlog("updated submission");
+        console.log("📹 [VIDEO/[id]]", "updated submission");
       } else {
         const { error: insErr } = await supabase
           .from("portal_video_submissions")
@@ -264,10 +263,10 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
           });
   
         if (insErr) {
-          verr("insert error:", insErr);
+          console.error("❌ [VIDEO/[id]]", "insert error:", insErr);
           throw insErr;
         }
-        vlog("inserted submission");
+        console.log("📹 [VIDEO/[id]]", "inserted submission");
       }
   
       // signed url
@@ -287,39 +286,43 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
   useEffect(() => {
     (async () => {
       try {
-        vlog("params.id =", params.id);
+        console.log("📹 [VIDEO/[id]]", "params.id =", params.id);
   
         const { data: userData, error: userErr } = await supabase.auth.getUser();
-        if (userErr) vwarn("auth.getUser error:", userErr);
-        const uid = userData?.user?.id || null;
-        vlog("auth uid =", uid);
+        if (userErr || !userData?.user) {
+          console.warn("⚠️ [VIDEO/[id]]", "User not logged in or error fetching user:", userErr);
+          return;
+        }
+        console.log("📹 [VIDEO/[id]]", "user =", userData.user.id);
+  
+
   
         // ✅ params.id가 assignment_key라면 여기서 studentId를 뽑을 수 있음
         const parsed = parseAssignmentKey(params.id);
-        vlog("parsed assignmentKey:", parsed);
+        console.log("📹 [VIDEO/[id]]", "parsed assignmentKey:", parsed);
   
         // ⚠️ 지금 코드처럼 uid를 studentId로 쓰면 안 됨
         // setStudentIdState(uid);  // ❌
         // 대신:
         if (parsed.studentId) {
           setStudentIdState(parsed.studentId);
-          vlog("studentIdState set from params.id =", parsed.studentId);
+          console.log("📹 [VIDEO/[id]]", "studentIdState set from params.id =", parsed.studentId);
         } else {
-          vwarn("Could not parse studentId from params.id. Need student selector or query param.");
+          console.warn("⚠️ [VIDEO/[id]]", "Could not parse studentId from params.id. Need student selector or query param.");
         }
   
         // ✅ lesson/weekly item 정보 fetch
-        const studentId = parsed.studentId || uid || "";
-        vlog("fetching /api/portal/video with studentId =", studentId);
+        const studentId = parsed.studentId || userData.user.id || "";
+        console.log("📹 [VIDEO/[id]]", "fetching /api/portal/video with studentId =", studentId);
   
         const res = await fetch(`/api/portal/video?studentId=${encodeURIComponent(studentId)}`);
-        vlog("api status =", res.status);
+        console.log("📹 [VIDEO/[id]]", "api status =", res.status);
   
         const json = await res.json();
-        vlog("api items count =", Array.isArray(json?.items) ? json.items.length : "not-array");
+        console.log("📹 [VIDEO/[id]]", "api items count =", Array.isArray(json?.items) ? json.items.length : "not-array");
   
         const item = json.items?.find((i: any) => i.id === params.id);
-        vlog("found item? =", !!item, item ? { id: item.id, status: item.status } : null);
+        console.log("📹 [VIDEO/[id]]", "found item? =", !!item, item ? { id: item.id, status: item.status } : null);
   
         if (item) {
           setHomeworkData({
@@ -340,12 +343,12 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
               next_try_guide: item.feedback.next_try_guide
             } : null
           });
-          if (item.videoUrl) vlog("videoUrl exists in API");
+          if (item.videoUrl) console.log("📹 [VIDEO/[id]]", "videoUrl exists in API");
         } else {
-          vwarn("No matching item for params.id. params.id mismatch OR api is returning different id shape.");
+          console.warn("⚠️ [VIDEO/[id]]", "No matching item for params.id. params.id mismatch OR api is returning different id shape.");
         }
       } catch (e) {
-        verr("useEffect fatal:", e);
+          console.error("❌ [VIDEO/[id]]", "useEffect fatal:", e);
       }
     })();
   
