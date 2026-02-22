@@ -668,7 +668,7 @@ export default function TeacherVideoPage() {
                         </span>
                       )}
                     </h4>
-                    <p className="text-sm text-blue-700 mb-2">"{openVideoFor.aiEval.teacher_feedback_draft.overall_message}"</p>
+                    <p className="text-sm text-blue-700 mb-2">&quot;{openVideoFor.aiEval.teacher_feedback_draft.overall_message}&quot;</p>
                     <p className="text-xs text-blue-600">Confidence: {(openVideoFor.aiEval.ai_confidence * 100).toFixed(0)}%</p>
                     <div className="mt-3 flex gap-2">
                       <select

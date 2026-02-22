@@ -72,14 +72,7 @@ export default function TeacherVideoManagementPage() {
   const [currentYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
 
-  const [newTitle, setNewTitle] = useState("");
-  const [newModule, setNewModule] = useState("");
-  const [newDue, setNewDue] = useState("");
-  const [newRelease, setNewRelease] = useState("");
-  const [newClass, setNewClass] = useState<string>("All");
-  const [newCampus, setNewCampus] = useState<string>("All");
 
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -167,13 +160,7 @@ export default function TeacherVideoManagementPage() {
 
   const campuses = useMemo(() => CAMPUS_VALUES.slice(), []);
 
-  const newClassOptions = useMemo(() => {
-    if (newCampus === "International") {
-      return classOptionsByCampus["International"] || [];
-    }
-    if (newCampus === "All") return classOptionsAll;
-    return classOptionsByCampus[newCampus] || [];
-  }, [newCampus, classOptionsAll, classOptionsByCampus]);
+
 
   const filterClassOptions = useMemo(() => {
     if (filterCampus === "International") {
@@ -183,9 +170,7 @@ export default function TeacherVideoManagementPage() {
     return classOptionsByCampus[filterCampus] || [];
   }, [filterCampus, classOptionsAll, classOptionsByCampus]);
 
-  useEffect(() => {
-    setNewClass("All");
-  }, [newCampus]);
+
   useEffect(() => {
     setFilterClass("All");
   }, [filterCampus]);
@@ -353,62 +338,9 @@ export default function TeacherVideoManagementPage() {
     }
   };
 
-  const TEMPLATES = [
-    {
-      label: "Reading Retell",
-      titlePrefix: "Reading Retell: ",
-      module: "Reading",
-    },
-    {
-      label: "Speaking Opinion",
-      titlePrefix: "Speaking Opinion: ",
-      module: "Speaking",
-    },
-    {
-      label: "Fluency Check",
-      titlePrefix: "Fluency Check",
-      module: "Reading",
-    },
-    {
-      label: "Presentation Practice",
-      titlePrefix: "Presentation Practice",
-      module: "Speaking",
-    }
-  ];
 
-  const applyTemplate = (tmpl: typeof TEMPLATES[0]) => {
-    setNewTitle(tmpl.titlePrefix);
-    setNewModule(tmpl.module);
-    setShowTemplateModal(false);
-  };
 
-  const createAssignment = () => {
-    if (!newTitle.trim() || !newModule.trim() || !newDue || !newRelease || newClass === "All") {
-      alert("Please fill in all required fields (Class, Title, Module, Release Date, Due Date).");
-      return;
-    }
-    if (newDue <= newRelease) {
-      alert("Due date must be after release date.");
-      return;
-    }
 
-    (async () => {
-      await supabase.from("video_assignments").insert({
-        title: newTitle.trim(),
-        module: newModule.trim(),
-        due_date: newDue,
-        release_at: newRelease,
-        class_name: newClass,
-        campus: newCampus === "All" ? null : newCampus,
-      });
-    })();
-    setNewTitle("");
-    setNewModule("");
-    setNewDue("");
-    setNewRelease("");
-    setNewClass("All");
-    setNewCampus("All");
-  };
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-8">
@@ -445,60 +377,7 @@ export default function TeacherVideoManagementPage() {
         </button>
       </div>
 
-      {/* Primary Mode: Create Assignment Panel */}
-      {viewMode === "primary" && false && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-6">
-          <div className="flex items-center gap-2 mb-4 text-sm font-bold text-slate-900">
-            <Plus className="w-4 h-4 text-frage-navy" />
-            Create New Assignment
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">캠퍼스(선택)</label>
-              <select value={newCampus} onChange={(e) => setNewCampus(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                {campuses.map(c => (<option key={c} value={c}>{CAMPUS_LABELS[c] || c}</option>))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">반</label>
-              <select value={newClass} onChange={(e) => setNewClass(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white">
-                <option value="All">전체</option>
-                {newClassOptions.map(c => (<option key={c.name} value={c.name}>{c.name}</option>))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">게시일 (Release)</label>
-              <input type="datetime-local" value={newRelease} onChange={(e) => setNewRelease(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">마감일 (Due)</label>
-              <input type="date" value={newDue} onChange={(e) => setNewDue(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-slate-500 mb-1">제목</label>
-              <div className="flex gap-2">
-                <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Into Reading 1.3" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-                <button onClick={() => setShowTemplateModal(true)} className="px-3 py-2 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 whitespace-nowrap hover:bg-indigo-100">
-                  Templates
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">모듈/차시</label>
-              <input value={newModule} onChange={(e) => setNewModule(e.target.value)} placeholder="[Module 5-1] Day 18" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <button
-              onClick={createAssignment}
-              disabled={!newTitle.trim() || !newModule.trim() || !newDue || !newRelease || newClass === "All"}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Plus className="w-4 h-4" /> 생성
-            </button>
-          </div>
-        </div>
-      )}
+
 
       {/* Filters (Shared) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
@@ -708,32 +587,8 @@ export default function TeacherVideoManagementPage() {
       )}
 
       {/* Assignment Records List Removed per user request */}
-      {showTemplateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">Select Assignment Template</h3>
-              <button onClick={() => setShowTemplateModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-4 space-y-2">
-              {TEMPLATES.map((tmpl) => (
-                <button
-                  key={tmpl.label}
-                  onClick={() => applyTemplate(tmpl)}
-                  className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-frage-blue hover:bg-blue-50 transition-colors group"
-                >
-                  <div className="font-bold text-slate-800 group-hover:text-frage-blue mb-1">{tmpl.label}</div>
-                  <div className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">
-                    Module: {tmpl.module}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+
+
     </main>
   );
 }
