@@ -265,7 +265,7 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
         }
         console.log("📹 [VIDEO/[id]]", "inserted submission");
       }
-  
+
       // signed url
       const { data: signed, error: signErr } = await supabase.storage
         .from("student-videos")
