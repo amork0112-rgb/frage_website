@@ -1,4 +1,3 @@
-//api/portal/home/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -144,38 +143,33 @@ export async function GET() {
       }
 
       // 3. Fetch Pending Video Homework Count
-      // We need to check for each student's class
+      // For each student, count submissions that are 'submitted' but not yet reviewed (no AI or teacher feedback)
       for (const sId of enrolledIds) {
-        const info = onboardingMap[sId];
-        const studentClassId = info?.class_id; // Use class_id
-        if (!studentClassId) continue;
-
-        // Fetch lessons for this class
-        // Step 1️⃣ 반에 할당된 Video Lesson 목록 가져오기
-        const { data: lessons } = await supabaseService
-          .from("v_lesson_video_status")
-          .select("lesson_plan_id")
-          .eq("class_id", studentClassId)
-          .eq("has_auto_video", true);
-
-        // Step 2️⃣ 학생이 제출한 lesson_plan_id 가져오기
-        const { data: submitted } = await supabaseService
+        const { data: submissionsWithFeedback, error } = await supabaseService
           .from("portal_video_submissions")
-          .select("lesson_plan_id")
-          .eq("student_id", sId);
+          .select(
+            `
+            assignment_key,
+            ai_evaluation:ai_video_evaluations!left(assignment_key),
+            teacher_feedback:portal_video_feedback!left(assignment_key)
+            `
+          )
+          .eq("student_id", sId)
+          .eq("status", "submitted");
 
-        // Step 3️⃣ 제출 안한 과제 계산
-        const submittedSet = new Set(
-          submitted?.map((s: any) => s.lesson_plan_id)
-        );
+        if (error) {
+          console.error(`❌ Error fetching submissions for student ${sId}:`, error);
+          continue;
+        }
 
-        const pending =
-          lessons?.filter(
-            (l: any) => !submittedSet.has(l.lesson_plan_id)
-          ).length ?? 0;
+        const unreviewedCount = (submissionsWithFeedback || []).filter((sub: any) => {
+            const aiEval = (sub.ai_evaluation as any)?.[0];
+            const teacherFeedback = (sub.teacher_feedback as any)?.[0];
+            return !aiEval && !teacherFeedback;
+        }).length;
 
-        if (pending > 0) {
-          pendingVideoMap[sId] = pending;
+        if (unreviewedCount > 0) {
+          pendingVideoMap[sId] = unreviewedCount;
         }
       }
     }
@@ -242,7 +236,8 @@ export async function GET() {
     console.log("[API/portal/home] Final students array before response:", students);
 
     return NextResponse.json({ ok: true, students }, { status: 200 });
-  } catch {
+  } catch(err) {
+    console.error("🔥 API/portal/home ERROR:", err);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 }

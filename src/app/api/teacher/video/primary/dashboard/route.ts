@@ -1,4 +1,3 @@
-//app/api/teacher/video/primary/dashboard/route.ts
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
@@ -32,120 +31,122 @@ export async function GET(req: Request) {
     if (!teacher) {
       return NextResponse.json({ error: "Forbidden: Teacher only" }, { status: 403 });
     }
-    
-    // 1. Get Teacher Info (for filtering classes if needed, or just allow all for now if role permits)
-    // Master teachers might see all, regular teachers see theirs.
-    // For simplicity, let's fetch all relevant lessons first, then filter by teacher access if needed.
-    // Or assume the UI handles filtering or we fetch only for teacher's classes.
-    
-    // Let's fetch lessons from v_lesson_video_status
-    // Filter: has_auto_video = true AND class_id IS NOT NULL (Primary only, no Private)
-    let query = supabaseService
-      .from("v_lesson_video_status")
-      .select("*")
-      .eq("has_auto_video", true)
-      .not("class_id", "is", null)
-      .order("lesson_date", { ascending: false });
 
-    // If regular teacher, filter by their classes?
-    // User didn't explicitly ask for teacher-specific filtering in this prompt, but it's good practice.
-    // However, existing video-dashboard logic filtered by teacher.
-    // Let's stick to the prompt's structural requirements first.
-    
-    const { data: lessons, error: lessonError } = await query;
-    if (lessonError) throw lessonError;
-
-    if (!lessons || lessons.length === 0) {
-      return NextResponse.json({ items: [] });
-    }
-
-    // 2. Fetch Students for these classes
-    // We need to map class_id (or class_name) to students.
-    // v_lesson_video_status has class_name.
-    // Students table has class_name.
-    const classNames = Array.from(new Set(lessons.map(l => l.class_name).filter(Boolean)));
-    
-    const { data: students, error: studentError } = await supabaseService
-      .from("v_students_full")
-      .select("student_id, student_name, english_first_name, class_name, campus")
-      .eq("status", "active")
-      .in("class_name", classNames);
-      
-    if (studentError) throw studentError;
-
-    // 3. Prepare Assignment Keys
-    // key = lesson_plan_id + "_" + student_id
-    const assignmentKeys: string[] = [];
-    const studentMap: Record<string, any[]> = {}; // class_name -> students
-
-    (students || []).forEach(s => {
-      if (!studentMap[s.class_name]) studentMap[s.class_name] = [];
-      studentMap[s.class_name].push(s);
-    });
-
-    lessons.forEach(l => {
-      const classStudents = studentMap[l.class_name] || [];
-      classStudents.forEach(s => {
-        assignmentKeys.push(`${l.lesson_plan_id}_${s.student_id}`);
-      });
-    });
-
-    if (assignmentKeys.length === 0) {
-       return NextResponse.json({ items: [] });
-    }
-
-    // 4. Fetch Submissions, Feedback, AI Evaluations
-    // Using assignment_key
-    const { data: submissions } = await supabaseService
+    // New logic: Fetch all submitted video submissions and join with relevant tables
+    const { data: submissions, error: submissionsError } = await supabaseService
       .from("portal_video_submissions")
-      .select("*")
-      .in("assignment_key", assignmentKeys);
+      .select(
+        `
+        assignment_key,
+        student_id,
+        video_path,
+        status,
+        created_at,
+        students:student_id (
+          id,
+          name,
+          english_name,
+          class_name,
+          campus
+        ),
+        ai_evaluation:ai_video_evaluations!left(
+          overall_message,
+          fluency,
+          volume,
+          speed,
+          pronunciation,
+          performance,
+          strengths,
+          focus_point,
+          next_try_guide,
+          parent_report_message,
+          average,
+          pronunciation_flags,
+          needs_teacher_review,
+          ai_confidence
+        ),
+        teacher_feedback:portal_video_feedback!left(
+          overall_message,
+          fluency,
+          volume,
+          speed,
+          pronunciation,
+          performance,
+          strengths,
+          focus_point,
+          next_try_guide,
+          parent_report_message,
+          teacher_name,
+          created_at
+        )
+        `
+      )
+      .eq("status", "submitted")
+      .order("created_at", { ascending: false });
 
-    const { data: feedbacks } = await supabaseService
-      .from("portal_video_feedback")
-      .select("*")
-      .in("assignment_key", assignmentKeys);
-      
-    const { data: aiEvals } = await supabaseService
-      .from("ai_video_evaluations")
-      .select("*")
-      .in("assignment_key", assignmentKeys);
+    if (submissionsError) {
+      console.error("❌ portal_video_submissions query failed", submissionsError);
+      return NextResponse.json(
+        { error: "Submission query error" },
+        { status: 500 }
+      );
+    }
 
-    // 5. Assemble Data
-    const subMap = new Map(submissions?.map(s => [s.assignment_key, s]));
-    const feedMap = new Map(feedbacks?.map(f => [f.assignment_key, f]));
-    const aiMap = new Map(aiEvals?.map(a => [a.assignment_key, a]));
+    // Transform data to the desired output format for the dashboard
+    const items = submissions.map(sub => {
+      const student = (sub.students as any)?.[0]; // Access the first student object if students is an array
+      const aiEvaluation = (sub.ai_evaluation as any)?.[0];
+      const teacherFeedback = (sub.teacher_feedback as any)?.[0];
 
-    const result = lessons.map(lesson => {
-      const classStudents = studentMap[lesson.class_name] || [];
-      
-      const studentData = classStudents.map(s => {
-        const key = `${lesson.lesson_plan_id}_${s.student_id}`;
-        return {
-          student_id: s.student_id,
-          student_name: s.student_name,
-          english_name: s.english_first_name,
-          submission: subMap.get(key) || null,
-          feedback: feedMap.get(key) || null,
-          ai_evaluation: aiMap.get(key) || null,
-          assignment_key: key
-        };
-      });
+      // Determine student name to display
+      const studentDisplayName = student?.english_name || student?.name || "Unknown Student";
 
       return {
-        lesson_plan_id: lesson.lesson_plan_id,
-        lesson_date: lesson.lesson_date,
-        class_name: lesson.class_name,
-        campus: lesson.campus,
-        title: `${lesson.book_id || ""} ${lesson.unit_no ? `Unit ${lesson.unit_no}` : ""}`,
-        students: studentData
+        assignment_key: sub.assignment_key,
+        student_id: sub.student_id,
+        student_name: studentDisplayName,
+        class_name: student?.class_name,
+        campus: student?.campus,
+        submission_status: sub.status,
+        video_path: sub.video_path,
+        submitted_at: sub.created_at,
+        ai_evaluation: aiEvaluation ? {
+          overall_message: aiEvaluation.overall_message,
+          fluency: aiEvaluation.fluency,
+          volume: aiEvaluation.volume,
+          speed: aiEvaluation.speed,
+          pronunciation: aiEvaluation.pronunciation,
+          performance: aiEvaluation.performance,
+          strengths: aiEvaluation.strengths,
+          focus_point: aiEvaluation.focus_point,
+          next_try_guide: aiEvaluation.next_try_guide,
+          parent_report_message: aiEvaluation.parent_report_message,
+          average: aiEvaluation.average,
+          pronunciation_flags: aiEvaluation.pronunciation_flags,
+          needs_teacher_review: aiEvaluation.needs_teacher_review,
+          ai_confidence: aiEvaluation.ai_confidence,
+        } : null,
+        teacher_feedback: teacherFeedback ? {
+          overall_message: teacherFeedback.overall_message,
+          fluency: teacherFeedback.fluency,
+          volume: teacherFeedback.volume,
+          speed: teacherFeedback.speed,
+          pronunciation: teacherFeedback.pronunciation,
+          performance: teacherFeedback.performance,
+          strengths: teacherFeedback.strengths,
+          focus_point: teacherFeedback.focus_point,
+          next_try_guide: teacherFeedback.next_try_guide,
+          parent_report_message: teacherFeedback.parent_report_message,
+          teacher_name: teacherFeedback.teacher_name,
+          created_at: teacherFeedback.created_at,
+        } : null,
       };
     });
 
-    return NextResponse.json({ items: result });
+    return NextResponse.json({ items });
 
   } catch (error: any) {
-    console.error("Primary Dashboard Error:", error);
+    console.error("Teacher Dashboard API Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

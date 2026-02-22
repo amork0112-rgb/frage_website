@@ -27,24 +27,7 @@ type AIEvaluation = {
   ai_confidence: number;
 };
 
-type Student = { id: string; name: string; englishName: string; className: string; campus: string; parentAccountId?: string };
-type Status = "미제출" | "제출 완료" | "피드백 완료";
-type Homework = {
-  id: string;
-  assignmentKey: string;
-  studentId: string;
-  name: string;
-  englishName: string;
-  className: string;
-  campus: string;
-  title: string;
-  dueDate: string;
-  status: Status;
-  videoUrl?: string | null;
-  aiEval?: AIEvaluation | null;
-};
-
-type Feedback = {
+type TeacherFeedback = {
   overall_message: string;
   fluency: number;
   volume: number;
@@ -59,6 +42,23 @@ type Feedback = {
   updatedAt: string;
 };
 
+type Status = "미제출" | "제출 완료" | "피드백 완료";
+type Homework = {
+  id: string; // assignment_key
+  assignmentKey: string;
+  studentId: string;
+  name: string;
+  englishName: string;
+  className: string;
+  campus: string;
+  title: string;
+  dueDate: string; // submission created_at
+  status: Status;
+  videoUrl?: string | null;
+  aiEval?: AIEvaluation | null;
+  teacherFeedback?: TeacherFeedback | null;
+};
+
 const strengthOptions = [
   "Clear pronunciation",
   "Steady pace",
@@ -67,7 +67,7 @@ const strengthOptions = [
   "Consistent eye tracking",
   "Well-managed punctuation pauses"
 ];
-const scoreDesc: Record<keyof Omit<Feedback, "overall_message" | "strengths" | "focus_point" | "next_try_guide" | "parent_report_message" | "average" | "updatedAt">, Record<number, string>> = {
+const scoreDesc: Record<keyof Omit<TeacherFeedback, "overall_message" | "strengths" | "focus_point" | "next_try_guide" | "parent_report_message" | "average" | "updatedAt">, Record<number, string>> = {
   fluency: {
     1: "Reads with frequent pauses",
     2: "Developing flow with some pauses",
@@ -107,11 +107,8 @@ const scoreDesc: Record<keyof Omit<Feedback, "overall_message" | "strengths" | "
 
 export default function TeacherVideoPage() {
   const BASE_CAMPUSES = ["International", "Andover", "Atheneum", "Platz"];
-  const [role, setRole] = useState<string | null>(null);
-  const [teacherClass, setTeacherClass] = useState<string | null>(null);
   const [teacherId, setTeacherId] = useState<string | null>(null);
   const [classCatalog, setClassCatalog] = useState<string[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
   const [items, setItems] = useState<Homework[]>([]);
   const [classFilter, setClassFilter] = useState<string>("All");
   const [campusFilter, setCampusFilter] = useState<string>("All");
@@ -119,7 +116,7 @@ export default function TeacherVideoPage() {
   const [statusFilter, setStatusFilter] = useState<"All" | Status>("All");
   const [query, setQuery] = useState("");
   const [openVideoFor, setOpenVideoFor] = useState<Homework | null>(null);
-  const [fb, setFb] = useState<Feedback>({
+  const [fb, setFb] = useState<TeacherFeedback>({
     overall_message: "",
     fluency: 0,
     volume: 0,
@@ -142,12 +139,6 @@ export default function TeacherVideoPage() {
   const overallMax = 140;
   const focusMax = 120;
   const guideMax = 120;
-
-  
-
-  
-
-  
 
   useEffect(() => {
     const load = async () => {
@@ -174,58 +165,79 @@ export default function TeacherVideoPage() {
         const res = await fetch("/api/teacher/video/primary/dashboard", { cache: "no-store" });
         const data = await res.json();
         
-        const lessons: any[] = Array.isArray(data?.items) ? data.items : [];
-        const flattened: Homework[] = lessons.flatMap(lesson => {
-          return (lesson.students || []).map((s: any) => {
-            const submission = s.submission || null;
-            const feedback = s.feedback || null;
-            const ai = s.ai_evaluation || null;
-            
-            let status: Status = "미제출";
-            if (submission && !feedback) status = "제출 완료";
-            if (submission && feedback) status = "피드백 완료";
-            
-            let videoUrl: string | null = null;
-            if (submission?.video_path) {
-              const pub = supabase.storage.from("student-videos").getPublicUrl(submission.video_path);
-              videoUrl = pub?.data?.publicUrl || null;
-            }
+        const submissions: any[] = Array.isArray(data?.items) ? data.items : [];
+        const flattened: Homework[] = submissions.map(sub => {
+          const student = (sub.students as any)?.[0];
+          const aiEvaluation = (sub.ai_evaluation as any)?.[0];
+          const teacherFeedback = (sub.teacher_feedback as any)?.[0];
 
-            return {
-              id: s.assignment_key,
-              assignmentKey: s.assignment_key,
-              studentId: s.student_id,
-              name: s.student_name,
-              englishName: s.english_name,
-              className: lesson.class_name,
-              campus: lesson.campus,
-              title: lesson.title,
-              dueDate: lesson.lesson_date,
-              status,
-              videoUrl,
-              aiEval: ai
-                ? {
-                    scores: ai.scores,
-                    average: ai.average,
-                    pronunciation_flags: ai.pronunciation_flags || [],
-                    teacher_feedback_draft: ai.teacher_feedback_draft || {
-                      overall_message: "",
-                      strengths: [],
-                      focus_point: "",
-                      next_try_guide: ""
-                    },
-                    parent_report_message: ai.parent_report_message || "",
-                    needs_teacher_review: !!ai.needs_teacher_review,
-                    ai_confidence: typeof ai.ai_confidence === "number" ? ai.ai_confidence : 0
-                  }
-                : null
-            };
-          });
+          let status: Status = "미제출";
+          if (sub.status === "submitted" && !teacherFeedback) status = "제출 완료";
+          if (sub.status === "submitted" && teacherFeedback) status = "피드백 완료";
+          
+          let videoUrl: string | null = null;
+          if (sub.video_path) {
+            const pub = supabase.storage.from("student-videos").getPublicUrl(sub.video_path);
+            videoUrl = pub?.data?.publicUrl || null;
+          }
+
+          return {
+            id: sub.assignment_key,
+            assignmentKey: sub.assignment_key,
+            studentId: student?.id,
+            name: student?.name,
+            englishName: student?.english_name,
+            className: student?.class_name,
+            campus: student?.campus,
+            title: sub.title || "Video Assignment", // Assuming a default title or fetching from somewhere else
+            dueDate: sub.created_at, // Using created_at as dueDate for now
+            status,
+            videoUrl,
+            aiEval: aiEvaluation
+              ? {
+                  scores: {
+                    fluency: aiEvaluation.fluency_score,
+                    volume: aiEvaluation.volume_score,
+                    speed: aiEvaluation.speed_score,
+                    pronunciation: aiEvaluation.pronunciation_score,
+                    performance: aiEvaluation.performance_score,
+                  },
+                  average: aiEvaluation.average_score,
+                  pronunciation_flags: aiEvaluation.pronunciation_flags || [],
+                  teacher_feedback_draft: {
+                    overall_message: aiEvaluation.overall_message || "",
+                    strengths: aiEvaluation.strengths || [],
+                    focus_point: aiEvaluation.focus_point || "",
+                    next_try_guide: aiEvaluation.next_try_guide || ""
+                  },
+                  parent_report_message: aiEvaluation.parent_report_message || "",
+                  needs_teacher_review: !!aiEvaluation.needs_teacher_review,
+                  ai_confidence: typeof aiEvaluation.ai_confidence === "number" ? aiEvaluation.ai_confidence : 0
+                }
+              : null,
+            teacherFeedback: teacherFeedback
+              ? {
+                  overall_message: teacherFeedback.overall_message,
+                  fluency: teacherFeedback.fluency,
+                  volume: teacherFeedback.volume,
+                  speed: teacherFeedback.speed,
+                  pronunciation: teacherFeedback.pronunciation,
+                  performance: teacherFeedback.performance,
+                  strengths: teacherFeedback.strengths,
+                  focus_point: teacherFeedback.focus_point,
+                  next_try_guide: teacherFeedback.next_try_guide,
+                  parent_report_message: teacherFeedback.parent_report_message,
+                  average: teacherFeedback.average,
+                  updatedAt: teacherFeedback.updated_at
+                }
+              : null,
+          };
         });
         setItems(flattened);
         const classes = Array.from(new Set(flattened.map(i => i.className)));
         setClassCatalog(classes);
-      } catch {
+      } catch(e) {
+        console.error("Failed to load dashboard data", e);
         setItems([]);
         setClassCatalog([]);
       }
@@ -233,13 +245,12 @@ export default function TeacherVideoPage() {
     load();
   }, []);
 
-  // Removed playback speed controls per requirement
-
   const classes = useMemo(() => {
-    const base = new Set<string>([...classCatalog, ...items.map(i => i.className)]);
+    const base = new Set<string>(items.map(i => i.className));
     const list = ["All", ...Array.from(base)];
     return list;
-  }, [items, classCatalog]);
+  }, [items]);
+
   const campuses = useMemo(() => {
     const base = new Set<string>([...BASE_CAMPUSES, ...items.map(i => i.campus)]);
     return ["All", ...Array.from(base)];
@@ -251,17 +262,25 @@ export default function TeacherVideoPage() {
       if (dateFilter === "Missing") return i.status === "미제출";
 
       const today = new Date();
-      const dd = new Date(i.dueDate);
+      const itemDate = new Date(i.dueDate);
+      
+      // Normalize dates to start of day for comparison
+      today.setHours(0, 0, 0, 0);
+      itemDate.setHours(0, 0, 0, 0);
+
       if (dateFilter === "Today") {
-        const s = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-        return i.dueDate === s;
+        return itemDate.getTime() === today.getTime();
       }
       if (dateFilter === "Week") {
-        const diff = Math.floor((dd.getTime() - today.getTime()) / 86400000);
-        return diff >= 0 && diff <= 6;
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
+        
+        return itemDate >= startOfWeek && itemDate <= endOfWeek;
       }
       if (dateFilter === "Overdue") {
-        return dd.getTime() < today.getTime();
+        return itemDate < today && i.status !== "피드백 완료";
       }
       return true;
     };
@@ -278,17 +297,17 @@ export default function TeacherVideoPage() {
             i.title.toLowerCase().includes(query.toLowerCase())
       ))
       .sort((a, b) => {
-        // Priority 1: Needs teacher review
-        const aNeedsReview = a.aiEval?.needs_teacher_review ? 1 : 0;
-        const bNeedsReview = b.aiEval?.needs_teacher_review ? 1 : 0;
+        // Priority 1: Needs teacher review (if AI eval exists and needs review)
+        const aNeedsReview = a.aiEval?.needs_teacher_review && !a.teacherFeedback ? 1 : 0;
+        const bNeedsReview = b.aiEval?.needs_teacher_review && !b.teacherFeedback ? 1 : 0;
         if (aNeedsReview !== bNeedsReview) return bNeedsReview - aNeedsReview;
 
         // Priority 2: Submitted but no feedback yet
-        const aSubmitted = a.status === "제출 완료" ? 1 : 0;
-        const bSubmitted = b.status === "제출 완료" ? 1 : 0;
-        if (aSubmitted !== bSubmitted) return bSubmitted - aSubmitted;
+        const aSubmittedNoFeedback = a.status === "제출 완료" && !a.teacherFeedback ? 1 : 0;
+        const bSubmittedNoFeedback = b.status === "제출 완료" && !b.teacherFeedback ? 1 : 0;
+        if (aSubmittedNoFeedback !== bSubmittedNoFeedback) return bSubmittedNoFeedback - aSubmittedNoFeedback;
 
-        // Priority 3: Date (newest first)
+        // Priority 3: Date (newest first based on submission date)
         return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
       });
   }, [items, classFilter, campusFilter, dateFilter, statusFilter, query]);
@@ -297,7 +316,7 @@ export default function TeacherVideoPage() {
     setOpenVideoFor(hw);
     
     // Default empty state
-    const emptyState: Feedback = {
+    const emptyState: TeacherFeedback = {
       overall_message: "",
       fluency: 0,
       volume: 0,
@@ -328,20 +347,13 @@ export default function TeacherVideoPage() {
       emptyState.parent_report_message = hw.aiEval.parent_report_message;
     }
 
-    setFb(emptyState);
+    // If previous human feedback exists, it overrides AI draft
+    if (hw.teacherFeedback) {
+      setFb(hw.teacherFeedback);
+    } else {
+      setFb(emptyState);
+    }
     setAttachments([]);
-    
-    try {
-      const url = `/api/teacher/video/feedback?assignmentKey=${encodeURIComponent(hw.assignmentKey)}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.item) {
-          // If previous human feedback exists, it overrides AI draft
-          setFb(data.item);
-        }
-      }
-    } catch {}
   };
 
   const canSave = useMemo(() => {
@@ -372,7 +384,11 @@ export default function TeacherVideoPage() {
         })
       });
       if (!res.ok) throw new Error("save_failed");
-      const list = items.map(i => (i.id === openVideoFor.id ? { ...i, status: "피드백 완료" as Status } : i));
+      const newTeacherFeedback: TeacherFeedback = {
+        ...payload,
+        updatedAt: new Date().toISOString(),
+      };
+      const list = items.map(i => (i.id === openVideoFor.id ? { ...i, status: "피드백 완료" as Status, teacherFeedback: newTeacherFeedback } : i));
       setItems(list);
       setSaveToast("저장되었습니다.");
     } catch {
@@ -434,7 +450,8 @@ export default function TeacherVideoPage() {
     if (!openVideoFor) return;
     const f = e.target.files?.[0];
     if (!f) return;
-    setItems(prev => prev.map(i => (i.id === openVideoFor.id ? { ...i, status: "제출 완료" as Status } : i)));
+    // This part might need to be removed or adjusted depending on the new flow
+    // setItems(prev => prev.map(i => (i.id === openVideoFor.id ? { ...i, status: "제출 완료" as Status } : i)));
   };
 
   const enterFullscreen = () => {
@@ -551,261 +568,240 @@ export default function TeacherVideoPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(hw => (
-          <div key={hw.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-bold text-slate-900">
-                    {hw.name} <span className="text-xs font-medium text-slate-500">({hw.englishName})</span>
-                  </div>
-                  <div className="text-xs font-bold text-slate-500">{hw.className} • {hw.campus}</div>
-                </div>
-                <div className="flex gap-2">
-                  {hw.aiEval && (
-                    <div className={`px-2.5 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1 ${
-                      hw.aiEval.needs_teacher_review
-                        ? "bg-orange-100 text-orange-700 border-orange-200"
-                        : "bg-indigo-100 text-indigo-700 border-indigo-200"
-                    }`}>
-                      {hw.aiEval.needs_teacher_review ? (
-                        <>
-                          <AlertCircle className="w-3 h-3" />
-                          교사 확인 필요
-                        </>
-                      ) : (
-                        <>
-                          <Bot className="w-3 h-3" />
-                          AI 완료
-                        </>
-                      )}
-                    </div>
-                  )}
-                  <div className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                    hw.status === "미제출"
-                      ? "bg-slate-100 text-slate-600 border-slate-200"
-                      : hw.status === "제출 완료"
-                      ? "bg-blue-100 text-blue-700 border-blue-200"
-                      : "bg-green-100 text-green-700 border-green-200"
-                  }`}>
-                    {hw.status}
-                  </div>
-                </div>
+          <div key={hw.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-bold text-slate-500">{hw.campus} - {hw.className}</div>
+                <div className="text-xs font-bold text-slate-500">{new Date(hw.dueDate).toLocaleDateString()}</div>
               </div>
-              <div className="mt-2 text-sm text-slate-700">{hw.title}</div>
-              {new Date() < new Date(hw.dueDate) ? (
-                <span className="text-[10px] font-bold text-indigo-600">Active</span>
-              ) : (
-                <span className="text-[10px] font-bold text-slate-400">Closed</span>
-              )}
-              <div className="mt-1 text-xs text-slate-500">Due {hw.dueDate}</div>
-
-              <div className="mt-4 flex items-center gap-2">
-                <button
-                  onClick={() => startFeedback(hw)}
-                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-bold bg-frage-navy text-white hover:bg-frage-blue"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Write Feedback
-                </button>
+              <h3 className="text-lg font-black text-slate-900 mb-1">{hw.englishName || hw.name}</h3>
+              <p className="text-sm text-slate-600 mb-4">{hw.title}</p>
+              
+              <div className="flex items-center gap-2">
+                {hw.status === "미제출" && (
+                  <span className="inline-flex items-center gap-1 text-sm font-bold text-red-500 bg-red-50 rounded-full px-3 py-1">
+                    <X className="w-4 h-4" /> Missing
+                  </span>
+                )}
+                {hw.status === "제출 완료" && (
+                  <span className="inline-flex items-center gap-1 text-sm font-bold text-yellow-500 bg-yellow-50 rounded-full px-3 py-1">
+                    <CheckCircle className="w-4 h-4" /> Submitted
+                  </span>
+                )}
+                {hw.status === "피드백 완료" && (
+                  <span className="inline-flex items-center gap-1 text-sm font-bold text-green-500 bg-green-50 rounded-full px-3 py-1">
+                    <CheckCircle className="w-4 h-4" /> Feedback Done
+                  </span>
+                )}
+                {hw.aiEval?.needs_teacher_review && (
+                  <span className="inline-flex items-center gap-1 text-sm font-bold text-blue-500 bg-blue-50 rounded-full px-3 py-1">
+                    <Bot className="w-4 h-4" /> AI Review
+                  </span>
+                )}
+                {hw.aiEval && typeof hw.aiEval.ai_confidence === "number" && hw.aiEval.ai_confidence < 0.7 && (
+                  <span className="inline-flex items-center gap-1 text-sm font-bold text-purple-500 bg-purple-50 rounded-full px-3 py-1">
+                    <AlertCircle className="w-4 h-4" /> Low AI Confidence
+                  </span>
+                )}
               </div>
+            </div>
+            <div className="border-t border-slate-100 flex">
+              <button
+                onClick={() => startFeedback(hw)}
+                className="flex-1 text-center py-3 text-sm font-bold text-frage-blue hover:bg-frage-blue hover:text-white transition-colors"
+              >
+                View & Assess
+              </button>
             </div>
           </div>
         ))}
       </div>
 
       {openVideoFor && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto">
-          <div className="fixed inset-0 bg-black/40" onClick={() => setOpenVideoFor(null)} />
-          <div className="relative mt-6 mb-6 w-[92vw] max-w-[900px] bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-            <div className="p-4 flex items-center justify-between border-b border-slate-100">
-              <div className="font-bold text-slate-900 text-sm">
-                {openVideoFor.name} <span className="text-xs font-medium text-slate-500">({openVideoFor.englishName})</span> • {openVideoFor.title}
-              </div>
-              <button onClick={() => setOpenVideoFor(null)} className="p-1.5 rounded-lg hover:bg-slate-100">
-                <X className="w-5 h-5 text-slate-400" />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center p-5 border-b border-slate-200">
+              <h2 className="text-xl font-black text-slate-900">
+                Assessment for {openVideoFor.englishName || openVideoFor.name} - {openVideoFor.title}
+              </h2>
+              <button onClick={() => setOpenVideoFor(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="p-4 space-y-4 max-h-[90vh] overflow-y-auto">
-              <div className="aspect-video bg-black rounded-xl overflow-hidden">
+            <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-2">
+              <div className="p-5 border-b lg:border-b-0 lg:border-r border-slate-200">
                 {openVideoFor.videoUrl ? (
-                  <video ref={videoRef} src={openVideoFor.videoUrl} controls className="w-full h-full object-contain bg-black" playsInline />
+                  <div className="mb-4">
+                    <video ref={videoRef} src={openVideoFor.videoUrl} controls className="w-full rounded-xl bg-black" />
+                    <button onClick={enterFullscreen} className="mt-2 text-frage-blue text-sm">Full Screen</button>
+                  </div>
                 ) : (
-                  <div className="text-white text-sm flex items-center justify-center h-full">No video submitted</div>
+                  <div className="bg-slate-100 h-60 flex items-center justify-center rounded-xl mb-4">
+                    <p className="text-slate-500">No video submitted.</p>
+                  </div>
                 )}
-              </div>
-              
-              {openVideoFor.aiEval?.pronunciation_flags && openVideoFor.aiEval.pronunciation_flags.length > 0 && (
-                <div className="bg-orange-50 rounded-xl p-3 border border-orange-100">
-                  <div className="text-xs font-bold text-orange-800 mb-2 flex items-center gap-2">
-                    <AlertCircle className="w-3 h-3" />
-                    Pronunciation Check
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {openVideoFor.aiEval.pronunciation_flags.map((flag, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => jumpTo(flag.time)}
-                        className="px-2 py-1 bg-white border border-orange-200 rounded-lg text-xs font-medium text-orange-700 hover:bg-orange-100 transition-colors flex items-center gap-1"
-                      >
-                        <span>{flag.word}</span>
-                        <span className="opacity-60 text-[10px]">{Math.floor(flag.time / 60)}:{String(Math.floor(flag.time % 60)).padStart(2, "0")}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-4">
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 mb-1">[1] Overall Message</div>
-                  <input
+                {openVideoFor.aiEval?.pronunciation_flags && openVideoFor.aiEval.pronunciation_flags.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="font-bold text-slate-700 mb-2">Pronunciation Flags (AI)</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {openVideoFor.aiEval.pronunciation_flags.map((flag, idx) => (
+                        <span
+                          key={idx}
+                          onClick={() => jumpTo(flag.time)}
+                          className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-red-200"
+                        >
+                          {flag.word} ({flag.time.toFixed(1)}s)
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {openVideoFor.aiEval && (
+                  <div className="p-4 bg-blue-50 rounded-lg mb-4">
+                    <h4 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
+                      <Bot className="w-5 h-5" /> AI Draft Evaluation
+                      {openVideoFor.aiEval.needs_teacher_review && (
+                        <span className="ml-2 inline-flex items-center gap-1 text-xs font-bold text-blue-700 bg-blue-100 rounded-full px-2 py-0.5">
+                          Teacher Review Needed
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-sm text-blue-700 mb-2">"{openVideoFor.aiEval.teacher_feedback_draft.overall_message}"</p>
+                    <p className="text-xs text-blue-600">Confidence: {(openVideoFor.aiEval.ai_confidence * 100).toFixed(0)}%</p>
+                    <div className="mt-3 flex gap-2">
+                      <select
+                        value={aiMode}
+                        onChange={(e) => setAiMode(e.target.value as any)}
+                        className="px-3 py-1 rounded-lg border border-blue-200 text-sm bg-white text-blue-800"
+                      >
+                        <option value="gentle">Gentle</option>
+                        <option value="balanced">Balanced</option>
+                        <option value="direct">Direct</option>
+                      </select>
+                      <button
+                        onClick={draftAI}
+                        disabled={isGeneratingAI}
+                        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                      >
+                        {isGeneratingAI ? "Generating..." : "Regenerate AI Draft"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                <h3 className="font-bold text-slate-700 mb-3">Teacher Feedback</h3>
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-slate-500 mb-1">Overall Message ({fb.overall_message.length}/{overallMax})</label>
+                  <textarea
                     value={fb.overall_message}
-                    onChange={(e) => setFb(prev => ({ ...prev, overall_message: e.target.value.slice(0, overallMax) }))}
-                    placeholder="This was a confident and well-paced reading."
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                    onChange={(e) => setFb(prev => ({ ...prev, overall_message: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                    rows={3}
+                    maxLength={overallMax}
                   />
-                  <div className="text-[11px] text-slate-400 mt-1">{fb.overall_message.length}/{overallMax}</div>
                 </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 mb-2">[2] Score Table</div>
-                  {(["fluency", "volume", "speed", "pronunciation", "performance"] as const).map((k) => (
-                    <div key={k} className="flex items-center justify-between gap-3 py-2">
-                      <div className="w-28 text-xs font-bold text-slate-700 capitalize">{k}</div>
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map(n => (
-                          <button
-                            key={n}
-                            onClick={() => setFb(prev => ({ ...prev, [k]: n }))}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
-                              fb[k] === n ? "bg-frage-navy text-white border-frage-navy" : "bg-white text-slate-700 border-slate-200"
-                            }`}
-                          >
-                            {n}
-                          </button>
+
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  {Object.entries(scoreDesc).map(([key, descriptions]) => (
+                    <div key={key}>
+                      <label className="block text-xs font-bold text-slate-500 mb-1 capitalize">
+                        {key} ({fb[key as keyof Omit<TeacherFeedback, "overall_message" | "strengths" | "focus_point" | "next_try_guide" | "parent_report_message" | "average" | "updatedAt">]})
+                      </label>
+                      <select
+                        value={fb[key as keyof Omit<TeacherFeedback, "overall_message" | "strengths" | "focus_point" | "next_try_guide" | "parent_report_message" | "average" | "updatedAt">]}
+                        onChange={(e) => setFb(prev => ({ ...prev, [key]: Number(e.target.value) }))}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                      >
+                        {[1, 2, 3, 4, 5].map(score => (
+                          <option key={score} value={score}>
+                            {score} - {descriptions[score]}
+                          </option>
                         ))}
-                      </div>
-                      <div className="flex-1 text-right text-xs text-slate-500">{fb[k] ? scoreDesc[k][fb[k]] : ""}</div>
+                      </select>
                     </div>
                   ))}
                 </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 mb-1">[3] Strength Highlight</div>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {strengthOptions.map(opt => {
-                      const on = fb.strengths.includes(opt);
-                      return (
-                        <button
-                          key={opt}
-                          onClick={() =>
-                            setFb(prev => ({
-                              ...prev,
-                              strengths: on ? prev.strengths.filter(s => s !== opt) : [...prev.strengths, opt].slice(0, 2)
-                            }))
-                          }
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
-                            on ? "bg-green-100 text-green-700 border-green-200" : "bg-white text-slate-700 border-slate-200"
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <input
-                    placeholder="Custom input"
-                    value={fb.strengths.find(s => !strengthOptions.includes(s)) || ""}
-                    onChange={(e) =>
-                      setFb(prev => {
-                        const fixed = prev.strengths.filter(s => strengthOptions.includes(s));
-                        const custom = e.target.value.trim();
-                        return { ...prev, strengths: custom ? [...fixed, custom].slice(0, 2) : fixed };
-                      })
-                    }
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-                  />
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 mb-1">[4] One Focus Point</div>
-                  <input
-                    value={fb.focus_point}
-                    onChange={(e) => setFb(prev => ({ ...prev, focus_point: e.target.value.slice(0, focusMax) }))}
-                    placeholder="Focus on slowing down slightly at the end of sentences."
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-                  />
-                  <div className="text-[11px] text-slate-400 mt-1">{fb.focus_point.length}/{focusMax}</div>
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 mb-1">[5] Next Try Guide</div>
-                  <input
-                    value={fb.next_try_guide}
-                    onChange={(e) => setFb(prev => ({ ...prev, next_try_guide: e.target.value.slice(0, guideMax) }))}
-                    placeholder="For the next video, pause for one second at each period."
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
-                  />
-                  <div className="text-[11px] text-slate-400 mt-1">{fb.next_try_guide.length}/{guideMax}</div>
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 mb-1">[6] Parent Report Message</div>
-                  <textarea
-                    value={fb.parent_report_message}
-                    onChange={(e) => setFb(prev => ({ ...prev, parent_report_message: e.target.value }))}
-                    placeholder="Message for parents (no AI mentions)"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white h-24 resize-none"
-                  />
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 mb-1">Attachments (optional)</div>
-                  <input type="file" multiple accept="image/*" onChange={onAttachFiles} className="text-xs" />
-                  {attachments.length > 0 && (
-                    <div className="grid grid-cols-3 gap-2 mt-2">
-                      {attachments.map((a, i) => (
-                        <div key={i} className="relative w-full aspect-square rounded-lg overflow-hidden border border-slate-200">
-                          <img src={a.url} alt={a.name} className="w-full h-full object-cover" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
                 
-                {/* AI Mode Selector */}
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 mb-2">AI Draft Mode</div>
-                  <div className="flex bg-slate-100 rounded-lg p-1">
-                    {(["gentle", "balanced", "direct"] as const).map((m) => (
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-slate-500 mb-1">Strengths (Select up to 3)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {strengthOptions.map((s) => (
                       <button
-                        key={m}
-                        onClick={() => setAiMode(m)}
-                        className={`flex-1 py-1.5 text-xs font-bold rounded-md capitalize transition-colors ${
-                          aiMode === m ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                        key={s}
+                        onClick={() => {
+                          setFb(prev => {
+                            const newStrengths = prev.strengths.includes(s)
+                              ? prev.strengths.filter(item => item !== s)
+                              : [...prev.strengths, s].slice(0, 3);
+                            return { ...prev, strengths: newStrengths };
+                          });
+                        }}
+                        className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                          fb.strengths.includes(s)
+                            ? "bg-green-500 text-white"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                         }`}
                       >
-                        {m}
+                        {s}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={draftAI}
-                    disabled={isGeneratingAI}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-bold ${
-                      isGeneratingAI ? "bg-slate-300 text-slate-500 cursor-not-allowed" : "bg-slate-900 text-white"
-                    }`}
-                  >
-                    {isGeneratingAI ? "Generating..." : "AI Draft"}
-                  </button>
-                  <button
-                    onClick={saveFeedback}
-                    disabled={!canSave || saving}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-bold ${
-                      canSave && !saving ? "bg-frage-navy text-white" : "bg-slate-200 text-slate-500"
-                    }`}
-                  >
-                    {saving ? "Saving..." : "Save & Notify"}
-                  </button>
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-slate-500 mb-1">Focus Point ({fb.focus_point.length}/{focusMax})</label>
+                  <textarea
+                    value={fb.focus_point}
+                    onChange={(e) => setFb(prev => ({ ...prev, focus_point: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                    rows={2}
+                    maxLength={focusMax}
+                  />
                 </div>
-                {saveToast && <div className="text-xs text-slate-600">{saveToast}</div>}
+
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-slate-500 mb-1">Next Try Guide ({fb.next_try_guide.length}/{guideMax})</label>
+                  <textarea
+                    value={fb.next_try_guide}
+                    onChange={(e) => setFb(prev => ({ ...prev, next_try_guide: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                    rows={2}
+                    maxLength={guideMax}
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-slate-500 mb-1">Parent Report Message</label>
+                  <textarea
+                    value={fb.parent_report_message}
+                    onChange={(e) => setFb(prev => ({ ...prev, parent_report_message: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-slate-500 mb-1">Attachments (Optional)</label>
+                  <input type="file" multiple onChange={onAttachFiles} className="text-sm" />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {attachments.map((file, idx) => (
+                      <span key={idx} className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm">
+                        {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={saveFeedback}
+                  disabled={!canSave || saving}
+                  className="w-full px-4 py-3 bg-frage-blue text-white font-bold rounded-lg hover:bg-frage-blue-dark disabled:opacity-50 transition-colors"
+                >
+                  {saving ? "Saving..." : "Save Feedback"}
+                </button>
+                {saveToast && <p className="text-center mt-2 text-sm text-green-600">{saveToast}</p>}
               </div>
             </div>
           </div>
