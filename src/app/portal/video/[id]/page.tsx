@@ -248,6 +248,28 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
           throw updErr;
         }
         console.log("📹 [VIDEO/[id]]", "updated submission");
+
+        try {
+          const aiRes = await fetch("/api/ai-evaluation/generate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              assignmentKey: assignmentKey,
+              studentId: studentIdForSubmission
+            })
+          });
+
+          if (!aiRes.ok) {
+            const errText = await aiRes.text();
+            console.warn("⚠️ AI evaluation failed:", errText);
+          } else {
+            console.log("✅ AI evaluation triggered successfully");
+          }
+        } catch (e) {
+          console.warn("⚠️ AI evaluation trigger network error:", e);
+        }
       } else {
         const { error: insErr } = await supabase
           .from("portal_video_submissions")
@@ -264,6 +286,28 @@ export default function VideoHomeworkPage({ params }: { params: { id: string } }
           throw insErr;
         }
         console.log("📹 [VIDEO/[id]]", "inserted submission");
+
+        try {
+          const aiRes = await fetch("/api/ai-evaluation/generate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              assignmentKey: assignmentKey,
+              studentId: studentIdForSubmission
+            })
+          });
+
+          if (!aiRes.ok) {
+            const errText = await aiRes.text();
+            console.warn("⚠️ AI evaluation failed:", errText);
+          } else {
+            console.log("✅ AI evaluation triggered successfully");
+          }
+        } catch (e) {
+          console.warn("⚠️ AI evaluation trigger network error:", e);
+        }
       }
 
       // signed url
